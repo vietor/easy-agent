@@ -1,0 +1,25 @@
+import { execSync } from "node:child_process";
+import type { Tool } from "../types.js";
+
+export const bash: Tool = {
+  name: "bash",
+  description: "Execute a shell command and return combined stdout and stderr.",
+  parameters: {
+    type: "object",
+    properties: { command: { type: "string" } },
+    required: ["command"],
+  },
+  async execute(args) {
+    const command = args.command as string;
+    try {
+      const out = execSync(command, {
+        encoding: "utf-8",
+        maxBuffer: 1024 * 1024 * 10,
+      });
+      return out || "(no output)";
+    } catch (e) {
+      const err = e as { stdout?: string; stderr?: string; message?: string };
+      return (err.stdout || "") + (err.stderr || "") + (err.message || "");
+    }
+  },
+};
