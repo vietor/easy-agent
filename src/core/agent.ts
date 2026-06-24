@@ -1,6 +1,6 @@
-import type { LLMClient } from "./llm/client.js";
+import type { LLMClient } from "../llm/client.js";
 import type { Session } from "./session.js";
-import type { ToolRegistry } from "./tools/registry.js";
+import type { ToolRegistry } from "../tools/registry.js";
 
 export class Agent {
   constructor(

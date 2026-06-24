@@ -1,8 +1,8 @@
 import * as readline from "node:readline";
 import { loadConfig } from "./config.js";
 import { LLMClient } from "./llm/client.js";
-import { Session } from "./session.js";
-import { Agent } from "./agent.js";
+import { Session } from "./core/session.js";
+import { Agent } from "./core/agent.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { bashTool } from "./tools/builtin/bash.js";
 import { readTool } from "./tools/builtin/read.js";

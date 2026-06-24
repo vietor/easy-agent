@@ -1,4 +1,4 @@
-import type { Message } from "./llm/types.js";
+import type { Message } from "../llm/types.js";
 
 export class Session {
   messages: Message[] = [];
