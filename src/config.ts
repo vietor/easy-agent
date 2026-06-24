@@ -12,10 +12,11 @@ export function loadConfig(): Config {
   const path = join(homedir(), ".easy-agent.json");
   const raw = readFileSync(path, "utf-8");
   const cfg = JSON.parse(raw) as Partial<Config>;
+  if (!cfg.baseUrl) throw new Error("baseUrl missing in ~/.easy-agent.json");
   if (!cfg.apiKey) throw new Error("apiKey missing in ~/.easy-agent.json");
   if (!cfg.model) throw new Error("model missing in ~/.easy-agent.json");
   return {
-    baseUrl: cfg.baseUrl ?? "",
+    baseUrl: cfg.baseUrl,
     apiKey: cfg.apiKey,
     model: cfg.model,
   };
