@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Tool } from "../types.js";
 
-export const read: Tool = {
+export const readTool: Tool = {
   name: "read",
   description: "Read a file's text contents.",
   parameters: {

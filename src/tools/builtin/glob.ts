@@ -33,7 +33,7 @@ function toRegex(pattern: string): RegExp {
   return new RegExp("^" + re + "$");
 }
 
-export const glob: Tool = {
+export const globTool: Tool = {
   name: "glob",
   description: "Find files under a directory matching a glob pattern (e.g. **/*.ts).",
   parameters: {

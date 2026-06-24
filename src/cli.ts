@@ -4,18 +4,18 @@ import { LLMClient } from "./llm/client.js";
 import { Session } from "./session.js";
 import { Agent } from "./agent.js";
 import { ToolRegistry } from "./tools/registry.js";
-import { bash } from "./tools/builtin/bash.js";
-import { read } from "./tools/builtin/read.js";
-import { write } from "./tools/builtin/write.js";
-import { edit } from "./tools/builtin/edit.js";
-import { glob } from "./tools/builtin/glob.js";
-import { grep } from "./tools/builtin/grep.js";
+import { bashTool } from "./tools/builtin/bash.js";
+import { readTool } from "./tools/builtin/read.js";
+import { writeTool } from "./tools/builtin/write.js";
+import { editTool } from "./tools/builtin/edit.js";
+import { globTool } from "./tools/builtin/glob.js";
+import { grepTool } from "./tools/builtin/grep.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
   const llm = new LLMClient(config);
   const tools = new ToolRegistry();
-  for (const t of [bash, read, write, edit, glob, grep]) tools.register(t);
+  for (const t of [bashTool, readTool, writeTool, editTool, globTool, grepTool]) tools.register(t);
 
   const system =
     `You are easy-agent, an autonomous coding assistant.\n` +
