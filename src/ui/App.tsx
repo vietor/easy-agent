@@ -45,14 +45,14 @@ function Entry({ entry }: { entry: LogEntry }) {
     case "tool":
       return (
         <Box flexDirection="column">
-          <Text color="yellow">{`  ⏺ ${entry.name}${argSummary(entry.args)}${entry.result === null ? " …" : ""}`}</Text>
+          <Text color="yellow">{`  ● ${entry.name}${argSummary(entry.args)}${entry.result === null ? " …" : ""}`}</Text>
           {entry.result !== null && preview(entry.result) ? (
             <Text color="gray">{`    ${preview(entry.result)}`}</Text>
           ) : null}
         </Box>
       );
     case "error":
-      return <Text color="red">{`✖ ${entry.text}`}</Text>;
+      return <Text color="red">{`✗ ${entry.text}`}</Text>;
   }
 }
 

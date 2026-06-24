@@ -26,8 +26,10 @@ function walk(dir: string, root: string, out: string[]): void {
 function toRegex(pattern: string): RegExp {
   const re = pattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*\*\//g, "<<DS>>")
     .replace(/\*\*/g, "<<G>>")
     .replace(/\*/g, "[^/]*")
+    .replace(/<<DS>>/g, "(?:.*/)?")
     .replace(/<<G>>/g, ".*")
     .replace(/\?/g, "[^/]");
   return new RegExp("^" + re + "$");
@@ -35,21 +37,23 @@ function toRegex(pattern: string): RegExp {
 
 export const globTool: Tool = {
   name: "glob",
-  description: "Find files under a directory matching a glob pattern (e.g. **/*.ts).",
+  description: "List all files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Omit pattern to list every file.",
   parameters: {
     type: "object",
     properties: {
-      pattern: { type: "string" },
+      pattern: { type: "string", description: "glob pattern; omit to list all files" },
       path: { type: "string", description: "root directory, defaults to cwd" },
     },
-    required: ["pattern"],
+    required: [],
   },
   async execute(args) {
     const root = (args.path as string) || ".";
     const absRoot = isAbsolute(root) ? root : join(process.cwd(), root);
     const files: string[] = [];
     walk(absRoot, absRoot, files);
-    const re = toRegex(args.pattern as string);
+    const pattern = args.pattern as string;
+    if (!pattern) return files.length ? files.join("\n") : "(no matches)";
+    const re = toRegex(pattern);
     const matched = files.filter((f) => re.test(f));
     return matched.length ? matched.join("\n") : "(no matches)";
   },
