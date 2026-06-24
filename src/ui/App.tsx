@@ -123,7 +123,7 @@ export function App({ agent }: { agent: Agent }) {
     <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text color="cyan" bold>
-          easy-agent
+          Easy Agent
         </Text>
         <Text dimColor> ready · type “exit” to quit</Text>
       </Box>

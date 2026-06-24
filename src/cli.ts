@@ -15,13 +15,15 @@ function main(): void {
   const config = loadConfig();
   const llm = new LLMClient(config);
   const tools = new ToolRegistry();
-  for (const t of [bashTool, readTool, writeTool, editTool, globTool, grepTool]) tools.register(t);
+  for (const t of [bashTool, readTool, writeTool, editTool, globTool, grepTool])
+    tools.register(t);
 
-  const system =
-    `You are easy-agent, an autonomous coding assistant.\n` +
-    `Working directory: ${process.cwd()}\n` +
-    `Use the provided tools to inspect and modify files and run commands.\n` +
-    `Be concise. Prefer tools over asking the user when a task is actionable.`;
+  const system = [
+    "You are Easy Agent, an autonomous intelligent assistant.",
+    `Working platform: ${process.platform}`,
+    `Working directory: ${process.cwd()}`,
+    "Given the user's message, you should use the tools available to complete the task.",
+  ].join("\n");
 
   const session = new Session(system);
   const agent = new Agent(llm, session, tools);
