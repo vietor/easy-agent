@@ -2,8 +2,8 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Tool } from "../types.js";
 
-export const writeTool: Tool = {
-  name: "write",
+export const fileWriteTool: Tool = {
+  name: "FileWrite",
   description: "Write content to a file, creating parent directories as needed.",
   parameters: {
     type: "object",

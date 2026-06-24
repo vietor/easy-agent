@@ -36,7 +36,7 @@ function toRegex(pattern: string): RegExp {
 }
 
 export const globTool: Tool = {
-  name: "glob",
+  name: "Glob",
   description: "List all files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Omit pattern to list every file.",
   parameters: {
     type: "object",

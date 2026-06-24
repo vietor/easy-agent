@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import type { Tool } from "../types.js";
 
 export const bashTool: Tool = {
-  name: "bash",
+  name: "Bash",
   description: "Execute a shell command and return combined stdout and stderr.",
   parameters: {
     type: "object",

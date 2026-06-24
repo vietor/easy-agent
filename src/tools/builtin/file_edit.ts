@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import type { Tool } from "../types.js";
 
-export const editTool: Tool = {
-  name: "edit",
+export const fileEditTool: Tool = {
+  name: "FileEdit",
   description:
     "Replace old_string with new_string in a file. old_string must appear exactly once.",
   parameters: {
