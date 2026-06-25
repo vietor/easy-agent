@@ -10,11 +10,12 @@ import { fileEditTool } from "./tools/builtin/file_edit.js";
 import { globTool } from "./tools/builtin/glob.js";
 import { grepTool } from "./tools/builtin/grep.js";
 import { webFetchTool } from "./tools/builtin/web_fetch.js";
+import { MCPServers } from "./mcp/server.js";
 import { startApp } from "./ui/App.js";
 
-function main(): void {
+async function main(): Promise<void> {
   const config = loadConfig();
-  const llm = new LLMClient(config);
+  const llm = new LLMClient(config.llm);
   const tools = new ToolRegistry();
   for (const t of [
     bashTool,
@@ -27,6 +28,10 @@ function main(): void {
   ])
     tools.register(t);
 
+  const mcp = new MCPServers();
+  process.on("exit", () => mcp.kill());
+  for (const t of await mcp.connect(config.mcpServers)) tools.register(t);
+
   const system = [
     "You are Easy Agent, an autonomous intelligent assistant.",
     `Working platform: ${process.platform}`,
@@ -37,7 +42,10 @@ function main(): void {
   const session = new Session(system);
   const agent = new Agent(llm, session, tools);
 
-  startApp(agent);
+  startApp(agent, mcp);
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

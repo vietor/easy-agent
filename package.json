@@ -13,12 +13,14 @@
   "license": "ISC",
   "packageManager": "pnpm@10.30.3",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "htmlparser2": "^12.0.0",
     "ink": "^7.1.0",
     "ink-text-input": "^6.0.0",
     "openai": "^4.67.0",
     "react": "^19.2.7",
-    "turndown": "^7.2.4"
+    "turndown": "^7.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

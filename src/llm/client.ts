@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { Config } from "../config.js";
+import type { LLMConfig } from "../config.js";
 import type { AssistantMessage, Message, ToolSchema } from "./types.js";
 
 interface ToolCallAcc {
@@ -12,7 +12,7 @@ export class LLMClient {
   private client: OpenAI;
   private model: string;
 
-  constructor(config: Config) {
+  constructor(config: LLMConfig) {
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,

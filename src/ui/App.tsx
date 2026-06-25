@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Box, render, Text, useApp } from "ink";
 import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
+import type { MCPServers } from "../mcp/server.js";
 
 type LogEntry =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
   | { kind: "tool"; name: string; summary: string; result: string | null }
-  | { kind: "error"; text: string };
+  | { kind: "error"; text: string }
+  | { kind: "system"; text: string };
 
 type Status = "idle" | "thinking" | "streaming";
 
@@ -48,10 +50,12 @@ function Entry({ entry }: { entry: LogEntry }) {
       );
     case "error":
       return <Text color="red">{`✗ ${entry.text}`}</Text>;
+    case "system":
+      return <Text color="gray">{entry.text}</Text>;
   }
 }
 
-export function App({ agent }: { agent: Agent }) {
+export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const { exit } = useApp();
   const [log, setLog] = useState<LogEntry[]>([]);
   const [input, setInput] = useState("");
@@ -107,6 +111,14 @@ export function App({ agent }: { agent: Agent }) {
         setLog([]);
         return;
       }
+      if (command === "mcp") {
+        const servers = mcp.list();
+        const text = servers.length
+          ? ["MCP servers:", ...servers.map((s) => `  ${s.name} — ${s.tools.join(", ") || "(no tools)"}`)].join("\n")
+          : "No MCP servers linked.";
+        commit({ kind: "system", text });
+        return;
+      }
       commit({ kind: "error", text: `unknown command: ${text}` });
       return;
     }
@@ -153,6 +165,6 @@ export function App({ agent }: { agent: Agent }) {
   );
 }
 
-export function startApp(agent: Agent): void {
-  render(<App agent={agent} />);
+export function startApp(agent: Agent, mcp: MCPServers): void {
+  render(<App agent={agent} mcp={mcp} />);
 }
