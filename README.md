@@ -4,7 +4,7 @@ An autonomous coding agent in the terminal: an LLM-driven tool loop with a React
 
 ## Requirements
 
-- Node.js ≥ 18
+- Node.js ≥ 22
 - pnpm (`packageManager: pnpm@10.30.3`)
 
 ## Install
