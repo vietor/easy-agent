@@ -1,10 +1,12 @@
 import { execSync } from "node:child_process";
 import type { Tool } from "../types.js";
 
+const isWindows = process.platform === "win32";
+const shell = isWindows ? "cmd.exe" : "/bin/sh";
+
 export const bashTool: Tool = {
   name: "Bash",
-  description:
-    "Execute a shell command and return combined stdout and stderr. On Windows, commands run through cmd.exe (not a POSIX shell); use cmd.exe syntax accordingly.",
+  description: `Execute a shell command and return combined stdout and stderr. Commands run through ${shell}${isWindows ? " (not a POSIX shell); use cmd.exe syntax accordingly" : "; use POSIX shell syntax accordingly"}.`,
   parameters: {
     type: "object",
     properties: { command: { type: "string" } },
@@ -16,6 +18,7 @@ export const bashTool: Tool = {
       const out = execSync(command, {
         encoding: "utf-8",
         maxBuffer: 1024 * 1024 * 10,
+        shell,
       });
       return out || "(no output)";
     } catch (e) {
