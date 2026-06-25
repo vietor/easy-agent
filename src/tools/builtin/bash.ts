@@ -3,7 +3,8 @@ import type { Tool } from "../types.js";
 
 export const bashTool: Tool = {
   name: "Bash",
-  description: "Execute a shell command and return combined stdout and stderr.",
+  description:
+    "Execute a shell command and return combined stdout and stderr. On Windows, commands run through cmd.exe (not a POSIX shell); use cmd.exe syntax accordingly.",
   parameters: {
     type: "object",
     properties: { command: { type: "string" } },
