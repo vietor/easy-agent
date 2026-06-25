@@ -28,4 +28,14 @@ export class ToolRegistry {
       return `Error: ${(e as Error).message}`;
     }
   }
+
+  summarize(name: string, args: Record<string, unknown>): string {
+    const tool = this.tools.get(name);
+    if (!tool) return "";
+    try {
+      return tool.summarize(args);
+    } catch {
+      return "";
+    }
+  }
 }

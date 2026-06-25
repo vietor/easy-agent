@@ -16,4 +16,7 @@ export const fileWriteTool: Tool = {
     writeFileSync(path, args.content as string, "utf-8");
     return `Wrote ${path}`;
   },
+  summarize(args) {
+    return (args.path as string) ?? "";
+  },
 };

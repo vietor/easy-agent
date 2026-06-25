@@ -26,4 +26,7 @@ export const fileEditTool: Tool = {
     writeFileSync(path, content.replace(oldStr, newStr), "utf-8");
     return `Edited ${path}`;
   },
+  summarize(args) {
+    return (args.path as string) ?? "";
+  },
 };

@@ -12,4 +12,7 @@ export const fileReadTool: Tool = {
   async execute(args) {
     return readFileSync(args.path as string, "utf-8");
   },
+  summarize(args) {
+    return (args.path as string) ?? "";
+  },
 };

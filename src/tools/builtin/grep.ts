@@ -58,4 +58,7 @@ export const grepTool: Tool = {
     }
     return results.length ? results.join("\n") : "(no matches)";
   },
+  summarize(args) {
+    return (args.path ?? args.pattern ?? "") as string;
+  },
 };

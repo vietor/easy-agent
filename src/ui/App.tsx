@@ -6,7 +6,7 @@ import type { Agent, AgentEvent } from "../core/agent.js";
 type LogEntry =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
-  | { kind: "tool"; name: string; args: Record<string, unknown>; result: string | null }
+  | { kind: "tool"; name: string; summary: string; result: string | null }
   | { kind: "error"; text: string };
 
 type Status = "idle" | "thinking" | "streaming";
@@ -26,11 +26,6 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
-function argSummary(args: Record<string, unknown>): string {
-  const v = (args.command ?? args.path ?? args.pattern) as string | undefined;
-  return v ? ` ${v}` : "";
-}
-
 function preview(s: string): string {
   const line = s.split("\n")[0].trim();
   return line.length > 100 ? line.slice(0, 100) + "…" : line;
@@ -45,7 +40,7 @@ function Entry({ entry }: { entry: LogEntry }) {
     case "tool":
       return (
         <Box flexDirection="column">
-          <Text color="yellow">{`  ● ${entry.name}${argSummary(entry.args)}${entry.result === null ? " …" : ""}`}</Text>
+          <Text color="yellow">{`  ● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}${entry.result === null ? " …" : ""}`}</Text>
           {entry.result !== null && preview(entry.result) ? (
             <Text color="gray">{`    ${preview(entry.result)}`}</Text>
           ) : null}
@@ -80,7 +75,7 @@ export function App({ agent }: { agent: Agent }) {
     } else if (e.type === "tool_start") {
       flushStreaming();
       setStatus("thinking");
-      commit({ kind: "tool", name: e.name, args: e.args, result: null });
+      commit({ kind: "tool", name: e.name, summary: e.summary, result: null });
     } else if (e.type === "tool_end") {
       setStatus("thinking");
       setLog((l) => {

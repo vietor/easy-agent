@@ -23,4 +23,7 @@ export const bashTool: Tool = {
       return (err.stdout || "") + (err.stderr || "") + (err.message || "");
     }
   },
+  summarize(args) {
+    return (args.command as string) ?? "";
+  },
 };

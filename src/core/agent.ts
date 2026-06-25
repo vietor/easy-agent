@@ -4,7 +4,7 @@ import type { ToolRegistry } from "../tools/registry.js";
 
 export type AgentEvent =
   | { type: "delta"; text: string }
-  | { type: "tool_start"; name: string; args: Record<string, unknown> }
+  | { type: "tool_start"; name: string; summary: string }
   | { type: "tool_end"; name: string; result: string };
 
 export class Agent {
@@ -32,7 +32,8 @@ export class Agent {
       }
       for (const call of msg.tool_calls) {
         const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-        onEvent?.({ type: "tool_start", name: call.function.name, args });
+        const summary = this.tools.summarize(call.function.name, args);
+        onEvent?.({ type: "tool_start", name: call.function.name, summary });
         const result = await this.tools.execute(call.function.name, args);
         onEvent?.({ type: "tool_end", name: call.function.name, result });
         this.session.add({

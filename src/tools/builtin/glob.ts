@@ -57,4 +57,7 @@ export const globTool: Tool = {
     const matched = files.filter((f) => re.test(f));
     return matched.length ? matched.join("\n") : "(no matches)";
   },
+  summarize(args) {
+    return (args.path ?? args.pattern ?? "") as string;
+  },
 };
