@@ -34,7 +34,7 @@ async function main(): Promise<void> {
     .then((list) => {
       for (const t of list) tools.register(t);
     })
-    .catch((e) => console.error(`MCP connect failed: ${(e as Error).message}`));
+    .catch((e) => mcp.report(`MCP connect failed: ${(e as Error).message}`));
 
   const system = [
     "You are Easy Agent, an autonomous intelligent assistant.",

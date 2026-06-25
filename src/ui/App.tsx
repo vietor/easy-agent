@@ -64,6 +64,14 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const streamingRef = useRef("");
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
+
+  useEffect(() => {
+    for (const msg of mcp.flushErrors()) commit({ kind: "error", text: msg });
+    mcp.onError = (msg) => commit({ kind: "error", text: msg });
+    return () => {
+      mcp.onError = undefined;
+    };
+  }, []);
   const flushStreaming = () => {
     if (streamingRef.current) {
       commit({ kind: "assistant", text: streamingRef.current });

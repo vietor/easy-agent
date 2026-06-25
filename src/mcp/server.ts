@@ -20,6 +20,19 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 
 export class MCPServers {
   private servers = new Map<string, { client: MCPClient; tools: string[] }>();
+  private errorBuffer: string[] = [];
+  onError?: (msg: string) => void;
+
+  report(msg: string): void {
+    if (this.onError) this.onError(msg);
+    else this.errorBuffer.push(msg);
+  }
+
+  flushErrors(): string[] {
+    const buf = this.errorBuffer;
+    this.errorBuffer = [];
+    return buf;
+  }
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<Tool[]> {
     const tools: Tool[] = [];
@@ -33,7 +46,7 @@ export class MCPServers {
           for (const t of mcpTools) tools.push(this.adapt(name, client, t));
         } catch (e) {
           client.kill();
-          console.error(`MCP server "${name}" failed: ${(e as Error).message}`);
+          this.report(`MCP server "${name}" failed: ${(e as Error).message}`);
         }
       }),
     );
