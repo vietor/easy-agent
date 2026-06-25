@@ -19,7 +19,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 
 export class MCPServers {
-  private servers = new Map<string, { client: MCPClient; tools: string[] }>();
+  private servers = new Map<string, { status: "connected" | "disabled"; client?: MCPClient; tools: string[] }>();
   private errorBuffer: string[] = [];
   onError?: (msg: string) => void;
 
@@ -42,10 +42,11 @@ export class MCPServers {
         try {
           await withTimeout(client.connect(), CONNECT_TIMEOUT);
           const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT);
-          this.servers.set(name, { client, tools: mcpTools.map((t) => t.name) });
+          this.servers.set(name, { status: "connected", client, tools: mcpTools.map((t) => t.name) });
           for (const t of mcpTools) tools.push(this.adapt(name, client, t));
         } catch (e) {
           client.kill();
+          this.servers.set(name, { status: "disabled", tools: [] });
           this.report(`MCP server "${name}" failed: ${(e as Error).message}`);
         }
       }),
@@ -69,12 +70,12 @@ export class MCPServers {
     };
   }
 
-  list(): { name: string; tools: string[] }[] {
-    return [...this.servers.entries()].map(([name, s]) => ({ name, tools: s.tools }));
+  list(): { name: string; status: "connected" | "disabled"; tools: string[] }[] {
+    return [...this.servers.entries()].map(([name, s]) => ({ name, status: s.status, tools: s.tools }));
   }
 
   kill(): void {
-    for (const { client } of this.servers.values()) client.kill();
+    for (const { client } of this.servers.values()) client?.kill();
     this.servers.clear();
   }
 }

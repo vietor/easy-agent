@@ -122,7 +122,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       if (command === "mcp") {
         const servers = mcp.list();
         const text = servers.length
-          ? ["MCP servers:", ...servers.map((s) => `  ${s.name} — ${s.tools.join(", ") || "(no tools)"}`)].join("\n")
+          ? ["MCP servers:", ...servers.map((s) => `❯ ${s.name} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`)].join("\n")
           : "No MCP servers linked.";
         commit({ kind: "system", text });
         return;
