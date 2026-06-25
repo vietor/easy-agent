@@ -3,7 +3,7 @@ import type { MCPServerConfig } from "../config.js";
 import { MCPClient } from "./client.js";
 import type { Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
-const CONNECT_TIMEOUT = 10000;
+const CONNECT_TIMEOUT = 30_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -42,8 +42,8 @@ export class MCPServers {
 
   private adapt(server: string, client: MCPClient, tool: MCPTool): Tool {
     return {
-      name: `${server}__${tool.name}`,
-      description: tool.description ?? `MCP tool ${tool.name}`,
+      name: `MCP__${server}__${tool.name}`,
+      description: tool.description ?? `${server} ${tool.name}`,
       parameters: tool.inputSchema,
       async execute(args) {
         const result = await client.callTool(tool.name, args);
@@ -51,7 +51,7 @@ export class MCPServers {
         return result.isError ? `Error: ${text}` : text || "(no output)";
       },
       summarize(args) {
-        return JSON.stringify(args);
+        return (args.url as string) ?? "";
       },
     };
   }

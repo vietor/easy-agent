@@ -30,7 +30,11 @@ async function main(): Promise<void> {
 
   const mcp = new MCPServers();
   process.on("exit", () => mcp.kill());
-  for (const t of await mcp.connect(config.mcpServers)) tools.register(t);
+  mcp.connect(config.mcpServers)
+    .then((list) => {
+      for (const t of list) tools.register(t);
+    })
+    .catch((e) => console.error(`MCP connect failed: ${(e as Error).message}`));
 
   const system = [
     "You are Easy Agent, an autonomous intelligent assistant.",

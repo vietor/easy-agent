@@ -11,15 +11,15 @@ export class MCPClient {
     this.transport = new StdioClientTransport({ ...config, stderr: "ignore" });
   }
 
-  connect(): Promise<void> {
+  async connect(): Promise<void> {
     return this.client.connect(this.transport);
   }
 
-  listTools(): Promise<Tool[]> {
+  async listTools(): Promise<Tool[]> {
     return this.client.listTools().then((r) => r.tools);
   }
 
-  callTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
+  async callTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
     return this.client.callTool({ name, arguments: args }) as Promise<CallToolResult>;
   }
 
