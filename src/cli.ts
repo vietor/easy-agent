@@ -9,6 +9,7 @@ import { fileWriteTool } from "./tools/builtin/file_write.js";
 import { fileEditTool } from "./tools/builtin/file_edit.js";
 import { globTool } from "./tools/builtin/glob.js";
 import { grepTool } from "./tools/builtin/grep.js";
+import { webFetchTool } from "./tools/builtin/web_fetch.js";
 import { startApp } from "./ui/App.js";
 
 function main(): void {
@@ -22,6 +23,7 @@ function main(): void {
     fileEditTool,
     globTool,
     grepTool,
+    webFetchTool,
   ])
     tools.register(t);
 
