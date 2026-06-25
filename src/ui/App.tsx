@@ -101,8 +101,18 @@ export function App({ agent }: { agent: Agent }) {
     const text = value.trim();
     setInput("");
     if (!text) return;
-    if (text === "exit" || text === "quit") {
-      exit();
+    if (text.startsWith("/")) {
+      const command = text.slice(1);
+      if (command === "exit" || command === "quit") {
+        exit();
+        return;
+      }
+      if (command === "clear") {
+        agent.clear();
+        setLog([]);
+        return;
+      }
+      commit({ kind: "error", text: `unknown command: ${text}` });
       return;
     }
     commit({ kind: "user", text });
@@ -125,7 +135,7 @@ export function App({ agent }: { agent: Agent }) {
         <Text color="cyan" bold>
           Easy Agent
         </Text>
-        <Text dimColor> ready · type “exit” to quit</Text>
+        <Text dimColor> ready · type “/quit” to leave</Text>
       </Box>
 
       {log.map((entry, i) => (

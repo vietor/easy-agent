@@ -35,4 +35,4 @@ pnpm build    # compile to dist/ with tsc
 pnpm start    # build then node dist/cli.js
 ```
 
-Type a prompt in the TUI; `exit` or `quit` to leave.
+Type a prompt in the TUI. Use `/quit` or `/exit` to leave, `/clear` to reset the session.

@@ -14,6 +14,10 @@ export class Agent {
     private tools: ToolRegistry
   ) {}
 
+  clear(): void {
+    this.session.clear();
+  }
+
   async run(userInput: string, onEvent?: (e: AgentEvent) => void): Promise<string> {
     this.session.add({ role: "user", content: userInput });
     while (true) {
