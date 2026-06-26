@@ -14,6 +14,15 @@ import { webFetchTool } from "./tools/builtin/web_fetch.js";
 import { MCPServers } from "./mcp/server.js";
 import { startApp } from "./ui/App.js";
 
+const SYSTEM_PROMPT_BASE = `You are Easy Agent, an autonomous coding assistant in the terminal.
+Complete tasks by calling tools, inspecting results, iterating until done.
+
+Environment:
+- Platform: ${process.platform}
+- Working directory: ${process.cwd()}
+
+Be concise; state what you did and stop when done.`;
+
 async function main(): Promise<void> {
   const config = loadConfig();
   const llm = new LLMClient(config.llm);
@@ -37,23 +46,7 @@ async function main(): Promise<void> {
     })
     .catch((e) => mcp.report(`MCP connect failed: ${(e as Error).message}`));
 
-  const system = `You are Easy Agent, an autonomous coding assistant in the terminal.
-Complete tasks by calling tools, inspecting results, iterating until done.
-
-Environment:
-- Platform: ${process.platform}
-- Working directory: ${process.cwd()}
-
-Principles:
-- Inspect before changing: read/glob/grep before edit or write.
-- Pick the most specific tool: FileEdit for targeted changes, FileWrite for new files or full rewrites.
-- FileEdit replaces one exact, unique match of old_string.
-- Prefer WebFetch over Shell for URL content; Shell only for non-GET, headers, auth, raw bytes.
-- Use the shell syntax native to this platform.
-
-Be concise; state what you did and stop when done.`;
-
-  const session = new Session(system);
+  const session = new Session(SYSTEM_PROMPT_BASE);
   const agent = new Agent(llm, session, tools);
 
   startApp(agent, mcp);

@@ -3,8 +3,8 @@ import type { Tool } from "../types.js";
 
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : "/bin/sh";
-const shellArgs = isWindows ? ["-NoProfile", "-Command"] : ["-c"];
-const prefix = isWindows
+const shellArgs = isWindows ? ["-NoProfile", "-NonInteractive", "-Command"] : ["-c"];
+const commandPrefix = isWindows
   ? "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $OutputEncoding=[Text.Encoding]::UTF8; "
   : "";
 
@@ -28,7 +28,7 @@ export const shellTool: Tool = {
   },
   async execute(args) {
     const command = args.command as string;
-    const result = spawnSync(shell, [...shellArgs, prefix + command], {
+    const result = spawnSync(shell, [...shellArgs, commandPrefix + command], {
       encoding: "utf-8",
       maxBuffer: 1024 * 1024 * 10,
     });

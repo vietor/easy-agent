@@ -39,7 +39,11 @@ function preview(s: string): string {
 function Entry({ entry }: { entry: LogEntry }) {
   switch (entry.kind) {
     case "user":
-      return <Text>{`❯ ${entry.text}`}</Text>;
+      return (
+        <Box marginTop={1}>
+          <Text>{`❯ ${entry.text}`}</Text>
+        </Box>
+      );
     case "assistant":
       return (
         <Box paddingLeft={2}>
@@ -56,7 +60,11 @@ function Entry({ entry }: { entry: LogEntry }) {
         </Box>
       );
     case "error":
-      return <Text color="red">{`✗ ${entry.text}`}</Text>;
+      return (
+        <Box>
+          <Text color="red">{`✗ ${entry.text}`}</Text>
+        </Box>
+      );
     case "system":
       return (
         <Box paddingLeft={2}>
@@ -157,11 +165,13 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
-        <Text color="red" bold>
-          Easy Agent {pkginfo.version}
-        </Text>
-        <Text dimColor> ready · type “/quit” to leave</Text>
+      <Box flexDirection="column">
+        <Box>
+          <Text color="red" bold>Easy Agent</Text>
+          <Text dimColor> v{pkginfo.version}</Text>
+        </Box>
+        <Text dimColor>{process.cwd()}</Text>
+        <Text dimColor>ready · type “/quit” to leave</Text>
       </Box>
 
       {log.map((entry, i) => (
