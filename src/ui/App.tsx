@@ -38,7 +38,11 @@ function Entry({ entry }: { entry: LogEntry }) {
     case "user":
       return <Text color="cyan">{`❯ ${entry.text}`}</Text>;
     case "assistant":
-      return <Text color="green">{entry.text}</Text>;
+      return (
+        <Box paddingLeft={2}>
+          <Text color="green">{entry.text}</Text>
+        </Box>
+      );
     case "tool":
       return (
         <Box flexDirection="column">
@@ -51,7 +55,11 @@ function Entry({ entry }: { entry: LogEntry }) {
     case "error":
       return <Text color="red">{`✗ ${entry.text}`}</Text>;
     case "system":
-      return <Text color="gray">{entry.text}</Text>;
+      return (
+        <Box paddingLeft={2}>
+          <Text color="gray">{entry.text}</Text>
+        </Box>
+      );
   }
 }
 
@@ -146,7 +154,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
+      <Box borderStyle="single" borderTop={false} borderLeft={false} borderRight={false} borderColor="gray" marginBottom={1}>
         <Text color="cyan" bold>
           Easy Agent
         </Text>
@@ -158,13 +166,15 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       ))}
 
       {status === "streaming" && streamingRef.current ? (
-        <Text color="green">{streamingRef.current}</Text>
+        <Box paddingLeft={2}>
+          <Text color="green">{streamingRef.current}</Text>
+        </Box>
       ) : null}
 
       {status === "thinking" ? <Spinner label="thinking" /> : null}
 
       {status === "idle" ? (
-        <Box>
+        <Box marginTop={1}>
           <Text color="cyan">❯ </Text>
           <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
         </Box>
