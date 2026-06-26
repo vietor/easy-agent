@@ -1,12 +1,19 @@
 {
-  "name": "easy-agent",
-  "version": "1.0.0",
+  "name": "@vietor/easy-agent",
+  "version": "0.1.0",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/cli.js",
+  "bin": {
+    "easy-agent": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "tsc && node dist/cli.js",
-    "dev": "tsx src/cli.ts"
+    "dev": "tsx src/cli.ts",
+    "prepublishOnly": "tsc"
   },
   "keywords": [],
   "author": "",

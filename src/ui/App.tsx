@@ -3,6 +3,9 @@ import { Box, render, Text, useApp } from "ink";
 import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import type { MCPServers } from "../mcp/server.js";
+import { getPackageInfo } from '../util/package.js';
+
+const pkginfo = getPackageInfo()
 
 type LogEntry =
   | { kind: "user"; text: string }
@@ -156,7 +159,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     <Box flexDirection="column">
       <Box borderStyle="single" borderTop={false} borderLeft={false} borderRight={false} borderColor="gray" marginBottom={1}>
         <Text color="cyan" bold>
-          Easy Agent
+          Easy Agent {pkginfo.version}
         </Text>
         <Text dimColor> ready · type “/quit” to leave</Text>
       </Box>

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { loadConfig } from "./config.js";
 import { LLMClient } from "./llm/client.js";
 import { Session } from "./core/session.js";
