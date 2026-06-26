@@ -4,7 +4,7 @@ import type { Tool } from "../types.js";
 export const fileEditTool: Tool = {
   name: "FileEdit",
   description:
-    "Replace old_string with new_string in a file. old_string must appear exactly once.",
+    "Replace the single occurrence of old_string with new_string in a file. old_string must match exactly (including whitespace and indentation) and appear exactly once; read the file first and include enough surrounding context to be unique. For full rewrites prefer FileWrite.",
   parameters: {
     type: "object",
     properties: {

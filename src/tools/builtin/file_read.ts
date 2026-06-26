@@ -3,7 +3,7 @@ import type { Tool } from "../types.js";
 
 export const fileReadTool: Tool = {
   name: "FileRead",
-  description: "Read a file's text contents.",
+  description: "Read a file's full contents as UTF-8 text. path may be relative (to the working directory) or absolute.",
   parameters: {
     type: "object",
     properties: { path: { type: "string" } },

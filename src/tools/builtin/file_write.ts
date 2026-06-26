@@ -4,7 +4,7 @@ import type { Tool } from "../types.js";
 
 export const fileWriteTool: Tool = {
   name: "FileWrite",
-  description: "Write content to a file, creating parent directories as needed.",
+  description: "Write content to a file, overwriting it entirely if it exists and creating parent directories as needed. Use for new files or full rewrites; for targeted changes prefer FileEdit.",
   parameters: {
     type: "object",
     properties: { path: { type: "string" }, content: { type: "string" } },

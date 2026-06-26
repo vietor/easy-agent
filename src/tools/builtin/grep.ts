@@ -25,7 +25,7 @@ function walkFiles(dir: string, root: string, out: string[]): void {
 
 export const grepTool: Tool = {
   name: "Grep",
-  description: "Search file contents under a directory for a regex pattern.",
+  description: "Search file contents under a directory recursively for a regex pattern (JavaScript RegExp syntax). Skips node_modules and .git. Returns matching lines as path:line: content, capped at 200 matches.",
   parameters: {
     type: "object",
     properties: {

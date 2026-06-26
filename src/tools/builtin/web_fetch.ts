@@ -2,8 +2,6 @@ import { Parser } from "htmlparser2";
 import TurndownService from "turndown";
 import type { Tool } from "../types.js";
 
-const MAX_OUTPUT = 200000;
-
 const SKIP_TAGS = new Set([
   "script",
   "style",
@@ -119,7 +117,7 @@ function isTextualMime(mime: string): boolean {
 export const webFetchTool: Tool = {
   name: "WebFetch",
   description:
-    "Fetch a URL and return its content converted to markdown (default) or plain text.",
+    "Fetch a URL via GET and return its content as markdown (default) or plain text. Follows redirects. HTML is converted; other textual types (JSON, XML, plain text) are returned raw; non-textual content (images, binaries) is rejected.",
   parameters: {
     type: "object",
     properties: {
@@ -129,7 +127,7 @@ export const webFetchTool: Tool = {
       },
       format: {
         type: "string",
-        description: "output format: 'markdown' (default) or 'txt'",
+        description: "output format: 'markdown' (default) or 'text'",
       },
     },
     required: ["url"],
@@ -155,7 +153,7 @@ export const webFetchTool: Tool = {
     const mime = mimeFrom(contentType);
     if (!isTextualMime(mime)) return `Error: unsupported content type: ${mime} for ${url}`;
     if (!contentType.includes("html")) return body;
-    return format === "txt" ? htmlToText(body) : htmlToMarkdown(body);
+    return format === "text" ? htmlToText(body) : htmlToMarkdown(body);
   },
   summarize(args) {
     return (args.url as string) ?? "";

@@ -7,7 +7,7 @@ const shellArgs = isWindows ? ["-NoProfile", "-Command"] : ["-c"];
 
 export const bashTool: Tool = {
   name: "Bash",
-  description: `Execute a shell command and return combined stdout and stderr. Commands run through ${shell}${isWindows ? " (PowerShell, not a POSIX shell); use PowerShell syntax accordingly" : "; use POSIX shell syntax accordingly"}. For fetching URL content, prefer the WebFetch tool over curl/Invoke-WebRequest; use Bash for web requests only when WebFetch cannot do the job (non-GET methods, custom headers, auth, raw bytes, status codes, or piping the response).`,
+  description: `Execute a shell command and return combined stdout and stderr. Runs synchronously through ${shell}${isWindows ? " (PowerShell; use PowerShell syntax, not POSIX)" : " (POSIX sh)"} with no stdin, so interactive prompts cannot be answered. Output is capped at ~10MB; for large files prefer Grep or FileRead. For URL content prefer WebFetch; use Bash for web requests only when WebFetch cannot (non-GET, custom headers, auth, raw bytes, or status codes).`,
   parameters: {
     type: "object",
     properties: { command: { type: "string" } },
