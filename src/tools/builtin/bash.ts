@@ -7,7 +7,7 @@ const shellArgs = isWindows ? ["-NoProfile", "-Command"] : ["-c"];
 
 export const bashTool: Tool = {
   name: "Bash",
-  description: `Execute a shell command and return combined stdout and stderr. Commands run through ${shell}${isWindows ? " (PowerShell, not a POSIX shell); use PowerShell syntax accordingly" : "; use POSIX shell syntax accordingly"}.`,
+  description: `Execute a shell command and return combined stdout and stderr. Commands run through ${shell}${isWindows ? " (PowerShell, not a POSIX shell); use PowerShell syntax accordingly" : "; use POSIX shell syntax accordingly"}. For fetching URL content, prefer the WebFetch tool over curl/Invoke-WebRequest; use Bash for web requests only when WebFetch cannot do the job (non-GET methods, custom headers, auth, raw bytes, status codes, or piping the response).`,
   parameters: {
     type: "object",
     properties: { command: { type: "string" } },

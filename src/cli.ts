@@ -41,6 +41,7 @@ async function main(): Promise<void> {
     `Working platform: ${process.platform}`,
     `Working directory: ${process.cwd()}`,
     "Given the user's message, you should use the tools available to complete the task.",
+    "Prefer WebFetch over Bash for retrieving URL content; use Bash only when WebFetch cannot accomplish the task.",
   ].join("\n");
 
   const session = new Session(system);
