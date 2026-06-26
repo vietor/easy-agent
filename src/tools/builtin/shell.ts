@@ -4,6 +4,9 @@ import type { Tool } from "../types.js";
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : "/bin/sh";
 const shellArgs = isWindows ? ["-NoProfile", "-Command"] : ["-c"];
+const prefix = isWindows
+  ? "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $OutputEncoding=[Text.Encoding]::UTF8; "
+  : "";
 
 const DESCRIPTION = [
   "Execute a shell command and return combined stdout and stderr.",
@@ -25,7 +28,7 @@ export const shellTool: Tool = {
   },
   async execute(args) {
     const command = args.command as string;
-    const result = spawnSync(shell, [...shellArgs, command], {
+    const result = spawnSync(shell, [...shellArgs, prefix + command], {
       encoding: "utf-8",
       maxBuffer: 1024 * 1024 * 10,
     });
