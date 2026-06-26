@@ -32,14 +32,14 @@ function Spinner({ label }: { label: string }) {
 }
 
 function preview(s: string): string {
-  const line = s.split("\n")[0].trim();
+  const line = s.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   return line.length > 100 ? line.slice(0, 100) + "…" : line;
 }
 
 function Entry({ entry }: { entry: LogEntry }) {
   switch (entry.kind) {
     case "user":
-      return <Text color="cyan">{`❯ ${entry.text}`}</Text>;
+      return <Text>{`❯ ${entry.text}`}</Text>;
     case "assistant":
       return (
         <Box paddingLeft={2}>
@@ -48,10 +48,10 @@ function Entry({ entry }: { entry: LogEntry }) {
       );
     case "tool":
       return (
-        <Box flexDirection="column">
-          <Text color="yellow">{`  ● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}${entry.result === null ? " …" : ""}`}</Text>
-          {entry.result !== null && preview(entry.result) ? (
-            <Text color="gray">{`    ${preview(entry.result)}`}</Text>
+        <Box flexDirection="column" paddingLeft={2}>
+          <Text color="yellow">{`● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}`}</Text>
+          {entry.result !== null ? (
+            <Text color="gray">{`  ${preview(entry.result)}`}</Text>
           ) : null}
         </Box>
       );
@@ -157,8 +157,8 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="single" borderTop={false} borderLeft={false} borderRight={false} borderColor="gray" marginBottom={1}>
-        <Text color="cyan" bold>
+      <Box marginBottom={1}>
+        <Text color="red" bold>
           Easy Agent {pkginfo.version}
         </Text>
         <Text dimColor> ready · type “/quit” to leave</Text>
@@ -177,8 +177,8 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       {status === "thinking" ? <Spinner label="thinking" /> : null}
 
       {status === "idle" ? (
-        <Box marginTop={1}>
-          <Text color="cyan">❯ </Text>
+        <Box marginTop={1} borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
+          <Text color="gray">❯ </Text>
           <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
         </Box>
       ) : null}
