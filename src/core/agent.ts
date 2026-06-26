@@ -2,7 +2,7 @@ import type { LLMClient } from "../llm/client.js";
 import type { Session } from "./session.js";
 import type { ToolRegistry } from "../tools/registry.js";
 
-const MAX_ITERATIONS = 25;
+const STALL_THRESHOLD = 3;
 
 export type AgentEvent =
   | { type: "delta"; text: string }
@@ -22,7 +22,9 @@ export class Agent {
 
   async run(userInput: string, onEvent?: (e: AgentEvent) => void): Promise<string> {
     this.session.add({ role: "user", content: userInput });
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
+    let lastSignature = "";
+    let stallCount = 0;
+    while (true) {
       const msg = await this.llm.chat(
         this.session.messages,
         this.tools.schemas(),
@@ -31,6 +33,17 @@ export class Agent {
       this.session.add(msg);
       if (!msg.tool_calls?.length) {
         return (msg.content as string) || "";
+      }
+      const signature = msg.tool_calls
+        .map((c) => `${c.function.name}:${c.function.arguments}`)
+        .join("|");
+      if (signature === lastSignature) {
+        if (++stallCount >= STALL_THRESHOLD) {
+          return `Error: agent stalled: repeated identical tool calls`;
+        }
+      } else {
+        lastSignature = signature;
+        stallCount = 1;
       }
       for (const call of msg.tool_calls) {
         let args: Record<string, unknown> = {};
@@ -53,6 +66,5 @@ export class Agent {
         });
       }
     }
-    return `Error: agent exceeded max iterations: ${MAX_ITERATIONS}`;
   }
 }

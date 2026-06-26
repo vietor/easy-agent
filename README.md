@@ -44,10 +44,13 @@ Add an `mcpServers` map to expose external tools through the Model Context Proto
 {
   "llm": { ... },
   "mcpServers": {
-    "filesystem": {
+    "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allow"],
-      "env": { "DEBUG": "true" }
+      "args": [
+        "chrome-devtools-mcp@latest",
+        "--auto-connect",
+        "--accept-insecure-certs"
+      ]
     }
   }
 }
@@ -67,7 +70,7 @@ Type a prompt and press Enter. The agent streams its reply and calls tools as ne
 
 Built-in tools:
 
-- **Bash** — run shell commands using this platform's native syntax.
+- **Shell** — run shell commands using this platform's native syntax.
 - **FileRead** — read a file's full contents.
 - **FileWrite** — create or fully overwrite a file.
 - **FileEdit** — replace one exact, unique match within a file.

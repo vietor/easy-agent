@@ -4,7 +4,7 @@ import { LLMClient } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { Agent } from "./core/agent.js";
 import { ToolRegistry } from "./tools/registry.js";
-import { bashTool } from "./tools/builtin/bash.js";
+import { shellTool } from "./tools/builtin/shell.js";
 import { fileReadTool } from "./tools/builtin/file_read.js";
 import { fileWriteTool } from "./tools/builtin/file_write.js";
 import { fileEditTool } from "./tools/builtin/file_edit.js";
@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   const llm = new LLMClient(config.llm);
   const tools = new ToolRegistry();
   for (const t of [
-    bashTool,
+    shellTool,
     fileReadTool,
     fileWriteTool,
     fileEditTool,
@@ -48,7 +48,7 @@ Principles:
 - Inspect before changing: read/glob/grep before edit or write.
 - Pick the most specific tool: FileEdit for targeted changes, FileWrite for new files or full rewrites.
 - FileEdit replaces one exact, unique match of old_string.
-- Prefer WebFetch over Bash for URL content; Bash only for non-GET, headers, auth, raw bytes.
+- Prefer WebFetch over Shell for URL content; Shell only for non-GET, headers, auth, raw bytes.
 - Use the shell syntax native to this platform.
 
 Be concise; state what you did and stop when done.`;
