@@ -8,7 +8,7 @@ const shellArgs = isWindows ? ["-NoProfile", "-Command"] : ["-c"];
 const DESCRIPTION = [
   "Execute a shell command and return combined stdout and stderr.",
   isWindows
-    ? "Runs on PowerShell, Use powershell.exe syntax, DO NOT use pwsh.exe syntax."
+    ? "Runs on Windows PowerShell 5.1 (powershell.exe), NOT pwsh (PowerShell 7+). Chain commands with semicolons; conditional command chaining, null-coalescing, and ternary operators are pwsh-only and unsupported here."
     : `Runs on ${shell} (POSIX sh).`,
   "Runs synchronously with no stdin, so interactive prompts cannot be answered.",
   "Output is capped at ~10MB; for large files prefer Grep or FileRead.",

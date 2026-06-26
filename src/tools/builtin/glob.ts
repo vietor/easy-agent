@@ -35,9 +35,15 @@ function toRegex(pattern: string): RegExp {
   return new RegExp("^" + re + "$");
 }
 
+const DESCRIPTION = [
+  "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts); omit pattern to list every file.",
+  "Skips node_modules and .git.",
+  "Returns paths relative to the root, one per line.",
+].join(" ");
+
 export const globTool: Tool = {
   name: "Glob",
-  description: "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts); omit pattern to list every file. Skips node_modules and .git. Returns paths relative to the root, one per line.",
+  description: DESCRIPTION,
   parameters: {
     type: "object",
     properties: {
