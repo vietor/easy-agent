@@ -2,17 +2,7 @@ import { Parser } from "htmlparser2";
 import TurndownService from "turndown";
 import type { Tool } from "../types.js";
 
-const SKIP_TAGS = new Set([
-  "script",
-  "style",
-  "noscript",
-  "template",
-  "head",
-  "title",
-  "meta",
-  "link",
-  "base",
-]);
+const SKIP_TAGS = new Set(["script", "style", "noscript", "template", "head", "title", "meta", "link", "base"]);
 const BLOCK_TAGS = new Set([
   "p",
   "div",
@@ -81,17 +71,7 @@ const turndown = new TurndownService({
   strongDelimiter: "**",
   linkStyle: "inlined",
 });
-turndown.remove([
-  "script",
-  "style",
-  "title",
-  "meta",
-  "head",
-  "noscript",
-  "template",
-  "link",
-  "base",
-]);
+turndown.remove(["script", "style", "title", "meta", "head", "noscript", "template", "link", "base"]);
 
 function htmlToMarkdown(html: string): string {
   return turndown.turndown(html);
@@ -150,13 +130,13 @@ export const webFetchTool: Tool = {
         redirect: "follow",
       });
     } catch (e) {
-      return `Error: failed to fetch ${url}: ${(e as Error).message}`;
+      throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);
     }
-    if (!res.ok) return `Error: ${res.status} ${res.statusText} for ${url}`;
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
     const body = await res.text();
-    const contentType  = res.headers.get("content-type") || "";
+    const contentType = res.headers.get("content-type") || "";
     const mime = mimeFrom(contentType);
-    if (!isTextualMime(mime)) return `Error: unsupported content type: ${mime} for ${url}`;
+    if (!isTextualMime(mime)) throw new Error(`unsupported content type: ${mime} for ${url}`);
     if (!contentType.includes("html")) return body;
     return format === "text" ? htmlToText(body) : htmlToMarkdown(body);
   },

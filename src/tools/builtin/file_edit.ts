@@ -25,9 +25,8 @@ export const fileEditTool: Tool = {
     const newStr = args.new_string as string;
     const content = readFileSync(path, "utf-8");
     const count = content.split(oldStr).length - 1;
-    if (count === 0) return `Error: old_string not found in ${path}`;
-    if (count > 1)
-      return `Error: old_string appears ${count} times in ${path}, must be unique`;
+    if (count === 0) throw new Error(`old_string not found in ${path}`);
+    if (count > 1) throw new Error(`old_string appears ${count} times in ${path}, must be unique`);
     writeFileSync(path, content.replace(oldStr, newStr), "utf-8");
     return `Edited ${path}`;
   },
