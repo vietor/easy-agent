@@ -1,4 +1,5 @@
 import type { LLMClient } from "../llm/client.js";
+import type { Message } from "../llm/types.js";
 import type { Session } from "./session.js";
 import type { ToolRegistry } from "../tools/registry.js";
 
@@ -18,6 +19,21 @@ export class Agent {
 
   clear(): void {
     this.session.clear();
+  }
+
+  export(): Message[] {
+    return this.session.export();
+  }
+
+  async compact(): Promise<void> {
+    const history = this.session.messages.slice(1);
+    if (history.length === 0) return;
+    const request: Message[] = [
+      ...history,
+      { role: "user", content: "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far:\"." },
+    ];
+    const msg = await this.llm.chat(request, []);
+    this.session.compact((msg.content as string) || "");
   }
 
   async run(userInput: string, onEvent?: (e: AgentEvent) => void): Promise<string> {

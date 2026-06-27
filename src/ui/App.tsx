@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, render, Text, useApp } from "ink";
+import { writeFileSync } from "node:fs";
 import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import type { MCPServers } from "../mcp/server.js";
@@ -144,6 +145,32 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
           ? ["MCP servers:", ...servers.map((s) => `❯ ${s.name} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`)].join("\n")
           : "No MCP servers linked.";
         commit({ kind: "system", text });
+        return;
+      }
+      if (command === "compact") {
+        setStatus("thinking");
+        try {
+          await agent.compact();
+          commit({ kind: "system", text: "context compacted" });
+        } catch (e) {
+          commit({ kind: "error", text: (e as Error).message });
+        } finally {
+          setStatus("idle");
+        }
+        return;
+      }
+      if (command === "export") {
+        try {
+          const d = new Date();
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+          const file = `session-${ts}.jsonl`;
+          const lines = agent.export().map((m) => JSON.stringify(m)).join("\n");
+          writeFileSync(file, lines + "\n", "utf-8");
+          commit({ kind: "system", text: `exported to ${file}` });
+        } catch (e) {
+          commit({ kind: "error", text: (e as Error).message });
+        }
         return;
       }
       commit({ kind: "error", text: `unknown command: ${text}` });

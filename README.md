@@ -82,4 +82,6 @@ Slash commands:
 
 - `/mcp` — list linked MCP servers, their status, and exposed tools.
 - `/clear` — reset the conversation.
+- `/compact` — compress the conversation into a summary to free context.
+- `/export` — save the current session to `session-{timestamp}.jsonl`.
 - `/quit` or `/exit` — leave the app.
