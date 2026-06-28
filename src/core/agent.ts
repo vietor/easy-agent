@@ -7,6 +7,7 @@ const STALL_THRESHOLD = 3;
 
 export type AgentEvent =
   | { type: "delta"; text: string }
+  | { type: "retry"; attempt: number; max: number }
   | { type: "tool_start"; name: string; summary: string }
   | { type: "tool_end"; name: string; result: string };
 
@@ -44,7 +45,8 @@ export class Agent {
       const msg = await this.llm.chat(
         this.session.messages,
         this.tools.schemas(),
-        (text) => onEvent?.({ type: "delta", text })
+        (text) => onEvent?.({ type: "delta", text }),
+        (attempt, max) => onEvent?.({ type: "retry", attempt, max })
       );
       this.session.add(msg);
       if (!msg.tool_calls?.length) {

@@ -12,6 +12,7 @@ type LogEntry =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
   | { kind: "tool"; name: string; summary: string; result: string | null }
+  | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
   | { kind: "system"; text: string };
 
@@ -58,6 +59,12 @@ function Entry({ entry }: { entry: LogEntry }) {
           {entry.result !== null ? (
             <Text color="gray">{`  ${preview(entry.result)}`}</Text>
           ) : null}
+        </Box>
+      );
+    case "retry":
+      return (
+        <Box paddingLeft={2}>
+          <Text color="yellow">{`↻ Retry ${entry.attempt}/${entry.max}`}</Text>
         </Box>
       );
     case "error":
@@ -108,6 +115,10 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       flushStreaming();
       setStatus("thinking");
       commit({ kind: "tool", name: e.name, summary: e.summary, result: null });
+    } else if (e.type === "retry") {
+      streamingRef.current = "";
+      setStatus("thinking");
+      commit({ kind: "retry", attempt: e.attempt, max: e.max });
     } else if (e.type === "tool_end") {
       setStatus("thinking");
       setLog((l) => {
