@@ -97,7 +97,7 @@ function renderList(token: Tokens.List, color?: string): ReactNode {
     if (token.ordered) return `${(token.start === "" ? i + 1 : Number(token.start) + i)}.`;
     return "•";
   });
-  const markerWidth = Math.max(1, ...markers.map(strWidth));
+  const markerWidth = Math.max(1, ...markers.map((s)=>stringWidth(s)));
   return (
     <Box flexDirection="column">
       {token.items.map((item, i) => (
@@ -120,7 +120,7 @@ function renderTable(token: Tokens.Table, color?: string): ReactNode {
   const natural = new Array<number>(cols).fill(0);
   for (const row of [token.header, ...token.rows]) {
     for (let c = 0; c < cols; c++) {
-      const w = strWidth(tokensToText(row[c].tokens));
+      const w = stringWidth(tokensToText(row[c].tokens));
       if (w > natural[c]) natural[c] = w;
     }
   }
@@ -187,14 +187,10 @@ function tokenToText(token: Token): string {
 }
 
 function padAlign(text: string, width: number, align: "left" | "right" | "center" | null): string {
-  const pad = Math.max(0, width - strWidth(text));
+  const pad = Math.max(0, width - stringWidth(text));
   if (align === "right") return " ".repeat(pad) + text;
   if (align === "center") return " ".repeat(Math.floor(pad / 2)) + text + " ".repeat(Math.ceil(pad / 2));
   return text + " ".repeat(pad);
-}
-
-function strWidth(s: string): number {
-  return stringWidth(s);
 }
 
 function fitWidths(widths: number[], available: number): number[] {
@@ -212,13 +208,13 @@ function fitWidths(widths: number[], available: number): number[] {
 }
 
 function wrapText(text: string, width: number): string[] {
-  if (width <= 0 || strWidth(text) <= width) return [text];
+  if (width <= 0 || stringWidth(text) <= width) return [text];
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = "";
   let lineW = 0;
   for (const word of words) {
-    const w = strWidth(word);
+    const w = stringWidth(word);
     if (lineW > 0 && lineW + 1 + w <= width) {
       line += " " + word;
       lineW += 1 + w;
@@ -233,7 +229,7 @@ function wrapText(text: string, width: number): string[] {
       let cur = "";
       let curW = 0;
       for (const ch of word) {
-        const cw = strWidth(ch);
+        const cw = stringWidth(ch);
         if (cur && curW + cw > width) {
           lines.push(cur);
           cur = ch;
