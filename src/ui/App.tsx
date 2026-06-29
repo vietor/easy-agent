@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, render, Text, useApp } from "ink";
+import { Box, render, Text, useApp, useInput } from "ink";
 import { writeFileSync } from "node:fs";
 import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
@@ -14,6 +14,7 @@ type LogEntry =
   | { kind: "tool"; name: string; summary: string; result: string | null; isError?: boolean }
   | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
+  | { kind: "interrupted" }
   | { kind: "system"; text: string };
 
 type Status = "idle" | "thinking" | "streaming";
@@ -73,6 +74,12 @@ function Entry({ entry }: { entry: LogEntry }) {
           <Text color="red">{`✗ ${entry.text}`}</Text>
         </Box>
       );
+    case "interrupted":
+      return (
+        <Box paddingLeft={2}>
+          <Text color="yellow">⏹ interrupted</Text>
+        </Box>
+      );
     case "system":
       return (
         <Box paddingLeft={2}>
@@ -89,6 +96,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const [status, setStatus] = useState<Status>("idle");
   const [, setTick] = useState(0);
   const streamingRef = useRef("");
+  const abortRef = useRef<AbortController | null>(null);
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
 
@@ -135,8 +143,18 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     } else if (e.type === "error") {
       flushStreaming();
       commit({ kind: "error", text: e.text });
+    } else if (e.type === "interrupted") {
+      flushStreaming();
+      commit({ kind: "interrupted" });
     }
   };
+
+  useInput((input, key) => {
+    if (key.escape || (key.ctrl && input === "c")) {
+      if (abortRef.current) abortRef.current.abort();
+      else if (key.ctrl && input === "c") exit();
+    }
+  });
 
   async function handleSubmit(value: string) {
     const text = value.trim();
@@ -193,13 +211,16 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     commit({ kind: "user", text });
     setStatus("thinking");
     streamingRef.current = "";
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      await agent.run(text, onEvent);
+      await agent.run(text, onEvent, controller.signal);
       flushStreaming();
     } catch (e) {
       flushStreaming();
       commit({ kind: "error", text: (e as Error).message });
     } finally {
+      abortRef.current = null;
       setStatus("idle");
     }
   }
@@ -212,7 +233,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
           <Text dimColor> v{pkginfo.version}</Text>
         </Box>
         <Text dimColor>{process.cwd()}</Text>
-        <Text dimColor>ready · type “/quit” to leave</Text>
+        <Text dimColor>ready · esc to stop · “/quit” to leave</Text>
       </Box>
 
       {log.map((entry, i) => (
@@ -238,5 +259,5 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 }
 
 export function startApp(agent: Agent, mcp: MCPServers): void {
-  render(<App agent={agent} mcp={mcp} />);
+  render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false });
 }

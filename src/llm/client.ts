@@ -28,29 +28,35 @@ export class LLMClient {
     messages: Message[],
     tools: ToolSchema[],
     onDelta?: (text: string) => void,
-    onRetry?: (attempt: number, max: number) => void
+    onRetry?: (attempt: number, max: number) => void,
+    signal?: AbortSignal
   ): Promise<AssistantMessage> {
-    return withRetry(() => this.streamOnce(messages, tools, onDelta), {
+    return withRetry(() => this.streamOnce(messages, tools, onDelta, signal), {
       retries: MAX_RETRIES,
       retryable: (e) => e instanceof APIConnectionError,
       backoff: (attempt) => 1000 * 2 ** attempt,
       onRetry,
+      signal,
     });
   }
 
   private async streamOnce(
     messages: Message[],
     tools: ToolSchema[],
-    onDelta?: (text: string) => void
+    onDelta?: (text: string) => void,
+    signal?: AbortSignal
   ): Promise<AssistantMessage> {
     let content = "";
     const calls = new Map<number, ToolCallAcc>();
-    const stream = await this.client.chat.completions.create({
-      model: this.model,
-      messages,
-      tools,
-      stream: true,
-    });
+    const stream = await this.client.chat.completions.create(
+      {
+        model: this.model,
+        messages,
+        tools,
+        stream: true,
+      },
+      { signal }
+    );
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta;

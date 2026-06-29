@@ -3,6 +3,7 @@ export interface RetryOptions {
   retryable: (e: unknown) => boolean;
   backoff: (attempt: number) => number;
   onRetry?: (attempt: number, max: number) => void;
+  signal?: AbortSignal;
 }
 
 export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Promise<T> {
@@ -12,12 +13,30 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Pr
     } catch (e) {
       if (attempt < opts.retries && opts.retryable(e)) {
         opts.onRetry?.(attempt + 1, opts.retries);
-        await new Promise((r) => setTimeout(r, opts.backoff(attempt)));
+        await trySleep(opts.backoff(attempt), opts.signal);
         continue;
       }
       throw e;
     }
   }
+}
+
+function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("aborted"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error("aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
