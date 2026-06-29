@@ -1,6 +1,6 @@
 # Easy Agent
 
-An autonomous coding agent in the terminal. An LLM drives a tool loop — reading, editing, and running commands in your project — presented through a React/Ink TUI. It talks to any OpenAI-compatible endpoint via the OpenAI SDK.
+An autonomous coding agent in the terminal.
 
 ## Requirements
 
@@ -57,6 +57,10 @@ Add an `mcpServers` map to expose external tools through the Model Context Proto
 ```
 
 Only `command` is required; `args` and `env` are optional. MCP tools become available to the agent as `MCP__<server>__<tool>`. If a server fails to connect within 30s, it is disabled and the error is shown in the TUI — the rest keep running.
+
+### Optional: Agent instructions
+
+Easy Agent reads a global instructions file from your home directory and appends it to the system prompt, so you can set persistent rules, conventions, or preferences that apply across every session. It checks `~/.claude/CLAUDE.md` first, then `~/.agents/AGENTS.md`, and uses the first one that exists.
 
 ## Usage
 
