@@ -1,18 +1,6 @@
-import { relative, isAbsolute, join } from "node:path";
-import { walkFiles } from "../../util/fs.js";
+import { isAbsolute, join } from "node:path";
+import { runRg } from "../../util/ripgrep.js";
 import type { Tool } from "../types.js";
-
-function toRegex(pattern: string): RegExp {
-  const re = pattern
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*\*\//g, "<<DS>>")
-    .replace(/\*\*/g, "<<G>>")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\?/g, "[^/]")
-    .replace(/<<DS>>/g, "(?:.*/)?")
-    .replace(/<<G>>/g, ".*");
-  return new RegExp("^" + re + "$");
-}
 
 const DESCRIPTION = [
   "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts); omit pattern to list every file.",
@@ -33,15 +21,16 @@ export const globTool: Tool = {
   },
   async execute(args) {
     const root = (args.path as string) || ".";
-    const absRoot = isAbsolute(root) ? root : join(process.cwd(), root);
-    const files: string[] = [];
-    walkFiles(absRoot, files);
+    const cwd = isAbsolute(root) ? root : join(process.cwd(), root);
+    const rgArgs = ["--files", "--path-separator", "/"];
     const pattern = args.pattern as string;
-    const rel = (f: string) => relative(absRoot, f).replace(/\\/g, "/");
-    if (!pattern) return files.length ? files.map(rel).join("\n") : "(no matches)";
-    const re = toRegex(pattern);
-    const matched = files.filter((f) => re.test(rel(f)));
-    return matched.length ? matched.map(rel).join("\n") : "(no matches)";
+    if (pattern) rgArgs.push("-g", pattern);
+    rgArgs.push(".");
+    const files = runRg(rgArgs, cwd)
+      .split("\n")
+      .filter(Boolean)
+      .map((f) => f.replace(/^\.\//, ""));
+    return files.length ? files.join("\n") : "(no matches)";
   },
   summarize(args) {
     return (args.path ?? args.pattern ?? "") as string;

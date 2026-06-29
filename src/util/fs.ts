@@ -1,26 +1,4 @@
-import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-
-export function walkFiles(dir: string, out: string[]): void {
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e === "node_modules" || e.startsWith(".")) continue;
-    const full = join(dir, e);
-    let st;
-    try {
-      st = statSync(full);
-    } catch {
-      continue;
-    }
-    if (st.isDirectory()) walkFiles(full, out);
-    else out.push(full);
-  }
-}
+import { existsSync, readFileSync } from "node:fs";
 
 export function readFirstExistingFileContent(paths: string[]): string | undefined {
   for (const p of paths) {
