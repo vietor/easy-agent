@@ -1,3 +1,4 @@
+import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import type { AssistantMessage, Message } from "../llm/types.js";
 import type { Session } from "./session.js";
@@ -48,84 +49,83 @@ export class Agent {
     this.session.createCheckpoint();
     try {
       this.session.add({ role: "user", content: userInput });
-      let lastSignature = "";
-      let stallCount = 0;
-      while (true) {
-        let msg: AssistantMessage;
-        try {
-          msg = await this.llm.chat(
-            this.session.messages,
-            this.tools.schemas(),
-            (text) => onEvent?.({ type: "delta", text }),
-            (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-            signal
-          );
-        } catch (e) {
-          if (signal?.aborted) {
+      return await withAbort(
+        async (aborted) => {
+          let lastSignature = "";
+          let stallCount = 0;
+          while (true) {
+            let msg: AssistantMessage;
+            try {
+              msg = await this.llm.chat(
+                this.session.messages,
+                this.tools.schemas(),
+                (text) => onEvent?.({ type: "delta", text }),
+                (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
+                signal
+              );
+            } catch (e) {
+              if (aborted()) return "";
+              onEvent?.({ type: "error", text: (e as Error).message });
+              return "";
+            }
+            this.session.add(msg);
+            if (!msg.tool_calls?.length) {
+              return (msg.content as string) || "";
+            }
+            if (aborted()) return "";
+            const signature = msg.tool_calls
+              .map((c) => `${c.function.name}:${c.function.arguments}`)
+              .join("|");
+            if (signature === lastSignature) {
+              if (++stallCount >= STALL_THRESHOLD) {
+                onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
+                return "";
+              }
+            } else {
+              lastSignature = signature;
+              stallCount = 1;
+            }
+            for (const call of msg.tool_calls) {
+              if (aborted()) break;
+              let args: Record<string, unknown> = {};
+              let parseFailed = false;
+              let parseErrorText = "";
+              if (call.function.arguments) {
+                try {
+                  args = JSON.parse(call.function.arguments);
+                } catch (e) {
+                  parseFailed = true;
+                  parseErrorText = `Error: invalid arguments: ${(e as Error).message}`;
+                }
+              }
+              const summary = this.tools.summarize(call.function.name, args);
+              onEvent?.({ type: "tool_start", name: call.function.name, summary });
+              const result: ToolResult = parseFailed
+                ? { content: parseErrorText, isError: true }
+                : await this.tools.execute(call.function.name, args);
+              onEvent?.({
+                type: "tool_end",
+                name: call.function.name,
+                result: result.content,
+                isError: result.isError,
+              });
+              this.session.add({
+                role: "tool",
+                tool_call_id: call.id,
+                content: result.content,
+              });
+            }
+            if (aborted()) return "";
+          }
+        },
+        {
+          signal,
+          onAbort: () => {
             this.session.restoreCheckpoint();
             onEvent?.({ type: "interrupted" });
-            return "";
-          }
-          onEvent?.({ type: "error", text: (e as Error).message });
-          return "";
+          },
         }
-        this.session.add(msg);
-        if (!msg.tool_calls?.length) {
-          return (msg.content as string) || "";
-        }
-        if (signal?.aborted) {
-          this.session.restoreCheckpoint();
-          onEvent?.({ type: "interrupted" });
-          return "";
-        }
-        const signature = msg.tool_calls
-          .map((c) => `${c.function.name}:${c.function.arguments}`)
-          .join("|");
-        if (signature === lastSignature) {
-          if (++stallCount >= STALL_THRESHOLD) {
-            onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
-            return "";
-          }
-        } else {
-          lastSignature = signature;
-          stallCount = 1;
-        }
-        for (const call of msg.tool_calls) {
-          if (signal?.aborted) break;
-          let args: Record<string, unknown> = {};
-          let parseFailed = false;
-          let parseErrorText = "";
-          if (call.function.arguments) {
-            try {
-              args = JSON.parse(call.function.arguments);
-            } catch (e) {
-              parseFailed = true;
-              parseErrorText = `Error: invalid arguments: ${(e as Error).message}`;
-            }
-          }
-          const summary = this.tools.summarize(call.function.name, args);
-          onEvent?.({ type: "tool_start", name: call.function.name, summary });
-          const result: ToolResult = parseFailed
-            ? { content: parseErrorText, isError: true }
-            : await this.tools.execute(call.function.name, args);
-          onEvent?.({
-            type: "tool_end",
-            name: call.function.name,
-            result: result.content,
-            isError: result.isError,
-          });
-          this.session.add({
-            role: "tool",
-            tool_call_id: call.id,
-            content: result.content,
-          });
-        }
-        if (signal?.aborted) {
-          this.session.restoreCheckpoint();
-          onEvent?.({ type: "interrupted" });
-          return "";
-        }
-      }
+      );
     } finally {
       this.session.removeCheckpoint();
     }

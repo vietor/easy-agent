@@ -39,6 +39,25 @@ function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+export interface AbortOptions {
+  signal?: AbortSignal;
+  onAbort?: () => void;
+}
+
+export async function withAbort<T>(
+  fn: (aborted: () => boolean) => Promise<T>,
+  opts: AbortOptions
+): Promise<T> {
+  const onAbort = () => opts.onAbort?.();
+  if (opts.signal?.aborted) onAbort();
+  else opts.signal?.addEventListener("abort", onAbort, { once: true });
+  try {
+    return await fn(() => !!opts.signal?.aborted);
+  } finally {
+    opts.signal?.removeEventListener("abort", onAbort);
+  }
+}
+
 export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timed = new Promise<T>((_, reject) => {
