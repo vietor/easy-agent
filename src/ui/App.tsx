@@ -5,6 +5,7 @@ import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import type { MCPServers } from "../mcp/server.js";
 import { getPackageInfo } from '../util/package.js';
+import { Markdown } from "./Markdown.js";
 
 const pkginfo = getPackageInfo()
 
@@ -35,7 +36,7 @@ function Spinner({ label, elapsed, promptTokens, completionTokens }: { label: st
   }, []);
   return (
     <Text color="gray">
-      {SPINNER_FRAMES[frame]} {label} · {elapsed}s · in: {formatCount(promptTokens)} · out: {formatCount(completionTokens)}
+      {SPINNER_FRAMES[frame]} {label} · {elapsed}s · ↑{formatCount(promptTokens)} · ↓{formatCount(completionTokens)}
     </Text>
   );
 }
@@ -56,7 +57,7 @@ function Entry({ entry }: { entry: LogEntry }) {
     case "assistant":
       return (
         <Box paddingLeft={2}>
-          <Text color="green">{entry.text}</Text>
+          <Markdown color="green">{entry.text}</Markdown>
         </Box>
       );
     case "tool":
@@ -262,7 +263,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 
       {status === "streaming" && streamingRef.current ? (
         <Box paddingLeft={2}>
-          <Text color="green">{streamingRef.current}</Text>
+          <Markdown color="green">{streamingRef.current}</Markdown>
         </Box>
       ) : null}
 

@@ -24,8 +24,10 @@
     "htmlparser2": "^12.0.0",
     "ink": "^7.1.0",
     "ink-text-input": "^6.0.0",
+    "marked": "^18.0.5",
     "openai": "^4.67.0",
     "react": "^19.2.7",
+    "string-width": "^8.2.1",
     "turndown": "^7.2.4",
     "zod": "^4.4.3"
   },
