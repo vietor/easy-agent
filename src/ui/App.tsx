@@ -21,7 +21,13 @@ type Status = "idle" | "thinking" | "streaming";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-function Spinner({ label }: { label: string }) {
+function formatCount(count: number) {
+  if (!count || isNaN(count)) return "0";
+  const formatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 });
+  return formatter.format(count);
+}
+
+function Spinner({ label, elapsed, promptTokens, completionTokens }: { label: string; elapsed: number; promptTokens: number; completionTokens: number }) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 80);
@@ -29,7 +35,7 @@ function Spinner({ label }: { label: string }) {
   }, []);
   return (
     <Text color="gray">
-      {SPINNER_FRAMES[frame]} {label}
+      {SPINNER_FRAMES[frame]} {label} · {elapsed}s · in: {formatCount(promptTokens)} · out: {formatCount(completionTokens)}
     </Text>
   );
 }
@@ -97,6 +103,10 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const [, setTick] = useState(0);
   const streamingRef = useRef("");
   const abortRef = useRef<AbortController | null>(null);
+  const startRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const [elapsed, setElapsed] = useState(0);
+  const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
 
@@ -146,6 +156,8 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     } else if (e.type === "interrupted") {
       flushStreaming();
       commit({ kind: "interrupted" });
+    } else if (e.type === "usage") {
+      setUsage({ prompt: e.promptTokens, completion: e.completionTokens });
     }
   };
 
@@ -211,6 +223,12 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     commit({ kind: "user", text });
     setStatus("thinking");
     streamingRef.current = "";
+    startRef.current = Date.now();
+    setElapsed(0);
+    setUsage({ prompt: 0, completion: 0 });
+    timerRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 1000);
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -220,6 +238,8 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       flushStreaming();
       commit({ kind: "error", text: (e as Error).message });
     } finally {
+      clearInterval(timerRef.current);
+      timerRef.current = undefined;
       abortRef.current = null;
       setStatus("idle");
     }
@@ -233,7 +253,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
           <Text dimColor> v{pkginfo.version}</Text>
         </Box>
         <Text dimColor>{process.cwd()}</Text>
-        <Text dimColor>ready · esc to stop · “/quit” to leave</Text>
+        <Text dimColor>ready · {formatCount(agent.contextTokens)} tokens · esc to stop · “/quit” to leave</Text>
       </Box>
 
       {log.map((entry, i) => (
@@ -246,7 +266,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         </Box>
       ) : null}
 
-      {status === "thinking" ? <Spinner label="thinking" /> : null}
+      {status === "thinking" ? <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} /> : null}
 
       {status === "idle" ? (
         <Box marginTop={1} borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">

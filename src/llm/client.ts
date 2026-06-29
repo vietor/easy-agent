@@ -29,9 +29,10 @@ export class LLMClient {
     tools: ToolSchema[],
     onDelta?: (text: string) => void,
     onRetry?: (attempt: number, max: number) => void,
+    onUsage?: (promptTokens: number, completionTokens: number) => void,
     signal?: AbortSignal
   ): Promise<AssistantMessage> {
-    return withRetry(() => this.streamOnce(messages, tools, onDelta, signal), {
+    return withRetry(() => this.streamOnce(messages, tools, onDelta, onUsage, signal), {
       retries: MAX_RETRIES,
       retryable: (e) => e instanceof APIConnectionError,
       backoff: (attempt) => 1000 * 2 ** attempt,
@@ -44,6 +45,7 @@ export class LLMClient {
     messages: Message[],
     tools: ToolSchema[],
     onDelta?: (text: string) => void,
+    onUsage?: (promptTokens: number, completionTokens: number) => void,
     signal?: AbortSignal
   ): Promise<AssistantMessage> {
     let content = "";
@@ -54,11 +56,15 @@ export class LLMClient {
         messages,
         tools,
         stream: true,
+        stream_options: { include_usage: true },
       },
       { signal }
     );
 
     for await (const chunk of stream) {
+      if (chunk.usage) {
+        onUsage?.(chunk.usage.prompt_tokens ?? 0, chunk.usage.completion_tokens ?? 0);
+      }
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
       if (delta.content) {

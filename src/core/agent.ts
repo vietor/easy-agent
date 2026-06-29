@@ -13,7 +13,10 @@ export type AgentEvent =
   | { type: "tool_start"; name: string; summary: string }
   | { type: "tool_end"; name: string; result: string; isError?: boolean }
   | { type: "error"; text: string }
-  | { type: "interrupted" };
+  | { type: "interrupted" }
+  | { type: "usage"; promptTokens: number; completionTokens: number };
+
+const COMPACT_PROMPT = "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far:\".";
 
 export class Agent {
   constructor(
@@ -21,6 +24,10 @@ export class Agent {
     private session: Session,
     private tools: ToolRegistry
   ) {}
+
+  get contextTokens(): number {
+    return this.session.estimatedTokens;
+  }
 
   clear(): void {
     this.session.clear();
@@ -35,7 +42,7 @@ export class Agent {
     if (history.length === 0) return;
     const request: Message[] = [
       ...history,
-      { role: "user", content: "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far:\"." },
+      { role: "user", content: COMPACT_PROMPT},
     ];
     const msg = await this.llm.chat(request, []);
     this.session.compact((msg.content as string) || "");
@@ -61,6 +68,7 @@ export class Agent {
                 this.tools.schemas(),
                 (text) => onEvent?.({ type: "delta", text }),
                 (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
+                (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
                 signal
               );
             } catch (e) {

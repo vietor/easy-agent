@@ -6,6 +6,10 @@ import type { Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
 const CONNECT_TIMEOUT = 30_000;
 
+function fixError(text: string): string {
+  return text.startsWith("Error: ") ? text : `Error: ${text}`;
+}
+
 export class MCPServers {
   private servers = new Map<string, { status: "connected" | "disabled"; client?: MCPClient; tools: string[] }>();
   private errorBuffer: string[] = [];
@@ -51,7 +55,7 @@ export class MCPServers {
         const result = await client.callTool(tool.name, args);
         const text = result.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
         return result.isError
-          ? { content: `Error: ${text}`, isError: true }
+          ? { content: fixError(text), isError: true }
           : { content: text || "(no output)" };
       },
       summarize(args) {

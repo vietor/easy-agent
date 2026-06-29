@@ -9,7 +9,7 @@ export function walkFiles(dir: string, out: string[]): void {
     return;
   }
   for (const e of entries) {
-    if (e === "node_modules" || e === ".git") continue;
+    if (e === "node_modules" || e.startsWith(".")) continue;
     const full = join(dir, e);
     let st;
     try {
