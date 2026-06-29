@@ -8,9 +8,9 @@ function toRegex(pattern: string): RegExp {
     .replace(/\*\*\//g, "<<DS>>")
     .replace(/\*\*/g, "<<G>>")
     .replace(/\*/g, "[^/]*")
+    .replace(/\?/g, "[^/]")
     .replace(/<<DS>>/g, "(?:.*/)?")
-    .replace(/<<G>>/g, ".*")
-    .replace(/\?/g, "[^/]");
+    .replace(/<<G>>/g, ".*");
   return new RegExp("^" + re + "$");
 }
 
