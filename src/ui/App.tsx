@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
-import { writeFileSync } from "node:fs";
 import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
+import { runCommand } from "../core/command.js";
 import type { MCPServers } from "../mcp/server.js";
 import { getPackageInfo } from '../util/package.js';
 import { Markdown } from "./Markdown.js";
@@ -154,51 +154,17 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     setInput("");
     if (!text) return;
     if (text.startsWith("/")) {
-      const command = text.slice(1);
-      if (command === "exit" || command === "quit") {
-        exit();
-        return;
-      }
-      if (command === "clear") {
-        agent.clear();
-        setLog([]);
-        return;
-      }
-      if (command === "mcp") {
-        const servers = mcp.list();
-        const text = servers.length
-          ? ["MCP servers:", ...servers.map((s) => `❯ ${s.name} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`)].join("\n")
-          : "No MCP servers linked.";
-        commit({ kind: "system", text });
-        return;
-      }
-      if (command === "compact") {
-        setStatus("thinking");
-        try {
-          await agent.compact();
-          commit({ kind: "system", text: "context compacted" });
-        } catch (e) {
-          commit({ kind: "error", text: (e as Error).message });
-        } finally {
-          setStatus("idle");
+      await runCommand(
+        text.slice(1),
+        { agent, mcp },
+        {
+          exit,
+          clearLog: () => setLog([]),
+          showSystem: (t) => commit({ kind: "system", text: t }),
+          showError: (t) => commit({ kind: "error", text: t }),
+          thinking: (on) => setStatus(on ? "thinking" : "idle"),
         }
-        return;
-      }
-      if (command === "export") {
-        try {
-          const d = new Date();
-          const pad = (n: number) => String(n).padStart(2, "0");
-          const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-          const file = `session-${ts}.jsonl`;
-          const lines = agent.export().map((m) => JSON.stringify(m)).join("\n");
-          writeFileSync(file, lines + "\n", "utf-8");
-          commit({ kind: "system", text: `exported to ${file}` });
-        } catch (e) {
-          commit({ kind: "error", text: (e as Error).message });
-        }
-        return;
-      }
-      commit({ kind: "error", text: `unknown command: ${text}` });
+      );
       return;
     }
     commit({ kind: "user", text });
