@@ -1,27 +1,7 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, isAbsolute } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative, isAbsolute, join } from "node:path";
+import { walkFiles } from "../../util/fs.js";
 import type { Tool } from "../types.js";
-
-function walkFiles(dir: string, root: string, out: string[]): void {
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e === "node_modules" || e === ".git") continue;
-    const full = join(dir, e);
-    let st;
-    try {
-      st = statSync(full);
-    } catch {
-      continue;
-    }
-    if (st.isDirectory()) walkFiles(full, root, out);
-    else out.push(full);
-  }
-}
 
 const DESCRIPTION = [
   "Search file contents under a directory recursively for a regex pattern (JavaScript RegExp syntax).",
@@ -45,7 +25,7 @@ export const grepTool: Tool = {
     const absRoot = isAbsolute(root) ? root : join(process.cwd(), root);
     const re = new RegExp(args.pattern as string);
     const files: string[] = [];
-    walkFiles(absRoot, absRoot, files);
+    walkFiles(absRoot, files);
     const results: string[] = [];
     for (const f of files) {
       let content: string;

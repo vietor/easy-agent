@@ -1,10 +1,6 @@
 import type { Tool, ToolResult } from "./types.js";
 import type { ToolSchema } from "../llm/types.js";
 
-function toToolResult(r: string | ToolResult): ToolResult {
-  return typeof r === "string" ? { content: r } : r;
-}
-
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
 
@@ -27,7 +23,8 @@ export class ToolRegistry {
     const tool = this.tools.get(name);
     if (!tool) return { content: `Error: unknown tool ${name}`, isError: true };
     try {
-      return toToolResult(await tool.execute(args));
+      const r = await tool.execute(args);
+      return typeof r === "string" ? { content: r } : r;
     } catch (e) {
       return { content: `Error: ${(e as Error).message}`, isError: true };
     }

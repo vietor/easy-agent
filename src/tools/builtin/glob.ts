@@ -1,27 +1,6 @@
-import { readdirSync, statSync } from "node:fs";
-import { join, relative, isAbsolute } from "node:path";
+import { relative, isAbsolute, join } from "node:path";
+import { walkFiles } from "../../util/fs.js";
 import type { Tool } from "../types.js";
-
-function walk(dir: string, root: string, out: string[]): void {
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e === "node_modules" || e === ".git") continue;
-    const full = join(dir, e);
-    let st;
-    try {
-      st = statSync(full);
-    } catch {
-      continue;
-    }
-    if (st.isDirectory()) walk(full, root, out);
-    else out.push(relative(root, full).replace(/\\/g, "/"));
-  }
-}
 
 function toRegex(pattern: string): RegExp {
   const re = pattern
@@ -56,12 +35,13 @@ export const globTool: Tool = {
     const root = (args.path as string) || ".";
     const absRoot = isAbsolute(root) ? root : join(process.cwd(), root);
     const files: string[] = [];
-    walk(absRoot, absRoot, files);
+    walkFiles(absRoot, files);
     const pattern = args.pattern as string;
-    if (!pattern) return files.length ? files.join("\n") : "(no matches)";
+    const rel = (f: string) => relative(absRoot, f).replace(/\\/g, "/");
+    if (!pattern) return files.length ? files.map(rel).join("\n") : "(no matches)";
     const re = toRegex(pattern);
-    const matched = files.filter((f) => re.test(f));
-    return matched.length ? matched.join("\n") : "(no matches)";
+    const matched = files.filter((f) => re.test(rel(f)));
+    return matched.length ? matched.map(rel).join("\n") : "(no matches)";
   },
   summarize(args) {
     return (args.path ?? args.pattern ?? "") as string;
