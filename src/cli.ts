@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { loadConfig } from "./config.js";
 import { LLMClient } from "./llm/client.js";
 import { Session } from "./core/session.js";
@@ -13,6 +16,7 @@ import { grepTool } from "./tools/builtin/grep.js";
 import { webFetchTool } from "./tools/builtin/web_fetch.js";
 import { MCPServers } from "./mcp/server.js";
 import { startApp } from "./ui/App.js";
+import { readFirstExistingFileContent } from "./util/fs.js";
 
 const SYSTEM_PROMPT_BASE = `You are Easy Agent, an autonomous coding assistant running in the terminal. You complete tasks by calling tools, inspecting their results, and iterating until the work is done.
 
@@ -33,26 +37,26 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const llm = new LLMClient(config.llm);
   const tools = new ToolRegistry();
-  for (const t of [
-    shellTool,
-    fileReadTool,
-    fileWriteTool,
-    fileEditTool,
-    globTool,
-    grepTool,
-    webFetchTool,
-  ])
+  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool])
     tools.register(t);
 
   const mcp = new MCPServers();
   process.on("exit", () => mcp.kill());
-  mcp.connect(config.mcpServers)
+  mcp
+    .connect(config.mcpServers)
     .then((list) => {
       for (const t of list) tools.register(t);
     })
     .catch((e) => mcp.report(`MCP connect failed: ${(e as Error).message}`));
 
-  const session = new Session(SYSTEM_PROMPT_BASE);
+  const agentPrompt = readFirstExistingFileContent([
+    join(homedir(), ".claude", "CLAUDE.md"),
+    join(homedir(), ".agents", "AGENTS.md"),
+  ]);
+  const systemPrompt = agentPrompt
+    ? SYSTEM_PROMPT_BASE + "\n\n=================\n\n" + agentPrompt
+    : SYSTEM_PROMPT_BASE;
+  const session = new Session(systemPrompt);
   const agent = new Agent(llm, session, tools);
 
   startApp(agent, mcp);
