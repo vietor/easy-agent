@@ -23,6 +23,9 @@ export const fileEditTool: Tool = {
     const path = args.path as string;
     const oldStr = args.old_string as string;
     const newStr = args.new_string as string;
+    if (!path) throw new Error("path is required");
+    if (!oldStr) throw new Error("old_string is required");
+    if (newStr === undefined) throw new Error("new_string is required");
     const content = readFileSync(path, "utf-8");
     const count = content.split(oldStr).length - 1;
     if (count === 0) throw new Error(`old_string not found in ${path}`);
