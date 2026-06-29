@@ -21,9 +21,17 @@ type LogEntry =
 
 type Status = "idle" | "thinking" | "streaming";
 
-function preview(s: string): string {
-  const line = s.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-  return line.length > 100 ? line.slice(0, 100) + "…" : line;
+function preview(isError: boolean, text: string): string {
+  if(isError) {
+    const previewText = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+    return previewText.length > 100
+      ? previewText.slice(0, 100) + "…"
+      : previewText;
+  }
+
+  const lineCount = text.length === 0 ? 0 : (text.match(/\n/g) || []).length + 1;
+  const byteCount = new Blob([text]).size;
+  return `Result: ${byteCount} bytes, ${lineCount} lines`;
 }
 
 function Entry({ entry }: { entry: LogEntry }) {
@@ -45,7 +53,7 @@ function Entry({ entry }: { entry: LogEntry }) {
         <Box flexDirection="column" paddingLeft={2}>
           <Text color="yellow">{`● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}`}</Text>
           {entry.result !== null ? (
-            <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.result)}`}</Text>
+            <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.isError ?? false, entry.result)}`}</Text>
           ) : null}
         </Box>
       );
