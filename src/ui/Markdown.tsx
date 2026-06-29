@@ -115,30 +115,40 @@ function renderList(token: Tokens.List, color?: string): ReactNode {
 function renderTable(token: Tokens.Table, color?: string): ReactNode {
   const aligns = token.align;
   const cols = token.header.length;
-  const widths = new Array<number>(cols).fill(0);
+  const overhead = 3 * cols + 1;
+  const available = Math.max(1, (process.stdout.columns ?? 80) - 2 - overhead);
+  const natural = new Array<number>(cols).fill(0);
   for (const row of [token.header, ...token.rows]) {
     for (let c = 0; c < cols; c++) {
       const w = strWidth(tokensToText(row[c].tokens));
-      if (w > widths[c]) widths[c] = w;
+      if (w > natural[c]) natural[c] = w;
     }
   }
-  const cell = (tc: Tokens.TableCell, c: number) => ` ${padAlign(tokensToText(tc.tokens), widths[c], aligns[c])} `;
-  const rowCells = (row: Tokens.TableCell[], bold = false) => [
-    ...row.flatMap((tc, c) => [
-      <Text key={`s${c}`} dimColor>│</Text>,
-      <Text key={`c${c}`} color={color} bold={bold}>{cell(tc, c)}</Text>,
-    ]),
-    <Text key="e" dimColor>│</Text>,
-  ];
+  const widths = fitWidths(natural, available);
+  const renderRow = (row: Tokens.TableCell[], bold = false) => {
+    const wrapped = row.map((tc, c) => wrapText(tokensToText(tc.tokens), widths[c]));
+    const height = Math.max(1, ...wrapped.map(lines => lines.length));
+    return Array.from({ length: height }, (_, r) => (
+      <Text key={r}>
+        {[
+          ...row.flatMap((_, c) => [
+            <Text key={`s${c}`} dimColor>│</Text>,
+            <Text key={`c${c}`} color={color} bold={bold}>{` ${padAlign(wrapped[c][r] ?? "", widths[c], aligns[c])} `}</Text>,
+          ]),
+          <Text key="e" dimColor>│</Text>,
+        ]}
+      </Text>
+    ));
+  };
   const border = (l: string, m: string, r: string) =>
     l + widths.map(w => "─".repeat(w + 2)).join(m) + r;
   return (
     <Box flexDirection="column">
       <Text dimColor>{border("┌", "┬", "┐")}</Text>
-      <Text>{rowCells(token.header, true)}</Text>
+      <Fragment>{renderRow(token.header, true)}</Fragment>
       <Text dimColor>{border("├", "┼", "┤")}</Text>
       {token.rows.map((row, i) => (
-        <Text key={i}>{rowCells(row)}</Text>
+        <Fragment key={i}>{renderRow(row)}</Fragment>
       ))}
       <Text dimColor>{border("└", "┴", "┘")}</Text>
     </Box>
@@ -185,4 +195,58 @@ function padAlign(text: string, width: number, align: "left" | "right" | "center
 
 function strWidth(s: string): number {
   return stringWidth(s);
+}
+
+function fitWidths(widths: number[], available: number): number[] {
+  const fitted = widths.slice();
+  let total = fitted.reduce((a, b) => a + b, 0);
+  if (total <= available) return fitted;
+  while (total > available) {
+    let max = 0;
+    for (let i = 1; i < fitted.length; i++) if (fitted[i] > fitted[max]) max = i;
+    if (fitted[max] <= 1) break;
+    fitted[max]--;
+    total--;
+  }
+  return fitted;
+}
+
+function wrapText(text: string, width: number): string[] {
+  if (width <= 0 || strWidth(text) <= width) return [text];
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  let lineW = 0;
+  for (const word of words) {
+    const w = strWidth(word);
+    if (lineW > 0 && lineW + 1 + w <= width) {
+      line += " " + word;
+      lineW += 1 + w;
+    } else if (w <= width) {
+      if (lineW > 0) lines.push(line);
+      line = word;
+      lineW = w;
+    } else {
+      if (lineW > 0) lines.push(line);
+      line = "";
+      lineW = 0;
+      let cur = "";
+      let curW = 0;
+      for (const ch of word) {
+        const cw = strWidth(ch);
+        if (cur && curW + cw > width) {
+          lines.push(cur);
+          cur = ch;
+          curW = cw;
+        } else {
+          cur += ch;
+          curW += cw;
+        }
+      }
+      line = cur;
+      lineW = curW;
+    }
+  }
+  if (lineW > 0 || lines.length === 0) lines.push(line);
+  return lines;
 }
