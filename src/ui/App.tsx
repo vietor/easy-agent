@@ -6,6 +6,7 @@ import type { Agent, AgentEvent } from "../core/agent.js";
 import type { MCPServers } from "../mcp/server.js";
 import { getPackageInfo } from '../util/package.js';
 import { Markdown } from "./Markdown.js";
+import { formatCount, Spinner } from "./Spinner.js";
 
 const pkginfo = getPackageInfo()
 
@@ -19,27 +20,6 @@ type LogEntry =
   | { kind: "system"; text: string };
 
 type Status = "idle" | "thinking" | "streaming";
-
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-function formatCount(count: number) {
-  if (!count || isNaN(count)) return "0";
-  const formatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 });
-  return formatter.format(count);
-}
-
-function Spinner({ label, elapsed, promptTokens, completionTokens }: { label: string; elapsed: number; promptTokens: number; completionTokens: number }) {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 80);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <Text color="gray">
-      {SPINNER_FRAMES[frame]} {label} · {elapsed}s · ↑{formatCount(promptTokens)} · ↓{formatCount(completionTokens)}
-    </Text>
-  );
-}
 
 function preview(s: string): string {
   const line = s.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
