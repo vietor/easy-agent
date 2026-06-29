@@ -1,5 +1,9 @@
-import type { Tool } from "./types.js";
+import type { Tool, ToolResult } from "./types.js";
 import type { ToolSchema } from "../llm/types.js";
+
+function toToolResult(r: string | ToolResult): ToolResult {
+  return typeof r === "string" ? { content: r } : r;
+}
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
@@ -19,13 +23,13 @@ export class ToolRegistry {
     }));
   }
 
-  async execute(name: string, args: Record<string, unknown>): Promise<string> {
+  async execute(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const tool = this.tools.get(name);
-    if (!tool) return `Error: unknown tool ${name}`;
+    if (!tool) return { content: `Error: unknown tool ${name}`, isError: true };
     try {
-      return await tool.execute(args);
+      return toToolResult(await tool.execute(args));
     } catch (e) {
-      return `Error: ${(e as Error).message}`;
+      return { content: `Error: ${(e as Error).message}`, isError: true };
     }
   }
 

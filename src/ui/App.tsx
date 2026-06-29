@@ -11,7 +11,7 @@ const pkginfo = getPackageInfo()
 type LogEntry =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
-  | { kind: "tool"; name: string; summary: string; result: string | null }
+  | { kind: "tool"; name: string; summary: string; result: string | null; isError?: boolean }
   | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
   | { kind: "system"; text: string };
@@ -57,7 +57,7 @@ function Entry({ entry }: { entry: LogEntry }) {
         <Box flexDirection="column" paddingLeft={2}>
           <Text color="yellow">{`● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}`}</Text>
           {entry.result !== null ? (
-            <Text color="gray">{`  ${preview(entry.result)}`}</Text>
+            <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.result)}`}</Text>
           ) : null}
         </Box>
       );
@@ -126,12 +126,15 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         for (let i = copy.length - 1; i >= 0; i--) {
           const entry = copy[i];
           if (entry.kind === "tool" && entry.result === null) {
-            copy[i] = { ...entry, result: e.result };
+            copy[i] = { ...entry, result: e.result, isError: e.isError };
             break;
           }
         }
         return copy;
       });
+    } else if (e.type === "error") {
+      flushStreaming();
+      commit({ kind: "error", text: e.text });
     }
   };
 

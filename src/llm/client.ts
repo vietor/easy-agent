@@ -1,6 +1,7 @@
 import OpenAI, { APIConnectionError } from "openai";
 import type { LLMConfig } from "../config.js";
 import type { AssistantMessage, Message, ToolSchema } from "./types.js";
+import { withRetry } from "../util/async.js";
 
 const MAX_RETRIES = 3;
 
@@ -29,59 +30,61 @@ export class LLMClient {
     onDelta?: (text: string) => void,
     onRetry?: (attempt: number, max: number) => void
   ): Promise<AssistantMessage> {
-    for (let attempt = 0; ; attempt++) {
-      let content = "";
-      const calls = new Map<number, ToolCallAcc>();
-      try {
-        const stream = await this.client.chat.completions.create({
-          model: this.model,
-          messages,
-          tools,
-          stream: true,
-        });
+    return withRetry(() => this.streamOnce(messages, tools, onDelta), {
+      retries: MAX_RETRIES,
+      retryable: (e) => e instanceof APIConnectionError,
+      backoff: (attempt) => 1000 * 2 ** attempt,
+      onRetry,
+    });
+  }
 
-        for await (const chunk of stream) {
-          const delta = chunk.choices[0]?.delta;
-          if (!delta) continue;
-          if (delta.content) {
-            content += delta.content;
-            onDelta?.(delta.content);
-          }
-          if (delta.tool_calls) {
-            for (const tc of delta.tool_calls) {
-              let acc = calls.get(tc.index);
-              if (!acc) {
-                acc = { id: tc.id ?? "", name: "", arguments: "" };
-                calls.set(tc.index, acc);
-              }
-              if (tc.function?.name) acc.name += tc.function.name;
-              if (tc.function?.arguments) acc.arguments += tc.function.arguments;
-            }
-          }
-        }
+  private async streamOnce(
+    messages: Message[],
+    tools: ToolSchema[],
+    onDelta?: (text: string) => void
+  ): Promise<AssistantMessage> {
+    let content = "";
+    const calls = new Map<number, ToolCallAcc>();
+    const stream = await this.client.chat.completions.create({
+      model: this.model,
+      messages,
+      tools,
+      stream: true,
+    });
 
-        const message: AssistantMessage = {
-          role: "assistant",
-          content: content || null,
-        };
-        if (calls.size) {
-          message.tool_calls = [...calls.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([, acc]) => ({
-              id: acc.id,
-              type: "function" as const,
-              function: { name: acc.name, arguments: acc.arguments },
-            }));
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (!delta) continue;
+      if (delta.content) {
+        content += delta.content;
+        onDelta?.(delta.content);
+      }
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          let acc = calls.get(tc.index);
+          if (!acc) {
+            acc = { id: tc.id ?? "", name: "", arguments: "" };
+            calls.set(tc.index, acc);
+          }
+          if (tc.function?.name) acc.name += tc.function.name;
+          if (tc.function?.arguments) acc.arguments += tc.function.arguments;
         }
-        return message;
-      } catch (e) {
-        if (attempt < MAX_RETRIES && e instanceof APIConnectionError) {
-          onRetry?.(attempt + 1, MAX_RETRIES);
-          await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
-          continue;
-        }
-        throw e;
       }
     }
+
+    const message: AssistantMessage = {
+      role: "assistant",
+      content: content || null,
+    };
+    if (calls.size) {
+      message.tool_calls = [...calls.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([, acc]) => ({
+          id: acc.id,
+          type: "function" as const,
+          function: { name: acc.name, arguments: acc.arguments },
+        }));
+    }
+    return message;
   }
 }

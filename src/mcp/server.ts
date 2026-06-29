@@ -1,22 +1,10 @@
 import type { Tool } from "../tools/types.js";
 import type { MCPServerConfig } from "../config.js";
 import { MCPClient } from "./client.js";
+import { withTimeout } from "../util/async.js";
 import type { Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
 const CONNECT_TIMEOUT = 30_000;
-
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timed = new Promise<T>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms);
-  });
-  return Promise.race([
-    p.finally(() => {
-      if (timer) clearTimeout(timer);
-    }),
-    timed,
-  ]);
-}
 
 export class MCPServers {
   private servers = new Map<string, { status: "connected" | "disabled"; client?: MCPClient; tools: string[] }>();
@@ -62,7 +50,9 @@ export class MCPServers {
       async execute(args) {
         const result = await client.callTool(tool.name, args);
         const text = result.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
-        return result.isError ? `Error: ${text}` : text || "(no output)";
+        return result.isError
+          ? { content: `Error: ${text}`, isError: true }
+          : { content: text || "(no output)" };
       },
       summarize(args) {
         return (args.url as string) ?? "";
