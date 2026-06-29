@@ -4,11 +4,11 @@ import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import { runCommand } from "../core/command.js";
 import type { MCPServers } from "../mcp/server.js";
-import { getPackageInfo } from '../util/package.js';
+import { getPackageInfo } from "../util/package.js";
 import { Markdown } from "./Markdown.js";
 import { formatCount, Spinner } from "./Spinner.js";
 
-const pkginfo = getPackageInfo()
+const pkginfo = getPackageInfo();
 
 type LogEntry =
   | { kind: "user"; text: string }
@@ -22,11 +22,9 @@ type LogEntry =
 type Status = "idle" | "thinking" | "streaming";
 
 function preview(isError: boolean, text: string): string {
-  if(isError) {
+  if (isError) {
     const previewText = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-    return previewText.length > 100
-      ? previewText.slice(0, 100) + "…"
-      : previewText;
+    return previewText.length > 100 ? previewText.slice(0, 100) + "…" : previewText;
   }
 
   const lineCount = text.length === 0 ? 0 : (text.match(/\n/g) || []).length + 1;
@@ -72,7 +70,7 @@ function Entry({ entry }: { entry: LogEntry }) {
     case "interrupted":
       return (
         <Box paddingLeft={2}>
-          <Text color="yellow">⏹ interrupted</Text>
+          <Text color="yellow">◼ interrupted</Text>
         </Box>
       );
     case "system":
@@ -171,7 +169,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
           showSystem: (t) => commit({ kind: "system", text: t }),
           showError: (t) => commit({ kind: "error", text: t }),
           thinking: (on) => setStatus(on ? "thinking" : "idle"),
-        }
+        },
       );
       return;
     }
@@ -208,7 +206,6 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
           <Text dimColor> v{pkginfo.version}</Text>
         </Box>
         <Text dimColor>{process.cwd()}</Text>
-        <Text dimColor>ready · {formatCount(agent.contextTokens)} tokens · esc to stop · “/quit” to leave</Text>
       </Box>
 
       {log.map((entry, i) => (
@@ -221,18 +218,25 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         </Box>
       ) : null}
 
-      {status === "thinking" ? <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} /> : null}
+      {status === "thinking" ? (
+        <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
+      ) : null}
 
       {status === "idle" ? (
-        <Box marginTop={1} borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
-          <Text color="gray">❯ </Text>
-          <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
-        </Box>
+        <>
+          <Box marginTop={1}>
+            <Text dimColor>[{formatCount(agent.contextTokens)} context] · ESC to stop · “/quit” to leave</Text>
+          </Box>
+          <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
+            <Text color="gray">❯ </Text>
+            <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
+          </Box>
+        </>
       ) : null}
     </Box>
   );
 }
 
 export function startApp(agent: Agent, mcp: MCPServers): void {
-  render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false });
+  render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false, patchConsole: true });
 }
