@@ -45,14 +45,14 @@ export class Agent {
     userInput: string,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<string> {
+  ): Promise<void> {
     this.session.createCheckpoint();
     try {
       this.session.add({ role: "user", content: userInput });
-      return await withAbort(
+      await withAbort(
         async (aborted) => {
-          let lastSignature = "";
-          let stallCount = 0;
+          let lastSig = "";
+          let stall = 0;
           while (true) {
             let msg: AssistantMessage;
             try {
@@ -64,58 +64,39 @@ export class Agent {
                 signal
               );
             } catch (e) {
-              if (aborted()) return "";
+              if (aborted()) return;
               onEvent?.({ type: "error", text: (e as Error).message });
-              return "";
+              return;
             }
             this.session.add(msg);
-            if (!msg.tool_calls?.length) {
-              return (msg.content as string) || "";
-            }
-            if (aborted()) return "";
-            const signature = msg.tool_calls
+            if (!msg.tool_calls?.length) return;
+            if (aborted()) return;
+            const sig = msg.tool_calls
               .map((c) => `${c.function.name}:${c.function.arguments}`)
               .join("|");
-            if (signature === lastSignature) {
-              if (++stallCount >= STALL_THRESHOLD) {
-                onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
-                return "";
-              }
-            } else {
-              lastSignature = signature;
-              stallCount = 1;
+            stall = sig === lastSig ? stall + 1 : 1;
+            lastSig = sig;
+            if (stall >= STALL_THRESHOLD) {
+              onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
+              return;
             }
             for (const call of msg.tool_calls) {
               if (aborted()) break;
               let args: Record<string, unknown> = {};
-              let parseFailed = false;
-              let parseErrorText = "";
+              let argsError = "";
               if (call.function.arguments) {
-                try {
-                  args = JSON.parse(call.function.arguments);
-                } catch (e) {
-                  parseFailed = true;
-                  parseErrorText = `Error: invalid arguments: ${(e as Error).message}`;
-                }
+                try { args = JSON.parse(call.function.arguments); }
+                catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
               }
               const summary = this.tools.summarize(call.function.name, args);
               onEvent?.({ type: "tool_start", name: call.function.name, summary });
-              const result: ToolResult = parseFailed
-                ? { content: parseErrorText, isError: true }
+              const result: ToolResult = argsError
+                ? { content: argsError, isError: true }
                 : await this.tools.execute(call.function.name, args);
-              onEvent?.({
-                type: "tool_end",
-                name: call.function.name,
-                result: result.content,
-                isError: result.isError,
-              });
-              this.session.add({
-                role: "tool",
-                tool_call_id: call.id,
-                content: result.content,
-              });
+              onEvent?.({ type: "tool_end", name: call.function.name, result: result.content, isError: result.isError });
+              this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });
             }
-            if (aborted()) return "";
+            if (aborted()) return;
           }
         },
         {
