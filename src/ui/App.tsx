@@ -237,6 +237,6 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   );
 }
 
-export function startApp(agent: Agent, mcp: MCPServers): void {
-  render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false, patchConsole: true });
+export function startApp(agent: Agent, mcp: MCPServers): ReturnType<typeof render> {
+  return render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false, patchConsole: true });
 }

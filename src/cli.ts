@@ -41,7 +41,6 @@ async function main(): Promise<void> {
     tools.register(t);
 
   const mcp = new MCPServers();
-  process.on("exit", () => mcp.kill());
   mcp
     .connect(config.mcpServers)
     .then((list) => {
@@ -70,7 +69,8 @@ async function main(): Promise<void> {
   const session = new Session(systemPrompt);
   const agent = new Agent(llm, session, tools);
 
-  startApp(agent, mcp);
+  const app = startApp(agent, mcp);
+  await app.waitUntilExit().finally(() => mcp.kill());
 }
 
 main().catch((e) => {
