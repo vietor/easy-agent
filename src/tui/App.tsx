@@ -1,86 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import { listCommands, runCommand } from "../core/command.js";
 import type { MCPServers } from "../mcp/server.js";
 import { Markdown } from "./components/Markdown.js";
+import { Entry, type LogEntry } from "./LogView.js";
 import { AppHeader } from "./AppHeader.js";
 import { CommandMenu } from "./CommandMenu.js";
 import { PromptInput } from "./PromptInput.js";
 import { Spinner } from "./Spinner.js";
 import { compactDisplay } from "../util/format.js";
 
-type LogEntry =
-  | { kind: "user"; text: string }
-  | { kind: "assistant"; text: string }
-  | { kind: "tool"; name: string; summary: string; result: string | null; isError?: boolean }
-  | { kind: "retry"; attempt: number; max: number }
-  | { kind: "error"; text: string }
-  | { kind: "interrupted" }
-  | { kind: "system"; text: string };
-
 type Status = "idle" | "thinking" | "streaming";
 
-function preview(isError: boolean, text: string): string {
-  if (isError) {
-    const previewText = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-    return previewText.length > 100 ? previewText.slice(0, 100) + "…" : previewText;
-  }
-
-  const lineCount = text.length === 0 ? 0 : (text.match(/\n/g) || []).length + 1;
-  const byteCount = new Blob([text]).size;
-  return `Result: ${byteCount} bytes, ${lineCount} lines`;
-}
-
-function Entry({ entry }: { entry: LogEntry }) {
-  switch (entry.kind) {
-    case "user":
-      return (
-        <Box marginTop={1}>
-          <Text>{`❯ ${entry.text}`}</Text>
-        </Box>
-      );
-    case "assistant":
-      return (
-        <Box paddingLeft={2}>
-          <Markdown color="green">{entry.text}</Markdown>
-        </Box>
-      );
-    case "tool":
-      return (
-        <Box flexDirection="column" paddingLeft={2}>
-          <Text color="yellow">{`● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}`}</Text>
-          {entry.result !== null ? (
-            <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.isError ?? false, entry.result)}`}</Text>
-          ) : null}
-        </Box>
-      );
-    case "retry":
-      return (
-        <Box paddingLeft={2}>
-          <Text color="yellow">{`↻ Retry ${entry.attempt}/${entry.max}`}</Text>
-        </Box>
-      );
-    case "error":
-      return (
-        <Box>
-          <Text color="red">{`✗ ${entry.text}`}</Text>
-        </Box>
-      );
-    case "interrupted":
-      return (
-        <Box paddingLeft={2}>
-          <Text color="yellow">◼ interrupted</Text>
-        </Box>
-      );
-    case "system":
-      return (
-        <Box paddingLeft={2}>
-          <Text color="gray">{entry.text}</Text>
-        </Box>
-      );
-  }
-}
+const STREAM_FRAME_MS = 50;
 
 export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const { exit } = useApp();
@@ -89,13 +22,14 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const [status, setStatus] = useState<Status>("idle");
   const [, setTick] = useState(0);
   const streamingRef = useRef("");
+  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
   const startRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
   const [cmdIdx, setCmdIdx] = useState(-1);
-  const allCmds = listCommands();
+  const allCmds = useMemo(() => listCommands(), []);
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
 
@@ -115,7 +49,24 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       mcp.onError = undefined;
     };
   }, []);
+  const cancelStreamingRender = () => {
+    if (renderTimerRef.current) {
+      clearTimeout(renderTimerRef.current);
+      renderTimerRef.current = undefined;
+    }
+  };
+
+  const scheduleStreamingRender = () => {
+    if (renderTimerRef.current) return;
+    renderTimerRef.current = setTimeout(() => {
+      renderTimerRef.current = undefined;
+      setStatus("streaming");
+      setTick((t) => t + 1);
+    }, STREAM_FRAME_MS);
+  };
+
   const flushStreaming = () => {
+    cancelStreamingRender();
     if (streamingRef.current) {
       commit({ kind: "assistant", text: streamingRef.current });
       streamingRef.current = "";
@@ -125,13 +76,13 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const onEvent = (e: AgentEvent) => {
     if (e.type === "delta") {
       streamingRef.current += e.text;
-      setStatus("streaming");
-      setTick((t) => t + 1);
+      scheduleStreamingRender();
     } else if (e.type === "tool_start") {
       flushStreaming();
       setStatus("thinking");
       commit({ kind: "tool", name: e.name, summary: e.summary, result: null });
     } else if (e.type === "retry") {
+      cancelStreamingRender();
       streamingRef.current = "";
       setStatus("thinking");
       commit({ kind: "retry", attempt: e.attempt, max: e.max });
