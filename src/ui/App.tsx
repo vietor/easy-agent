@@ -95,7 +95,6 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
   const [cmdIdx, setCmdIdx] = useState(-1);
-  const cmdSkipRef = useRef(false);
   const allCmds = listCommands();
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
@@ -166,22 +165,6 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         setCmdIdx((i) => (i <= 0 ? filtered.length - 1 : i - 1));
       } else if (key.downArrow) {
         setCmdIdx((i) => (i >= filtered.length - 1 ? 0 : i + 1));
-      } else if (key.return && cmdIdx >= 0) {
-        cmdSkipRef.current = true;
-        const cmd = filtered[cmdIdx];
-        setInput("");
-        setCmdIdx(-1);
-        runCommand(
-          cmd.name,
-          { agent, mcp },
-          {
-            exit,
-            clearLog: () => setLog([]),
-            showSystem: (t) => commit({ kind: "system", text: t }),
-            showError: (t) => commit({ kind: "error", text: t }),
-            thinking: (on) => setStatus(on ? "thinking" : "idle"),
-          },
-        );
       } else if (key.escape) {
         setInput("");
         setCmdIdx(-1);
@@ -197,16 +180,14 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   });
 
   async function handleSubmit(value: string) {
-    if (cmdSkipRef.current) {
-      cmdSkipRef.current = false;
-      return;
-    }
     const text = value.trim();
     setInput("");
     if (!text) return;
     if (text.startsWith("/")) {
+      const cmdName = showCmd && cmdIdx >= 0 ? filtered[cmdIdx].name : text.slice(1);
+      setCmdIdx(-1);
       await runCommand(
-        text.slice(1),
+        cmdName,
         { agent, mcp },
         {
           exit,
@@ -268,9 +249,9 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       ) : null}
 
       {status === "idle" ? (
-        <>
+        <Box flexDirection="column"  marginTop={1}>
           {showCmd && cmdIdx >= 0 ? (
-            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
+            <Box flexDirection="column" borderStyle="single" borderColor="gray">
               {filtered.map((cmd, i) => (
                 <Box key={cmd.name}>
                   <Text color={i === cmdIdx ? "cyan" : undefined}>
@@ -281,14 +262,12 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
               ))}
             </Box>
           ) : null}
-          <Box marginTop={1}>
-            <Text dimColor>[{formatCount(agent.contextTokens)} context] · ESC to stop · "/quit" to leave</Text>
-          </Box>
+          <Text dimColor>[{formatCount(agent.contextTokens)} context] · ESC to stop · "/quit" to leave</Text>
           <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
             <Text color="gray">❯ </Text>
             <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
           </Box>
-        </>
+        </Box>
       ) : null}
     </Box>
   );
