@@ -27,6 +27,10 @@ export function register(command: Command): void {
   commands.set(command.name, command);
 }
 
+export function listCommands(): Command[] {
+  return Array.from(commands.values());
+}
+
 export async function runCommand(
   command: string,
   ctx: CommandContext,

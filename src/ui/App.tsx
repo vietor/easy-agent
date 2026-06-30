@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
-import { runCommand } from "../core/command.js";
+import { listCommands, runCommand } from "../core/command.js";
 import type { MCPServers } from "../mcp/server.js";
 import { getPackageInfo } from "../util/package.js";
 import { Markdown } from "./Markdown.js";
@@ -94,8 +94,20 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
+  const [cmdIdx, setCmdIdx] = useState(-1);
+  const cmdSkipRef = useRef(false);
+  const allCmds = listCommands();
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
+
+  const cmdPrefix = status === "idle" && input.startsWith("/") ? input.slice(1) : null;
+  const filtered = cmdPrefix === null ? [] : cmdPrefix === "" ? allCmds : allCmds.filter((c) => c.name.startsWith(cmdPrefix));
+  const showCmd = cmdPrefix !== null && filtered.length > 0;
+
+  useEffect(() => {
+    if (filtered.length > 0 && cmdIdx === -1) setCmdIdx(0);
+    else if (cmdIdx >= filtered.length) setCmdIdx(Math.max(0, filtered.length - 1));
+  }, [filtered.length]);
 
   useEffect(() => {
     for (const msg of mcp.flushErrors()) commit({ kind: "error", text: msg });
@@ -148,14 +160,47 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     }
   };
 
-  useInput((input, key) => {
-    if (key.escape || (key.ctrl && input === "c")) {
+  useInput((_input, key) => {
+    if (showCmd) {
+      if (key.upArrow) {
+        setCmdIdx((i) => (i <= 0 ? filtered.length - 1 : i - 1));
+      } else if (key.downArrow) {
+        setCmdIdx((i) => (i >= filtered.length - 1 ? 0 : i + 1));
+      } else if (key.return && cmdIdx >= 0) {
+        cmdSkipRef.current = true;
+        const cmd = filtered[cmdIdx];
+        setInput("");
+        setCmdIdx(-1);
+        runCommand(
+          cmd.name,
+          { agent, mcp },
+          {
+            exit,
+            clearLog: () => setLog([]),
+            showSystem: (t) => commit({ kind: "system", text: t }),
+            showError: (t) => commit({ kind: "error", text: t }),
+            thinking: (on) => setStatus(on ? "thinking" : "idle"),
+          },
+        );
+      } else if (key.escape) {
+        setInput("");
+        setCmdIdx(-1);
+      } else if (key.ctrl && _input === "c") {
+        exit();
+      }
+      return;
+    }
+    if (key.escape || (key.ctrl && _input === "c")) {
       if (abortRef.current) abortRef.current.abort();
-      else if (key.ctrl && input === "c") exit();
+      else if (key.ctrl && _input === "c") exit();
     }
   });
 
   async function handleSubmit(value: string) {
+    if (cmdSkipRef.current) {
+      cmdSkipRef.current = false;
+      return;
+    }
     const text = value.trim();
     setInput("");
     if (!text) return;
@@ -224,8 +269,20 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 
       {status === "idle" ? (
         <>
+          {showCmd && cmdIdx >= 0 ? (
+            <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
+              {filtered.map((cmd, i) => (
+                <Box key={cmd.name}>
+                  <Text color={i === cmdIdx ? "cyan" : undefined}>
+                    {i === cmdIdx ? "▸ " : "  "}/{cmd.name}
+                  </Text>
+                  <Text dimColor>  {cmd.description}</Text>
+                </Box>
+              ))}
+            </Box>
+          ) : null}
           <Box marginTop={1}>
-            <Text dimColor>[{formatCount(agent.contextTokens)} context] · ESC to stop · “/quit” to leave</Text>
+            <Text dimColor>[{formatCount(agent.contextTokens)} context] · ESC to stop · "/quit" to leave</Text>
           </Box>
           <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
             <Text color="gray">❯ </Text>
