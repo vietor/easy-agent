@@ -20,7 +20,7 @@ export const globTool: Tool = {
   },
   async execute(args) {
     const cwd = resolveCwd(args.path as string | undefined);
-    const rgArgs = ["--files", "--path-separator", "/"];
+    const rgArgs = ["--files"];
     const pattern = args.pattern as string;
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(".");

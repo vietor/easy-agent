@@ -26,8 +26,6 @@ export const grepTool: Tool = {
       "--line-number",
       "--with-filename",
       "--no-heading",
-      "--path-separator",
-      "/",
       args.pattern as string,
       ".",
     ];
