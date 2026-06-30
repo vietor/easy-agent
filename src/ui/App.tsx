@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
-import TextInput from "ink-text-input";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import { listCommands, runCommand } from "../core/command.js";
 import type { MCPServers } from "../mcp/server.js";
-import { getPackageInfo } from "../util/package.js";
-import { Markdown } from "./Markdown.js";
-import { formatCount, Spinner } from "./Spinner.js";
-
-const pkginfo = getPackageInfo();
+import { Markdown } from "./components/Markdown.js";
+import { AppHeader } from "./AppHeader.js";
+import { CommandMenu } from "./CommandMenu.js";
+import { PromptInput } from "./PromptInput.js";
+import { Spinner } from "./Spinner.js";
+import { compactDisplay } from "../util/format.js";
 
 type LogEntry =
   | { kind: "user"; text: string }
@@ -179,26 +179,23 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     }
   });
 
-  async function handleSubmit(value: string) {
-    const text = value.trim();
-    setInput("");
-    if (!text) return;
-    if (text.startsWith("/")) {
-      const cmdName = showCmd && cmdIdx >= 0 ? filtered[cmdIdx].name : text.slice(1);
-      setCmdIdx(-1);
-      await runCommand(
-        cmdName,
-        { agent, mcp },
-        {
-          exit,
-          clearLog: () => setLog([]),
-          showSystem: (t) => commit({ kind: "system", text: t }),
-          showError: (t) => commit({ kind: "error", text: t }),
-          thinking: (on) => setStatus(on ? "thinking" : "idle"),
-        },
-      );
-      return;
-    }
+  async function handleCommand(command: string) {
+    const cmdName = showCmd && cmdIdx >= 0 ? filtered[cmdIdx].name : command;
+    setCmdIdx(-1);
+    await runCommand(
+      cmdName,
+      { agent, mcp },
+      {
+        exit,
+        clearLog: () => setLog([]),
+        showSystem: (t) => commit({ kind: "system", text: t }),
+        showError: (t) => commit({ kind: "error", text: t }),
+        thinking: (on) => setStatus(on ? "thinking" : "idle"),
+      },
+    );
+  }
+
+  async function handlePrompt(text: string) {
     commit({ kind: "user", text });
     setStatus("thinking");
     streamingRef.current = "";
@@ -226,13 +223,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
 
   return (
     <Box flexDirection="column">
-      <Box flexDirection="column">
-        <Box>
-          <Text color="red" bold>Easy Agent</Text>
-          <Text dimColor> v{pkginfo.version}</Text>
-        </Box>
-        <Text dimColor>{process.cwd()}</Text>
-      </Box>
+      <AppHeader />
 
       {log.map((entry, i) => (
         <Entry key={i} entry={entry} />
@@ -249,24 +240,12 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       ) : null}
 
       {status === "idle" ? (
-        <Box flexDirection="column"  marginTop={1}>
-          {showCmd && cmdIdx >= 0 ? (
-            <Box flexDirection="column" borderStyle="single" borderColor="gray">
-              {filtered.map((cmd, i) => (
-                <Box key={cmd.name}>
-                  <Text color={i === cmdIdx ? "cyan" : undefined}>
-                    {i === cmdIdx ? "▸ " : "  "}/{cmd.name}
-                  </Text>
-                  <Text dimColor>  {cmd.description}</Text>
-                </Box>
-              ))}
-            </Box>
-          ) : null}
-          <Text dimColor>[{formatCount(agent.contextTokens)} context] · ESC to stop · "/quit" to leave</Text>
-          <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
-            <Text color="gray">❯ </Text>
-            <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} />
-          </Box>
+        <Box flexDirection="column" marginTop={1}>
+          <CommandMenu show={showCmd} selectedIndex={cmdIdx} commands={filtered} />
+          <Text dimColor>
+            [{compactDisplay(agent.contextTokens)} context] · ESC to stop · "/quit" to leave
+          </Text>
+          <PromptInput input={input} setInput={setInput} onCommand={handleCommand} onPrompt={handlePrompt} />
         </Box>
       ) : null}
     </Box>

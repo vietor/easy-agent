@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { Text } from "ink";
+import { compactDisplay } from "../util/format.js";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-export function formatCount(count: number) {
-  if (!count || isNaN(count)) return "0";
-  const formatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 });
-  return formatter.format(count);
-}
 
 export function Spinner({ label, elapsed, promptTokens, completionTokens }: { label: string; elapsed: number; promptTokens: number; completionTokens: number }) {
   const [frame, setFrame] = useState(0);
@@ -17,7 +12,7 @@ export function Spinner({ label, elapsed, promptTokens, completionTokens }: { la
   }, []);
   return (
     <Text color="gray">
-      {SPINNER_FRAMES[frame]} {label} · {elapsed}s · ↑{formatCount(promptTokens)} · ↓{formatCount(completionTokens)}
+      {SPINNER_FRAMES[frame]} {label} · {elapsed}s · ↑{compactDisplay(promptTokens)} · ↓{compactDisplay(completionTokens)}
     </Text>
   );
 }
