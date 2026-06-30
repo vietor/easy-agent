@@ -6,13 +6,19 @@ import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 export class MCPClient {
   private client = new Client({ name: "easy-agent", version: "1.0.0" }, { capabilities: {} });
   private transport: StdioClientTransport;
+  private connectReject?: (e: Error) => void;
 
   constructor(private name: string, config: MCPServerConfig) {
     this.transport = new StdioClientTransport({ ...config, stderr: "ignore" });
   }
 
   async connect(): Promise<void> {
-    return this.client.connect(this.transport);
+    return new Promise<void>((resolve, reject) => {
+      this.connectReject = reject;
+      this.client.connect(this.transport).then(resolve, reject).finally(() => {
+        this.connectReject = undefined;
+      });
+    });
   }
 
   async listTools(): Promise<Tool[]> {
@@ -24,6 +30,8 @@ export class MCPClient {
   }
 
   kill(): void {
+    this.connectReject?.(new Error("aborted"));
+    this.connectReject = undefined;
     const pid = this.transport.pid;
     if (pid) {
       try {

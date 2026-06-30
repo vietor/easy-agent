@@ -12,6 +12,8 @@ function fixError(text: string): string {
 
 export class MCPServers {
   private servers = new Map<string, { status: "connected" | "disabled"; client?: MCPClient; tools: string[] }>();
+  private pending = new Set<MCPClient>();
+  private disposed = false;
   private errorBuffer: string[] = [];
   onError?: (msg: string) => void;
 
@@ -30,16 +32,30 @@ export class MCPServers {
     const tools: Tool[] = [];
     await Promise.all(
       Object.entries(mcpServers).map(async ([name, cfg]) => {
+        if (this.disposed) return;
         const client = new MCPClient(name, cfg);
+        this.pending.add(client);
         try {
           await withTimeout(client.connect(), CONNECT_TIMEOUT);
+          if (this.disposed) {
+            client.kill();
+            return;
+          }
           const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT);
+          if (this.disposed) {
+            client.kill();
+            return;
+          }
           this.servers.set(name, { status: "connected", client, tools: mcpTools.map((t) => t.name) });
           for (const t of mcpTools) tools.push(this.adapt(name, client, t));
         } catch (e) {
           client.kill();
-          this.servers.set(name, { status: "disabled", tools: [] });
-          this.report(`MCP server "${name}" failed: ${(e as Error).message}`);
+          if (!this.disposed) {
+            this.servers.set(name, { status: "disabled", tools: [] });
+            this.report(`MCP server "${name}" failed: ${(e as Error).message}`);
+          }
+        } finally {
+          this.pending.delete(client);
         }
       }),
     );
@@ -69,7 +85,10 @@ export class MCPServers {
   }
 
   kill(): void {
+    this.disposed = true;
     for (const { client } of this.servers.values()) client?.kill();
+    for (const client of this.pending) client.kill();
     this.servers.clear();
+    this.pending.clear();
   }
 }
