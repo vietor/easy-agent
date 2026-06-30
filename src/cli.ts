@@ -49,13 +49,24 @@ async function main(): Promise<void> {
     })
     .catch((e) => mcp.report(`MCP connect failed: ${(e as Error).message}`));
 
-  const agentPrompt = readFirstExistingFileContent([
-    join(homedir(), ".claude", "CLAUDE.md"),
+  const globalPrompt = readFirstExistingFileContent([
     join(homedir(), ".agents", "AGENTS.md"),
+    join(homedir(), ".claude", "CLAUDE.md"),
   ]);
-  const systemPrompt = agentPrompt
-    ? SYSTEM_PROMPT_BASE + "\n\n=================\n\n" + agentPrompt
-    : SYSTEM_PROMPT_BASE;
+  const projectPrompt = readFirstExistingFileContent([
+    join(process.cwd(), "AGENTS.md"),
+    join(process.cwd(), "CLAUDE.md"),
+  ]);
+
+  const systemPromptParts = [SYSTEM_PROMPT_BASE];
+  if (globalPrompt) {
+    systemPromptParts.push(globalPrompt);
+  }
+  if (projectPrompt) {
+    systemPromptParts.push(projectPrompt);
+  }
+  const systemPrompt = systemPromptParts.join("\n\n=================\n\n");
+
   const session = new Session(systemPrompt);
   const agent = new Agent(llm, session, tools);
 
