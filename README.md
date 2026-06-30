@@ -60,7 +60,12 @@ Only `command` is required; `args` and `env` are optional. MCP tools become avai
 
 ### Optional: Agent instructions
 
-Easy Agent reads a global instructions file from your home directory and appends it to the system prompt, so you can set persistent rules, conventions, or preferences that apply across every session. It checks `~/.claude/CLAUDE.md` first, then `~/.agents/AGENTS.md`, and uses the first one that exists.
+Easy Agent reads instructions files and appends them to the system prompt, so you can set persistent rules, conventions, or preferences. It looks in two places:
+
+1. **Global** — your home directory, applied to every session. Checks `~/.agents/AGENTS.md` first, then `~/.claude/CLAUDE.md`; uses the first one found.
+2. **Project** — your current working directory, applied per-project. Checks `./AGENTS.md` first, then `./CLAUDE.md`; uses the first one found.
+
+Both global and project files are loaded and concatenated into the system prompt if they exist.
 
 ## Usage
 
