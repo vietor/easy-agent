@@ -15,7 +15,7 @@ import { globTool } from "./tools/builtin/glob.js";
 import { grepTool } from "./tools/builtin/grep.js";
 import { webFetchTool } from "./tools/builtin/web_fetch.js";
 import { MCPServers } from "./mcp/server.js";
-import { startApp } from "./ui/App.js";
+import { startApp } from "./tui/App.js";
 import { readFirstExistingFileContent } from "./util/fs.js";
 
 const SYSTEM_PROMPT_BASE = `You are Easy Agent, an autonomous coding assistant running in the terminal. You complete tasks by calling tools, inspecting their results, and iterating until the work is done.
