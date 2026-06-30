@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import type { Tool } from "../types.js";
 
 const DESCRIPTION = [
@@ -15,9 +15,7 @@ export const fileReadTool: Tool = {
     required: ["path"],
   },
   async execute(args) {
-    return readFileSync(args.path as string, "utf-8");
+    return readFile(args.path as string, "utf-8");
   },
-  summarize(args) {
-    return (args.path as string) ?? "";
-  },
+  summaryArg: "path",
 };

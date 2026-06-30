@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Tool } from "../types.js";
 
@@ -17,11 +17,9 @@ export const fileWriteTool: Tool = {
   },
   async execute(args) {
     const path = args.path as string;
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, args.content as string, "utf-8");
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, args.content as string, "utf-8");
     return `Wrote ${path}`;
   },
-  summarize(args) {
-    return (args.path as string) ?? "";
-  },
+  summaryArg: "path",
 };

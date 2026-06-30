@@ -1,5 +1,4 @@
-import { isAbsolute, join } from "node:path";
-import { runRg } from "../../util/ripgrep.js";
+import { resolveCwd, runRgLines } from "../../util/ripgrep.js";
 import type { Tool } from "../types.js";
 
 const DESCRIPTION = [
@@ -20,19 +19,13 @@ export const globTool: Tool = {
     required: [],
   },
   async execute(args) {
-    const root = (args.path as string) || ".";
-    const cwd = isAbsolute(root) ? root : join(process.cwd(), root);
+    const cwd = resolveCwd(args.path as string | undefined);
     const rgArgs = ["--files", "--path-separator", "/"];
     const pattern = args.pattern as string;
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(".");
-    const files = runRg(rgArgs, cwd)
-      .split("\n")
-      .filter(Boolean)
-      .map((f) => f.replace(/^\.\//, ""));
+    const files = await runRgLines(rgArgs, cwd);
     return files.length ? files.join("\n") : "(no matches)";
   },
-  summarize(args) {
-    return (args.path ?? args.pattern ?? "") as string;
-  },
+  summaryArg: ["pattern", "path"],
 };

@@ -1,5 +1,4 @@
-import { isAbsolute, join } from "node:path";
-import { runRg } from "../../util/ripgrep.js";
+import { resolveCwd, runRgLines } from "../../util/ripgrep.js";
 import type { Tool } from "../types.js";
 
 const MAX_MATCHES = 200;
@@ -22,8 +21,7 @@ export const grepTool: Tool = {
     required: ["pattern"],
   },
   async execute(args) {
-    const root = (args.path as string) || ".";
-    const cwd = isAbsolute(root) ? root : join(process.cwd(), root);
+    const cwd = resolveCwd(args.path as string | undefined);
     const rgArgs = [
       "--line-number",
       "--with-filename",
@@ -33,15 +31,10 @@ export const grepTool: Tool = {
       args.pattern as string,
       ".",
     ];
-    const lines = runRg(rgArgs, cwd)
-      .split("\n")
-      .filter(Boolean)
-      .map((l) => l.replace(/^\.\//, ""));
+    const lines = await runRgLines(rgArgs, cwd);
     if (!lines.length) return "(no matches)";
     if (lines.length > MAX_MATCHES) return lines.slice(0, MAX_MATCHES).join("\n") + "\n(truncated)";
     return lines.join("\n");
   },
-  summarize(args) {
-    return (args.path ?? args.pattern ?? "") as string;
-  },
+  summaryArg: ["pattern", "path"],
 };

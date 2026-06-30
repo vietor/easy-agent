@@ -5,7 +5,7 @@ import { Markdown } from "./components/Markdown.js";
 export type LogEntry =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
-  | { kind: "tool"; name: string; summary: string; result: string | null; isError?: boolean }
+  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean }
   | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
   | { kind: "interrupted" }

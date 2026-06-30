@@ -140,7 +140,5 @@ export const webFetchTool: Tool = {
     if (!contentType.includes("html")) return body;
     return format === "text" ? htmlToText(body) : htmlToMarkdown(body);
   },
-  summarize(args) {
-    return (args.url as string) ?? "";
-  },
+  summaryArg: "url",
 };

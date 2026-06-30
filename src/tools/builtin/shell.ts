@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { runProcess } from "../../util/process.js";
 import type { Tool } from "../types.js";
 
 const isWindows = process.platform === "win32";
@@ -28,20 +28,11 @@ export const shellTool: Tool = {
   },
   async execute(args) {
     const command = args.command as string;
-    const result = spawnSync(shell, [...shellArgs, commandPrefix + command], {
-      encoding: "utf-8",
-      maxBuffer: 1024 * 1024 * 10,
-    });
-    if (result.status === 0 && !result.error) {
-      return result.stdout || "(no output)";
+    const r = await runProcess(shell, [...shellArgs, commandPrefix + command]);
+    if (r.status === 0 && !r.error) {
+      return r.stdout || "(no output)";
     }
-    return (
-      (result.stdout || "") +
-      (result.stderr || "") +
-      (result.error?.message || "")
-    );
+    return (r.stdout || "") + (r.stderr || "") + (r.error?.message || "");
   },
-  summarize(args) {
-    return (args.command as string) ?? "";
-  },
+  summaryArg: "command",
 };

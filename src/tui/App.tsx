@@ -13,7 +13,7 @@ import { compactDisplay } from "../util/format.js";
 
 type Status = "idle" | "thinking" | "streaming";
 
-const STREAM_FRAME_MS = 50;
+const STREAM_FRAME_MS = 120;
 
 export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const { exit } = useApp();
@@ -80,7 +80,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     } else if (e.type === "tool_start") {
       flushStreaming();
       setStatus("thinking");
-      commit({ kind: "tool", name: e.name, summary: e.summary, result: null });
+      commit({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
     } else if (e.type === "retry") {
       cancelStreamingRender();
       streamingRef.current = "";
@@ -92,7 +92,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         const copy = [...l];
         for (let i = copy.length - 1; i >= 0; i--) {
           const entry = copy[i];
-          if (entry.kind === "tool" && entry.result === null) {
+          if (entry.kind === "tool" && entry.id === e.id && entry.result === null) {
             copy[i] = { ...entry, result: e.result, isError: e.isError };
             break;
           }

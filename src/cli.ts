@@ -57,14 +57,9 @@ async function main(): Promise<void> {
     join(process.cwd(), "CLAUDE.md"),
   ]);
 
-  const systemPromptParts = [SYSTEM_PROMPT_BASE];
-  if (globalPrompt) {
-    systemPromptParts.push(globalPrompt);
-  }
-  if (projectPrompt) {
-    systemPromptParts.push(projectPrompt);
-  }
-  const systemPrompt = systemPromptParts.join("\n\n=================\n\n");
+  const systemPrompt = [SYSTEM_PROMPT_BASE, globalPrompt, projectPrompt]
+    .filter(Boolean)
+    .join("\n\n=================\n\n");
 
   const session = new Session(systemPrompt);
   const agent = new Agent(llm, session, tools);

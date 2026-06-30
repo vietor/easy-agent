@@ -32,11 +32,12 @@ export class ToolRegistry {
 
   summarize(name: string, args: Record<string, unknown>): string {
     const tool = this.tools.get(name);
-    if (!tool) return "";
-    try {
-      return tool.summarize(args);
-    } catch {
-      return "";
+    if (!tool?.summaryArg) return "";
+    const keys = Array.isArray(tool.summaryArg) ? tool.summaryArg : [tool.summaryArg];
+    for (const k of keys) {
+      const v = args[k];
+      if (typeof v === "string" && v) return v;
     }
+    return "";
   }
 }

@@ -74,9 +74,6 @@ export class MCPServers {
           ? { content: fixError(text), isError: true }
           : { content: text || "(no output)" };
       },
-      summarize(args) {
-        return (args.url as string) ?? "";
-      },
     };
   }
 

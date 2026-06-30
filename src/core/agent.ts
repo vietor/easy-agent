@@ -10,8 +10,8 @@ const STALL_THRESHOLD = 3;
 export type AgentEvent =
   | { type: "delta"; text: string }
   | { type: "retry"; attempt: number; max: number }
-  | { type: "tool_start"; name: string; summary: string }
-  | { type: "tool_end"; name: string; result: string; isError?: boolean }
+  | { type: "tool_start"; id: string; name: string; summary: string }
+  | { type: "tool_end"; id: string; name: string; result: string; isError?: boolean }
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "usage"; promptTokens: number; completionTokens: number };
@@ -42,7 +42,7 @@ export class Agent {
     if (history.length === 0) return;
     const request: Message[] = [
       ...history,
-      { role: "user", content: COMPACT_PROMPT},
+      { role: "user", content: COMPACT_PROMPT },
     ];
     const msg = await this.llm.chat(request, []);
     this.session.compact((msg.content as string) || "");
@@ -88,22 +88,25 @@ export class Agent {
               onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
               return;
             }
-            for (const call of msg.tool_calls) {
-              if (aborted()) break;
-              let args: Record<string, unknown> = {};
-              let argsError = "";
-              if (call.function.arguments) {
-                try { args = JSON.parse(call.function.arguments); }
-                catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
-              }
-              const summary = this.tools.summarize(call.function.name, args);
-              onEvent?.({ type: "tool_start", name: call.function.name, summary });
-              const result: ToolResult = argsError
-                ? { content: argsError, isError: true }
-                : await this.tools.execute(call.function.name, args);
-              onEvent?.({ type: "tool_end", name: call.function.name, result: result.content, isError: result.isError });
-              this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });
-            }
+            await Promise.all(
+              msg.tool_calls.map(async (call) => {
+                let args: Record<string, unknown> = {};
+                let argsError = "";
+                if (call.function.arguments) {
+                  try { args = JSON.parse(call.function.arguments); }
+                  catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
+                }
+                const summary = this.tools.summarize(call.function.name, args);
+                onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
+                if (aborted()) return;
+                const result: ToolResult = argsError
+                  ? { content: argsError, isError: true }
+                  : await this.tools.execute(call.function.name, args);
+                if (aborted()) return;
+                onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
+                this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });
+              })
+            );
             if (aborted()) return;
           }
         },
