@@ -28,19 +28,9 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
-  const [cmdIdx, setCmdIdx] = useState(-1);
   const allCmds = useMemo(() => listCommands(), []);
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
-
-  const cmdPrefix = status === "idle" && input.startsWith("/") ? input.slice(1) : null;
-  const filtered = cmdPrefix === null ? [] : cmdPrefix === "" ? allCmds : allCmds.filter((c) => c.name.startsWith(cmdPrefix));
-  const showCmd = cmdPrefix !== null && filtered.length > 0;
-
-  useEffect(() => {
-    if (filtered.length > 0 && cmdIdx === -1) setCmdIdx(0);
-    else if (cmdIdx >= filtered.length) setCmdIdx(Math.max(0, filtered.length - 1));
-  }, [filtered.length]);
 
   useEffect(() => {
     for (const msg of mcp.flushErrors()) commit({ kind: "error", text: msg });
@@ -111,39 +101,23 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   };
 
   useInput((_input, key) => {
-    if (showCmd) {
-      if (key.upArrow) {
-        setCmdIdx((i) => (i <= 0 ? filtered.length - 1 : i - 1));
-      } else if (key.downArrow) {
-        setCmdIdx((i) => (i >= filtered.length - 1 ? 0 : i + 1));
-      } else if (key.escape) {
-        setInput("");
-        setCmdIdx(-1);
-      } else if (key.ctrl && _input === "c") {
-        exit();
-      }
-      return;
-    }
-    if (key.escape || (key.ctrl && _input === "c")) {
+    if (key.escape) {
+      abortRef.current?.abort();
+    } else if (key.ctrl && _input === "c") {
       if (abortRef.current) abortRef.current.abort();
-      else if (key.ctrl && _input === "c") exit();
+      else exit();
     }
   });
 
-  async function handleCommand(command: string) {
-    const cmdName = showCmd && cmdIdx >= 0 ? filtered[cmdIdx].name : command;
-    setCmdIdx(-1);
-    await runCommand(
-      cmdName,
-      { agent, mcp },
-      {
-        exit,
-        clearLog: () => setLog([]),
-        showSystem: (t) => commit({ kind: "system", text: t }),
-        showError: (t) => commit({ kind: "error", text: t }),
-        thinking: (on) => setStatus(on ? "thinking" : "idle"),
-      },
-    );
+  async function handleMenuCommand(name: string) {
+    setInput("");
+    return await runCommand(name, { agent, mcp }, {
+      exit,
+      clearLog: () => setLog([]),
+      showSystem: (t) => commit({ kind: "system", text: t }),
+      showError: (t) => commit({ kind: "error", text: t }),
+      thinking: (on) => setStatus(on ? "thinking" : "idle"),
+    });
   }
 
   async function handlePrompt(text: string) {
@@ -195,8 +169,8 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       </Box>
       {status === "idle" ? (
         <Box flexDirection="column">
-          <CommandMenu show={showCmd} selectedIndex={cmdIdx} commands={filtered} />
-          <PromptInput input={input} setInput={setInput} onCommand={handleCommand} onPrompt={handlePrompt} />
+          <CommandMenu input={input} commands={allCmds} onCommand={handleMenuCommand} onCancel={() => setInput("")} />
+          <PromptInput input={input} setInput={setInput} onPrompt={handlePrompt} />
         </Box>
       ) : null}
     </Box>

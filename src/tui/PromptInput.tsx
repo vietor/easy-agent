@@ -4,20 +4,16 @@ import TextInput from "ink-text-input";
 interface PromptInputProps {
   input: string;
   setInput: (value: string) => void;
-  onCommand: (value: string) => void;
   onPrompt: (value: string) => void;
 }
 
-export function PromptInput({ input, setInput, onCommand, onPrompt }: PromptInputProps) {
+export function PromptInput({ input, setInput, onPrompt }: PromptInputProps) {
   const onSubmit = (value: string) => {
     const text = value.trim();
     setInput("");
     if (!text) return;
-    if (text.startsWith("/")) {
-      onCommand(text.slice(1));
-    } else {
-      onPrompt(text);
-    }
+    if (text.startsWith("/")) return;
+    onPrompt(text);
   };
 
   return (
