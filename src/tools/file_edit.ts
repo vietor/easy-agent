@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import type { Tool } from "../types.js";
+import type { Tool } from "./types.js";
 
 const DESCRIPTION = [
   "Replace the single occurrence of old_string with new_string in a file.",

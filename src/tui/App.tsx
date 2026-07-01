@@ -13,7 +13,7 @@ import { compactDisplay } from "../util/format.js";
 
 type Status = "idle" | "thinking" | "streaming";
 
-const STREAM_FRAME_MS = 120;
+const STREAM_FRAME_MS = 240;
 
 export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const { exit } = useApp();
@@ -190,12 +190,12 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
       ) : null}
 
+      <Box marginTop={1}>
+        <Text dimColor>[CTX {compactDisplay(agent.contextTokens)}] · ESC to stop · "/quit" to leave</Text>
+      </Box>
       {status === "idle" ? (
-        <Box flexDirection="column" marginTop={1}>
+        <Box flexDirection="column">
           <CommandMenu show={showCmd} selectedIndex={cmdIdx} commands={filtered} />
-          <Text dimColor>
-            [{compactDisplay(agent.contextTokens)} context] · ESC to stop · "/quit" to leave
-          </Text>
           <PromptInput input={input} setInput={setInput} onCommand={handleCommand} onPrompt={handlePrompt} />
         </Box>
       ) : null}

@@ -1,5 +1,5 @@
-import { resolveCwd, runRgLines } from "../../util/ripgrep.js";
-import type { Tool } from "../types.js";
+import { resolveCwd, runRgLines } from "../util/ripgrep.js";
+import type { Tool } from "./types.js";
 
 const MAX_MATCHES = 200;
 

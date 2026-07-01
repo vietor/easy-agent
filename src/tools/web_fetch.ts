@@ -1,6 +1,6 @@
 import { Parser } from "htmlparser2";
 import TurndownService from "turndown";
-import type { Tool } from "../types.js";
+import type { Tool } from "./types.js";
 
 const SKIP_TAGS = new Set(["script", "style", "noscript", "template", "head", "title", "meta", "link", "base"]);
 const BLOCK_TAGS = new Set([

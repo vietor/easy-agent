@@ -1,5 +1,5 @@
-import { runProcess } from "../../util/process.js";
-import type { Tool } from "../types.js";
+import { runProcess } from "../util/process.js";
+import type { Tool } from "./types.js";
 
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : "/bin/sh";

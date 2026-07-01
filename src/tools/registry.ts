@@ -1,5 +1,12 @@
 import type { Tool, ToolResult } from "./types.js";
 import type { ToolSchema } from "../llm/types.js";
+import { shellTool } from "./shell.js";
+import { fileReadTool } from "./file_read.js";
+import { fileWriteTool } from "./file_write.js";
+import { fileEditTool } from "./file_edit.js";
+import { globTool } from "./glob.js";
+import { grepTool } from "./grep.js";
+import { webFetchTool } from "./web_fetch.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
@@ -40,4 +47,9 @@ export class ToolRegistry {
     }
     return "";
   }
+}
+
+export function registerBuiltinTools(tools: ToolRegistry) {
+  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool])
+    tools.register(t);
 }

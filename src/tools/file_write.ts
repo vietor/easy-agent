@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { Tool } from "../types.js";
+import type { Tool } from "./types.js";
 
 const DESCRIPTION = [
   "Write content to a file, overwriting it entirely if it exists and creating parent directories as needed.",

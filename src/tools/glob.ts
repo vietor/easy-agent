@@ -1,5 +1,5 @@
-import { resolveCwd, runRgLines } from "../../util/ripgrep.js";
-import type { Tool } from "../types.js";
+import { resolveCwd, runRgLines } from "../util/ripgrep.js";
+import type { Tool } from "./types.js";
 
 const DESCRIPTION = [
   "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts); omit pattern to list every file.",

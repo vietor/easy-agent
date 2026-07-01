@@ -6,14 +6,7 @@ import { loadConfig } from "./config.js";
 import { LLMClient } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { Agent } from "./core/agent.js";
-import { ToolRegistry } from "./tools/registry.js";
-import { shellTool } from "./tools/builtin/shell.js";
-import { fileReadTool } from "./tools/builtin/file_read.js";
-import { fileWriteTool } from "./tools/builtin/file_write.js";
-import { fileEditTool } from "./tools/builtin/file_edit.js";
-import { globTool } from "./tools/builtin/glob.js";
-import { grepTool } from "./tools/builtin/grep.js";
-import { webFetchTool } from "./tools/builtin/web_fetch.js";
+import { ToolRegistry, registerBuiltinTools } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
 import { startApp } from "./tui/App.js";
 import { readFirstExistingFileContent } from "./util/fs.js";
@@ -37,8 +30,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const llm = new LLMClient(config.llm);
   const tools = new ToolRegistry();
-  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool])
-    tools.register(t);
+  registerBuiltinTools(tools);
 
   const mcp = new MCPServers();
   mcp

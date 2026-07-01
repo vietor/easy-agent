@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { Tool } from "../types.js";
+import type { Tool } from "./types.js";
 
 const DESCRIPTION = [
   "Read a file's full contents as UTF-8 text.",
