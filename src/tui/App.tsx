@@ -6,8 +6,7 @@ import type { MCPServers } from "../mcp/server.js";
 import { Markdown } from "./components/Markdown.js";
 import { Entry, type LogEntry } from "./LogView.js";
 import { AppHeader } from "./AppHeader.js";
-import { CommandMenu } from "./CommandMenu.js";
-import { PromptInput } from "./PromptInput.js";
+import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
 import { Spinner } from "./Spinner.js";
 import { compactDisplay } from "../util/format.js";
 
@@ -18,7 +17,6 @@ const STREAM_FRAME_MS = 240;
 export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const { exit } = useApp();
   const [log, setLog] = useState<LogEntry[]>([]);
-  const [input, setInput] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [, setTick] = useState(0);
   const streamingRef = useRef("");
@@ -109,8 +107,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     }
   });
 
-  async function handleMenuCommand(name: string) {
-    setInput("");
+  async function handleCommand(name: string) {
     return await runCommand(name, { agent, mcp }, {
       exit,
       clearLog: () => setLog([]),
@@ -168,10 +165,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         <Text dimColor>[CTX {compactDisplay(agent.contextTokens)}] · ESC to stop · "/quit" to leave</Text>
       </Box>
       {status === "idle" ? (
-        <Box flexDirection="column">
-          <CommandMenu input={input} commands={allCmds} onCommand={handleMenuCommand} onCancel={() => setInput("")} />
-          <PromptInput input={input} setInput={setInput} onPrompt={handlePrompt} />
-        </Box>
+        <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
       ) : null}
     </Box>
   );
