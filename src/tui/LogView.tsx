@@ -4,6 +4,7 @@ import { Markdown } from "./components/Markdown.js";
 
 export type LogEntry =
   | { kind: "user"; text: string }
+  | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
   | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean }
   | { kind: "retry"; attempt: number; max: number }
@@ -28,6 +29,12 @@ export const Entry = memo(function Entry({ entry }: { entry: LogEntry }) {
       return (
         <Box marginTop={1}>
           <Text>{`❯ ${entry.text}`}</Text>
+        </Box>
+      );
+    case "skill":
+      return (
+        <Box marginTop={1}>
+          <Text color="magenta">{`◈ skill: ${entry.name}`}</Text>
         </Box>
       );
     case "assistant":

@@ -3,6 +3,7 @@ import { Box, render, Text, useApp, useInput } from "ink";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import { CommandRegistry } from "../cmds/registry.js";
 import type { MCPServers } from "../mcp/server.js";
+import type { Skill } from "../skills/types.js";
 import { Markdown } from "./components/Markdown.js";
 import { Entry, type LogEntry } from "./LogView.js";
 import { AppHeader } from "./AppHeader.js";
@@ -115,12 +116,12 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
       showSystem: (t) => commit({ kind: "system", text: t }),
       showError: (t) => commit({ kind: "error", text: t }),
       thinking: (on) => setStatus(on ? "thinking" : "idle"),
-      runSkill: async (s) => {await handlePrompt(s.prompt);},
+      runSkill: (s) => handleSkill(s),
     });
   }
 
-  async function handlePrompt(text: string) {
-    commit({ kind: "user", text });
+  async function runAgent(entry: LogEntry, run: (signal: AbortSignal) => Promise<void>) {
+    commit(entry);
     setStatus("thinking");
     streamingRef.current = "";
     startRef.current = Date.now();
@@ -132,7 +133,7 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      await agent.run(text, onEvent, controller.signal);
+      await run(controller.signal);
       flushStreaming();
     } catch (e) {
       flushStreaming();
@@ -143,6 +144,14 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
       abortRef.current = null;
       setStatus("idle");
     }
+  }
+
+  async function handlePrompt(text: string) {
+    await runAgent({ kind: "user", text }, (signal) => agent.run(text, onEvent, signal));
+  }
+
+  async function handleSkill(skill: Skill) {
+    await runAgent({ kind: "skill", name: skill.name }, (signal) => agent.runSkill(skill, onEvent, signal));
   }
 
   return (

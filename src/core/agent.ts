@@ -1,7 +1,8 @@
 import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import type { AssistantMessage, Message } from "../llm/types.js";
-import type { Session } from "./session.js";
+import type { Session, SessionMessage } from "./session.js";
+import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolResult } from "../tools/types.js";
 
@@ -33,12 +34,12 @@ export class Agent {
     this.session.clear();
   }
 
-  export(): Message[] {
+  export(): SessionMessage[] {
     return this.session.export();
   }
 
   async compact(): Promise<void> {
-    const history = this.session.messages.slice(1);
+    const history = this.session.toLLM().slice(1);
     if (history.length === 0) return;
     const request: Message[] = [
       ...history,
@@ -56,70 +57,91 @@ export class Agent {
     this.session.createCheckpoint();
     try {
       this.session.add({ role: "user", content: userInput });
-      await withAbort(
-        async (aborted) => {
-          let lastSig = "";
-          let stall = 0;
-          while (true) {
-            let msg: AssistantMessage;
-            try {
-              msg = await this.llm.chat(
-                this.session.messages,
-                this.tools.schemas(),
-                (text) => onEvent?.({ type: "delta", text }),
-                (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-                (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
-                signal
-              );
-            } catch (e) {
-              if (aborted()) return;
-              onEvent?.({ type: "error", text: (e as Error).message });
-              return;
-            }
-            this.session.add(msg);
-            if (!msg.tool_calls?.length) return;
-            if (aborted()) return;
-            const sig = msg.tool_calls
-              .map((c) => `${c.function.name}:${c.function.arguments}`)
-              .join("|");
-            stall = sig === lastSig ? stall + 1 : 1;
-            lastSig = sig;
-            if (stall >= STALL_THRESHOLD) {
-              onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
-              return;
-            }
-            await Promise.all(
-              msg.tool_calls.map(async (call) => {
-                let args: Record<string, unknown> = {};
-                let argsError = "";
-                if (call.function.arguments) {
-                  try { args = JSON.parse(call.function.arguments); }
-                  catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
-                }
-                const summary = this.tools.summarize(call.function.name, args);
-                onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
-                if (aborted()) return;
-                const result: ToolResult = argsError
-                  ? { content: argsError, isError: true }
-                  : await this.tools.execute(call.function.name, args);
-                if (aborted()) return;
-                onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
-                this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });
-              })
-            );
-            if (aborted()) return;
-          }
-        },
-        {
-          signal,
-          onAbort: () => {
-            this.session.restoreCheckpoint();
-            onEvent?.({ type: "interrupted" });
-          },
-        }
-      );
+      await this.loop(onEvent, signal);
     } finally {
       this.session.removeCheckpoint();
     }
+  }
+
+  async runSkill(
+    skill: Skill,
+    onEvent?: (e: AgentEvent) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    this.session.createCheckpoint();
+    try {
+      this.session.add({ role: "skill", name: skill.name, content: skill.prompt });
+      await this.loop(onEvent, signal);
+    } finally {
+      this.session.removeCheckpoint();
+    }
+  }
+
+  private async loop(
+    onEvent?: (e: AgentEvent) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    await withAbort(
+      async (aborted) => {
+        let lastSig = "";
+        let stall = 0;
+        while (true) {
+          let msg: AssistantMessage;
+          try {
+            msg = await this.llm.chat(
+              this.session.toLLM(),
+              this.tools.schemas(),
+              (text) => onEvent?.({ type: "delta", text }),
+              (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
+              (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
+              signal
+            );
+          } catch (e) {
+            if (aborted()) return;
+            onEvent?.({ type: "error", text: (e as Error).message });
+            return;
+          }
+          this.session.add(msg);
+          if (!msg.tool_calls?.length) return;
+          if (aborted()) return;
+          const sig = msg.tool_calls
+            .map((c) => `${c.function.name}:${c.function.arguments}`)
+            .join("|");
+          stall = sig === lastSig ? stall + 1 : 1;
+          lastSig = sig;
+          if (stall >= STALL_THRESHOLD) {
+            onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
+            return;
+          }
+          await Promise.all(
+            msg.tool_calls.map(async (call) => {
+              let args: Record<string, unknown> = {};
+              let argsError = "";
+              if (call.function.arguments) {
+                try { args = JSON.parse(call.function.arguments); }
+                catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
+              }
+              const summary = this.tools.summarize(call.function.name, args);
+              onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
+              if (aborted()) return;
+              const result: ToolResult = argsError
+                ? { content: argsError, isError: true }
+                : await this.tools.execute(call.function.name, args);
+              if (aborted()) return;
+              onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
+              this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });
+            })
+          );
+          if (aborted()) return;
+        }
+      },
+      {
+        signal,
+        onAbort: () => {
+          this.session.restoreCheckpoint();
+          onEvent?.({ type: "interrupted" });
+        },
+      }
+    );
   }
 }
