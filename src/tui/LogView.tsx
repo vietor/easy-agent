@@ -32,13 +32,13 @@ export const Entry = memo(function Entry({ entry }: { entry: LogEntry }) {
       );
     case "assistant":
       return (
-        <Box paddingLeft={2}>
+        <Box marginTop={1}>
           <Markdown color="green">{entry.text}</Markdown>
         </Box>
       );
     case "tool":
       return (
-        <Box flexDirection="column" paddingLeft={2}>
+        <Box flexDirection="column">
           <Text color="yellow">{`● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}`}</Text>
           {entry.result !== null ? (
             <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.isError ?? false, entry.result)}`}</Text>
@@ -47,7 +47,7 @@ export const Entry = memo(function Entry({ entry }: { entry: LogEntry }) {
       );
     case "retry":
       return (
-        <Box paddingLeft={2}>
+        <Box>
           <Text color="yellow">{`↻ Retry ${entry.attempt}/${entry.max}`}</Text>
         </Box>
       );
@@ -59,13 +59,13 @@ export const Entry = memo(function Entry({ entry }: { entry: LogEntry }) {
       );
     case "interrupted":
       return (
-        <Box paddingLeft={2}>
+        <Box>
           <Text color="yellow">◼ interrupted</Text>
         </Box>
       );
     case "system":
       return (
-        <Box paddingLeft={2}>
+        <Box>
           <Text color="gray">{entry.text}</Text>
         </Box>
       );

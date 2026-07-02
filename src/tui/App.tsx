@@ -147,12 +147,14 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
     <Box flexDirection="column">
       <AppHeader />
 
-      {log.map((entry, i) => (
-        <Entry key={i} entry={entry} />
-      ))}
+      <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
+        {log.map((entry, i) => (
+          <Entry key={i} entry={entry} />
+        ))}
+      </Box>
 
       {status === "streaming" && streamingRef.current ? (
-        <Box paddingLeft={2}>
+        <Box>
           <Markdown color="green">{streamingRef.current}</Markdown>
         </Box>
       ) : null}
