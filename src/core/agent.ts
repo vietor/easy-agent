@@ -27,7 +27,7 @@ export class Agent {
   ) {}
 
   get contextTokens(): number {
-    return this.session.estimatedTokens;
+    return this.session.getEstimatedTokens();
   }
 
   clear(): void {

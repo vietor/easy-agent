@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { AssistantMessage, Message } from "../llm/types.js";
 
 export type SessionMessage =
@@ -11,7 +12,7 @@ function estimateTokens(text: string): number {
   if (!text) return 0;
   const cjk = (text.match(/[一-龥぀-ヿ가-힯]/g) || []).length;
   const words = (text.match(/[a-zA-Z0-9']+/g) || []).length;
-  return Math.ceil((cjk * 1.6) + (words * 1.3) + ((text.length - cjk) * 0.3));
+  return Math.ceil(cjk * 1.6 + words * 1.3 + (text.length - cjk) * 0.3);
 }
 
 function messageText(msg: SessionMessage): string {
@@ -32,8 +33,8 @@ function messageText(msg: SessionMessage): string {
 }
 
 export class Session {
-  messages: SessionMessage[] = [];
-  estimatedTokens = 0;
+  private messages: SessionMessage[] = [];
+  private estimatedTokens = 0;
   private checkpoint?: SessionMessage[];
   private checkpointTokens = 0;
 
@@ -42,17 +43,17 @@ export class Session {
     this.estimatedTokens = estimateTokens(system);
   }
 
+  getEstimatedTokens(): number {
+    return this.estimatedTokens;
+  }
+
   add(msg: SessionMessage): void {
     this.messages.push(msg);
     this.estimatedTokens += estimateTokens(messageText(msg));
   }
 
   toLLM(): Message[] {
-    return this.messages.map((m) =>
-      m.role === "skill"
-        ? { role: "user", name: m.name, content: m.content }
-        : m
-    );
+    return this.messages.map((m) => (m.role === "skill" ? { role: "user", name: m.name, content: m.content } : m));
   }
 
   export(): SessionMessage[] {
