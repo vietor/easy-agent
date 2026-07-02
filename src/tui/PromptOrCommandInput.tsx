@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { Command } from "../core/command.js";
+import type { CommandSchema } from "../core/command.js";
 
 interface PromptOrCommandInputProps {
-  commands: Command[];
+  commands: CommandSchema[];
   onCommand: (name: string) => void;
   onPrompt: (value: string) => void;
 }

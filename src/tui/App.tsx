@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
 import type { Agent, AgentEvent } from "../core/agent.js";
-import { listCommands, runCommand } from "../core/command.js";
+import { CommandRegistry } from "../cmds/registry.js";
 import type { MCPServers } from "../mcp/server.js";
 import { Markdown } from "./components/Markdown.js";
 import { Entry, type LogEntry } from "./LogView.js";
@@ -14,7 +14,7 @@ type Status = "idle" | "thinking" | "streaming";
 
 const STREAM_FRAME_MS = 240;
 
-export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
+export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandRegistry, mcp: MCPServers }) {
   const { exit } = useApp();
   const [log, setLog] = useState<LogEntry[]>([]);
   const [status, setStatus] = useState<Status>("idle");
@@ -26,7 +26,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
-  const allCmds = useMemo(() => listCommands(), []);
+  const allCmds = useMemo(() => commands.schemas(), []);
 
   const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
 
@@ -109,12 +109,13 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   });
 
   async function handleCommand(name: string) {
-    return await runCommand(name, { agent, mcp }, {
+    return await commands.execute(name, { agent, mcp }, {
       exit,
       clearLog: () => setLog([]),
       showSystem: (t) => commit({ kind: "system", text: t }),
       showError: (t) => commit({ kind: "error", text: t }),
       thinking: (on) => setStatus(on ? "thinking" : "idle"),
+      runSkill: async (s) => {await handlePrompt(s.prompt);},
     });
   }
 
@@ -176,7 +177,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   );
 }
 
-export function startApp(agent: Agent, mcp: MCPServers): ReturnType<typeof render> {
+export function startApp(agent: Agent, commands: CommandRegistry, mcp: MCPServers): ReturnType<typeof render> {
   process.stdout.write("\u001B[2J\u001B[H");
-  return render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false });
+  return render(<App agent={agent} commands={commands} mcp={mcp} />, { exitOnCtrlC: false });
 }
