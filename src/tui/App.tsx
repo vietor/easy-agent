@@ -161,7 +161,9 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       ) : null}
 
       {status === "thinking" ? (
-        <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
+        <Box marginTop={1} paddingLeft={1}>
+          <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
+        </Box>
       ) : null}
 
       {status === "idle" ? (
