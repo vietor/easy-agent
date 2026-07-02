@@ -37,6 +37,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
       mcp.onError = undefined;
     };
   }, []);
+
   const cancelStreamingRender = () => {
     if (renderTimerRef.current) {
       clearTimeout(renderTimerRef.current);
@@ -144,7 +145,7 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
   }
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" minWidth={80}>
       <AppHeader />
 
       <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
@@ -163,16 +164,17 @@ export function App({ agent, mcp }: { agent: Agent; mcp: MCPServers }) {
         <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
       ) : null}
 
-      <Box marginTop={1}>
-        <Text dimColor>[CTX {compactDisplay(agent.contextTokens)}] · ESC to stop · "/quit" to leave</Text>
-      </Box>
       {status === "idle" ? (
-        <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
+        <Box flexDirection="column" marginTop={1}>
+          <Text dimColor>[CTX {compactDisplay(agent.contextTokens)}] · ESC to stop · "/quit" to leave</Text>
+          <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
+        </Box>
       ) : null}
     </Box>
   );
 }
 
 export function startApp(agent: Agent, mcp: MCPServers): ReturnType<typeof render> {
-  return render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false, patchConsole: true });
+  process.stdout.write("\u001B[2J\u001B[H");
+  return render(<App agent={agent} mcp={mcp} />, { exitOnCtrlC: false });
 }
