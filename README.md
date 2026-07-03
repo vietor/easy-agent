@@ -22,7 +22,7 @@ npx @vietor/easy-agent
 
 ## Configuration
 
-Create `~/.easy-agent.json` in your home directory (`C:\Users\<you>\.easy-agent.json` on Windows):
+Create `~/.easy-agent.json` in your home directory:
 
 ```json
 {
@@ -66,6 +66,31 @@ Easy Agent reads instructions files and appends them to the system prompt, so yo
 2. **Project** — your current working directory, applied per-project. Checks `./AGENTS.md` first, then `./CLAUDE.md`; uses the first one found.
 
 Both global and project files are loaded and concatenated into the system prompt if they exist.
+
+### Optional: Skills
+
+Skills are reusable prompts that register themselves as slash commands. Create a subdirectory for each skill under `~/.agents/skills/` (or `~/.claude/skills/`) with a `SKILL.md` file:
+
+```
+~/.claude/skills/
+  deploy/
+    SKILL.md
+  review/
+    SKILL.md
+```
+
+A `SKILL.md` with YAML frontmatter:
+
+```markdown
+---
+name: deploy
+description: Deploy the app to production
+---
+
+Run the deployment: build the project, then run `deploy.sh` with the `--prod` flag.
+```
+
+Only `name` is required; if omitted the directory name is used. The body is the full prompt injected when the skill is invoked. Skills appear as `/`-prefixed commands in the TUI alongside built-in slash commands.
 
 ## Usage
 
