@@ -113,8 +113,8 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
     return await commands.execute(name, { agent, mcp }, {
       exit,
       clearLog: () => setLog([]),
-      showSystem: (t) => commit({ kind: "system", text: t }),
-      showError: (t) => commit({ kind: "error", text: t }),
+      info: (t) => commit({ kind: "system", text: t }),
+      error: (t) => commit({ kind: "error", text: t }),
       thinking: (on) => setStatus(on ? "thinking" : "idle"),
       runSkill: (s) => handleSkill(s),
     });

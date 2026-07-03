@@ -7,11 +7,11 @@ export interface CommandContext {
   mcp: MCPServers;
 }
 
-export interface CommandUI {
+export interface CommandHost {
   exit(): void;
   clearLog(): void;
-  showSystem(text: string): void;
-  showError(text: string): void;
+  info(text: string): void;
+  error(text: string): void;
   thinking(on: boolean): void;
   runSkill(skill: Skill): Promise<void>;
 }
@@ -24,5 +24,5 @@ export interface CommandSchema {
 export interface Command {
   name: string;
   description: string;
-  execute(ctx: CommandContext, ui: CommandUI): Promise<void>;
+  execute(ctx: CommandContext, host: CommandHost): Promise<void>;
 }

@@ -1,4 +1,4 @@
-import { CommandContext, CommandUI, Command, CommandSchema } from "./types.js";
+import { CommandContext, CommandHost, Command, CommandSchema } from "./types.js";
 import { exitCommand, clearCommand, mcpCommand, compactCommand, exportCommand } from "./builtin.js";
 
 export class CommandRegistry {
@@ -15,13 +15,13 @@ export class CommandRegistry {
     }));
   }
 
-  async execute(command: string, ctx: CommandContext, ui: CommandUI): Promise<void> {
+  async execute(command: string, ctx: CommandContext, host: CommandHost): Promise<void> {
     const cmd = this.commands.get(command);
     if (!cmd) {
-      ui.showError(`unknown command: /${command}`);
+      host.error(`unknown command: /${command}`);
       return;
     }
-    await cmd.execute(ctx, ui);
+    await cmd.execute(ctx, host);
   }
 }
 

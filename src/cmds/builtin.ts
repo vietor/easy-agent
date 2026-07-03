@@ -4,24 +4,24 @@ import { Command } from "./types.js";
 export const exitCommand: Command = {
   name: "exit",
   description: "Exit the session",
-  async execute(_ctx, ui) {
-    ui.exit();
+  async execute(_ctx, host) {
+    host.exit();
   },
 };
 
 export const clearCommand: Command = {
   name: "clear",
   description: "Clear the conversation and log",
-  async execute(ctx, ui) {
+  async execute(ctx, host) {
     ctx.agent.clear();
-    ui.clearLog();
+    host.clearLog();
   },
 };
 
 export const mcpCommand: Command = {
   name: "mcp",
   description: "List linked MCP servers",
-  async execute(ctx, ui) {
+  async execute(ctx, host) {
     const servers = ctx.mcp.list();
     const text = servers.length
       ? [
@@ -29,22 +29,22 @@ export const mcpCommand: Command = {
           ...servers.map((s) => `❯ ${s.name} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`),
         ].join("\n")
       : "No MCP servers linked.";
-    ui.showSystem(text);
+    host.info(text);
   },
 };
 
 export const compactCommand: Command = {
   name: "compact",
   description: "Compact the agent context",
-  async execute(ctx, ui) {
-    ui.thinking(true);
+  async execute(ctx, host) {
+    host.thinking(true);
     try {
       await ctx.agent.compact();
-      ui.showSystem("context compacted");
+      host.info("context compacted");
     } catch (e) {
-      ui.showError((e as Error).message);
+      host.error((e as Error).message);
     } finally {
-      ui.thinking(false);
+      host.thinking(false);
     }
   },
 };
@@ -52,7 +52,7 @@ export const compactCommand: Command = {
 export const exportCommand: Command = {
   name: "export",
   description: "Export the session to a JSONL file",
-  async execute(ctx, ui) {
+  async execute(ctx, host) {
     try {
       const d = new Date();
       const pad = (n: number) => String(n).padStart(2, "0");
@@ -63,9 +63,9 @@ export const exportCommand: Command = {
         .map((m) => JSON.stringify(m))
         .join("\n");
       writeFileSync(file, lines + "\n", "utf-8");
-      ui.showSystem(`exported to ${file}`);
+      host.info(`exported to ${file}`);
     } catch (e) {
-      ui.showError((e as Error).message);
+      host.error((e as Error).message);
     }
   },
 };

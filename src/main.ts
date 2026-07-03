@@ -53,8 +53,8 @@ export async function main(): Promise<void> {
       commands.register({
         name: skill.name,
         description: skill.description ?? skill.name,
-        execute: async (_, ui) => {
-          await ui.runSkill(skill);
+        execute: async (_, host) => {
+          await host.runSkill(skill);
         },
       }),
     );
