@@ -1,9 +1,8 @@
 import { Box, Text } from "ink";
 import { getPackageInfo } from "../util/package.js";
 
-const pkginfo = getPackageInfo();
-
 export function AppHeader() {
+  const pkginfo = getPackageInfo();
   return (
     <Box flexDirection="column">
       <Box>
