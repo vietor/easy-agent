@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
 import type { Agent, AgentEvent } from "../core/agent.js";
 import { CommandRegistry } from "../cmds/registry.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { Skill } from "../skills/types.js";
 import { Markdown } from "./components/Markdown.js";
-import { Entry, type LogEntry } from "./LogView.js";
+import { LogView } from "./LogView.js";
+import { LogStore, type LogEntry } from "./LogStore.js";
 import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
 import { Spinner } from "./Spinner.js";
@@ -17,7 +18,8 @@ const STREAM_FRAME_MS = 240;
 
 export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandRegistry, mcp: MCPServers }) {
   const { exit } = useApp();
-  const [log, setLog] = useState<LogEntry[]>([]);
+  const [store] = useState(() => new LogStore());
+  const log = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [status, setStatus] = useState<Status>("idle");
   const [, setTick] = useState(0);
   const streamingRef = useRef("");
@@ -29,11 +31,9 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
   const allCmds = useMemo(() => commands.schemas(), []);
 
-  const commit = (entry: LogEntry) => setLog((l) => [...l, entry]);
-
   useEffect(() => {
-    for (const msg of mcp.flushErrors()) commit({ kind: "error", text: msg });
-    mcp.onError = (msg) => commit({ kind: "error", text: msg });
+    for (const msg of mcp.flushErrors()) store.append({ kind: "error", text: msg });
+    mcp.onError = (msg) => store.append({ kind: "error", text: msg });
     return () => {
       mcp.onError = undefined;
     };
@@ -58,7 +58,7 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
   const flushStreaming = () => {
     cancelStreamingRender();
     if (streamingRef.current) {
-      commit({ kind: "assistant", text: streamingRef.current });
+      store.append({ kind: "assistant", text: streamingRef.current });
       streamingRef.current = "";
     }
   };
@@ -70,31 +70,21 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
     } else if (e.type === "tool_start") {
       flushStreaming();
       setStatus("thinking");
-      commit({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
+      store.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
     } else if (e.type === "retry") {
       cancelStreamingRender();
       streamingRef.current = "";
       setStatus("thinking");
-      commit({ kind: "retry", attempt: e.attempt, max: e.max });
+      store.append({ kind: "retry", attempt: e.attempt, max: e.max });
     } else if (e.type === "tool_end") {
       setStatus("thinking");
-      setLog((l) => {
-        const copy = [...l];
-        for (let i = copy.length - 1; i >= 0; i--) {
-          const entry = copy[i];
-          if (entry.kind === "tool" && entry.id === e.id && entry.result === null) {
-            copy[i] = { ...entry, result: e.result, isError: e.isError };
-            break;
-          }
-        }
-        return copy;
-      });
+      store.setToolResult(e.id, e.result, e.isError);
     } else if (e.type === "error") {
       flushStreaming();
-      commit({ kind: "error", text: e.text });
+      store.append({ kind: "error", text: e.text });
     } else if (e.type === "interrupted") {
       flushStreaming();
-      commit({ kind: "interrupted" });
+      store.append({ kind: "interrupted" });
     } else if (e.type === "usage") {
       setUsage({ prompt: e.promptTokens, completion: e.completionTokens });
     }
@@ -112,16 +102,16 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
   async function handleCommand(name: string) {
     return await commands.execute(name, { agent, mcp }, {
       exit,
-      clearLog: () => setLog([]),
-      info: (t) => commit({ kind: "system", text: t }),
-      error: (t) => commit({ kind: "error", text: t }),
+      clearLog: () => store.clear(),
+      info: (t) => store.append({ kind: "system", text: t }),
+      error: (t) => store.append({ kind: "error", text: t }),
       thinking: (on) => setStatus(on ? "thinking" : "idle"),
       runSkill: (s) => handleSkill(s),
     });
   }
 
   async function runAgent(entry: LogEntry, run: (signal: AbortSignal) => Promise<void>) {
-    commit(entry);
+    store.append(entry);
     setStatus("thinking");
     streamingRef.current = "";
     startRef.current = Date.now();
@@ -137,7 +127,7 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
       flushStreaming();
     } catch (e) {
       flushStreaming();
-      commit({ kind: "error", text: (e as Error).message });
+      store.append({ kind: "error", text: (e as Error).message });
     } finally {
       clearInterval(timerRef.current);
       timerRef.current = undefined;
@@ -160,12 +150,12 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
 
       <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
         {log.map((entry, i) => (
-          <Entry key={i} entry={entry} />
+          <LogView key={i} entry={entry} />
         ))}
       </Box>
 
       {status === "streaming" && streamingRef.current ? (
-        <Box>
+        <Box paddingLeft={1} paddingRight={1}>
           <Markdown color="green">{streamingRef.current}</Markdown>
         </Box>
       ) : null}

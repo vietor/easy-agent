@@ -1,16 +1,7 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
-
-export type LogEntry =
-  | { kind: "user"; text: string }
-  | { kind: "skill"; name: string }
-  | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean }
-  | { kind: "retry"; attempt: number; max: number }
-  | { kind: "error"; text: string }
-  | { kind: "interrupted" }
-  | { kind: "system"; text: string };
+import { LogEntry } from "./LogStore.js";
 
 function preview(isError: boolean, text: string): string {
   if (isError) {
@@ -23,7 +14,7 @@ function preview(isError: boolean, text: string): string {
   return `Result: ${byteCount} bytes, ${lineCount} lines`;
 }
 
-export const Entry = memo(function Entry({ entry }: { entry: LogEntry }) {
+export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
   switch (entry.kind) {
     case "user":
       return (
