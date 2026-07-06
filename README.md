@@ -1,5 +1,9 @@
 # Easy Agent
 
+![](https://img.shields.io/badge/Node.js-22%2B-brightgreen?style=flat-square) [![npm]](https://www.npmjs.com/package/@vietor/easy-agent)
+
+[npm]: https://img.shields.io/npm/v/@vietor/easy-agent.svg?style=flat-square
+
 An autonomous coding agent in the terminal.
 
 ## Requirements
