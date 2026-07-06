@@ -20,7 +20,7 @@
     "cli"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "packageManager": "pnpm@10.30.3",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
