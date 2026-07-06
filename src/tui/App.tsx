@@ -137,7 +137,11 @@ export function App({ agent, commands, mcp }: { agent: Agent; commands: CommandR
   }
 
   async function handlePrompt(text: string) {
-    await runAgent({ kind: "user", text }, (signal) => agent.run(text, onEvent, signal));
+    if(commands.exists(text)) {
+      await handleCommand(text);
+    } else {
+      await runAgent({ kind: "user", text }, (signal) => agent.run(text, onEvent, signal));
+    }
   }
 
   async function handleSkill(skill: Skill) {

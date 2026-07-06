@@ -15,6 +15,10 @@ export class CommandRegistry {
     }));
   }
 
+  exists(name: string): boolean {
+    return this.commands.has(name);
+  }
+
   async execute(command: string, ctx: CommandContext, host: CommandHost): Promise<void> {
     const cmd = this.commands.get(command);
     if (!cmd) {
