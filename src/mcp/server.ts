@@ -67,8 +67,8 @@ export class MCPServers {
       name: `MCP__${server}__${tool.name}`,
       description: tool.description ?? `${server} ${tool.name}`,
       parameters: tool.inputSchema,
-      async execute(args) {
-        const result = await client.callTool(tool.name, args);
+      async execute(args, signal) {
+        const result = await client.callTool(tool.name, args, signal);
         const text = result.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
         return result.isError
           ? { content: fixError(text), isError: true }

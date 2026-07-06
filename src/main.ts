@@ -11,20 +11,24 @@ import { tryReadFileText, readFirstFileContent } from "./util/fs.js";
 import { MCPServers } from "./mcp/server.js";
 import { startApp } from "./tui/App.js";
 
-const SYSTEM_PROMPT_BASE = `You are Easy Agent, an autonomous coding assistant running in the terminal. You complete tasks by calling tools, inspecting their results, and iterating until the work is done.
-
-Environment:
+const SYSTEM_PROMPT_BASE = [
+  "You are Easy Agent, an autonomous coding assistant running in the terminal. You complete tasks by calling tools, inspecting their results, and iterating until the work is done.",
+  `Environment:
 - Platform: ${process.platform}
-- Working directory: ${process.cwd()}
-
-Tool use:
-- Prefer dedicated tools (FileRead, FileEdit, Glob, Grep) over the Shell tool when they fit the task.
-- Read a file before editing it; make minimal, surgical changes that match the surrounding code style.
-- Reference code as file_path:line_number.
-
-Output:
+- Working directory: ${process.cwd()}`,
+  [
+    "Tool use:",
+    "- Prefer dedicated tools (FileRead, FileEdit, Glob, Grep) over the Shell tool when they fit the task.",
+    "- Read a file before editing it; make minimal, surgical changes that match the surrounding code style.",
+    "- Reference code as file_path:line_number.",
+    ...(process.platform === "linux"
+      ? ["- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry — surface the command for the user to run manually."]
+      : []),
+  ].join("\n"),
+  `Output:
 - Be concise and use GitHub-flavored markdown.
-- State what you did and stop once the task is complete. Report outcomes faithfully, and do not narrate alternatives you will not pursue.`;
+- State what you did and stop once the task is complete. Report outcomes faithfully, and do not narrate alternatives you will not pursue.`,
+].join("\n\n");
 
 export async function main(): Promise<void> {
   const config = loadConfig();

@@ -126,7 +126,7 @@ export class Agent {
               if (aborted()) return;
               const result: ToolResult = argsError
                 ? { content: argsError, isError: true }
-                : await this.tools.execute(call.function.name, args);
+                : await this.tools.execute(call.function.name, args, signal);
               if (aborted()) return;
               onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
               this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });

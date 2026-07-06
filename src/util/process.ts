@@ -12,13 +12,19 @@ export interface ProcessResult {
 export function runProcess(
   cmd: string,
   args: string[],
-  opts: { cwd?: string } = {}
+  opts: { cwd?: string } = {},
+  signal?: AbortSignal
 ): Promise<ProcessResult> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
       stdio: ["ignore", "pipe", "pipe"],
     });
+    const onAbort = () => child.kill();
+    if (signal) {
+      signal.addEventListener("abort", onAbort, { once: true });
+      if (signal.aborted) onAbort();
+    }
     const outChunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
     let size = 0;
@@ -34,8 +40,12 @@ export function runProcess(
     child.stderr?.on("data", (c: Buffer) => {
       errChunks.push(c);
     });
-    child.on("error", (error) => resolve({ stdout: "", stderr: "", status: null, error }));
+    child.on("error", (error) => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve({ stdout: "", stderr: "", status: null, error });
+    });
     child.on("close", (status) => {
+      signal?.removeEventListener("abort", onAbort);
       const stdout = Buffer.concat(outChunks).toString("utf-8");
       const stderr = Buffer.concat(errChunks).toString("utf-8");
       resolve(

@@ -8,5 +8,5 @@ export interface Tool {
   description: string;
   parameters: Record<string, unknown>;
   summaryArg?: string | string[];
-  execute(args: Record<string, unknown>): Promise<string | ToolResult>;
+  execute(args: Record<string, unknown>, signal?: AbortSignal): Promise<string | ToolResult>;
 }

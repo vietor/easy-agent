@@ -20,7 +20,7 @@ export const grepTool: Tool = {
     },
     required: ["pattern"],
   },
-  async execute(args) {
+  async execute(args, signal) {
     const cwd = resolveCwd(args.path as string | undefined);
     const rgArgs = [
       "--line-number",
@@ -29,7 +29,7 @@ export const grepTool: Tool = {
       args.pattern as string,
       ".",
     ];
-    const lines = await runRgLines(rgArgs, cwd);
+    const lines = await runRgLines(rgArgs, cwd, signal);
     if (!lines.length) return "(no matches)";
     if (lines.length > MAX_MATCHES) return lines.slice(0, MAX_MATCHES).join("\n") + "\n(truncated)";
     return lines.join("\n");

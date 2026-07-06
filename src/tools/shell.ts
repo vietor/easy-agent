@@ -26,9 +26,9 @@ export const shellTool: Tool = {
     properties: { command: { type: "string" } },
     required: ["command"],
   },
-  async execute(args) {
+  async execute(args, signal) {
     const command = args.command as string;
-    const r = await runProcess(shell, [...shellArgs, commandPrefix + command]);
+    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], {}, signal);
     if (r.status === 0 && !r.error) {
       return r.stdout || "(no output)";
     }

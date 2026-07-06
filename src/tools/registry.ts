@@ -26,11 +26,11 @@ export class ToolRegistry {
     }));
   }
 
-  async execute(name: string, args: Record<string, unknown>): Promise<ToolResult> {
+  async execute(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) return { content: `Error: unknown tool ${name}`, isError: true };
     try {
-      const r = await tool.execute(args);
+      const r = await tool.execute(args, signal);
       return typeof r === "string" ? { content: r } : r;
     } catch (e) {
       return { content: `Error: ${(e as Error).message}`, isError: true };

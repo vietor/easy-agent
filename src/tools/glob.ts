@@ -18,13 +18,13 @@ export const globTool: Tool = {
     },
     required: [],
   },
-  async execute(args) {
+  async execute(args, signal) {
     const cwd = resolveCwd(args.path as string | undefined);
     const rgArgs = ["--files"];
     const pattern = args.pattern as string;
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(".");
-    const files = await runRgLines(rgArgs, cwd);
+    const files = await runRgLines(rgArgs, cwd, signal);
     return files.length ? files.join("\n") : "(no matches)";
   },
   summaryArg: ["pattern", "path"],

@@ -7,9 +7,9 @@ export function resolveCwd(path?: string): string {
   return isAbsolute(root) ? root : join(process.cwd(), root);
 }
 
-export async function runRgLines(args: string[], cwd: string): Promise<string[]> {
+export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal): Promise<string[]> {
   const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", ...args];
-  const r = await runProcess(rgPath, rgArgs, { cwd });
+  const r = await runProcess(rgPath, rgArgs, { cwd }, signal);
   if (r.error) throw r.error;
   if (r.status !== 0 && r.status !== 1) {
     throw new Error((r.stderr || "").trim() || `ripgrep exited with ${r.status}`);

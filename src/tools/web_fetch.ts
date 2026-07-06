@@ -117,7 +117,7 @@ export const webFetchTool: Tool = {
     },
     required: ["url"],
   },
-  async execute(args) {
+  async execute(args, signal) {
     const url = args.url as string;
     const format = ((args.format as string) || "markdown").toLowerCase();
     let res: Response;
@@ -128,6 +128,7 @@ export const webFetchTool: Tool = {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
         },
         redirect: "follow",
+        signal,
       });
     } catch (e) {
       throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);

@@ -37,8 +37,8 @@ export class MCPClient {
     return this.client.listTools().then((r) => r.tools);
   }
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
-    return this.client.callTool({ name, arguments: args }) as Promise<CallToolResult>;
+  async callTool(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<CallToolResult> {
+    return this.client.callTool({ name, arguments: args }, undefined, { signal }) as Promise<CallToolResult>;
   }
 
   kill(): void {
