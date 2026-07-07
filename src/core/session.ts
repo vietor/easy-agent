@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { AssistantMessage, Message } from "../llm/types.js";
 
 export type SessionMessage =
@@ -33,14 +32,18 @@ function messageText(msg: SessionMessage): string {
 }
 
 export class Session {
+  private readonly systemEstimateTokens: number;
+
   private messages: SessionMessage[] = [];
   private estimatedTokens = 0;
-  private checkpoint?: SessionMessage[];
-  private checkpointTokens = 0;
+  private messagesSnapshot?: SessionMessage[];
+  private estimatedTokensSnapshot = 0;
 
   constructor(private system: string) {
+    this.systemEstimateTokens = estimateTokens(system);
+
     this.messages.push({ role: "system", content: system });
-    this.estimatedTokens = estimateTokens(system);
+    this.estimatedTokens = this.systemEstimateTokens;
   }
 
   getEstimatedTokens(): number {
@@ -62,7 +65,7 @@ export class Session {
 
   clear(): void {
     this.messages = [{ role: "system", content: this.system }];
-    this.estimatedTokens = estimateTokens(this.system);
+    this.estimatedTokens = this.systemEstimateTokens;
   }
 
   compact(summary: string): void {
@@ -73,18 +76,20 @@ export class Session {
     this.estimatedTokens = estimateTokens(this.system) + estimateTokens(summary);
   }
 
-  createCheckpoint(): void {
-    this.checkpoint = this.messages.slice();
-    this.checkpointTokens = this.estimatedTokens;
+  createSnapshot(): void {
+    this.messagesSnapshot = this.messages.slice();
+    this.estimatedTokensSnapshot = this.estimatedTokens;
   }
 
-  restoreCheckpoint(): void {
-    this.messages = this.checkpoint!.slice();
-    this.estimatedTokens = this.checkpointTokens;
+  restoreFromSnapshot(): void {
+    if (this.messagesSnapshot) {
+      this.messages = this.messagesSnapshot!.slice();
+      this.estimatedTokens = this.estimatedTokensSnapshot;
+    }
   }
 
-  removeCheckpoint(): void {
-    this.checkpoint = undefined;
-    this.checkpointTokens = 0;
+  clearSnapshot(): void {
+    this.messagesSnapshot = undefined;
+    this.estimatedTokensSnapshot = 0;
   }
 }

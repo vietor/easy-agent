@@ -54,12 +54,12 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    this.session.createCheckpoint();
+    this.session.createSnapshot();
     try {
       this.session.add({ role: "user", content: userInput });
       await this.loop(onEvent, signal);
     } finally {
-      this.session.removeCheckpoint();
+      this.session.clearSnapshot();
     }
   }
 
@@ -68,12 +68,12 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    this.session.createCheckpoint();
+    this.session.createSnapshot();
     try {
       this.session.add({ role: "skill", name: skill.name, content: skill.prompt });
       await this.loop(onEvent, signal);
     } finally {
-      this.session.removeCheckpoint();
+      this.session.clearSnapshot();
     }
   }
 
@@ -138,7 +138,7 @@ export class Agent {
       {
         signal,
         onAbort: () => {
-          this.session.restoreCheckpoint();
+          this.session.restoreFromSnapshot();
           onEvent?.({ type: "interrupted" });
         },
       }
