@@ -33,13 +33,6 @@ export function App({ session }: { session: Session }) {
     });
   }, []);
 
-  const cancelStreamingRender = () => {
-    if (renderTimerRef.current) {
-      clearTimeout(renderTimerRef.current);
-      renderTimerRef.current = undefined;
-    }
-  };
-
   const scheduleStreamingRender = () => {
     if (renderTimerRef.current) return;
     renderTimerRef.current = setTimeout(() => {

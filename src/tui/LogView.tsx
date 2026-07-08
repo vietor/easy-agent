@@ -64,7 +64,7 @@ export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
     case "system":
       return (
         <Box>
-          <Text color="gray">{entry.text}</Text>
+          <Text color="blue">{entry.text}</Text>
         </Box>
       );
   }

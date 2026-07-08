@@ -25,7 +25,6 @@ export class Session {
   private callbacks?: SessionCallbacks;
   private streamingText = "";
   private elapsed = 0;
-  private usage = { prompt: 0, completion: 0 };
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -125,7 +124,6 @@ export class Session {
   private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
     this.streamingText = "";
     this.elapsed = 0;
-    this.usage = { prompt: 0, completion: 0 };
     this.startTime = Date.now();
     this.abortController = new AbortController();
     this.callbacks?.onElapsedChange?.(0);
@@ -178,7 +176,6 @@ export class Session {
           this.appendLog({ kind: "interrupted" });
           break;
         case "usage":
-          this.usage = { prompt: e.promptTokens, completion: e.completionTokens };
           this.callbacks?.onUsageChange?.(e.promptTokens, e.completionTokens);
           break;
       }
