@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
-import type { LogEntry } from "../core/session.js";
+import type { LogEntry } from "../core/logstore.js";
 
 function preview(isError: boolean, text: string): string {
   if (isError) {

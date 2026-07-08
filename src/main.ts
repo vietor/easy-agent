@@ -39,12 +39,9 @@ export async function main(): Promise<void> {
   const commands = new CommandRegistry();
   registerBuiltinCommands(commands);
 
-  const mcp = new MCPServers();
+  const mcp = new MCPServers(tools);
   mcp
     .connect(config.mcpServers)
-    .then((list) => {
-      for (const t of list) tools.register(t);
-    })
     .catch((e) => mcp.report(`MCP connect failed: ${(e as Error).message}`));
 
   const globalSkills = readFirstFileContent(

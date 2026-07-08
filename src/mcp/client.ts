@@ -1,16 +1,17 @@
+import { spawnSync } from "node:child_process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { MCPServerConfig } from "../config.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { getPackageInfo } from "../util/package.js";
 
-function getClientINfo() {
+function getClientInfo() {
   const pkginfo = getPackageInfo();
   return { name: pkginfo.name, version: pkginfo.version };
 }
 
 export class MCPClient {
-  private client = new Client(getClientINfo(), { capabilities: {} });
+  private client = new Client(getClientInfo(), { capabilities: {} });
   private transport: StdioClientTransport;
   private connectReject?: (e: Error) => void;
 
@@ -45,10 +46,13 @@ export class MCPClient {
     this.connectReject?.(new Error("aborted"));
     this.connectReject = undefined;
     const pid = this.transport.pid;
-    if (pid) {
-      try {
+    if (!pid) return;
+    try {
+      if (process.platform === "win32") {
+        spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
+      } else {
         process.kill(pid, "SIGTERM");
-      } catch {}
-    }
+      }
+    } catch {}
   }
 }

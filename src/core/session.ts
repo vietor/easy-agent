@@ -7,16 +7,9 @@ import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { Agent, type AgentEvent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
+import { LogStore, type LogEntry } from "./logstore.js";
 
-export type LogEntry =
-  | { kind: "user"; text: string }
-  | { kind: "skill"; name: string }
-  | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean }
-  | { kind: "retry"; attempt: number; max: number }
-  | { kind: "error"; text: string }
-  | { kind: "interrupted" }
-  | { kind: "system"; text: string };
+export type { LogEntry };
 
 export interface SessionCallbacks {
   onStreaming?: (text: string) => void;
@@ -30,6 +23,7 @@ export class Session {
   readonly agent: Agent;
   readonly mcp: MCPServers;
   private commands: CommandRegistry;
+  private log = new LogStore();
 
   private callbacks?: SessionCallbacks;
   private streamingText = "";
@@ -39,15 +33,13 @@ export class Session {
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
 
-  private logEntries: LogEntry[] = [];
-  private logListeners = new Set<() => void>();
+  getSnapshot = (): number => this.log.getSnapshot();
 
-  getSnapshot = (): LogEntry[] => this.logEntries;
+  subscribe = (listener: () => void): (() => void) => this.log.subscribe(listener);
 
-  subscribe = (listener: () => void): (() => void) => {
-    this.logListeners.add(listener);
-    return () => this.logListeners.delete(listener);
-  };
+  get logEntries(): readonly LogEntry[] {
+    return this.log.all;
+  }
 
   constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
     this.conversation = new Conversation(systemPrompt);
@@ -71,13 +63,11 @@ export class Session {
   }
 
   appendLog(entry: LogEntry): void {
-    this.logEntries = [...this.logEntries, entry];
-    this.emitLog();
+    this.log.append(entry);
   }
 
   clearLog(): void {
-    this.logEntries = [];
-    this.emitLog();
+    this.log.clear();
   }
 
   clear(): void {
@@ -89,8 +79,18 @@ export class Session {
     return this.agent.export();
   }
 
-  async compact(): Promise<void> {
-    await this.agent.compact();
+  async compact(): Promise<boolean> {
+    const ctrl = new AbortController();
+    this.abortController = ctrl;
+    try {
+      await this.agent.compact(ctrl.signal);
+      return true;
+    } catch (e) {
+      if (ctrl.signal.aborted) return false;
+      throw e;
+    } finally {
+      this.abortController = null;
+    }
   }
 
   abort(): void {
@@ -108,7 +108,6 @@ export class Session {
   async executeCommand(name: string, host: { exit: () => void; setRunning: (on: boolean) => void }): Promise<void> {
     await this.commands.execute(name, { session: this, mcp: this.mcp }, {
       exit: host.exit,
-      clearLog: () => this.clearLog(),
       info: (t) => this.appendLog({ kind: "system", text: t }),
       error: (t) => this.appendLog({ kind: "error", text: t }),
       thinking: (on) => host.setRunning(on),
@@ -124,23 +123,6 @@ export class Session {
   async startSkill(skill: Skill): Promise<void> {
     this.appendLog({ kind: "skill", name: skill.name });
     await this.run((signal) => this.agent.runSkill(skill, this.makeHandler(), signal));
-  }
-
-  private emitLog(): void {
-    for (const listener of this.logListeners) listener();
-  }
-
-  private setToolResult(id: string, result: string, isError?: boolean): void {
-    for (let i = this.logEntries.length - 1; i >= 0; i--) {
-      const entry = this.logEntries[i];
-      if (entry.kind === "tool" && entry.id === id && entry.result === null) {
-        const copy = [...this.logEntries];
-        copy[i] = { ...entry, result, isError };
-        this.logEntries = copy;
-        this.emitLog();
-        return;
-      }
-    }
   }
 
   private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
@@ -188,7 +170,7 @@ export class Session {
           this.appendLog({ kind: "retry", attempt: e.attempt, max: e.max });
           break;
         case "tool_end":
-          this.setToolResult(e.id, e.result, e.isError);
+          this.log.setResult(e.id, e.result, e.isError);
           break;
         case "error":
           this.flushStreaming();

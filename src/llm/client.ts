@@ -1,6 +1,7 @@
-import OpenAI, { APIConnectionError } from "openai";
+import OpenAI, { APIConnectionError, APIError } from "openai";
 import type { LLMConfig } from "../config.js";
-import type { AssistantMessage, Message, ToolSchema } from "./types.js";
+import type { AssistantMessage, Message } from "./types.js";
+import type { ToolSchema } from "../tools/types.js";
 import { withRetry } from "../util/async.js";
 
 const MAX_RETRIES = 3;
@@ -9,6 +10,15 @@ interface ToolCallAcc {
   id: string;
   name: string;
   arguments: string;
+}
+
+export interface ChatOptions {
+  messages: Message[];
+  tools: ToolSchema[];
+  onDelta?: (text: string) => void;
+  onRetry?: (attempt: number, max: number) => void;
+  onUsage?: (promptTokens: number, completionTokens: number) => void;
+  signal?: AbortSignal;
 }
 
 export class LLMClient {
@@ -24,20 +34,17 @@ export class LLMClient {
     this.model = config.model;
   }
 
-  async chat(
-    messages: Message[],
-    tools: ToolSchema[],
-    onDelta?: (text: string) => void,
-    onRetry?: (attempt: number, max: number) => void,
-    onUsage?: (promptTokens: number, completionTokens: number) => void,
-    signal?: AbortSignal
-  ): Promise<AssistantMessage> {
-    return withRetry(() => this.streamOnce(messages, tools, onDelta, onUsage, signal), {
+  async chat(opts: ChatOptions): Promise<AssistantMessage> {
+    return withRetry(() => this.streamOnce(opts.messages, opts.tools, opts.onDelta, opts.onUsage, opts.signal), {
       retries: MAX_RETRIES,
-      retryable: (e) => e instanceof APIConnectionError,
+      retryable: (e) => {
+        if (e instanceof APIConnectionError) return true;
+        if (e instanceof APIError && e.status) return e.status === 429 || e.status >= 500;
+        return false;
+      },
       backoff: (attempt) => 1000 * 2 ** attempt,
-      onRetry,
-      signal,
+      onRetry: opts.onRetry,
+      signal: opts.signal,
     });
   }
 

@@ -12,9 +12,8 @@ export const exitCommand: Command = {
 export const clearCommand: Command = {
   name: "clear",
   description: "Clear the conversation and log",
-  async execute(ctx, host) {
+  async execute(ctx) {
     ctx.session.clear();
-    host.clearLog();
   },
 };
 
@@ -39,8 +38,8 @@ export const compactCommand: Command = {
   async execute(ctx, host) {
     host.thinking(true);
     try {
-      await ctx.session.compact();
-      host.info("context compacted");
+      const ok = await ctx.session.compact();
+      if (ok) host.info("context compacted");
     } catch (e) {
       host.error((e as Error).message);
     } finally {

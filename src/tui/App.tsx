@@ -12,7 +12,7 @@ const STREAM_FRAME_MS = 240;
 
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
-  const log = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
@@ -74,7 +74,7 @@ export function App({ session }: { session: Session }) {
       <AppHeader />
 
       <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
-        {log.map((entry, i) => (
+        {session.logEntries.map((entry, i) => (
           <LogView key={i} entry={entry} />
         ))}
       </Box>

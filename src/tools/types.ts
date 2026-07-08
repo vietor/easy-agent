@@ -3,6 +3,15 @@ export interface ToolResult {
   isError?: boolean;
 }
 
+export interface ToolSchema {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
 export interface Tool {
   name: string;
   description: string;

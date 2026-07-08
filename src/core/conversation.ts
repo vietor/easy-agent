@@ -10,8 +10,10 @@ export type ConversationMessage =
 function estimateTokens(text: string): number {
   if (!text) return 0;
   const cjk = (text.match(/[一-龥぀-ヿ가-힯]/g) || []).length;
+  const wordChars = (text.match(/[a-zA-Z0-9']/g) || []).length;
   const words = (text.match(/[a-zA-Z0-9']+/g) || []).length;
-  return Math.ceil(cjk * 1.6 + words * 1.3 + (text.length - cjk) * 0.3);
+  const rest = text.length - cjk - wordChars;
+  return Math.ceil(cjk * 1.6 + words * 1.3 + rest * 0.3);
 }
 
 function messageText(msg: ConversationMessage): string {

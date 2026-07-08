@@ -1,5 +1,4 @@
-import type { Tool, ToolResult } from "./types.js";
-import type { ToolSchema } from "../llm/types.js";
+import type { Tool, ToolResult, ToolSchema } from "./types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file_read.js";
 import { fileWriteTool } from "./file_write.js";

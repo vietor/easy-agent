@@ -1,4 +1,5 @@
 import type { Tool } from "../tools/types.js";
+import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig } from "../config.js";
 import { MCPClient } from "./client.js";
 import { withTimeout } from "../util/async.js";
@@ -17,6 +18,8 @@ export class MCPServers {
   private errorBuffer: string[] = [];
   onError?: (msg: string) => void;
 
+  constructor(private tools: ToolRegistry) {}
+
   report(msg: string): void {
     if (this.onError) this.onError(msg);
     else this.errorBuffer.push(msg);
@@ -28,8 +31,7 @@ export class MCPServers {
     return buf;
   }
 
-  async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<Tool[]> {
-    const tools: Tool[] = [];
+  async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {
     await Promise.all(
       Object.entries(mcpServers).map(async ([name, cfg]) => {
         if (this.disposed) return;
@@ -47,7 +49,7 @@ export class MCPServers {
             return;
           }
           this.servers.set(name, { status: "connected", client, tools: mcpTools.map((t) => t.name) });
-          for (const t of mcpTools) tools.push(this.adapt(name, client, t));
+          for (const t of mcpTools) this.tools.register(this.adapt(name, client, t));
         } catch (e) {
           client.kill();
           if (!this.disposed) {
@@ -59,7 +61,6 @@ export class MCPServers {
         }
       }),
     );
-    return tools;
   }
 
   private adapt(server: string, client: MCPClient, tool: MCPTool): Tool {

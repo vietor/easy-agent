@@ -8,7 +8,7 @@ export function resolveCwd(path?: string): string {
 }
 
 export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal): Promise<string[]> {
-  const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", ...args];
+  const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", "-g", "!node_modules/**", ...args];
   const r = await runProcess(rgPath, rgArgs, { cwd }, signal);
   if (r.error) throw r.error;
   if (r.status !== 0 && r.status !== 1) {

@@ -9,7 +9,6 @@ export interface CommandContext {
 
 export interface CommandHost {
   exit(): void;
-  clearLog(): void;
   info(text: string): void;
   error(text: string): void;
   thinking(on: boolean): void;

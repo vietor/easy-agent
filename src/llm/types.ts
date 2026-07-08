@@ -20,12 +20,3 @@ export type Message =
   | { role: "user"; content: string | TextContentPart[]; name?: string }
   | AssistantMessage
   | { role: "tool"; tool_call_id: string; content: string };
-
-export interface ToolSchema {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}

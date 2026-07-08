@@ -7,6 +7,7 @@ import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolResult } from "../tools/types.js";
 
 const STALL_THRESHOLD = 3;
+const MAX_TURNS = 50;
 
 export type AgentEvent =
   | { type: "delta"; text: string }
@@ -38,14 +39,14 @@ export class Agent {
     return this.conversation.export();
   }
 
-  async compact(): Promise<void> {
+  async compact(signal?: AbortSignal): Promise<void> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return;
     const request: Message[] = [
       ...history,
       { role: "user", content: COMPACT_PROMPT },
     ];
-    const msg = await this.llm.chat(request, []);
+    const msg = await this.llm.chat({ messages: request, tools: [], signal });
     this.conversation.compact((msg.content as string) || "");
   }
 
@@ -54,13 +55,7 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    this.conversation.createSnapshot();
-    try {
-      this.conversation.add({ role: "user", content: userInput });
-      await this.loop(onEvent, signal);
-    } finally {
-      this.conversation.clearSnapshot();
-    }
+    await this.runTurn({ role: "user", content: userInput }, onEvent, signal);
   }
 
   async runSkill(
@@ -68,9 +63,17 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
+    await this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
+  }
+
+  private async runTurn(
+    msg: ConversationMessage,
+    onEvent?: (e: AgentEvent) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    this.conversation.add(msg);
     this.conversation.createSnapshot();
     try {
-      this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
       await this.loop(onEvent, signal);
     } finally {
       this.conversation.clearSnapshot();
@@ -85,17 +88,18 @@ export class Agent {
       async (aborted) => {
         let lastSig = "";
         let stall = 0;
+        let turns = 0;
         while (true) {
           let msg: AssistantMessage;
           try {
-            msg = await this.llm.chat(
-              this.conversation.toLLM(),
-              this.tools.schemas(),
-              (text) => onEvent?.({ type: "delta", text }),
-              (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-              (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
-              signal
-            );
+            msg = await this.llm.chat({
+              messages: this.conversation.toLLM(),
+              tools: this.tools.schemas(),
+              onDelta: (text) => onEvent?.({ type: "delta", text }),
+              onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
+              onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
+              signal,
+            });
           } catch (e) {
             if (aborted()) return;
             onEvent?.({ type: "error", text: (e as Error).message });
@@ -113,7 +117,11 @@ export class Agent {
             onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
             return;
           }
-          await Promise.all(
+          if (++turns >= MAX_TURNS) {
+            onEvent?.({ type: "error", text: `agent exceeded max turns (${MAX_TURNS})` });
+            return;
+          }
+          const results = await Promise.all(
             msg.tool_calls.map(async (call) => {
               let args: Record<string, unknown> = {};
               let argsError = "";
@@ -123,15 +131,19 @@ export class Agent {
               }
               const summary = this.tools.summarize(call.function.name, args);
               onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
-              if (aborted()) return;
+              if (aborted()) return null;
               const result: ToolResult = argsError
                 ? { content: argsError, isError: true }
                 : await this.tools.execute(call.function.name, args, signal);
-              if (aborted()) return;
+              if (aborted()) return null;
               onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
-              this.conversation.add({ role: "tool", tool_call_id: call.id, content: result.content });
+              return { id: call.id, content: result.content };
             })
           );
+          if (aborted()) return;
+          for (const r of results) {
+            if (r) this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
+          }
           if (aborted()) return;
         }
       },
