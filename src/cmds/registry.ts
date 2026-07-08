@@ -1,4 +1,4 @@
-import { CommandContext, CommandHost, Command, CommandSchema } from "./types.js";
+import type { CommandContext, CommandHost, Command, CommandSchema } from "./types.js";
 import { exitCommand, clearCommand, mcpCommand, compactCommand, exportCommand } from "./builtin.js";
 
 export class CommandRegistry {

@@ -1,6 +1,6 @@
 import type { Session } from "../core/session.js";
 import type { MCPServers } from "../mcp/server.js";
-import { Skill } from "../skills/types.js";
+import type { Skill } from "../skills/types.js";
 
 export interface CommandContext {
   session: Session;

@@ -78,7 +78,7 @@ function htmlToMarkdown(html: string): string {
 }
 
 function mimeFrom(contentType: string): string {
-  return contentType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  return contentType.split(";", 1)[0].trim().toLowerCase();
 }
 
 function isTextualMime(mime: string): boolean {

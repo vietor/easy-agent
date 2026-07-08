@@ -13,7 +13,7 @@ export type AgentEvent =
   | { type: "delta"; text: string }
   | { type: "retry"; attempt: number; max: number }
   | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; name: string; result: string; isError?: boolean }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean }
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "usage"; promptTokens: number; completionTokens: number };
@@ -136,7 +136,7 @@ export class Agent {
                 ? { content: argsError, isError: true }
                 : await this.tools.execute(call.function.name, args, signal);
               if (aborted()) return null;
-              onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
+              onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
               return { id: call.id, content: result.content };
             })
           );

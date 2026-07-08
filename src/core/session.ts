@@ -9,8 +9,6 @@ import { Agent, type AgentEvent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { LogStore, type LogEntry } from "./logstore.js";
 
-export type { LogEntry };
-
 export interface SessionCallbacks {
   onStreaming?: (text: string) => void;
   onRunStateChange?: (running: boolean) => void;
@@ -19,9 +17,8 @@ export interface SessionCallbacks {
 }
 
 export class Session {
-  readonly conversation: Conversation;
-  readonly agent: Agent;
-  readonly mcp: MCPServers;
+  private agent: Agent;
+  private mcp: MCPServers;
   private commands: CommandRegistry;
   private log = new LogStore();
 
@@ -42,8 +39,8 @@ export class Session {
   }
 
   constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
-    this.conversation = new Conversation(systemPrompt);
-    this.agent = new Agent(llm, this.conversation, tools);
+    const conversation = new Conversation(systemPrompt);
+    this.agent = new Agent(llm, conversation, tools);
     this.commands = commands;
     this.mcp = mcp;
     mcp.onError = (msg) => this.appendLog({ kind: "error", text: msg });
@@ -62,11 +59,11 @@ export class Session {
     return this.agent.contextTokens;
   }
 
-  appendLog(entry: LogEntry): void {
+  private appendLog(entry: LogEntry): void {
     this.log.append(entry);
   }
 
-  clearLog(): void {
+  private clearLog(): void {
     this.log.clear();
   }
 

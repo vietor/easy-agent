@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import { Command } from "./types.js";
+import type { Command } from "./types.js";
 
 export const exitCommand: Command = {
   name: "exit",

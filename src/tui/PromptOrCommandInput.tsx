@@ -42,6 +42,15 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
     { isActive: showMenu },
   );
 
+  const visibleItems = useMemo(() => {
+    if (!showMenu || filtered.length === 0) return { start: 0, items: [] as CommandSchema[] };
+    const total = filtered.length;
+    const half = Math.floor(MAX_ITEMS / 2);
+    let start = Math.max(0, selectedIndex - half);
+    if (start + MAX_ITEMS > total) start = Math.max(0, total - MAX_ITEMS);
+    return { start, items: filtered.slice(start, start + MAX_ITEMS) };
+  }, [showMenu, filtered, selectedIndex]);
+
   const onSubmit = (value: string) => {
     const text = value.trim();
     setInput("");
@@ -60,24 +69,17 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
     <Box flexDirection="column">
       {showMenu && filtered.length > 0 ? (
         <Box flexDirection="column" borderStyle="single" borderColor="gray">
-          {(() => {
-            const total = filtered.length;
-            const half = Math.floor(MAX_ITEMS / 2);
-            let start = Math.max(0, selectedIndex - half);
-            if (start + MAX_ITEMS > total) start = Math.max(0, total - MAX_ITEMS);
-            const visible = filtered.slice(start, start + MAX_ITEMS);
-            return visible.map((cmd, i) => {
-              const realIdx = start + i;
-              return (
-                <Box key={cmd.name}>
-                  <Text color={realIdx === selectedIndex ? "cyan" : undefined}>
-                    {realIdx === selectedIndex ? "▸ " : "  "}/{cmd.name}
-                  </Text>
-                  <Text dimColor>  {cmd.description}</Text>
-                </Box>
-              );
-            });
-          })()}
+          {visibleItems.items.map((cmd, i) => {
+            const realIdx = visibleItems.start + i;
+            return (
+              <Box key={cmd.name}>
+                <Text color={realIdx === selectedIndex ? "cyan" : undefined}>
+                  {realIdx === selectedIndex ? "▸ " : "  "}/{cmd.name}
+                </Text>
+                <Text dimColor>  {cmd.description}</Text>
+              </Box>
+            );
+          })}
         </Box>
       ) : null}
       <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">

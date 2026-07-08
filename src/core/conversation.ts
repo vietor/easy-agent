@@ -75,7 +75,7 @@ export class Conversation {
       { role: "system", content: this.system },
       { role: "assistant", content: summary },
     ];
-    this.estimatedTokens = estimateTokens(this.system) + estimateTokens(summary);
+    this.estimatedTokens = this.systemEstimateTokens + estimateTokens(summary);
   }
 
   createSnapshot(): void {
@@ -84,8 +84,9 @@ export class Conversation {
   }
 
   restoreFromSnapshot(): void {
-    if (this.messagesSnapshot) {
-      this.messages = this.messagesSnapshot!.slice();
+    const snap = this.messagesSnapshot;
+    if (snap) {
+      this.messages = snap.slice();
       this.estimatedTokens = this.estimatedTokensSnapshot;
     }
   }
