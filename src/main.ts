@@ -2,8 +2,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "./config.js";
 import { LLMClient } from "./llm/client.js";
-import { Conversation } from "./core/conversation.js";
-import { Agent } from "./core/agent.js";
+import { Session } from "./core/session.js";
 import { ToolRegistry, registerBuiltinTools } from "./tools/registry.js";
 import { CommandRegistry, registerBuiltinCommands } from "./cmds/registry.js";
 import { tryLoadSkills } from "./skills/loader.js";
@@ -77,9 +76,8 @@ export async function main(): Promise<void> {
     .filter(Boolean)
     .join("\n\n=================\n\n");
 
-  const conversation = new Conversation(systemPrompt);
-  const agent = new Agent(llm, conversation, tools);
+  const session = new Session(llm, systemPrompt, tools, commands, mcp);
 
-  const app = startApp(agent, commands, mcp);
-  await app.waitUntilExit().finally(() => mcp.kill());
+  const app = startApp(session);
+  await app.waitUntilExit().finally(() => session.dispose());
 }

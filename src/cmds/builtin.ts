@@ -13,7 +13,7 @@ export const clearCommand: Command = {
   name: "clear",
   description: "Clear the conversation and log",
   async execute(ctx, host) {
-    ctx.agent.clear();
+    ctx.session.clear();
     host.clearLog();
   },
 };
@@ -39,7 +39,7 @@ export const compactCommand: Command = {
   async execute(ctx, host) {
     host.thinking(true);
     try {
-      await ctx.agent.compact();
+      await ctx.session.compact();
       host.info("context compacted");
     } catch (e) {
       host.error((e as Error).message);
@@ -58,7 +58,7 @@ export const exportCommand: Command = {
       const pad = (n: number) => String(n).padStart(2, "0");
       const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
       const file = `conversation-${ts}.jsonl`;
-      const lines = ctx.agent
+      const lines = ctx.session
         .export()
         .map((m) => JSON.stringify(m))
         .join("\n");
