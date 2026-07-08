@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "./config.js";
 import { LLMClient } from "./llm/client.js";
-import { Session } from "./core/session.js";
+import { Conversation } from "./core/conversation.js";
 import { Agent } from "./core/agent.js";
 import { ToolRegistry, registerBuiltinTools } from "./tools/registry.js";
 import { CommandRegistry, registerBuiltinCommands } from "./cmds/registry.js";
@@ -22,7 +22,7 @@ const SYSTEM_PROMPT_BASE = [
     "- Read a file before editing it; make minimal, surgical changes that match the surrounding code style.",
     "- Reference code as file_path:line_number.",
     ...(process.platform === "linux"
-      ? ["- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry — surface the command for the user to run manually."]
+      ? ["- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry - surface the command for the user to run manually."]
       : []),
   ].join("\n"),
   `Output:
@@ -77,8 +77,8 @@ export async function main(): Promise<void> {
     .filter(Boolean)
     .join("\n\n=================\n\n");
 
-  const session = new Session(systemPrompt);
-  const agent = new Agent(llm, session, tools);
+  const conversation = new Conversation(systemPrompt);
+  const agent = new Agent(llm, conversation, tools);
 
   const app = startApp(agent, commands, mcp);
   await app.waitUntilExit().finally(() => mcp.kill());

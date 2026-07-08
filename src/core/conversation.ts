@@ -1,6 +1,6 @@
 import type { AssistantMessage, Message } from "../llm/types.js";
 
-export type SessionMessage =
+export type ConversationMessage =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
@@ -14,7 +14,7 @@ function estimateTokens(text: string): number {
   return Math.ceil(cjk * 1.6 + words * 1.3 + (text.length - cjk) * 0.3);
 }
 
-function messageText(msg: SessionMessage): string {
+function messageText(msg: ConversationMessage): string {
   const parts: string[] = [];
   if (typeof msg.content === "string") parts.push(msg.content);
   else if (Array.isArray(msg.content)) {
@@ -31,12 +31,12 @@ function messageText(msg: SessionMessage): string {
   return parts.join(" ");
 }
 
-export class Session {
+export class Conversation {
   private readonly systemEstimateTokens: number;
 
-  private messages: SessionMessage[] = [];
+  private messages: ConversationMessage[] = [];
   private estimatedTokens = 0;
-  private messagesSnapshot?: SessionMessage[];
+  private messagesSnapshot?: ConversationMessage[];
   private estimatedTokensSnapshot = 0;
 
   constructor(private system: string) {
@@ -50,7 +50,7 @@ export class Session {
     return this.estimatedTokens;
   }
 
-  add(msg: SessionMessage): void {
+  add(msg: ConversationMessage): void {
     this.messages.push(msg);
     this.estimatedTokens += estimateTokens(messageText(msg));
   }
@@ -59,7 +59,7 @@ export class Session {
     return this.messages.map((m) => (m.role === "skill" ? { role: "user", name: m.name, content: m.content } : m));
   }
 
-  export(): SessionMessage[] {
+  export(): ConversationMessage[] {
     return this.messages.slice(1);
   }
 

@@ -1,7 +1,7 @@
 import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import type { AssistantMessage, Message } from "../llm/types.js";
-import type { Session, SessionMessage } from "./session.js";
+import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolResult } from "../tools/types.js";
@@ -22,31 +22,31 @@ const COMPACT_PROMPT = "Summarize this conversation into a concise context summa
 export class Agent {
   constructor(
     private llm: LLMClient,
-    private session: Session,
+    private conversation: Conversation,
     private tools: ToolRegistry
   ) {}
 
   get contextTokens(): number {
-    return this.session.getEstimatedTokens();
+    return this.conversation.getEstimatedTokens();
   }
 
   clear(): void {
-    this.session.clear();
+    this.conversation.clear();
   }
 
-  export(): SessionMessage[] {
-    return this.session.export();
+  export(): ConversationMessage[] {
+    return this.conversation.export();
   }
 
   async compact(): Promise<void> {
-    const history = this.session.toLLM().slice(1);
+    const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return;
     const request: Message[] = [
       ...history,
       { role: "user", content: COMPACT_PROMPT },
     ];
     const msg = await this.llm.chat(request, []);
-    this.session.compact((msg.content as string) || "");
+    this.conversation.compact((msg.content as string) || "");
   }
 
   async run(
@@ -54,12 +54,12 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    this.session.createSnapshot();
+    this.conversation.createSnapshot();
     try {
-      this.session.add({ role: "user", content: userInput });
+      this.conversation.add({ role: "user", content: userInput });
       await this.loop(onEvent, signal);
     } finally {
-      this.session.clearSnapshot();
+      this.conversation.clearSnapshot();
     }
   }
 
@@ -68,12 +68,12 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    this.session.createSnapshot();
+    this.conversation.createSnapshot();
     try {
-      this.session.add({ role: "skill", name: skill.name, content: skill.prompt });
+      this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
       await this.loop(onEvent, signal);
     } finally {
-      this.session.clearSnapshot();
+      this.conversation.clearSnapshot();
     }
   }
 
@@ -89,7 +89,7 @@ export class Agent {
           let msg: AssistantMessage;
           try {
             msg = await this.llm.chat(
-              this.session.toLLM(),
+              this.conversation.toLLM(),
               this.tools.schemas(),
               (text) => onEvent?.({ type: "delta", text }),
               (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
@@ -101,7 +101,7 @@ export class Agent {
             onEvent?.({ type: "error", text: (e as Error).message });
             return;
           }
-          this.session.add(msg);
+          this.conversation.add(msg);
           if (!msg.tool_calls?.length) return;
           if (aborted()) return;
           const sig = msg.tool_calls
@@ -129,7 +129,7 @@ export class Agent {
                 : await this.tools.execute(call.function.name, args, signal);
               if (aborted()) return;
               onEvent?.({ type: "tool_end", id: call.id, name: call.function.name, result: result.content, isError: result.isError });
-              this.session.add({ role: "tool", tool_call_id: call.id, content: result.content });
+              this.conversation.add({ role: "tool", tool_call_id: call.id, content: result.content });
             })
           );
           if (aborted()) return;
@@ -138,7 +138,7 @@ export class Agent {
       {
         signal,
         onAbort: () => {
-          this.session.restoreFromSnapshot();
+          this.conversation.restoreFromSnapshot();
           onEvent?.({ type: "interrupted" });
         },
       }

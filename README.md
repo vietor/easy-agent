@@ -66,7 +66,7 @@ Only `command` is required; `args` and `env` are optional. MCP tools become avai
 
 Easy Agent reads instructions files and appends them to the system prompt, so you can set persistent rules, conventions, or preferences. It looks in two places:
 
-1. **Global** — your home directory, applied to every session. Checks `~/.agents/AGENTS.md` first, then `~/.claude/CLAUDE.md`; uses the first one found.
+1. **Global** — your home directory, applied to every conversation. Checks `~/.agents/AGENTS.md` first, then `~/.claude/CLAUDE.md`; uses the first one found.
 2. **Project** — your current working directory, applied per-project. Checks `./AGENTS.md` first, then `./CLAUDE.md`; uses the first one found.
 
 Both global and project files are loaded and concatenated into the system prompt if they exist.
@@ -121,5 +121,5 @@ Slash commands:
 - `/mcp` — list linked MCP servers, their status, and exposed tools.
 - `/clear` — reset the conversation.
 - `/compact` — compress the conversation into a summary to free context.
-- `/export` — save the current session to `session-{timestamp}.jsonl`.
+- `/export` — save the current conversation to `conversation-{timestamp}.jsonl`.
 - `/quit` or `/exit` — leave the app.

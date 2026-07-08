@@ -4,4 +4,4 @@ GRTAGS
 
 dist/
 node_modules/
-session-*.jsonl
+conversation-*.jsonl

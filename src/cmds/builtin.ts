@@ -3,7 +3,7 @@ import { Command } from "./types.js";
 
 export const exitCommand: Command = {
   name: "exit",
-  description: "Exit the session",
+  description: "Exit the conversation",
   async execute(_ctx, host) {
     host.exit();
   },
@@ -51,13 +51,13 @@ export const compactCommand: Command = {
 
 export const exportCommand: Command = {
   name: "export",
-  description: "Export the session to a JSONL file",
+  description: "Export the conversation to a JSONL file",
   async execute(ctx, host) {
     try {
       const d = new Date();
       const pad = (n: number) => String(n).padStart(2, "0");
       const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-      const file = `session-${ts}.jsonl`;
+      const file = `conversation-${ts}.jsonl`;
       const lines = ctx.agent
         .export()
         .map((m) => JSON.stringify(m))
