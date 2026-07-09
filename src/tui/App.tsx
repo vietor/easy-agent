@@ -76,6 +76,9 @@ export function App({ session }: { session: Session }) {
       <AppHeader />
 
       <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
+        {session.logEntries.length === 0 ? (
+          <Box paddingTop={2} />
+        ) : null}
         {session.logEntries.map((entry, i) => (
           <LogView key={i} entry={entry} />
         ))}
@@ -87,7 +90,7 @@ export function App({ session }: { session: Session }) {
           onAnswer={(ans) => session.submitAnswer(pendingQuestion.id, ans)}
         />
       ) : running && streamingRef.current ? (
-        <Box paddingLeft={1} paddingRight={1}>
+        <Box marginTop={1} paddingLeft={1} paddingRight={1}>
           <Markdown color="green">{streamingRef.current}</Markdown>
         </Box>
       ) : running ? (
@@ -98,7 +101,7 @@ export function App({ session }: { session: Session }) {
 
       {!running ? (
         <Box flexDirection="column" marginTop={1}>
-          <Text dimColor>[CTX {compactDisplay(session.contextTokens)}] · ESC to stop · "/quit" to leave</Text>
+          <Text dimColor>[CTX {compactDisplay(session.contextTokens)}] · ESC to stop · type / for commands</Text>
           <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
         </Box>
       ) : null}

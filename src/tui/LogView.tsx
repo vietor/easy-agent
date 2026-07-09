@@ -19,13 +19,20 @@ export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
     case "user":
       return (
         <Box marginTop={1}>
-          <Text>{`❯ ${entry.text}`}</Text>
+          <Text>
+            <Text color="cyan">❯ </Text>
+            {entry.text}
+          </Text>
         </Box>
       );
     case "skill":
       return (
         <Box marginTop={1}>
-          <Text color="magenta">{`◈ skill: ${entry.name}`}</Text>
+          <Text>
+            <Text color="magenta">◈ </Text>
+            <Text dimColor>skill </Text>
+            <Text color="magenta" bold>{entry.name}</Text>
+          </Text>
         </Box>
       );
     case "assistant":
@@ -37,7 +44,11 @@ export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
     case "tool":
       return (
         <Box flexDirection="column">
-          <Text color="yellow">{`● ${entry.name}${entry.summary ? ` ${entry.summary}` : ""}`}</Text>
+          <Text>
+            <Text color="yellow">● </Text>
+            <Text color="yellow" bold>{entry.name}</Text>
+            {entry.summary ? <Text dimColor> {entry.summary}</Text> : null}
+          </Text>
           {entry.result !== null ? (
             <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.isError ?? false, entry.result)}`}</Text>
           ) : null}
@@ -46,19 +57,28 @@ export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
     case "retry":
       return (
         <Box>
-          <Text color="yellow">{`↻ Retry ${entry.attempt}/${entry.max}`}</Text>
+          <Text>
+            <Text color="yellow">↻ </Text>
+            <Text dimColor>retry {entry.attempt}/{entry.max}</Text>
+          </Text>
         </Box>
       );
     case "error":
       return (
         <Box>
-          <Text color="red">{`✗ ${entry.text}`}</Text>
+          <Text color="red">
+            <Text bold>✗ </Text>
+            {entry.text}
+          </Text>
         </Box>
       );
     case "interrupted":
       return (
         <Box>
-          <Text color="yellow">◼ interrupted</Text>
+          <Text>
+            <Text color="yellow">◼ </Text>
+            <Text dimColor>interrupted</Text>
+          </Text>
         </Box>
       );
     case "question":

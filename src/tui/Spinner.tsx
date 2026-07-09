@@ -21,9 +21,10 @@ export function Spinner({
     return () => clearInterval(id);
   }, []);
   return (
-    <Text color="gray">
-      {SPINNER_FRAMES[frame]} {label} · {timeDisplay(elapsed)} · ↑{compactDisplay(promptTokens)} · ↓
-      {compactDisplay(completionTokens)}
+    <Text>
+      <Text color="cyan">{SPINNER_FRAMES[frame]}</Text>
+      <Text> {label}</Text>
+      <Text dimColor> · {timeDisplay(elapsed)} · ↑{compactDisplay(promptTokens)} · ↓{compactDisplay(completionTokens)}</Text>
     </Text>
   );
 }
