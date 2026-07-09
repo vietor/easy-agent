@@ -9,10 +9,30 @@ export type ConversationMessage =
 
 function estimateTokens(text: string): number {
   if (!text) return 0;
-  const cjk = (text.match(/[一-龥぀-ヿ가-힯]/g) || []).length;
-  const wordChars = (text.match(/[a-zA-Z0-9']/g) || []).length;
-  const words = (text.match(/[a-zA-Z0-9']+/g) || []).length;
-  const rest = text.length - cjk - wordChars;
+  let cjk = 0,
+    words = 0,
+    rest = 0,
+    inWord = false;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (
+      (code >= 0x4e00 && code <= 0x9fff) ||
+      (code >= 0x3040 && code <= 0x30ff) ||
+      (code >= 0xac00 && code <= 0xd7af)
+    ) {
+      cjk++;
+      inWord = false;
+    } else if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 39) {
+      if (!inWord) {
+        words++;
+        inWord = true;
+      }
+    } else {
+      if ((code & 0xfc00) === 0xd800 && (text.charCodeAt(i + 1) & 0xfc00) === 0xdc00) i++;
+      rest++;
+      inWord = false;
+    }
+  }
   return Math.ceil(cjk * 1.6 + words * 1.3 + rest * 0.3);
 }
 
@@ -43,7 +63,6 @@ export class Conversation {
 
   constructor(private system: string) {
     this.systemEstimateTokens = estimateTokens(system);
-
     this.messages.push({ role: "system", content: system });
     this.estimatedTokens = this.systemEstimateTokens;
   }
