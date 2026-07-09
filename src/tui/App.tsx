@@ -5,7 +5,9 @@ import { Markdown } from "./components/Markdown.js";
 import { LogView } from "./LogView.js";
 import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
+import { QuestionView } from "./QuestionView.js";
 import { Spinner } from "./Spinner.js";
+import type { LogEntry } from "../core/logstore.js";
 import { compactDisplay } from "../util/format.js";
 
 const STREAM_FRAME_MS = 240;
@@ -20,6 +22,9 @@ export function App({ session }: { session: Session }) {
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const allCmds = useMemo(() => session.commandSchemas, [session]);
+  const pendingQuestion = session.logEntries.find(
+    (e): e is Extract<LogEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
+  );
 
   useEffect(() => {
     session.setCallbacks({
@@ -42,6 +47,10 @@ export function App({ session }: { session: Session }) {
   };
 
   useInput((_input, key) => {
+    if (pendingQuestion) {
+      if (key.ctrl && _input === "c") session.abort();
+      return;
+    }
     if (key.escape) {
       session.abort();
     } else if (key.ctrl && _input === "c") {
@@ -72,13 +81,16 @@ export function App({ session }: { session: Session }) {
         ))}
       </Box>
 
-      {running && streamingRef.current ? (
+      {running && pendingQuestion ? (
+        <QuestionView
+          question={pendingQuestion}
+          onAnswer={(ans) => session.submitAnswer(pendingQuestion.id, ans)}
+        />
+      ) : running && streamingRef.current ? (
         <Box paddingLeft={1} paddingRight={1}>
           <Markdown color="green">{streamingRef.current}</Markdown>
         </Box>
-      ) : null}
-
-      {running && !streamingRef.current ? (
+      ) : running ? (
         <Box marginTop={1} paddingLeft={1}>
           <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
         </Box>

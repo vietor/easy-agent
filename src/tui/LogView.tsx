@@ -61,6 +61,14 @@ export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
           <Text color="yellow">◼ interrupted</Text>
         </Box>
       );
+    case "question":
+      if (entry.answer === null) return null;
+      return (
+        <Box marginTop={1} flexDirection="column">
+          <Text color="cyan">{`? ${entry.text}`}</Text>
+          <Text dimColor>{`  › ${entry.answer || "(skipped)"}`}</Text>
+        </Box>
+      );
     case "system":
       return (
         <Box>

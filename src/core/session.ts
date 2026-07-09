@@ -28,6 +28,8 @@ export class Session {
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
+  private pendingQuestions = new Map<string, (answer: string) => void>();
+  private questionSeq = 0;
 
   getSnapshot = (): number => this.log.getSnapshot();
 
@@ -39,7 +41,7 @@ export class Session {
 
   constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
     const conversation = new Conversation(systemPrompt);
-    this.agent = new Agent(llm, conversation, tools);
+    this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o));
     this.commands = commands;
     this.mcp = mcp;
     mcp.onError = (msg) => this.appendLog({ kind: "error", text: msg });
@@ -91,6 +93,28 @@ export class Session {
 
   abort(): void {
     this.abortController?.abort();
+    for (const id of this.pendingQuestions.keys()) {
+      this.log.setAnswer(id, "");
+      this.pendingQuestions.get(id)?.("");
+    }
+    this.pendingQuestions.clear();
+  }
+
+  ask(text: string, options: string[]): Promise<string> {
+    const id = `q${++this.questionSeq}`;
+    this.appendLog({ kind: "question", id, text, options, answer: null });
+    return new Promise<string>((resolve) => {
+      this.pendingQuestions.set(id, resolve);
+    });
+  }
+
+  submitAnswer(id: string, answer: string): void {
+    this.log.setAnswer(id, answer);
+    const resolve = this.pendingQuestions.get(id);
+    if (resolve) {
+      this.pendingQuestions.delete(id);
+      resolve(answer);
+    }
   }
 
   get commandSchemas(): CommandSchema[] {

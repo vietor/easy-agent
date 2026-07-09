@@ -1,4 +1,4 @@
-import type { Tool, ToolResult, ToolSchema } from "./types.js";
+import type { Tool, ToolContext, ToolResult, ToolSchema } from "./types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file_read.js";
 import { fileWriteTool } from "./file_write.js";
@@ -6,6 +6,7 @@ import { fileEditTool } from "./file_edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./web_fetch.js";
+import { askUserTool } from "./ask_user.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
@@ -25,11 +26,11 @@ export class ToolRegistry {
     }));
   }
 
-  async execute(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<ToolResult> {
+  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) return { content: `Error: unknown tool ${name}`, isError: true };
     try {
-      const r = await tool.execute(args, signal);
+      const r = await tool.execute(args, ctx);
       return typeof r === "string" ? { content: r } : r;
     } catch (e) {
       return { content: `Error: ${(e as Error).message}`, isError: true };
@@ -49,6 +50,6 @@ export class ToolRegistry {
 }
 
 export function registerBuiltinTools(tools: ToolRegistry) {
-  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool])
+  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool, askUserTool])
     tools.register(t);
 }

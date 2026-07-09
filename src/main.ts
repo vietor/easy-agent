@@ -20,13 +20,15 @@ const SYSTEM_PROMPT_BASE = [
     "- Prefer dedicated tools (FileRead, FileEdit, Glob, Grep) over the Shell tool when they fit the task.",
     "- Read a file before editing it; make minimal, surgical changes that match the surrounding code style.",
     "- Reference code as file_path:line_number.",
+    "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.",
     ...(process.platform === "linux"
       ? ["- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry - surface the command for the user to run manually."]
       : []),
   ].join("\n"),
   `Output:
 - Be concise and use GitHub-flavored markdown.
-- State what you did and stop once the task is complete. Report outcomes faithfully, and do not narrate alternatives you will not pursue.`,
+- State what you did and stop once the task is complete; report outcomes faithfully.
+- Do not lay out alternative approaches in prose - if a choice is the user's, use AskUser.`,
 ].join("\n\n");
 
 export async function main(): Promise<void> {

@@ -6,6 +6,7 @@ export type LogEntry =
   | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
+  | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }
   | { kind: "system"; text: string };
 
 export class LogStore {
@@ -35,6 +36,18 @@ export class LogStore {
       const entry = this.entries[i];
       if (entry.kind === "tool" && entry.id === id && entry.result === null) {
         this.entries[i] = { ...entry, result, isError };
+        this.version++;
+        this.emit();
+        return;
+      }
+    }
+  }
+
+  setAnswer(id: string, answer: string): void {
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const entry = this.entries[i];
+      if (entry.kind === "question" && entry.id === id && entry.answer === null) {
+        this.entries[i] = { ...entry, answer };
         this.version++;
         this.emit();
         return;
