@@ -1,6 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { Readable } from "node:stream";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { MCPServerConfig } from "../config.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { getPackageInfo } from "../util/package.js";
@@ -10,16 +14,40 @@ function getClientInfo() {
   return { name: pkginfo.name, version: pkginfo.version };
 }
 
+const STDERR_MAX_LINES = 20;
+
 export class MCPClient {
   private client = new Client(getClientInfo(), { capabilities: {} });
-  private transport: StdioClientTransport;
+  private transport: Transport;
   private connectReject?: (e: Error) => void;
+  private stderrBuf: string[] = [];
 
   constructor(
     private name: string,
     config: MCPServerConfig,
   ) {
-    this.transport = new StdioClientTransport({ ...config, stderr: "ignore" });
+    if ("command" in config) {
+      const t = new StdioClientTransport({ ...config, stderr: "pipe" });
+      this.transport = t;
+      (t.stderr as Readable | null)?.on("data", (chunk: Buffer) => {
+        for (const line of chunk.toString("utf8").split(/\r?\n/)) {
+          if (!line) continue;
+          this.stderrBuf.push(line);
+          if (this.stderrBuf.length > STDERR_MAX_LINES) this.stderrBuf.shift();
+        }
+      });
+    } else {
+      const opts = { requestInit: { headers: config.headers } };
+      const url = new URL(config.url);
+      this.transport =
+        config.type === "sse"
+          ? new SSEClientTransport(url, opts)
+          : new StreamableHTTPClientTransport(url, opts);
+    }
+  }
+
+  stderrTail(): string {
+    return this.stderrBuf.join("\n");
   }
 
   async connect(): Promise<void> {
@@ -45,14 +73,17 @@ export class MCPClient {
   kill(): void {
     this.connectReject?.(new Error("aborted"));
     this.connectReject = undefined;
-    const pid = this.transport.pid;
-    if (!pid) return;
-    try {
-      if (process.platform === "win32") {
-        spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
-      } else {
-        process.kill(pid, "SIGTERM");
-      }
-    } catch {}
+    this.client.close().catch(() => {});
+    if (this.transport instanceof StdioClientTransport) {
+      const pid = this.transport.pid;
+      if (!pid) return;
+      try {
+        if (process.platform === "win32") {
+          spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
+        } else {
+          process.kill(pid, "SIGTERM");
+        }
+      } catch {}
+    }
   }
 }

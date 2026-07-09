@@ -25,7 +25,7 @@ export const mcpCommand: Command = {
     const text = servers.length
       ? [
           "MCP servers:",
-          ...servers.map((s) => `❯ ${s.name} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`),
+          ...servers.map((s) => `❯ ${s.name} ⋅ ${s.type} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`),
         ].join("\n")
       : "No MCP servers linked.";
     host.info(text);

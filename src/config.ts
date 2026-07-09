@@ -11,11 +11,22 @@ const LLMConfig = z.object({
   model: z.string(),
 });
 
-const MCPServerConfig = z.object({
+const StdioServerConfig = z.object({
+  type: z.literal("stdio").optional(),
   command: z.string(),
   args: z.array(z.string()).optional(),
   env: z.record(z.string(), z.string()).optional(),
+  enabled: z.boolean().optional(),
 });
+
+const RemoteServerConfig = z.object({
+  type: z.enum(["sse", "http"]),
+  url: z.string().url(),
+  headers: z.record(z.string(), z.string()).optional(),
+  enabled: z.boolean().optional(),
+});
+
+const MCPServerConfig = z.union([StdioServerConfig, RemoteServerConfig]);
 
 const Config = z.object({
   llm: LLMConfig,
