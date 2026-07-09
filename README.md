@@ -109,11 +109,11 @@ Type a prompt and press Enter. The agent streams its reply and calls tools as ne
 Built-in tools:
 
 - **Shell** — run shell commands using this platform's native syntax.
-- **FileRead** — read a file's full contents.
+- **FileRead** — read a file with line numbers; supports `offset`/`limit` for paging large files.
 - **FileWrite** — create or fully overwrite a file.
-- **FileEdit** — replace one exact, unique match within a file.
+- **FileEdit** — replace exact matches in a file; `replace_all` for every occurrence.
 - **Glob** — list files, optionally filtered by a glob pattern.
-- **Grep** — search file contents by regex.
+- **Grep** — search file contents by regex with `glob`/`type` filters, context lines, case-insensitive, and `files_with_matches`/`count` output modes.
 - **WebFetch** — fetch a URL as markdown or text.
 - **AskUser** — ask the user a question and wait for their answer.
 
