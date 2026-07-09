@@ -17,7 +17,7 @@ const SYSTEM_PROMPT_BASE = [
 - Working directory: ${process.cwd()}`,
   [
     "Tool use:",
-    "- Prefer dedicated tools (FileRead, FileEdit, Glob, Grep) over the Shell tool when they fit the task.",
+    "- Prefer dedicated tools (FileRead, FileWrite, FileEdit, Glob, Grep, WebFetch) over the Shell tool when they fit the task.",
     "- Read a file before editing it; make minimal, surgical changes that match the surrounding code style.",
     "- Reference code as file_path:line_number.",
     "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.",

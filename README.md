@@ -104,7 +104,7 @@ Launch the TUI:
 easy-agent
 ```
 
-Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line preview of its result. It iterates until the task is done (capped at 25 tool rounds per turn).
+Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line preview of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
 
 Built-in tools:
 
@@ -115,6 +115,7 @@ Built-in tools:
 - **Glob** — list files, optionally filtered by a glob pattern.
 - **Grep** — search file contents by regex.
 - **WebFetch** — fetch a URL as markdown or text.
+- **AskUser** — ask the user a question and wait for their answer.
 
 Slash commands:
 

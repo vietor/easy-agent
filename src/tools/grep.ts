@@ -5,8 +5,8 @@ const MAX_MATCHES = 200;
 
 const DESCRIPTION = [
   "Search file contents under a directory recursively for a regex pattern (RE2 syntax).",
-  "Skips node_modules and .git.",
-  "Returns matching lines as path:line: content, capped at 200 matches.",
+  "Includes hidden files (e.g. .env, .gitignore); skips node_modules and .git.",
+  "Returns matching lines as path:line:content, capped at 200 matches.",
 ].join(" ");
 
 export const grepTool: Tool = {

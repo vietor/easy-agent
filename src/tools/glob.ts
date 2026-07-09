@@ -3,7 +3,7 @@ import type { Tool } from "./types.js";
 
 const DESCRIPTION = [
   "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts); omit pattern to list every file.",
-  "Skips node_modules and .git.",
+  "Includes hidden files (e.g. .env, .gitignore); skips node_modules and .git.",
   "Returns paths relative to the root, one per line.",
 ].join(" ");
 
