@@ -42,7 +42,7 @@ Create `~/.easy-agent.json` in your home directory:
 
 ### Optional: MCP servers
 
-Add an `mcpServers` map to expose external tools through the Model Context Protocol. Each entry is either a local process (stdio) or a remote endpoint (SSE / Streamable HTTP):
+Add an `mcpServers` map to expose external tools through the Model Context Protocol. Each entry is either a local process (stdio) or a remote endpoint (Streamable HTTP):
 
 ```json
 {
@@ -61,7 +61,7 @@ Add an `mcpServers` map to expose external tools through the Model Context Proto
 }
 ```
 
-A stdio server omits `type` (or sets `"stdio"`); only `command` is required, `args` and `env` are optional. A remote server sets `type` to `"sse"` or `"http"` with a required `url`; `headers` is optional and sent with every request (use it for static auth tokens). Either entry accepts an optional `enabled` (defaults to `true`); set `false` to keep a server configured but skip starting it. MCP tools become available to the agent as `MCP__<server>__<tool>`. If a server fails to connect within 30s, it is disabled and the error is shown in the TUI — for stdio servers the captured stderr tail is included to help diagnose startup failures — and the rest keep running.
+A stdio server omits `type` (or sets `"stdio"`); only `command` is required, `args` and `env` are optional. A remote server sets `type` to `"http"` with a required `url`; `headers` is optional and sent with every request (use it for static auth tokens). Either entry accepts an optional `enabled` (defaults to `true`); set `false` to keep a server configured but skip starting it. MCP tools become available to the agent as `MCP__<server>__<tool>`. If a server fails to connect within 30s, it is disabled and the error is shown in the TUI — for stdio servers the captured stderr tail is included to help diagnose startup failures — and the rest keep running.
 
 ### Optional: Agent instructions
 

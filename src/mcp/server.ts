@@ -7,7 +7,7 @@ import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/
 
 const CONNECT_TIMEOUT = 30_000;
 
-type ServerType = "stdio" | "sse" | "http";
+type ServerType = "stdio" | "http";
 
 function serverType(cfg: MCPServerConfig): ServerType {
   return "command" in cfg ? "stdio" : cfg.type;
@@ -46,24 +46,11 @@ function extractContent(result: CallToolResult): string {
 }
 
 export class MCPServers {
-  private servers = new Map<string, { type: ServerType; status: "pending" | "online" | "offline" | "disabled"; client?: MCPClient; tools: string[] }>();
+  private servers = new Map<string, { type: ServerType; status: "pending" | "connected" | "failed" | "disabled"; client?: MCPClient; tools: string[] }>();
   private pending = new Set<MCPClient>();
   private disposed = false;
-  private errorBuffer: string[] = [];
-  onError?: (msg: string) => void;
 
   constructor(private tools: ToolRegistry) {}
-
-  report(msg: string): void {
-    if (this.onError) this.onError(msg);
-    else this.errorBuffer.push(msg);
-  }
-
-  flushErrors(): string[] {
-    const buf = this.errorBuffer;
-    this.errorBuffer = [];
-    return buf;
-  }
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {
     await Promise.all(
@@ -88,14 +75,12 @@ export class MCPServers {
             client.kill();
             return;
           }
-          this.servers.set(name, { type, status: "online", client, tools: mcpTools.map((t) => t.name) });
+          this.servers.set(name, { type, status: "connected", client, tools: mcpTools.map((t) => t.name) });
           for (const t of mcpTools) this.tools.register(this.adapt(name, client, t));
         } catch (e) {
           client.kill();
           if (!this.disposed) {
-            this.servers.set(name, { type, status: "offline", tools: [] });
-            const stderr = client.stderrTail();
-            this.report(`MCP server "${name}" failed: ${(e as Error).message}${stderr ? `\n${stderr}` : ""}`);
+            this.servers.set(name, { type, status: "failed", tools: [] });
           }
         } finally {
           this.pending.delete(client);
@@ -119,7 +104,7 @@ export class MCPServers {
     };
   }
 
-  list(): { name: string; type: ServerType; status: "pending" | "online" | "offline" | "disabled"; tools: string[] }[] {
+  list(): { name: string; type: ServerType; status: "pending" | "connected" | "failed" | "disabled"; tools: string[] }[] {
     return [...this.servers.entries()].map(([name, s]) => ({ name, type: s.type, status: s.status, tools: s.tools }));
   }
 

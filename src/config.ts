@@ -20,7 +20,7 @@ const StdioServerConfig = z.object({
 });
 
 const RemoteServerConfig = z.object({
-  type: z.enum(["sse", "http"]),
+  type: z.enum(["http"]),
   url: z.string().url(),
   headers: z.record(z.string(), z.string()).optional(),
   enabled: z.boolean().optional(),

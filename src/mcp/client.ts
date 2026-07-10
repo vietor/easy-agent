@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { Readable } from "node:stream";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { MCPServerConfig } from "../config.js";
@@ -39,10 +38,7 @@ export class MCPClient {
     } else {
       const opts = { requestInit: { headers: config.headers } };
       const url = new URL(config.url);
-      this.transport =
-        config.type === "sse"
-          ? new SSEClientTransport(url, opts)
-          : new StreamableHTTPClientTransport(url, opts);
+      this.transport = new StreamableHTTPClientTransport(url, opts);
     }
   }
 

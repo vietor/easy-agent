@@ -49,8 +49,6 @@ export class Session {
     this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t), () => this.log.getTodos());
     this.commands = commands;
     this.mcp = mcp;
-    mcp.onError = (msg) => this.appendLog({ kind: "error", text: msg });
-    for (const msg of mcp.flushErrors()) this.appendLog({ kind: "error", text: msg });
   }
 
   dispose(): void {
