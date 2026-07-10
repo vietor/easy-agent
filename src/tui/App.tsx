@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
 import type { Session } from "../core/session.js";
 import { Markdown } from "./components/Markdown.js";
@@ -19,7 +19,7 @@ export function App({ session }: { session: Session }) {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
-  const [, setTick] = useState(0);
+  const [streamingText, setStreamingText] = useState("");
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const allCmds = useMemo(() => session.commandSchemas, [session]);
@@ -43,7 +43,7 @@ export function App({ session }: { session: Session }) {
     if (renderTimerRef.current) return;
     renderTimerRef.current = setTimeout(() => {
       renderTimerRef.current = undefined;
-      setTick((t) => t + 1);
+      setStreamingText(streamingRef.current);
     }, STREAM_FRAME_MS);
   };
 
@@ -72,6 +72,30 @@ export function App({ session }: { session: Session }) {
     }
   }
 
+  let runningView: ReactNode = null;
+  if (running) {
+    if (pendingQuestion) {
+      runningView = (
+        <QuestionView
+          question={pendingQuestion}
+          onAnswer={(ans) => session.submitAnswer(pendingQuestion.id, ans)}
+        />
+      );
+    } else if (streamingText) {
+      runningView = (
+        <Box marginTop={1} paddingLeft={1} paddingRight={1}>
+          <Markdown color="green">{streamingText}</Markdown>
+        </Box>
+      );
+    } else {
+      runningView = (
+        <Box marginTop={1} paddingLeft={1}>
+          <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
+        </Box>
+      );
+    }
+  }
+
   return (
     <Box flexDirection="column" minWidth={80}>
       <AppHeader />
@@ -87,20 +111,7 @@ export function App({ session }: { session: Session }) {
 
       {session.todos.length > 0 ? <TodoView todos={session.todos} /> : null}
 
-      {running && pendingQuestion ? (
-        <QuestionView
-          question={pendingQuestion}
-          onAnswer={(ans) => session.submitAnswer(pendingQuestion.id, ans)}
-        />
-      ) : running && streamingRef.current ? (
-        <Box marginTop={1} paddingLeft={1} paddingRight={1}>
-          <Markdown color="green">{streamingRef.current}</Markdown>
-        </Box>
-      ) : running ? (
-        <Box marginTop={1} paddingLeft={1}>
-          <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
-        </Box>
-      ) : null}
+      {runningView}
 
       {!running ? (
         <Box flexDirection="column" marginTop={1}>

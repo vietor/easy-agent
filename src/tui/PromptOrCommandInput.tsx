@@ -25,8 +25,7 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
-    if (filtered.length > 0 && selectedIndex === -1) setSelectedIndex(0);
-    else if (selectedIndex >= filtered.length) setSelectedIndex(Math.max(0, filtered.length - 1));
+    setSelectedIndex((prev) => Math.max(0, Math.min(prev, Math.max(0, filtered.length - 1))));
   }, [filtered.length]);
 
   useInput(

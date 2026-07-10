@@ -4,17 +4,12 @@ import { getPackageInfo } from "../util/package.js";
 export function AppHeader() {
   const pkginfo = getPackageInfo();
   return (
-    <Box flexDirection="column">
-      <Box flexDirection="column" paddingLeft={1}>
-        <Box>
-          <Text color="red" bold>
-            Easy Agent
-          </Text>
-          <Text dimColor> v{pkginfo.version}</Text>
-        </Box>
-        <Text dimColor>{process.cwd()}</Text>
+    <Box flexDirection="column" paddingLeft={1}>
+      <Box>
+        <Text color="red" bold>Easy Agent</Text>
+        <Text dimColor> v{pkginfo.version}</Text>
       </Box>
-      <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray" />
+      <Text dimColor>{process.cwd()}</Text>
     </Box>
   );
 }
