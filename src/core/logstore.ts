@@ -1,3 +1,5 @@
+import type { Todo } from "../tools/types.js";
+
 export type LogEntry =
   | { kind: "user"; text: string }
   | { kind: "skill"; name: string }
@@ -11,6 +13,7 @@ export type LogEntry =
 
 export class LogStore {
   private entries: LogEntry[] = [];
+  private todos: Todo[] = [];
   private version = 0;
   private listeners = new Set<() => void>();
 
@@ -23,6 +26,16 @@ export class LogStore {
 
   get all(): readonly LogEntry[] {
     return this.entries;
+  }
+
+  getTodos(): readonly Todo[] {
+    return this.todos;
+  }
+
+  setTodos(todos: Todo[]): void {
+    this.todos = todos;
+    this.version++;
+    this.emit();
   }
 
   append(entry: LogEntry): void {
@@ -57,6 +70,7 @@ export class LogStore {
 
   clear(): void {
     this.entries = [];
+    this.todos = [];
     this.version++;
     this.emit();
   }

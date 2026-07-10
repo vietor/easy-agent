@@ -29,6 +29,12 @@ const SYSTEM_PROMPT_BASE = [
 - Be concise and use GitHub-flavored markdown.
 - State what you did and stop once the task is complete; report outcomes faithfully.
 - Do not lay out alternative approaches in prose - if a choice is the user's, use AskUser.`,
+  [
+    "Multi-step tasks:",
+    "- For non-trivial work (3+ steps), call TodoWrite with the full plan up front: one item per step, in order.",
+    "- Keep exactly one item in_progress at a time; mark it completed when done and start the next.",
+    "- Pass the entire list on every call (it replaces the previous list). Skip TodoWrite for trivial one-step tasks.",
+  ].join("\n"),
 ].join("\n\n");
 
 export async function main(): Promise<void> {

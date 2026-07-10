@@ -117,6 +117,7 @@ Built-in tools:
 - **Grep** — search file contents by regex with `glob`/`type` filters, context lines, case-insensitive, and `files_with_matches`/`count` output modes.
 - **WebFetch** — fetch a URL as markdown or text.
 - **AskUser** — ask the user a question and wait for their answer.
+- **TodoWrite** — track multi-step work as a task list (pending / in_progress / completed), shown live as a panel in the TUI.
 
 Slash commands:
 

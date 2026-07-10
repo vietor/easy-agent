@@ -3,9 +3,17 @@ export interface ToolResult {
   isError?: boolean;
 }
 
+export type TodoStatus = "pending" | "in_progress" | "completed";
+
+export interface Todo {
+  content: string;
+  status: TodoStatus;
+}
+
 export interface ToolContext {
   signal?: AbortSignal;
   ask(question: string, options: string[]): Promise<string>;
+  setTodos(todos: Todo[]): void;
 }
 
 export interface ToolSchema {

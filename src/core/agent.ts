@@ -4,7 +4,7 @@ import type { AssistantMessage, Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { ToolContext, ToolResult } from "../tools/types.js";
+import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
 const STALL_THRESHOLD = 3;
 const MAX_TURNS = 50;
@@ -25,7 +25,8 @@ export class Agent {
     private llm: LLMClient,
     private conversation: Conversation,
     private tools: ToolRegistry,
-    private ask: (question: string, options: string[]) => Promise<string>
+    private ask: (question: string, options: string[]) => Promise<string>,
+    private setTodos: (todos: Todo[]) => void
   ) {}
 
   get contextTokens(): number {
@@ -133,7 +134,7 @@ export class Agent {
               const summary = this.tools.summarize(call.function.name, args);
               onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
               if (aborted()) return null;
-              const ctx: ToolContext = { signal, ask: this.ask };
+              const ctx: ToolContext = { signal, ask: this.ask, setTodos: this.setTodos };
               const result: ToolResult = argsError
                 ? { content: argsError, isError: true }
                 : await this.tools.execute(call.function.name, args, ctx);

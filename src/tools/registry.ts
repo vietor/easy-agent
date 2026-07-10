@@ -7,6 +7,7 @@ import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./web_fetch.js";
 import { askUserTool } from "./ask_user.js";
+import { todoWriteTool } from "./todo_write.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
@@ -50,6 +51,6 @@ export class ToolRegistry {
 }
 
 export function registerBuiltinTools(tools: ToolRegistry) {
-  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool, askUserTool])
+  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool, askUserTool, todoWriteTool])
     tools.register(t);
 }

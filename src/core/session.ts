@@ -3,6 +3,7 @@ import type { LLMClient } from "../llm/client.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
+import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { Agent, type AgentEvent } from "./agent.js";
@@ -39,9 +40,13 @@ export class Session {
     return this.log.all;
   }
 
+  get todos(): readonly Todo[] {
+    return this.log.getTodos();
+  }
+
   constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
     const conversation = new Conversation(systemPrompt);
-    this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o));
+    this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t));
     this.commands = commands;
     this.mcp = mcp;
     mcp.onError = (msg) => this.appendLog({ kind: "error", text: msg });

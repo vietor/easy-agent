@@ -3,6 +3,7 @@ import { Box, render, Text, useApp, useInput } from "ink";
 import type { Session } from "../core/session.js";
 import { Markdown } from "./components/Markdown.js";
 import { LogView } from "./LogView.js";
+import { TodoView } from "./TodoView.js";
 import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
 import { QuestionView } from "./QuestionView.js";
@@ -83,6 +84,8 @@ export function App({ session }: { session: Session }) {
           <LogView key={i} entry={entry} />
         ))}
       </Box>
+
+      {session.todos.length > 0 ? <TodoView todos={session.todos} /> : null}
 
       {running && pendingQuestion ? (
         <QuestionView
