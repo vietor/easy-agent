@@ -20,13 +20,24 @@ export type AgentEvent =
 
 const COMPACT_PROMPT = "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far:\".";
 
+function renderTodoReminder(todos: readonly Todo[]): string {
+  const lines = todos.map((t) => {
+    const mark = t.status === "completed" ? "x" : t.status === "in_progress" ? "o" : " ";
+    return `[${mark}] ${t.content}`;
+  });
+  return `<system-reminder>\nCurrent task list (live state):\n${lines.join("\n")}\n</system-reminder>`;
+}
+
 export class Agent {
+  private todoSnapshot: readonly Todo[] = [];
+
   constructor(
     private llm: LLMClient,
     private conversation: Conversation,
     private tools: ToolRegistry,
     private ask: (question: string, options: string[]) => Promise<string>,
-    private setTodos: (todos: Todo[]) => void
+    private setTodos: (todos: Todo[]) => void,
+    private getTodos: () => readonly Todo[]
   ) {}
 
   get contextTokens(): number {
@@ -44,10 +55,10 @@ export class Agent {
   async compact(signal?: AbortSignal): Promise<void> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return;
-    const request: Message[] = [
-      ...history,
-      { role: "user", content: COMPACT_PROMPT },
-    ];
+    const request: Message[] = [...history];
+    const todos = this.getTodos();
+    if (todos.length) request.push({ role: "user", content: renderTodoReminder(todos) });
+    request.push({ role: "user", content: COMPACT_PROMPT });
     const msg = await this.llm.chat({ messages: request, tools: [], signal });
     this.conversation.compact((msg.content as string) || "");
   }
@@ -75,10 +86,12 @@ export class Agent {
   ): Promise<void> {
     this.conversation.add(msg);
     this.conversation.createSnapshot();
+    this.todoSnapshot = this.getTodos();
     try {
       await this.loop(onEvent, signal);
     } finally {
       this.conversation.clearSnapshot();
+      this.todoSnapshot = [];
     }
   }
 
@@ -92,10 +105,13 @@ export class Agent {
         let stall = 0;
         let turns = 0;
         while (true) {
+          const messages = this.conversation.toLLM();
+          const todos = this.getTodos();
+          if (todos.length) messages.push({ role: "user", content: renderTodoReminder(todos) });
           let msg: AssistantMessage;
           try {
             msg = await this.llm.chat({
-              messages: this.conversation.toLLM(),
+              messages,
               tools: this.tools.schemas(),
               onDelta: (text) => onEvent?.({ type: "delta", text }),
               onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
@@ -154,6 +170,7 @@ export class Agent {
         signal,
         onAbort: () => {
           this.conversation.restoreFromSnapshot();
+          this.setTodos([...this.todoSnapshot]);
           onEvent?.({ type: "interrupted" });
         },
       }

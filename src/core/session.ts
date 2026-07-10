@@ -46,7 +46,7 @@ export class Session {
 
   constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
     const conversation = new Conversation(systemPrompt);
-    this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t));
+    this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t), () => this.log.getTodos());
     this.commands = commands;
     this.mcp = mcp;
     mcp.onError = (msg) => this.appendLog({ kind: "error", text: msg });
@@ -141,6 +141,9 @@ export class Session {
   }
 
   async startPrompt(text: string): Promise<void> {
+    if (this.todos.length > 0 && this.todos.every((t) => t.status === "completed")) {
+      this.log.setTodos([]);
+    }
     this.appendLog({ kind: "user", text });
     await this.run((signal) => this.agent.run(text, this.makeHandler(), signal));
   }

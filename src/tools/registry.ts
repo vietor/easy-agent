@@ -40,7 +40,9 @@ export class ToolRegistry {
 
   summarize(name: string, args: Record<string, unknown>): string {
     const tool = this.tools.get(name);
-    if (!tool?.summaryArg) return "";
+    if (!tool) return "";
+    if (tool.summarizeArgs) return tool.summarizeArgs(args);
+    if (!tool.summaryArg) return "";
     const keys = Array.isArray(tool.summaryArg) ? tool.summaryArg : [tool.summaryArg];
     for (const k of keys) {
       const v = args[k];

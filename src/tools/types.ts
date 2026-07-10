@@ -30,5 +30,6 @@ export interface Tool {
   description: string;
   parameters: Record<string, unknown>;
   summaryArg?: string | string[];
+  summarizeArgs?: (args: Record<string, unknown>) => string;
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ToolResult>;
 }

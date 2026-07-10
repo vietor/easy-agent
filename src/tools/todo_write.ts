@@ -9,6 +9,32 @@ const DESCRIPTION = [
   "Skip this for trivial one-step tasks. status is one of: pending, in_progress, completed.",
 ].join(" ");
 
+function parseTodos(args: Record<string, unknown>) {
+  const raw = Array.isArray(args.todos) ? (args.todos as Partial<Todo>[]) : [];
+  const todos: Todo[] = [];
+  let done = 0;
+  let normalized = 0;
+  let seenInProgress = false;
+  for (const t of raw) {
+    if (!t) continue;
+    const content = typeof t.content === "string" ? t.content.trim() : "";
+    if (!content) continue;
+    let status: TodoStatus = STATUSES.includes(t.status as TodoStatus) ? (t.status as TodoStatus) : "pending";
+    if (status === "in_progress") {
+      if (seenInProgress) {
+        status = "pending";
+        normalized++;
+      } else {
+        seenInProgress = true;
+      }
+    } else if (status === "completed") {
+      done++;
+    }
+    todos.push({ content, status });
+  }
+  return { todos, done, normalized };
+}
+
 export const todoWriteTool: Tool = {
   name: "TodoWrite",
   description: DESCRIPTION,
@@ -30,18 +56,14 @@ export const todoWriteTool: Tool = {
     },
     required: ["todos"],
   },
+  summarizeArgs(args) {
+    const { todos, done } = parseTodos(args);
+    return `${done}/${todos.length}`;
+  },
   async execute(args, ctx) {
-    const raw = Array.isArray(args.todos) ? (args.todos as Partial<Todo>[]) : [];
-    const todos: Todo[] = [];
-    for (const t of raw) {
-      if (!t) continue;
-      const content = typeof t.content === "string" ? t.content.trim() : "";
-      if (!content) continue;
-      const status: TodoStatus = STATUSES.includes(t.status as TodoStatus) ? (t.status as TodoStatus) : "pending";
-      todos.push({ content, status });
-    }
+    const { todos, done, normalized } = parseTodos(args);
     ctx.setTodos(todos);
-    const done = todos.filter((t) => t.status === "completed").length;
-    return `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done).`;
+    const note = normalized ? ` (normalized ${normalized} item${normalized === 1 ? "" : "s"} to one in_progress)` : "";
+    return `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done)${note}.`;
   },
 };
