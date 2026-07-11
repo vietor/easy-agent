@@ -1,47 +1,12 @@
 {
   "name": "@vietor/easy-agent",
-  "version": "0.3.1",
-  "type": "module",
-  "main": "dist/cli.js",
-  "bin": {
-    "easy-agent": "dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
+  "private": true,
   "scripts": {
-    "build": "tsc",
-    "start": "tsc && node dist/cli.js",
-    "dev": "tsx src/cli.ts",
-    "prepublishOnly": "tsc"
+    "build": "pnpm --filter @vietor/easy-agent-core build && pnpm --filter @vietor/easy-agent-cli build",
+    "dev": "pnpm --filter @vietor/easy-agent-cli dev",
+    "start": "pnpm --filter @vietor/easy-agent-cli start"
   },
-  "keywords": [
-    "ai",
-    "cli"
-  ],
-  "author": "",
-  "license": "MIT",
   "packageManager": "pnpm@10.30.3",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@vscode/ripgrep": "^1.18.0",
-    "htmlparser2": "^12.0.0",
-    "ink": "^7.1.0",
-    "ink-text-input": "^6.0.0",
-    "marked": "^18.0.5",
-    "openai": "^6.45.0",
-    "react": "^19.2.7",
-    "string-width": "^8.2.1",
-    "turndown": "^7.2.4",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.2.17",
-    "@types/turndown": "^5.0.6",
-    "tsx": "^4.23.0",
-    "typescript": "^6.0.3"
-  },
   "engines": {
     "node": ">=22.0.0"
   }

@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { getPackageInfo } from "../util/package.js";
+import { getPackageInfo } from "@vietor/easy-agent-core";
 
 export function AppHeader() {
   const pkginfo = getPackageInfo();

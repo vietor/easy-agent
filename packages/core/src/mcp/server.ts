@@ -1,6 +1,6 @@
 import type { Tool } from "../tools/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { MCPServerConfig } from "../config.js";
+import type { MCPServerConfig } from "./types.js";
 import { MCPClient } from "./client.js";
 import { withTimeout } from "../util/async.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";

@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import type { Todo, TodoStatus } from "../tools/types.js";
+import type { Todo, TodoStatus } from "@vietor/easy-agent-core";
 
 const ICONS: Record<TodoStatus, string> = {
   pending: "○",

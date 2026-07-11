@@ -1,13 +1,15 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "./config.js";
-import { LLMClient } from "./llm/client.js";
-import { Session } from "./core/session.js";
-import { ToolRegistry, registerBuiltinTools } from "./tools/registry.js";
-import { CommandRegistry, registerBuiltinCommands } from "./cmds/registry.js";
-import { tryLoadSkills } from "./skills/loader.js";
-import { tryReadFileText, readFirstFileContent } from "./util/fs.js";
-import { MCPServers } from "./mcp/server.js";
+import {
+  ToolRegistry,
+  CommandRegistry,
+  tryLoadSkills,
+  tryReadFileText,
+  readFirstFileContent,
+  startSession,
+} from "@vietor/easy-agent-core";
+import { registerBuiltinCommands } from "./cmds/builtin.js";
 import { startApp } from "./tui/App.js";
 
 const SYSTEM_PROMPT_BASE = [
@@ -22,7 +24,9 @@ const SYSTEM_PROMPT_BASE = [
     "- Reference code as file_path:line_number.",
     "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.",
     ...(process.platform === "linux"
-      ? ["- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry - surface the command for the user to run manually."]
+      ? [
+          "- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry - surface the command for the user to run manually.",
+        ]
       : []),
   ].join("\n"),
   `Output:
@@ -39,32 +43,11 @@ const SYSTEM_PROMPT_BASE = [
 
 export async function main(): Promise<void> {
   const config = loadConfig();
-  const llm = new LLMClient(config.llm);
-
-  const tools = new ToolRegistry();
-  registerBuiltinTools(tools);
-
-  const commands = new CommandRegistry();
-  registerBuiltinCommands(commands);
-
-  const mcp = new MCPServers(tools);
-  mcp.connect(config.mcpServers);
 
   const globalSkills = readFirstFileContent(
     [join(homedir(), ".agents", "skills"), join(homedir(), ".claude", "skills")],
     tryLoadSkills,
   );
-  if (globalSkills) {
-    globalSkills.forEach((skill) =>
-      commands.register({
-        name: skill.name,
-        description: skill.description ?? skill.name,
-        execute: async (_, host) => {
-          await host.runSkill(skill);
-        },
-      }),
-    );
-  }
 
   const globalPrompt = readFirstFileContent(
     [join(homedir(), ".agents", "AGENTS.md"), join(homedir(), ".claude", "CLAUDE.md")],
@@ -79,7 +62,15 @@ export async function main(): Promise<void> {
     .filter(Boolean)
     .join("\n\n=================\n\n");
 
-  const session = new Session(llm, systemPrompt, tools, commands, mcp);
+  const session = await startSession(
+    systemPrompt,
+    config.llm,
+    config.mcpServers,
+    globalSkills,
+    (tools: ToolRegistry, commands: CommandRegistry) => {
+      registerBuiltinCommands(commands);
+    },
+  );
 
   const app = startApp(session);
   await app.waitUntilExit().finally(() => session.dispose());

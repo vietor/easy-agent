@@ -1,3 +1,9 @@
+export interface LLMConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
 export interface TextContentPart {
   type: "text";
   text: string;

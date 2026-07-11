@@ -1,6 +1,5 @@
 import OpenAI, { APIConnectionError, APIError } from "openai";
-import type { LLMConfig } from "../config.js";
-import type { AssistantMessage, Message } from "./types.js";
+import type { LLMConfig, AssistantMessage, Message } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
 import { withRetry } from "../util/async.js";
 

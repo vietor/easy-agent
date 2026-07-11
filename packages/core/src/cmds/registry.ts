@@ -1,5 +1,4 @@
 import type { CommandContext, CommandHost, Command, CommandSchema } from "./types.js";
-import { exitCommand, clearCommand, mcpCommand, compactCommand, exportCommand } from "./builtin.js";
 
 export class CommandRegistry {
   private commands = new Map<string, Command>();
@@ -27,10 +26,4 @@ export class CommandRegistry {
     }
     await cmd.execute(ctx, host);
   }
-}
-
-export function registerBuiltinCommands(commands: CommandRegistry) {
-  commands.register(exitCommand);
-  commands.register({ ...exitCommand, name: "quit" });
-  for (const t of [clearCommand, mcpCommand, compactCommand, exportCommand]) commands.register(t);
 }

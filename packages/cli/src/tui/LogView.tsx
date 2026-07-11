@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
-import type { LogEntry } from "../core/logstore.js";
+import type { LogEntry } from "@vietor/easy-agent-core";
 
 function preview(isError: boolean, text: string): string {
   if (isError) {

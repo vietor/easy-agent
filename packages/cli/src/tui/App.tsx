@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput } from "ink";
-import type { Session } from "../core/session.js";
+import type { Session } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
 import { LogView } from "./LogView.js";
 import { TodoView } from "./TodoView.js";
@@ -8,7 +8,7 @@ import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
 import { QuestionView } from "./QuestionView.js";
 import { Spinner } from "./Spinner.js";
-import type { LogEntry } from "../core/logstore.js";
+import type { LogEntry } from "@vietor/easy-agent-core";
 import { compactDisplay } from "../util/format.js";
 
 const STREAM_FRAME_MS = 240;

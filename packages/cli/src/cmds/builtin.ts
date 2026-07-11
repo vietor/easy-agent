@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
-import type { Command } from "./types.js";
+import type { Command } from "@vietor/easy-agent-core";
+import { CommandRegistry } from "@vietor/easy-agent-core";
 
 export const exitCommand: Command = {
   name: "exit",
@@ -68,3 +69,9 @@ export const exportCommand: Command = {
     }
   },
 };
+
+export function registerBuiltinCommands(commands: CommandRegistry) {
+  commands.register(exitCommand);
+  commands.register({ ...exitCommand, name: "quit" });
+  for (const t of [clearCommand, mcpCommand, compactCommand, exportCommand]) commands.register(t);
+}
