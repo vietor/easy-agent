@@ -45,6 +45,10 @@ export async function main(): Promise<void> {
     mcpServers: config.mcpServers,
     skills: globalSkills,
     commands: builtinCommands,
+    enableTools: {
+      askUser: true,
+      todoWrite: true
+    }
   });
 
   const app = startApp(session);

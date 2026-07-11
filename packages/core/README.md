@@ -44,6 +44,7 @@ await session.startPrompt("What files are in the current directory?");
 | `LogEntry` | A single entry in the conversation log (user, assistant, tool, system, etc.) |
 | `Tool`, `ToolContext`, `ToolResult`, `ToolSchema` | Define custom tools that the agent can invoke |
 | `Todo`, `TodoStatus` | Task-tracking types used by the built-in TodoWrite tool |
+| `BuiltinToolsOptions` | Toggles for opt-in built-in tools (AskUser, TodoWrite), passed via `SessionOptions.enableTools` |
 | `Command`, `CommandSchema`, `CommandContext`, `CommandHost` | Define slash commands |
 | `Skill` | A reusable prompt loaded from a SKILL.md file |
 | `MCPServerConfig` | Configuration for connecting to an MCP tool server |
@@ -61,7 +62,7 @@ await session.startPrompt("What files are in the current directory?");
 
 ### Built-in tools
 
-All tools are registered automatically by `startSession()`:
+`startSession()` registers the following tools by default:
 
 - **Shell** — run shell commands
 - **FileRead** — read files with line numbers
@@ -70,8 +71,19 @@ All tools are registered automatically by `startSession()`:
 - **Glob** — file listing by pattern
 - **Grep** — content search with regex
 - **WebFetch** — fetch URL content
-- **AskUser** — prompt the user for input
-- **TodoWrite** — structured multi-step task tracking
+
+Two interactive tools are opt-in via `enableTools` (they depend on host-provided callbacks, and the corresponding tool-usage policy is only emitted to the system prompt when enabled):
+
+- **AskUser** — prompt the user for input (`enableTools.askUser`)
+- **TodoWrite** — structured multi-step task tracking (`enableTools.todoWrite`)
+
+```ts
+const session = await startSession({
+  systemPrompt: "...",
+  llmConfig: { ... },
+  enableTools: { askUser: true, todoWrite: true },
+});
+```
 
 ## Extending
 
@@ -80,14 +92,14 @@ All tools are registered automatically by `startSession()`:
 Implement the `Tool` interface and pass it to `startSession`:
 
 ```ts
-import type { Tool, ToolContext } from "@vietor/easy-agent-core";
+import type { Tool } from "@vietor/easy-agent-core";
 
 const greetTool: Tool = {
   name: "greet",
   description: "Greet someone by name",
   parameters: { type: "object", properties: { name: { type: "string" } } },
-  async execute(ctx: ToolContext, args: { name: string }) {
-    return { content: [{ type: "text", text: `Hello, ${args.name}!` }] };
+  async execute(args) {
+    return `Hello, ${args.name as string}!`;
   },
 };
 

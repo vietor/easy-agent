@@ -52,7 +52,14 @@ export class ToolRegistry {
   }
 }
 
-export function registerBuiltinTools(tools: ToolRegistry) {
-  for (const t of [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool, askUserTool, todoWriteTool])
-    tools.register(t);
+export interface BuiltinToolsOptions {
+  askUser?: boolean;
+  todoWrite?: boolean;
+}
+
+export function registerBuiltinTools(tools: ToolRegistry, opts?: BuiltinToolsOptions) {
+  const builtins = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
+  if (opts?.askUser) builtins.push(askUserTool);
+  if (opts?.todoWrite) builtins.push(todoWriteTool);
+  for (const t of builtins) tools.register(t);
 }

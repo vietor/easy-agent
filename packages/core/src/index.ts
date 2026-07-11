@@ -1,8 +1,7 @@
-// Public framework surface: customization types + the startSession factory.
-// Orchestration (Agent, Conversation, LLMClient, LogStore, MCPServers) stays internal.
 export type { Session, SessionCallbacks } from "./core/session.js";
 export type { LogEntry } from "./core/logstore.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
+export type { BuiltinToolsOptions } from "./tools/registry.js";
 export type { Command, CommandSchema, CommandContext, CommandHost } from "./cmds/types.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig } from "./mcp/types.js";
@@ -13,7 +12,7 @@ export { getPackageInfo } from "./util/package.js";
 
 import { LLMClient } from "./llm/client.js";
 import { Session } from "./core/session.js";
-import { ToolRegistry, registerBuiltinTools } from "./tools/registry.js";
+import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
 import { CommandRegistry } from "./cmds/registry.js";
 import type { Tool } from "./tools/types.js";
@@ -22,32 +21,44 @@ import type { Skill } from "./skills/types.js";
 import type { MCPServerConfig } from "./mcp/types.js";
 import type { LLMConfig } from "./llm/types.js";
 
-// Tool-usage policy tied to the built-in tools. Core owns this so the tool
-// priority (prefer dedicated tools over Shell, read-before-edit, AskUser
-// timing, TodoWrite discipline) ships with the tools themselves.
-const BUILTIN_TOOLS_POLICY = [
-  `Environment:
+function buildBuiltinPolicy(opts?: BuiltinToolsOptions): string {
+  const parts = [
+    `Environment:
 - Platform: ${process.platform}
 - Working directory: ${process.cwd()}`,
-  [
+  ];
+
+  const toolLines = [
     "Tool use:",
     "- Prefer dedicated tools (FileRead, FileWrite, FileEdit, Glob, Grep, WebFetch) over the Shell tool when they fit the task.",
     "- Read a file before editing it; make minimal, surgical changes that match the surrounding code style.",
     "- Reference code as file_path:line_number.",
-    "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.",
-    ...(process.platform === "linux"
-      ? [
-          "- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry - surface the command for the user to run manually.",
-        ]
-      : []),
-  ].join("\n"),
-  [
-    "Multi-step tasks:",
-    "- For non-trivial work (3+ steps), call TodoWrite with the full plan up front: one item per step, in order.",
-    "- Keep exactly one item in_progress at a time; mark it completed when done and start the next.",
-    "- Pass the entire list on every call (it replaces the previous list). Skip TodoWrite for trivial one-step tasks.",
-  ].join("\n"),
-].join("\n\n");
+  ];
+  if (opts?.askUser) {
+    toolLines.push(
+      "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.",
+    );
+  }
+  if (process.platform === "linux") {
+    toolLines.push(
+      "- For privileged shell commands, use `sudo -n` (non-interactive); if it reports a password is required, do not retry - surface the command for the user to run manually.",
+    );
+  }
+  parts.push(toolLines.join("\n"));
+
+  if (opts?.todoWrite) {
+    parts.push(
+      [
+        "Multi-step tasks:",
+        "- For non-trivial work (3+ steps), call TodoWrite with the full plan up front: one item per step, in order.",
+        "- Keep exactly one item in_progress at a time; mark it completed when done and start the next.",
+        "- Pass the entire list on every call (it replaces the previous list). Skip TodoWrite for trivial one-step tasks.",
+      ].join("\n"),
+    );
+  }
+
+  return parts.join("\n\n");
+}
 
 export interface SessionOptions {
   systemPrompt: string;
@@ -56,13 +67,14 @@ export interface SessionOptions {
   commands?: Command[];
   skills?: Skill[];
   mcpServers?: Record<string, MCPServerConfig>;
+  enableTools?: BuiltinToolsOptions;
 }
 
 export async function startSession(opts: SessionOptions): Promise<Session> {
   const llm = new LLMClient(opts.llmConfig);
 
   const tools = new ToolRegistry();
-  registerBuiltinTools(tools);
+  registerBuiltinTools(tools, opts.enableTools);
   if (opts.tools) {
     for (const t of opts.tools) tools.register(t);
   }
@@ -88,7 +100,7 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
     for (const c of opts.commands) commands.register(c);
   }
 
-  const systemPrompt = [opts.systemPrompt, BUILTIN_TOOLS_POLICY].filter(Boolean).join("\n\n=================\n\n");
+  const systemPrompt = [opts.systemPrompt, buildBuiltinPolicy(opts.enableTools)].filter(Boolean).join("\n\n=================\n\n");
 
   return new Session(llm, systemPrompt, tools, commands, mcp);
 }
