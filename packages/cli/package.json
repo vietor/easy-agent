@@ -1,5 +1,5 @@
 {
-  "name": "@vietor/easy-agent-cli",
+  "name": "@vietor/easy-agent",
   "version": "0.3.1",
   "type": "module",
   "main": "dist/cli.js",

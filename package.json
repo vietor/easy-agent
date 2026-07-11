@@ -1,10 +1,10 @@
 {
-  "name": "@vietor/easy-agent",
+  "name": "easy-agent-workspace",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @vietor/easy-agent-core build && pnpm --filter @vietor/easy-agent-cli build",
-    "dev": "pnpm --filter @vietor/easy-agent-cli dev",
-    "start": "pnpm --filter @vietor/easy-agent-cli start"
+    "build": "pnpm --filter @vietor/easy-agent-core build && pnpm --filter @vietor/easy-agent build",
+    "dev": "pnpm --filter @vietor/easy-agent dev",
+    "start": "pnpm --filter @vietor/easy-agent start"
   },
   "packageManager": "pnpm@10.30.3",
   "engines": {
