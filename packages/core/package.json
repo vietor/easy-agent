@@ -10,6 +10,9 @@
   "scripts": {
     "build": "tsc"
   },
+  "description": "Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/vietor/easy-agent.git" },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vscode/ripgrep": "^1.18.0",
@@ -24,5 +27,8 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "keywords": [
+    "ai"
+  ]
 }
