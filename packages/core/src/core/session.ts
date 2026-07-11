@@ -13,8 +13,8 @@ import { LogStore, type LogEntry } from "./logstore.js";
 export interface SessionCallbacks {
   onStreaming?: (text: string) => void;
   onRunStateChange?: (running: boolean) => void;
-  onElapsedChange?: (seconds: number) => void;
-  onUsageChange?: (prompt: number, completion: number) => void;
+  onRunElapsedChange?: (seconds: number) => void;
+  onRunUsageChange?: (prompt: number, completion: number) => void;
 }
 
 export class Session {
@@ -156,13 +156,13 @@ export class Session {
     this.elapsed = 0;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.callbacks?.onElapsedChange?.(0);
-    this.callbacks?.onUsageChange?.(0, 0);
+    this.callbacks?.onRunElapsedChange?.(0);
+    this.callbacks?.onRunUsageChange?.(0, 0);
     this.callbacks?.onRunStateChange?.(true);
 
     this.timer = setInterval(() => {
       this.elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-      this.callbacks?.onElapsedChange?.(this.elapsed);
+      this.callbacks?.onRunElapsedChange?.(this.elapsed);
     }, 1000);
 
     try {
@@ -206,7 +206,7 @@ export class Session {
           this.appendLog({ kind: "interrupted" });
           break;
         case "usage":
-          this.callbacks?.onUsageChange?.(e.promptTokens, e.completionTokens);
+          this.callbacks?.onRunUsageChange?.(e.promptTokens, e.completionTokens);
           break;
       }
     };

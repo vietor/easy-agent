@@ -17,8 +17,8 @@ export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [running, setRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [usage, setUsage] = useState({ prompt: 0, completion: 0 });
+  const [runElapsed, setRunElapsed] = useState(0);
+  const [runUsage, setRunUsage] = useState({ prompt: 0, completion: 0 });
   const [streamingText, setStreamingText] = useState("");
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -34,8 +34,8 @@ export function App({ session }: { session: Session }) {
         scheduleStreamingRender();
       },
       onRunStateChange: (r) => setRunning(r),
-      onElapsedChange: (s) => setElapsed(s),
-      onUsageChange: (p, c) => setUsage({ prompt: p, completion: c }),
+      onRunElapsedChange: (s) => setRunElapsed(s),
+      onRunUsageChange: (p, c) => setRunUsage({ prompt: p, completion: c }),
     });
   }, []);
 
@@ -90,7 +90,7 @@ export function App({ session }: { session: Session }) {
     } else {
       runningView = (
         <Box marginTop={1} paddingLeft={1}>
-          <Spinner label="thinking" elapsed={elapsed} promptTokens={usage.prompt} completionTokens={usage.completion} />
+          <Spinner label="thinking" elapsed={runElapsed} promptTokens={runUsage.prompt} completionTokens={runUsage.completion} />
         </Box>
       );
     }

@@ -27,7 +27,7 @@ const session = await startSession({
 // Send a user prompt and handle streaming events
 session.setCallbacks({
   onStreaming: (text) => process.stdout.write(text),
-  onUsageChange: (p, c) => console.log(`Tokens: ${p} prompt / ${c} completion`),
+  onRunUsageChange: (p, c) => console.log(`Tokens: ${p} prompt / ${c} completion`),
 });
 
 await session.startPrompt("What files are in the current directory?");
