@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import { Box, render, Text, useApp, useInput } from "ink";
 import type { Session } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
-import { LogView } from "./LogView.js";
+import { LogList } from "./LogList.js";
 import { TodoView } from "./TodoView.js";
 import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
@@ -11,11 +11,11 @@ import { Spinner } from "./Spinner.js";
 import type { LogEntry } from "@vietor/easy-agent-core";
 import { compactDisplay } from "../util/format.js";
 
-const STREAM_FRAME_MS = 240;
+const STREAM_FRAME_MS = 120;
 
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
-  useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const version = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [running, setRunning] = useState(false);
   const [runElapsed, setRunElapsed] = useState(0);
   const [runUsage, setRunUsage] = useState({ prompt: 0, completion: 0 });
@@ -23,8 +23,12 @@ export function App({ session }: { session: Session }) {
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const allCmds = useMemo(() => session.commandSchemas, [session]);
-  const pendingQuestion = session.logEntries.find(
-    (e): e is Extract<LogEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
+  const pendingQuestion = useMemo(
+    () =>
+      session.logEntries.find(
+        (e): e is Extract<LogEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
+      ),
+    [session, version],
   );
 
   useEffect(() => {
@@ -100,14 +104,7 @@ export function App({ session }: { session: Session }) {
     <Box flexDirection="column" minWidth={80}>
       <AppHeader />
 
-      <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
-        {session.logEntries.length === 0 ? (
-          <Box paddingTop={2} />
-        ) : null}
-        {session.logEntries.map((entry, i) => (
-          <LogView key={i} entry={entry} />
-        ))}
-      </Box>
+      <LogList session={session} />
 
       {session.todos.length > 0 ? <TodoView todos={session.todos} /> : null}
 
@@ -125,5 +122,5 @@ export function App({ session }: { session: Session }) {
 
 export function startApp(session: Session): ReturnType<typeof render> {
   process.stdout.write("[2J[H");
-  return render(<App session={session} />, { exitOnCtrlC: false });
+  return render(<App session={session} />, { exitOnCtrlC: false, incrementalRendering: true });
 }

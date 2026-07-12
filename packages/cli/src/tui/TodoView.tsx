@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Box, Text } from "ink";
 import type { Todo, TodoStatus } from "@vietor/easy-agent-core";
 
@@ -13,7 +14,7 @@ const COLORS: Record<TodoStatus, string> = {
   completed: "green",
 };
 
-export function TodoView({ todos }: { todos: readonly Todo[] }) {
+export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo[] }) {
   if (todos.length === 0) return null;
   const done = todos.filter((t) => t.status === "completed").length;
   return (
@@ -26,4 +27,4 @@ export function TodoView({ todos }: { todos: readonly Todo[] }) {
       ))}
     </Box>
   );
-}
+});
