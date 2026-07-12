@@ -7,6 +7,29 @@ import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/
 
 const CONNECT_TIMEOUT = 30_000;
 
+const SUMMARY_PRIORITY = ["url", "path", "file_path", "filePath", "command", "query", "pattern", "name", "text", "selector", "uid"];
+
+function isStringProp(v: unknown): boolean {
+  return typeof v === "object" && v !== null && (v as { type?: unknown }).type === "string";
+}
+
+function summaryCandidates(inputSchema: MCPTool["inputSchema"]): string[] {
+  const props = inputSchema.properties;
+  if (!props) return [];
+  const candidates: string[] = [];
+  for (const k of SUMMARY_PRIORITY) if (k in props) candidates.push(k);
+  const required = inputSchema.required;
+  if (Array.isArray(required)) {
+    for (const k of required) {
+      if (typeof k === "string" && !candidates.includes(k) && isStringProp(props[k])) candidates.push(k);
+    }
+  }
+  for (const [k, v] of Object.entries(props)) {
+    if (!candidates.includes(k) && isStringProp(v)) candidates.push(k);
+  }
+  return candidates;
+}
+
 type ServerType = "stdio" | "http";
 
 function serverType(cfg: MCPServerConfig): ServerType {
@@ -90,10 +113,12 @@ export class MCPServers {
   }
 
   private adapt(server: string, client: MCPClient, tool: MCPTool): Tool {
+    const summaryArg = summaryCandidates(tool.inputSchema);
     return {
       name: `MCP__${server}__${tool.name}`,
       description: tool.description ?? `${server} ${tool.name}`,
       parameters: tool.inputSchema,
+      ...(summaryArg.length ? { summaryArg } : {}),
       async execute(args, ctx) {
         const result = await client.callTool(tool.name, args, ctx.signal);
         const text = extractContent(result);
