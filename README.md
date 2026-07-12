@@ -11,8 +11,8 @@ This repo contains two packages:
 
 | Package | npm | Description |
 |---------|-----|-------------|
-| `@vietor/easy-agent` | CLI | Terminal TUI app (Ink/React) |
-| `@vietor/easy-agent-core` | Library | SDK framework for building AI agents |
+| [`@vietor/easy-agent`](./packages/cli/README.md) | CLI | Terminal TUI app (Ink/React) |
+| [`@vietor/easy-agent-core`](./packages/core/README.md) | Library | SDK framework for building AI agents |
 
 ## Development
 
