@@ -39,20 +39,9 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
   const commands = new CommandRegistry();
   registerBuiltinCommand(commands);
 
-  if (opts.skills) {
-    for (const skill of opts.skills) {
-      commands.register({
-        name: skill.name,
-        description: skill.description ?? skill.name,
-        execute: async (ctx) => {
-          await ctx.session.startSkill(skill);
-        },
-      });
-    }
-  }
   if (opts.commands) {
     for (const c of opts.commands) commands.register(c);
   }
 
-  return new Session(llm, opts.systemPrompt, tools, commands, mcp);
+  return new Session(llm, opts.systemPrompt, tools, commands, mcp, opts.skills);
 }

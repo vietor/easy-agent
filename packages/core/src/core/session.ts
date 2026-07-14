@@ -51,11 +51,20 @@ export class Session {
     return this.log.getTodos();
   }
 
-  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
+  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers, skills?: Skill[]) {
     const conversation = new Conversation(systemPrompt);
     this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t), () => this.log.getTodos());
     this.commands = commands;
     this.mcp = mcp;
+    if (skills) {
+      for (const skill of skills) {
+        this.commands.register({
+          name: skill.name,
+          description: skill.description ?? skill.name,
+          execute: async () => { await this.startSkill(skill); },
+        });
+      }
+    }
   }
 
   dispose(): void {
@@ -161,7 +170,7 @@ export class Session {
     await this.run((signal) => this.agent.run(text, this.makeHandler(), signal));
   }
 
-  async startSkill(skill: Skill): Promise<void> {
+  private async startSkill(skill: Skill): Promise<void> {
     this.appendLog({ kind: "skill", name: skill.name });
     await this.run((signal) => this.agent.runSkill(skill, this.makeHandler(), signal));
   }
