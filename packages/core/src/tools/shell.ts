@@ -15,7 +15,8 @@ const DESCRIPTION = [
     : `Runs on ${shell} (POSIX sh).`,
   "Runs synchronously with no stdin, so interactive prompts cannot be answered.",
   "Output is capped at ~10MB; for large files prefer Grep or FileRead.",
-  "For URL content prefer WebFetch; use Shell for web requests only when WebFetch cannot (non-GET, custom headers, auth, raw bytes, or status codes).",
+  "Prefer dedicated tools over Shell: FileRead/FileWrite/FileEdit for files, Glob/Grep for searching, WebFetch for URLs. Use Shell for web requests only when WebFetch cannot (non-GET, custom headers, auth, raw bytes, or status codes).",
+  ...(isWindows ? [] : ["On Linux, use sudo -n for privileged commands (non-interactive); if a password is required, do not retry — surface the command for the user to run manually."]),
 ].join(" ");
 
 export const shellTool: Tool = {
