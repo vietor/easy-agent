@@ -1,10 +1,11 @@
-export type { Session, SessionCallbacks } from "./core/session.js";
+export type { Session, SessionCallbacks, RunState } from "./core/session.js";
 export type { LogEntry } from "./core/logstore.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";
-export type { Command, CommandResult, CommandSchema, CommandContext } from "./cmds/types.js";
+export type { Command, CommandSchema, CommandContext } from "./cmds/types.js";
+export { clearCommand, mcpCommand, compactCommand, builtinCommands } from "./cmds/builtin.js";
 export type { Skill } from "./skills/types.js";
-export type { MCPServerConfig } from "./mcp/types.js";
+export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText, readFirstFileContent } from "./util/fs.js";

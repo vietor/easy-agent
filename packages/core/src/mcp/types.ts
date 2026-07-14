@@ -14,3 +14,10 @@ export interface RemoteServerConfig {
 }
 
 export type MCPServerConfig = StdioServerConfig | RemoteServerConfig;
+
+export interface MCPServerInfo {
+  name: string;
+  type: "stdio" | "http";
+  status: "pending" | "connected" | "failed" | "disabled";
+  tools: string[];
+}

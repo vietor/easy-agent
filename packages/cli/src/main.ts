@@ -50,6 +50,7 @@ export async function main(): Promise<void> {
     mcpServers: config.mcpServers,
     skills: globalSkills,
     commands: builtinCommands,
+    host: new Map(),
     builtinTools: {
       askUser: true,
       todoWrite: true

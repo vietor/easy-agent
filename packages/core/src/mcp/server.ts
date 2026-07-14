@@ -1,6 +1,6 @@
 import type { Tool } from "../tools/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { MCPServerConfig } from "./types.js";
+import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
 import { withTimeout } from "../util/async.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
@@ -129,7 +129,7 @@ export class MCPServers {
     };
   }
 
-  list(): { name: string; type: ServerType; status: "pending" | "connected" | "failed" | "disabled"; tools: string[] }[] {
+  list(): MCPServerInfo[] {
     return [...this.servers.entries()].map(([name, s]) => ({ name, type: s.type, status: s.status, tools: s.tools }));
   }
 

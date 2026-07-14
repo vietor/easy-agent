@@ -5,7 +5,7 @@ import type { CommandSchema } from "@vietor/easy-agent-core";
 
 interface PromptOrCommandInputProps {
   commands: CommandSchema[];
-  onCommand: (name: string) => void;
+  onCommand: (name: string, args: string) => void;
   onPrompt: (value: string) => void;
 }
 
@@ -14,7 +14,7 @@ const MAX_ITEMS = 4;
 export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOrCommandInputProps) {
   const [input, setInput] = useState("");
   const showMenu = input.startsWith("/");
-  const prefix = showMenu ? input.slice(1) : "";
+  const prefix = showMenu ? input.slice(1).split(/\s+/)[0] : "";
 
   const filtered = useMemo(() => {
     if (!showMenu) return [];
@@ -55,11 +55,13 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
     setInput("");
     if (!text) return;
     if (text.startsWith("/")) {
+      const [name, ...rest] = text.slice(1).split(/\s+/);
+      const args = rest.join(" ");
       if (filtered.length > 0) {
         const cmd = filtered[selectedIndex];
-        onCommand(cmd ? cmd.name : prefix);
+        onCommand(cmd ? cmd.name : name, args);
       } else {
-        onCommand(text.slice(1));
+        onCommand(name, args);
       }
       return;
     }

@@ -1,31 +1,38 @@
 import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import type { MCPServers } from "../mcp/server.js";
+import type { MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
-import type { CommandSchema, CommandResult } from "../cmds/types.js";
+import type { CommandSchema } from "../cmds/types.js";
 import { Agent, type AgentEvent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { LogStore, type LogEntry } from "./logstore.js";
 
+export interface RunState {
+  running: boolean;
+  elapsed: number;
+  promptTokens: number;
+  completionTokens: number;
+}
+
 export interface SessionCallbacks {
   onStreaming?: (text: string) => void;
-  onRunStateChange?: (running: boolean) => void;
-  onRunElapsedChange?: (seconds: number) => void;
-  onRunUsageChange?: (prompt: number, completion: number) => void;
+  onRunStateChange?: (state: RunState) => void;
 }
 
 export class Session {
   private agent: Agent;
   private mcp: MCPServers;
   private commands: CommandRegistry;
+  readonly host: Map<string, unknown>;
   private log = new LogStore();
 
   private callbacks?: SessionCallbacks;
   private streamingText = "";
-  private elapsed = 0;
+  private runState: RunState = { running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 };
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -44,11 +51,12 @@ export class Session {
     return this.log.getTodos();
   }
 
-  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
+  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers, host: Map<string, unknown>) {
     const conversation = new Conversation(systemPrompt);
     this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t), () => this.log.getTodos());
     this.commands = commands;
     this.mcp = mcp;
+    this.host = host;
   }
 
   dispose(): void {
@@ -61,6 +69,10 @@ export class Session {
 
   get contextTokens(): number {
     return this.agent.contextTokens;
+  }
+
+  get mcpServers(): readonly MCPServerInfo[] {
+    return this.mcp.list();
   }
 
   private appendLog(entry: LogEntry): void {
@@ -83,7 +95,7 @@ export class Session {
   async compact(): Promise<boolean> {
     const ctrl = new AbortController();
     this.abortController = ctrl;
-    this.callbacks?.onRunStateChange?.(true);
+    this.setRunning(true);
     try {
       await this.agent.compact(ctrl.signal);
       return true;
@@ -92,7 +104,7 @@ export class Session {
       throw e;
     } finally {
       this.abortController = null;
-      this.callbacks?.onRunStateChange?.(false);
+      this.setRunning(false);
     }
   }
 
@@ -105,7 +117,7 @@ export class Session {
     this.pendingQuestions.clear();
   }
 
-  ask(text: string, options: string[]): Promise<string> {
+  private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
     this.appendLog({ kind: "question", id, text, options, answer: null });
     return new Promise<string>((resolve) => {
@@ -130,13 +142,17 @@ export class Session {
     return this.commands.exists(name);
   }
 
-  async executeCommand(name: string): Promise<CommandResult> {
-    return this.commands.execute(name, {
-      session: this,
-      mcp: this.mcp,
-      message: (t) => this.appendLog({ kind: "system", text: t }),
-      error: (t) => this.appendLog({ kind: "error", text: t }),
-    });
+  async executeCommand(name: string, args = ""): Promise<void> {
+    await this.commands.execute(
+      name,
+      {
+        session: this,
+        host: this.host,
+        message: (t) => this.appendLog({ kind: "system", text: t }),
+        error: (t) => this.appendLog({ kind: "error", text: t }),
+      },
+      args,
+    );
   }
 
   async startPrompt(text: string): Promise<void> {
@@ -154,16 +170,14 @@ export class Session {
 
   private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
     this.streamingText = "";
-    this.elapsed = 0;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.callbacks?.onRunElapsedChange?.(0);
-    this.callbacks?.onRunUsageChange?.(0, 0);
-    this.callbacks?.onRunStateChange?.(true);
+    this.runState = { running: true, elapsed: 0, promptTokens: 0, completionTokens: 0 };
+    this.emitRunState();
 
     this.timer = setInterval(() => {
-      this.elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-      this.callbacks?.onRunElapsedChange?.(this.elapsed);
+      this.runState = { ...this.runState, elapsed: Math.floor((Date.now() - this.startTime) / 1000) };
+      this.emitRunState();
     }, 1000);
 
     try {
@@ -176,8 +190,17 @@ export class Session {
       clearInterval(this.timer);
       this.timer = undefined;
       this.abortController = null;
-      this.callbacks?.onRunStateChange?.(false);
+      this.setRunning(false);
     }
+  }
+
+  private setRunning(running: boolean): void {
+    this.runState = { ...this.runState, running };
+    this.emitRunState();
+  }
+
+  private emitRunState(): void {
+    this.callbacks?.onRunStateChange?.(this.runState);
   }
 
   private makeHandler(): (e: AgentEvent) => void {
@@ -207,7 +230,8 @@ export class Session {
           this.appendLog({ kind: "interrupted" });
           break;
         case "usage":
-          this.callbacks?.onRunUsageChange?.(e.promptTokens, e.completionTokens);
+          this.runState = { ...this.runState, promptTokens: e.promptTokens, completionTokens: e.completionTokens };
+          this.emitRunState();
           break;
       }
     };

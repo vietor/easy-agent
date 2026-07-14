@@ -27,7 +27,7 @@ const session = await startSession({
 // Send a user prompt and handle streaming events
 session.setCallbacks({
   onStreaming: (text) => process.stdout.write(text),
-  onRunUsageChange: (p, c) => console.log(`Tokens: ${p} prompt / ${c} completion`),
+  onRunStateChange: (s) => console.log(`Tokens: ${s.promptTokens} prompt / ${s.completionTokens} completion`),
 });
 
 await session.startPrompt("What files are in the current directory?");
@@ -39,15 +39,15 @@ await session.startPrompt("What files are in the current directory?");
 
 | Export | Description |
 |--------|-------------|
-| `Session` | Main session object — run prompts, control execution, export conversations |
-| `SessionCallbacks` | Callbacks for streaming text, runtime state, elapsed time, token usage |
+| `Session` | Main session object — run prompts, control execution, query MCP servers, export conversations |
+| `SessionCallbacks`, `RunState` | `onStreaming` for text, `onRunStateChange(state)` for a single runtime-state object (running, elapsed, token usage) |
 | `LogEntry` | A single entry in the conversation log (user, assistant, tool, system, etc.) |
 | `Tool`, `ToolContext`, `ToolResult`, `ToolSchema` | Define custom tools that the agent can invoke |
 | `Todo`, `TodoStatus` | Task-tracking types used by the built-in TodoWrite tool |
 | `BuiltinToolsOptions` | Toggles for opt-in built-in tools (AskUser, TodoWrite), passed via `SessionOptions.builtinTools` |
-| `Command`, `CommandSchema`, `CommandContext` | Define slash commands |
+| `Command`, `CommandSchema`, `CommandContext` | Define slash commands; `execute(ctx, args)` receives raw text after the name, `ctx.exit()` asks the host to exit |
 | `Skill` | A reusable prompt loaded from a SKILL.md file |
-| `MCPServerConfig` | Configuration for connecting to an MCP tool server |
+| `MCPServerConfig`, `MCPServerInfo` | MCP server config, and the status info returned by `session.mcpServers` |
 | `LLMConfig` | OpenAI-compatible LLM endpoint configuration |
 
 ### Functions
@@ -120,11 +120,13 @@ import type { Command } from "@vietor/easy-agent-core";
 const helloCommand: Command = {
   name: "hello",
   description: "Say hello",
-  async execute(ctx) {
-    ctx.message("Hello from custom command!");
+  async execute(ctx, args) {
+    ctx.message(`Hello, ${args || "world"}!`);
   },
 };
 ```
+
+`execute(ctx, args)` receives the raw text typed after the command name. `ctx.exit()` asks the host to exit, `ctx.error(text)` reports an error to the log, and `ctx.session` exposes queries like `.mcpServers`, `.clear()`, `.compact()`.
 
 ### Skills
 
