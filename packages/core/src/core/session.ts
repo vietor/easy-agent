@@ -162,12 +162,25 @@ export class Session {
     );
   }
 
-  async startPrompt(text: string): Promise<void> {
+  async startPrompt(text: string): Promise<string> {
     if (this.todos.length > 0 && this.todos.every((t) => t.status === "completed")) {
       this.log.setTodos([]);
     }
     this.appendLog({ kind: "user", text });
     await this.run((signal) => this.agent.run(text, this.makeHandler(), signal));
+    return this.lastReply();
+  }
+
+  private lastReply(): string {
+    const msgs = this.agent.export();
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.role === "user") break;
+      if (m.role !== "assistant") continue;
+      if (typeof m.content === "string") return m.content;
+      if (Array.isArray(m.content)) return m.content.filter((p) => p.type === "text").map((p) => p.text).join("");
+    }
+    return "";
   }
 
   private async startSkill(skill: Skill): Promise<void> {

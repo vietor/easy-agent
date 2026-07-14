@@ -64,7 +64,7 @@ const session = await startSession({ systemPrompt, llmConfig });
 
 | Method | Description |
 |---|---|
-| `startPrompt(text: string): Promise<void>` | Submit a user message and run the agent loop (LLM → tool calls → LLM) until a final answer or error. |
+| `startPrompt(text: string): Promise<string>` | Submit a user message and run the agent loop (LLM → tool calls → LLM) until a final answer or error. Returns the final assistant reply text. |
 
 ### Managing conversation
 
@@ -507,7 +507,8 @@ session.setCallbacks({
     console.log(`tokens: ${s.promptTokens} prompt / ${s.completionTokens} completion`),
 });
 
-await session.startPrompt("What files are in the current directory?");
+const reply = await session.startPrompt("What files are in the current directory?");
+console.log(reply);                // final assistant reply
 
 console.log(session.logEntries);   // full conversation log
 console.log(session.export());     // LLM message history
