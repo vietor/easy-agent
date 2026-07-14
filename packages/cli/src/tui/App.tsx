@@ -65,7 +65,7 @@ export function App({ session }: { session: Session }) {
   });
 
   async function handleCommand(name: string) {
-    await session.executeCommand(name, { exit, setRunning });
+    if (await session.executeCommand(name) === "exit") exit();
   }
 
   async function handlePrompt(text: string) {

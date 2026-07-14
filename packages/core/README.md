@@ -45,7 +45,7 @@ await session.startPrompt("What files are in the current directory?");
 | `Tool`, `ToolContext`, `ToolResult`, `ToolSchema` | Define custom tools that the agent can invoke |
 | `Todo`, `TodoStatus` | Task-tracking types used by the built-in TodoWrite tool |
 | `BuiltinToolsOptions` | Toggles for opt-in built-in tools (AskUser, TodoWrite), passed via `SessionOptions.enableTools` |
-| `Command`, `CommandSchema`, `CommandContext`, `CommandHost` | Define slash commands |
+| `Command`, `CommandSchema`, `CommandContext` | Define slash commands |
 | `Skill` | A reusable prompt loaded from a SKILL.md file |
 | `MCPServerConfig` | Configuration for connecting to an MCP tool server |
 | `LLMConfig` | OpenAI-compatible LLM endpoint configuration |
@@ -120,8 +120,8 @@ import type { Command } from "@vietor/easy-agent-core";
 const helloCommand: Command = {
   name: "hello",
   description: "Say hello",
-  async execute(_ctx, host) {
-    host.info("Hello from custom command!");
+  async execute(ctx) {
+    ctx.message("Hello from custom command!");
   },
 };
 ```

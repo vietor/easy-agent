@@ -5,7 +5,7 @@ import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
-import type { CommandSchema } from "../cmds/types.js";
+import type { CommandSchema, CommandResult } from "../cmds/types.js";
 import { Agent, type AgentEvent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { LogStore, type LogEntry } from "./logstore.js";
@@ -83,6 +83,7 @@ export class Session {
   async compact(): Promise<boolean> {
     const ctrl = new AbortController();
     this.abortController = ctrl;
+    this.callbacks?.onRunStateChange?.(true);
     try {
       await this.agent.compact(ctrl.signal);
       return true;
@@ -91,6 +92,7 @@ export class Session {
       throw e;
     } finally {
       this.abortController = null;
+      this.callbacks?.onRunStateChange?.(false);
     }
   }
 
@@ -128,13 +130,12 @@ export class Session {
     return this.commands.exists(name);
   }
 
-  async executeCommand(name: string, host: { exit: () => void; setRunning: (on: boolean) => void }): Promise<void> {
-    await this.commands.execute(name, { session: this, mcp: this.mcp }, {
-      exit: host.exit,
-      info: (t) => this.appendLog({ kind: "system", text: t }),
+  async executeCommand(name: string): Promise<CommandResult> {
+    return this.commands.execute(name, {
+      session: this,
+      mcp: this.mcp,
+      message: (t) => this.appendLog({ kind: "system", text: t }),
       error: (t) => this.appendLog({ kind: "error", text: t }),
-      thinking: (on) => host.setRunning(on),
-      runSkill: (s) => this.startSkill(s),
     });
   }
 

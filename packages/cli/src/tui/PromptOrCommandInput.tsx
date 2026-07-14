@@ -58,6 +58,8 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
       if (filtered.length > 0) {
         const cmd = filtered[selectedIndex];
         onCommand(cmd ? cmd.name : prefix);
+      } else {
+        onCommand(text.slice(1));
       }
       return;
     }

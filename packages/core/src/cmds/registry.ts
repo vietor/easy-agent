@@ -1,4 +1,4 @@
-import type { CommandContext, CommandHost, Command, CommandSchema } from "./types.js";
+import type { CommandContext, Command, CommandResult, CommandSchema } from "./types.js";
 
 export class CommandRegistry {
   private commands = new Map<string, Command>();
@@ -18,12 +18,12 @@ export class CommandRegistry {
     return this.commands.has(name);
   }
 
-  async execute(command: string, ctx: CommandContext, host: CommandHost): Promise<void> {
+  async execute(command: string, ctx: CommandContext): Promise<CommandResult> {
     const cmd = this.commands.get(command);
     if (!cmd) {
-      host.error(`unknown command: /${command}`);
+      ctx.error(`unknown command: /${command}`);
       return;
     }
-    await cmd.execute(ctx, host);
+    return cmd.execute(ctx);
   }
 }

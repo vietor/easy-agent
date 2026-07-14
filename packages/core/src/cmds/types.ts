@@ -1,19 +1,14 @@
 import type { Session } from "../core/session.js";
 import type { MCPServers } from "../mcp/server.js";
-import type { Skill } from "../skills/types.js";
 
 export interface CommandContext {
   session: Session;
   mcp: MCPServers;
+  message(text: string): void;
+  error(text: string): void;
 }
 
-export interface CommandHost {
-  exit(): void;
-  info(text: string): void;
-  error(text: string): void;
-  thinking(on: boolean): void;
-  runSkill(skill: Skill): Promise<void>;
-}
+export type CommandResult = string | void;
 
 export interface CommandSchema {
   name: string;
@@ -23,5 +18,5 @@ export interface CommandSchema {
 export interface Command {
   name: string;
   description: string;
-  execute(ctx: CommandContext, host: CommandHost): Promise<void>;
+  execute(ctx: CommandContext): Promise<CommandResult>;
 }

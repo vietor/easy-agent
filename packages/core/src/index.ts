@@ -2,7 +2,7 @@ export type { Session, SessionCallbacks } from "./core/session.js";
 export type { LogEntry } from "./core/logstore.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";
-export type { Command, CommandSchema, CommandContext, CommandHost } from "./cmds/types.js";
+export type { Command, CommandResult, CommandSchema, CommandContext } from "./cmds/types.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig } from "./mcp/types.js";
 export type { LLMConfig } from "./llm/types.js";
@@ -90,8 +90,8 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
       commands.register({
         name: skill.name,
         description: skill.description ?? skill.name,
-        execute: async (_, host) => {
-          await host.runSkill(skill);
+        execute: async (ctx) => {
+          await ctx.session.startSkill(skill);
         },
       });
     }

@@ -4,8 +4,8 @@ import type { Command } from "@vietor/easy-agent-core";
 export const exitCommand: Command = {
   name: "exit",
   description: "Exit the conversation",
-  async execute(_ctx, host) {
-    host.exit();
+  async execute() {
+    return "exit";
   },
 };
 
@@ -20,7 +20,7 @@ export const clearCommand: Command = {
 export const mcpCommand: Command = {
   name: "mcp",
   description: "List linked MCP servers",
-  async execute(ctx, host) {
+  async execute(ctx) {
     const servers = ctx.mcp.list();
     const text = servers.length
       ? [
@@ -28,22 +28,19 @@ export const mcpCommand: Command = {
           ...servers.map((s) => `❯ ${s.name} ⋅ ${s.type} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`),
         ].join("\n")
       : "No MCP servers linked.";
-    host.info(text);
+    ctx.message(text);
   },
 };
 
 export const compactCommand: Command = {
   name: "compact",
   description: "Compact the agent context",
-  async execute(ctx, host) {
-    host.thinking(true);
+  async execute(ctx) {
     try {
       const ok = await ctx.session.compact();
-      if (ok) host.info("context compacted");
+      if (ok) ctx.message("context compacted");
     } catch (e) {
-      host.error((e as Error).message);
-    } finally {
-      host.thinking(false);
+      ctx.error((e as Error).message);
     }
   },
 };
@@ -51,7 +48,7 @@ export const compactCommand: Command = {
 export const exportCommand: Command = {
   name: "export",
   description: "Export the conversation to a JSONL file",
-  async execute(ctx, host) {
+  async execute(ctx) {
     try {
       const d = new Date();
       const pad = (n: number) => String(n).padStart(2, "0");
@@ -62,9 +59,9 @@ export const exportCommand: Command = {
         .map((m) => JSON.stringify(m))
         .join("\n");
       writeFileSync(file, lines + "\n", "utf-8");
-      host.info(`exported to ${file}`);
+      ctx.message(`exported to ${file}`);
     } catch (e) {
-      host.error((e as Error).message);
+      ctx.error((e as Error).message);
     }
   },
 };
