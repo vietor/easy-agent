@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { tryReadFileText } from "../util/fs.js";
+import { tryReadFileText } from "../util/file.js";
 
 import type { Skill } from "./types.js";
 

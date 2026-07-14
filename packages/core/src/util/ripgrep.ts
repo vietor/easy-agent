@@ -1,6 +1,6 @@
 import { isAbsolute, join } from "node:path";
 import { rgPath } from "@vscode/ripgrep";
-import { runProcess } from "./process.js";
+import { runProcess } from "./subprocess.js";
 
 export function resolveCwd(path?: string): string {
   const root = path || ".";

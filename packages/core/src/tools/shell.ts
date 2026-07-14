@@ -1,4 +1,4 @@
-import { runProcess } from "../util/process.js";
+import { runProcess } from "../util/subprocess.js";
 import type { Tool } from "./types.js";
 
 const isWindows = process.platform === "win32";
