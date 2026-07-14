@@ -44,7 +44,7 @@ await session.startPrompt("What files are in the current directory?");
 | `LogEntry` | A single entry in the conversation log (user, assistant, tool, system, etc.) |
 | `Tool`, `ToolContext`, `ToolResult`, `ToolSchema` | Define custom tools that the agent can invoke |
 | `Todo`, `TodoStatus` | Task-tracking types used by the built-in TodoWrite tool |
-| `BuiltinToolsOptions` | Toggles for opt-in built-in tools (AskUser, TodoWrite), passed via `SessionOptions.enableTools` |
+| `BuiltinToolsOptions` | Toggles for opt-in built-in tools (AskUser, TodoWrite), passed via `SessionOptions.builtinTools` |
 | `Command`, `CommandSchema`, `CommandContext` | Define slash commands |
 | `Skill` | A reusable prompt loaded from a SKILL.md file |
 | `MCPServerConfig` | Configuration for connecting to an MCP tool server |
@@ -72,16 +72,16 @@ await session.startPrompt("What files are in the current directory?");
 - **Grep** — content search with regex
 - **WebFetch** — fetch URL content
 
-Two interactive tools are opt-in via `enableTools` (they depend on host-provided callbacks, and the corresponding tool-usage policy is only emitted to the system prompt when enabled):
+Two interactive tools are opt-in via `builtinTools` (they depend on host-provided callbacks):
 
-- **AskUser** — prompt the user for input (`enableTools.askUser`)
-- **TodoWrite** — structured multi-step task tracking (`enableTools.todoWrite`)
+- **AskUser** — prompt the user for input (`builtinTools.askUser`)
+- **TodoWrite** — structured multi-step task tracking (`builtinTools.todoWrite`)
 
 ```ts
 const session = await startSession({
   systemPrompt: "...",
   llmConfig: { ... },
-  enableTools: { askUser: true, todoWrite: true },
+  builtinTools: { askUser: true, todoWrite: true },
 });
 ```
 
