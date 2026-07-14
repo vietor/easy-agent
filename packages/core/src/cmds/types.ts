@@ -2,7 +2,6 @@ import type { Session } from "../core/session.js";
 
 export interface CommandContext {
   session: Session;
-  host: Map<string, unknown>;
   message(text: string): void;
   error(text: string): void;
 }

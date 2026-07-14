@@ -16,7 +16,6 @@ export interface SessionOptions {
   commands?: Command[];
   skills?: Skill[];
   mcpServers?: Record<string, MCPServerConfig>;
-  host?: Map<string, unknown>;
   builtinTools?: BuiltinToolsOptions | false;
   clientInfo?: { name: string; version: string };
 }
@@ -55,5 +54,5 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
     for (const c of opts.commands) commands.register(c);
   }
 
-  return new Session(llm, opts.systemPrompt, tools, commands, mcp, opts.host ?? new Map());
+  return new Session(llm, opts.systemPrompt, tools, commands, mcp);
 }

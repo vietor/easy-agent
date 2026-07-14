@@ -27,8 +27,8 @@ export class Session {
   private agent: Agent;
   private mcp: MCPServers;
   private commands: CommandRegistry;
-  readonly host: Map<string, unknown>;
   private log = new LogStore();
+  readonly local: Map<string, unknown> = new Map();
 
   private callbacks?: SessionCallbacks;
   private streamingText = "";
@@ -51,12 +51,11 @@ export class Session {
     return this.log.getTodos();
   }
 
-  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers, host: Map<string, unknown>) {
+  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers) {
     const conversation = new Conversation(systemPrompt);
     this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t), () => this.log.getTodos());
     this.commands = commands;
     this.mcp = mcp;
-    this.host = host;
   }
 
   dispose(): void {
@@ -147,7 +146,6 @@ export class Session {
       name,
       {
         session: this,
-        host: this.host,
         message: (t) => this.appendLog({ kind: "system", text: t }),
         error: (t) => this.appendLog({ kind: "error", text: t }),
       },

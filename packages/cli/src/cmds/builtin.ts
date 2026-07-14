@@ -5,7 +5,7 @@ export const exitCommand: Command = {
   name: "exit",
   description: "Exit the conversation",
   async execute(ctx) {
-    ctx.host.set("exitRequested", true);
+    ctx.session.local.set("exitRequested", true);
   },
 };
 

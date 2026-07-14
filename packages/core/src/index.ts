@@ -1,5 +1,6 @@
 export type { Session, SessionCallbacks, RunState } from "./core/session.js";
 export type { LogEntry } from "./core/logstore.js";
+export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";
 export type { Command, CommandSchema, CommandContext } from "./cmds/types.js";
