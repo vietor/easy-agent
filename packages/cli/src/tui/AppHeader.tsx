@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
-import { getPackageInfo } from "@vietor/easy-agent-core";
+import { getPackageInfo } from "../util/package.js";
 
 export const AppHeader = memo(function AppHeader() {
   const pkginfo = getPackageInfo();

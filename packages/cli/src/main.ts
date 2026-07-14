@@ -4,7 +4,6 @@ import { loadConfig } from "./config.js";
 import {
   tryLoadSkills,
   tryReadFileText,
-  readFirstFileContent,
   startSession,
 } from "@vietor/easy-agent-core";
 import { builtinCommands } from "./cmds/builtin.js";
@@ -26,19 +25,13 @@ const SYSTEM_PROMPT_BASE = [
 export async function main(): Promise<void> {
   const config = loadConfig();
 
-  const globalSkills = readFirstFileContent(
-    [join(homedir(), ".agents", "skills"), join(homedir(), ".claude", "skills")],
-    tryLoadSkills,
-  );
+  const globalSkills = tryLoadSkills(join(homedir(), ".agents", "skills"))
+    ?? tryLoadSkills(join(homedir(), ".claude", "skills"));
 
-  const globalPrompt = readFirstFileContent(
-    [join(homedir(), ".agents", "AGENTS.md"), join(homedir(), ".claude", "CLAUDE.md")],
-    tryReadFileText,
-  );
-  const projectPrompt = readFirstFileContent(
-    [join(process.cwd(), "AGENTS.md"), join(process.cwd(), "CLAUDE.md")],
-    tryReadFileText,
-  );
+  const globalPrompt = tryReadFileText(join(homedir(), ".agents", "AGENTS.md"))
+    ?? tryReadFileText(join(homedir(), ".claude", "CLAUDE.md"));
+  const projectPrompt = tryReadFileText(join(process.cwd(), "AGENTS.md"))
+    ?? tryReadFileText(join(process.cwd(), "CLAUDE.md"));
 
   const systemPrompt = [SYSTEM_PROMPT_BASE, globalPrompt, projectPrompt]
     .filter(Boolean)

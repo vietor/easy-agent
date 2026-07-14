@@ -18,6 +18,7 @@ export interface SessionOptions {
   mcpServers?: Record<string, MCPServerConfig>;
   host?: Map<string, unknown>;
   builtinTools?: BuiltinToolsOptions | false;
+  clientInfo?: { name: string; version: string };
 }
 
 export async function startSession(opts: SessionOptions): Promise<Session> {
@@ -31,7 +32,7 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
     for (const t of opts.tools) tools.register(t);
   }
 
-  const mcp = new MCPServers(tools);
+  const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "easy-agent-core", version: "0.0.0" });
   if (opts.mcpServers) {
     await mcp.connect(opts.mcpServers);
   }

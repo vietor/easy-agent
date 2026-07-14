@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const __dirname = import.meta.dirname;
@@ -16,9 +16,7 @@ function findPackageJson(): string {
   let current = __dirname;
   for (let i = 0; i < MAX_PARENT_TRAVERSAL; i++) {
     const pkgPath = join(current, "package.json");
-    if (existsSync(pkgPath)) {
-      return pkgPath;
-    }
+    if (existsSync(pkgPath)) return pkgPath;
     const parent = dirname(current);
     if (parent === current) break;
     current = parent;

@@ -6,17 +6,11 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { MCPServerConfig } from "./types.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { getPackageInfo } from "../util/package.js";
-
-function getClientInfo() {
-  const pkginfo = getPackageInfo();
-  return { name: pkginfo.name, version: pkginfo.version };
-}
 
 const STDERR_MAX_LINES = 20;
 
 export class MCPClient {
-  private client = new Client(getClientInfo(), { capabilities: {} });
+  private client: Client;
   private transport: Transport;
   private connectReject?: (e: Error) => void;
   private stderrBuf: string[] = [];
@@ -24,7 +18,9 @@ export class MCPClient {
   constructor(
     private name: string,
     config: MCPServerConfig,
+    clientInfo: { name: string; version: string },
   ) {
+    this.client = new Client(clientInfo, { capabilities: {} });
     if ("command" in config) {
       const t = new StdioClientTransport({ ...config, stderr: "pipe" });
       this.transport = t;

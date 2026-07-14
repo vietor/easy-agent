@@ -49,6 +49,7 @@ await session.startPrompt("What files are in the current directory?");
 | `Skill` | A reusable prompt loaded from a SKILL.md file |
 | `MCPServerConfig`, `MCPServerInfo` | MCP server config, and the status info returned by `session.mcpServers` |
 | `LLMConfig` | OpenAI-compatible LLM endpoint configuration |
+| `SessionOptions` | Options for `startSession` including `clientInfo` for MCP client identification |
 
 ### Functions
 
@@ -57,8 +58,6 @@ await session.startPrompt("What files are in the current directory?");
 | `startSession(opts)` | Create a fully-wired agent session with LLM client, tools, MCP, and commands |
 | `tryLoadSkills(dir)` | Load skill definitions from a directory of SKILL.md files |
 | `tryReadFileText(path)` | Read a text file, returning `null` on any failure |
-| `readFirstFileContent(paths, loadFn)` | Try multiple paths in order and return the first successful result |
-| `getPackageInfo()` | Read `name`, `version`, `description` from the nearest `package.json` |
 
 ### Built-in tools
 

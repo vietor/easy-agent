@@ -73,7 +73,10 @@ export class MCPServers {
   private pending = new Set<MCPClient>();
   private disposed = false;
 
-  constructor(private tools: ToolRegistry) {}
+  constructor(
+    private tools: ToolRegistry,
+    private clientInfo: { name: string; version: string },
+  ) {}
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {
     await Promise.all(
@@ -85,7 +88,7 @@ export class MCPServers {
           return;
         }
         this.servers.set(name, { type, status: "pending", tools: [] });
-        const client = new MCPClient(name, cfg);
+        const client = new MCPClient(name, cfg, this.clientInfo);
         this.pending.add(client);
         try {
           await withTimeout(client.connect(), CONNECT_TIMEOUT);

@@ -8,10 +8,3 @@ export function tryReadFileText(path: string): string | undefined {
   return undefined;
 }
 
-export function readFirstFileContent<T>(paths: string[], fn: (t: string) => T): T | undefined {
-  for (const p of paths) {
-    const content = fn(p);
-    if (content) return content;
-  }
-  return undefined;
-}
