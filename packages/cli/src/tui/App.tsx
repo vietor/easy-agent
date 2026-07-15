@@ -66,8 +66,10 @@ export function App({ session }: { session: Session }) {
   }
 
   async function handlePrompt(text: string) {
-    if (session.isCommand(text)) {
-      await handleCommand(text, "");
+    const [first, ...rest] = text.split(/\s+/);
+    if (first.startsWith("/") || session.isCommand(first)) {
+      const name = first.startsWith("/") ? first.slice(1) : first;
+      await handleCommand(name, rest.join(" "));
     } else {
       await session.startPrompt(text);
     }

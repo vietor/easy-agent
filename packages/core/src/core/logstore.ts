@@ -16,6 +16,8 @@ export class LogStore {
   private todos: Todo[] = [];
   private version = 0;
   private listeners = new Set<() => void>();
+  private pendingTools = new Map<string, number>();
+  private pendingQuestions = new Map<string, number>();
 
   getSnapshot = (): number => this.version;
 
@@ -40,37 +42,44 @@ export class LogStore {
 
   append(entry: LogEntry): void {
     this.entries.push(entry);
+    if (entry.kind === "tool" && entry.result === null) {
+      this.pendingTools.set(entry.id, this.entries.length - 1);
+    } else if (entry.kind === "question" && entry.answer === null) {
+      this.pendingQuestions.set(entry.id, this.entries.length - 1);
+    }
     this.version++;
     this.emit();
   }
 
   setResult(id: string, result: string, isError?: boolean): void {
-    for (let i = this.entries.length - 1; i >= 0; i--) {
-      const entry = this.entries[i];
-      if (entry.kind === "tool" && entry.id === id && entry.result === null) {
-        this.entries[i] = { ...entry, result, isError };
-        this.version++;
-        this.emit();
-        return;
-      }
+    const idx = this.pendingTools.get(id);
+    if (idx === undefined) return;
+    this.pendingTools.delete(id);
+    const entry = this.entries[idx];
+    if (entry.kind === "tool" && entry.result === null) {
+      this.entries[idx] = { ...entry, result, isError };
+      this.version++;
+      this.emit();
     }
   }
 
   setAnswer(id: string, answer: string): void {
-    for (let i = this.entries.length - 1; i >= 0; i--) {
-      const entry = this.entries[i];
-      if (entry.kind === "question" && entry.id === id && entry.answer === null) {
-        this.entries[i] = { ...entry, answer };
-        this.version++;
-        this.emit();
-        return;
-      }
+    const idx = this.pendingQuestions.get(id);
+    if (idx === undefined) return;
+    this.pendingQuestions.delete(id);
+    const entry = this.entries[idx];
+    if (entry.kind === "question" && entry.answer === null) {
+      this.entries[idx] = { ...entry, answer };
+      this.version++;
+      this.emit();
     }
   }
 
   clear(): void {
     this.entries = [];
     this.todos = [];
+    this.pendingTools.clear();
+    this.pendingQuestions.clear();
     this.version++;
     this.emit();
   }

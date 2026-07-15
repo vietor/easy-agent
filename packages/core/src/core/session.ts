@@ -37,6 +37,7 @@ export class Session {
   private startTime = 0;
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
+  private lastReplyText = "";
 
   getSnapshot = (): number => this.log.getSnapshot();
 
@@ -67,6 +68,11 @@ export class Session {
   }
 
   dispose(): void {
+    this.abortController?.abort();
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = undefined;
+    }
     this.mcp.kill();
   }
 
@@ -92,6 +98,7 @@ export class Session {
 
   clear(): void {
     this.agent.clear();
+    this.lastReplyText = "";
     this.clearLog();
   }
 
@@ -171,15 +178,7 @@ export class Session {
   }
 
   private lastReply(): string {
-    const msgs = this.agent.export();
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i];
-      if (m.role === "user") break;
-      if (m.role !== "assistant") continue;
-      if (typeof m.content === "string") return m.content;
-      if (Array.isArray(m.content)) return m.content.filter((p) => p.type === "text").map((p) => p.text).join("");
-    }
-    return "";
+    return this.lastReplyText;
   }
 
   private async startSkill(skill: Skill): Promise<void> {
@@ -258,6 +257,7 @@ export class Session {
 
   private flushStreaming(): void {
     if (this.streamingText) {
+      this.lastReplyText = this.streamingText;
       this.appendLog({ kind: "assistant", text: this.streamingText });
       this.streamingText = "";
       this.callbacks?.onStreaming?.("");

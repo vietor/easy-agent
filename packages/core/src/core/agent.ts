@@ -8,6 +8,7 @@ import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
 const STALL_THRESHOLD = 3;
 const MAX_TURNS = 50;
+const COMPACT_THRESHOLD = 500_000;
 
 export type AgentEvent =
   | { type: "delta"; text: string }
@@ -113,6 +114,9 @@ export class Agent {
     let stall = 0;
     let turns = 0;
     while (true) {
+      if (this.conversation.getEstimatedTokens() > COMPACT_THRESHOLD) {
+        try { await this.compact(signal); } catch { /* proceed anyway */ }
+      }
       const messages = this.conversation.toLLM();
       const todos = this.getTodos();
       if (todos.length) messages.push({ role: "user", content: renderTodoReminder(todos) });
@@ -157,9 +161,14 @@ export class Agent {
           const summary = this.tools.summarize(call.function.name, args);
           onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
           const ctx: ToolContext = { signal, ask: this.ask, setTodos: this.setTodos };
-          const result: ToolResult = argsError
-            ? { content: argsError, isError: true }
-            : await this.tools.execute(call.function.name, args, ctx);
+          let result: ToolResult;
+          try {
+            result = argsError
+              ? { content: argsError, isError: true }
+              : await this.tools.execute(call.function.name, args, ctx);
+          } catch (e) {
+            result = { content: `Error: ${(e as Error).message}`, isError: true };
+          }
           onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
           return { id: call.id, content: result.content };
         })
