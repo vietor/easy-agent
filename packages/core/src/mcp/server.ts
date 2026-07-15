@@ -69,7 +69,7 @@ function extractContent(result: CallToolResult): string {
 }
 
 export class MCPServers {
-  private servers = new Map<string, { type: ServerType; status: "pending" | "connected" | "failed" | "disabled"; client?: MCPClient; tools: string[] }>();
+  private servers = new Map<string, { type: ServerType; status: MCPServerInfo["status"]; client?: MCPClient; tools: string[] }>();
   private pending = new Set<MCPClient>();
   private disposed = false;
 

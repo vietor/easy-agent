@@ -165,34 +165,37 @@ export class Agent {
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
         return;
       }
-      const results = await withAbortFallback(Promise.all(
-        msg.tool_calls.map(async (call) => {
-          let args: Record<string, unknown> = {};
-          let argsError = "";
-          if (call.function.arguments) {
-            try { args = JSON.parse(call.function.arguments); }
-            catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
-          }
-          const summary = this.tools.summarize(call.function.name, args);
-          onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
-          const ctx: ToolContext = { signal, ask: this.ask, setTodos: this.setTodos };
-          let result: ToolResult;
-          try {
-            result = argsError
-              ? { content: argsError, isError: true }
-              : await this.tools.execute(call.function.name, args, ctx);
-          } catch (e) {
-            result = { content: `Error: ${(e as Error).message}`, isError: true };
-          }
-          onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
-          return { id: call.id, content: result.content };
-        })
-      ), signal, null);
+      const results = await this.runToolCalls(msg, onEvent, signal);
       if (!results) return;
       for (const r of results) {
-        if (r) this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
+        this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
       }
     }
+  }
+
+  private async runToolCalls(
+    msg: AssistantMessage,
+    onEvent?: (e: AgentEvent) => void,
+    signal?: AbortSignal
+  ): Promise<{ id: string; content: string }[] | null> {
+    return withAbortFallback(Promise.all(
+      msg.tool_calls!.map(async (call) => {
+        let args: Record<string, unknown> = {};
+        let argsError = "";
+        if (call.function.arguments) {
+          try { args = JSON.parse(call.function.arguments); }
+          catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
+        }
+        const summary = this.tools.summarize(call.function.name, args);
+        onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
+        const ctx: ToolContext = { signal, ask: this.ask, setTodos: this.setTodos };
+        const result: ToolResult = argsError
+          ? { content: argsError, isError: true }
+          : await this.tools.execute(call.function.name, args, ctx);
+        onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
+        return { id: call.id, content: result.content };
+      })
+    ), signal, null);
   }
 }
 

@@ -3,6 +3,7 @@ import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
+import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { Agent } from "./agent.js";
@@ -22,6 +23,15 @@ export interface SessionCallbacks {
   onRunStateChange?: (state: RunState) => void;
 }
 
+export interface SessionDeps {
+  llm: LLMClient;
+  systemPrompt: string;
+  tools: ToolRegistry;
+  commands: CommandRegistry;
+  mcp: MCPServers;
+  skills?: Skill[];
+}
+
 export class Session {
   private agent: Agent;
   private mcp: MCPServers;
@@ -31,7 +41,6 @@ export class Session {
   private loop: RunLoop;
   readonly local: Map<string, unknown> = new Map();
 
-  private callbacks?: SessionCallbacks;
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
 
@@ -47,7 +56,7 @@ export class Session {
     return this.log.all;
   }
 
-  get todos(): readonly import("../tools/types.js").Todo[] {
+  get todos(): readonly Todo[] {
     return this.todoStore.all;
   }
 
@@ -63,34 +72,29 @@ export class Session {
     return this.commands.schemas();
   }
 
-  constructor(
-    llm: LLMClient,
-    systemPrompt: string,
-    tools: ToolRegistry,
-    commands: CommandRegistry,
-    mcp: MCPServers,
-    skills?: Skill[]
-  ) {
-    const conversation = new Conversation(systemPrompt);
+  constructor(deps: SessionDeps) {
+    const conversation = new Conversation(deps.systemPrompt);
     this.agent = new Agent({
-      llm,
+      llm: deps.llm,
       conversation,
-      tools,
+      tools: deps.tools,
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
     });
-    this.commands = commands;
-    this.mcp = mcp;
-    this.loop = new RunLoop(this.agent, this.log, this.todoStore, this.callbacks);
-    if (skills) {
-      for (const skill of skills) {
-        this.commands.register({
-          name: skill.name,
-          description: skill.description ?? skill.name,
-          execute: async () => { await this.loop.startSkill(skill); },
-        });
-      }
+    this.commands = deps.commands;
+    this.mcp = deps.mcp;
+    this.loop = new RunLoop(this.agent, this.log, this.todoStore);
+    if (deps.skills) this.registerSkillCommands(deps.skills);
+  }
+
+  private registerSkillCommands(skills: Skill[]): void {
+    for (const skill of skills) {
+      this.commands.register({
+        name: skill.name,
+        description: skill.description ?? skill.name,
+        execute: async () => { await this.loop.startSkill(skill); },
+      });
     }
   }
 
@@ -100,7 +104,6 @@ export class Session {
   }
 
   setCallbacks(cb: SessionCallbacks): void {
-    this.callbacks = cb;
     this.loop.setCallbacks(cb);
   }
 
@@ -114,13 +117,12 @@ export class Session {
     return this.agent.export();
   }
 
-  async compact(): Promise<boolean> {
-    const ctrl = new AbortController();
+  async compact(signal?: AbortSignal): Promise<boolean> {
     try {
-      await this.agent.compact(ctrl.signal);
+      await this.agent.compact(signal);
       return true;
     } catch (e) {
-      if (ctrl.signal.aborted) return false;
+      if (signal?.aborted) return false;
       throw e;
     }
   }

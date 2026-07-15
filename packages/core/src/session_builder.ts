@@ -43,5 +43,12 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     for (const c of opts.commands) commands.register(c);
   }
 
-  return new Session(llm, opts.systemPrompt, tools, commands, mcp, opts.skills);
+  return new Session({
+    llm,
+    systemPrompt: opts.systemPrompt,
+    tools,
+    commands,
+    mcp,
+    skills: opts.skills,
+  });
 }

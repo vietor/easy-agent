@@ -1,7 +1,6 @@
 import type { Agent, AgentEvent } from "./agent.js";
 import type { Skill } from "../skills/types.js";
-import type { LogStore } from "./logstore.js";
-import type { TodoStore } from "./logstore.js";
+import type { LogStore, TodoStore } from "./logstore.js";
 import type { SessionCallbacks, RunState } from "./session.js";
 
 export class RunLoop {
@@ -11,12 +10,12 @@ export class RunLoop {
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
+  private callbacks?: SessionCallbacks;
 
   constructor(
     private agent: Agent,
     private log: LogStore,
-    private todos: TodoStore,
-    private callbacks?: SessionCallbacks
+    private todos: TodoStore
   ) {}
 
   setCallbacks(cb: SessionCallbacks): void {
