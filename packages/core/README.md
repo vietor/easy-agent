@@ -10,20 +10,20 @@ Requires Node.js ≥ 22 (ESM only).
 
 ---
 
-## `startSession`
+## `createSession`
 
-**`startSession(options: SessionOptions): Promise<Session>`**
+**`createSession(options: SessionOptions): Promise<Session>`**
 
 Factory that wires together the LLM client, tool registry, MCP servers, skill-based commands, and custom commands into a ready-to-use `Session` instance.
 
 ```ts
-import { startSession } from "@vietor/easy-agent-core";
+import { createSession } from "@vietor/easy-agent-core";
 
-const session = await startSession({
+const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
   llmConfig: {
     baseUrl: "https://api.deepseek.com/v1",
-    apiKey: process.env.OPENAI_API_KEY!,
+    apiKey: "your-api-key",
     model: "deepseek-v4-flash",
   },
   tools: [myCustomTool],
@@ -54,10 +54,10 @@ const session = await startSession({
 
 ## `Session`
 
-The main session object. Create one via `startSession()`.
+The main session object. Create one via `createSession()`.
 
 ```ts
-const session = await startSession({ systemPrompt, llmConfig });
+const session = await createSession({ systemPrompt, llmConfig });
 ```
 
 ### Running prompts
@@ -281,7 +281,7 @@ Interactive tools (require `builtinTools` option):
 | **TodoWrite** | `builtinTools.todoWrite: true` | Structured multi-step task tracking. |
 
 ```ts
-const session = await startSession({
+const session = await createSession({
   systemPrompt: "...",
   llmConfig: { ... },
   builtinTools: { askUser: true, todoWrite: true },
@@ -308,7 +308,7 @@ const greetTool: Tool = {
   },
 };
 
-const session = await startSession({
+const session = await createSession({
   systemPrompt: "...",
   llmConfig: { ... },
   tools: [greetTool],
@@ -372,7 +372,7 @@ const helloCommand: Command = {
   },
 };
 
-const session = await startSession({
+const session = await createSession({
   systemPrompt: "...",
   llmConfig: { ... },
   commands: [helloCommand],
@@ -418,7 +418,7 @@ If no `name` is set in front matter, the directory name is used.
 ```ts
 const skills = tryLoadSkills("./my-skills") ?? [];
 
-const session = await startSession({
+const session = await createSession({
   systemPrompt: "...",
   llmConfig: { ... },
   skills,
@@ -482,18 +482,36 @@ if (content) {
 }
 ```
 
+### `netFetch`
+
+**`netFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>`**
+
+A drop-in replacement for `fetch` that automatically routes through an HTTP(S) proxy when configured. Respects the standard environment variables:
+
+- `HTTPS_PROXY` / `https_proxy` — proxy URL for HTTPS requests (preferred)
+- `HTTP_PROXY` / `http_proxy` — proxy URL for HTTP requests (fallback)
+- `NO_PROXY` / `no_proxy` — comma-separated hostnames/domains to bypass the proxy
+
+```ts
+import { netFetch } from "@vietor/easy-agent-core";
+
+// Same signature as fetch — automatically uses proxy if env vars are set
+const res = await netFetch("https://api.example.com/data");
+const data = await res.json();
+```
+
 ---
 
 ## Full Quick Start
 
 ```ts
-import { startSession, tryLoadSkills } from "@vietor/easy-agent-core";
+import { createSession, tryLoadSkills } from "@vietor/easy-agent-core";
 
-const session = await startSession({
+const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
   llmConfig: {
     baseUrl: "https://api.deepseek.com/v1",
-    apiKey: process.env.OPENAI_API_KEY!,
+    apiKey: "your-api-key",
     model: "deepseek-v4-flash",
   },
   mcpServers: {

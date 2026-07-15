@@ -36,6 +36,16 @@ Create `~/.easy-agent.json` in your home directory:
 
 `llm.baseUrl`, `llm.apiKey`, and `llm.model` are all required. Point `baseUrl` at any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, local servers, etc.) and set `model` to a model that endpoint serves.
 
+### Proxy
+
+The agent automatically routes HTTP requests through a proxy when the standard environment variables are set:
+
+- `HTTPS_PROXY` / `https_proxy` — proxy URL for HTTPS (preferred)
+- `HTTP_PROXY` / `http_proxy` — proxy URL for HTTP (fallback)
+- `NO_PROXY` / `no_proxy` — comma-separated hosts/domains to bypass the proxy
+
+No extra configuration is needed — just set the env vars before launching `easy-agent`.
+
 ### MCP servers (optional)
 
 Add an `mcpServers` map to expose external tools through the Model Context Protocol. Each entry is either a local process (stdio) or a remote endpoint (Streamable HTTP):
@@ -128,7 +138,7 @@ Type a prompt and press Enter. The agent streams its reply and calls tools as ne
 ## Build from source
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/vietor/easy-agent.git
 cd easy-agent
 pnpm install
 pnpm build                 # build core → CLI

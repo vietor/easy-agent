@@ -24,7 +24,7 @@ This repo contains two packages:
 ### Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/vietor/easy-agent.git
 cd easy-agent
 
 pnpm install           # install all dependencies
@@ -38,12 +38,22 @@ pnpm --filter @vietor/easy-agent dev   # run TUI in dev mode (tsx hot-reload)
 easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/easy-agent-core — SDK framework (library)
-│   │   └── src/       #   session orchestration, tools, MCP, LLM client
+│   │   └── src/
+│   │       ├── core/      # Agent, Session, RunLoop, Conversation, LogStore/TodoStore
+│   │       ├── tools/     # built-in tools (Shell, File*, Grep, Glob, WebFetch, etc.)
+│   │       ├── cmds/      # command system (registry, built-in slash commands)
+│   │       ├── llm/       # OpenAI-compatible LLM client
+│   │       ├── mcp/       # MCP client/server (stdio + Streamable HTTP)
+│   │       ├── skills/    # skill loader (SKILL.md → slash commands)
+│   │       └── util/      # netFetch (proxy-aware fetch), ripgrep, subprocess, etc.
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
-│       └── src/       #   terminal UI, config loader, built-in commands
+│       └── src/
+│           ├── tui/       # terminal UI components (App, LogView, TodoView, etc.)
+│           ├── cmds/      # CLI-specific built-in commands
+│           └── util/      # formatting, package info
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
-└── tsconfig.json      # base TypeScript config (not extended by packages)
+└── tsconfig.json      # base TypeScript config
 ```
 
 The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems). The `cli` package depends on `core` and provides the interactive terminal experience.
