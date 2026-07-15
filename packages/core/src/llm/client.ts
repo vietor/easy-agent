@@ -2,6 +2,7 @@ import OpenAI, { APIConnectionError, APIError } from "openai";
 import type { LLMConfig, AssistantMessage, Message } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
 import { withRetry } from "../util/async.js";
+import { netFetch } from "../util/net.js";
 
 const MAX_RETRIES = 3;
 
@@ -29,6 +30,7 @@ export class LLMClient {
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
       maxRetries: 0,
+      fetch: netFetch,
     });
     this.model = config.model;
   }

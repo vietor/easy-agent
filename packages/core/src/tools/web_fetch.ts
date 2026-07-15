@@ -1,6 +1,7 @@
 import { Parser } from "htmlparser2";
 import TurndownService from "turndown";
 import type { Tool } from "./types.js";
+import { netFetch } from "../util/net.js";
 
 const SKIP_TAGS = new Set(["script", "style", "noscript", "template", "head", "title", "meta", "link", "base"]);
 const BLOCK_TAGS = new Set([
@@ -122,7 +123,7 @@ export const webFetchTool: Tool = {
     const format = ((args.format as string) || "markdown").toLowerCase();
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await netFetch(url, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",

@@ -10,4 +10,5 @@ export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
+export { netFetch } from "./util/net.js";
 export { startSession, type SessionOptions } from "./session_builder.js";
