@@ -6,9 +6,7 @@ import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
-const STALL_THRESHOLD = 3;
-const MAX_TURNS = 50;
-const COMPACT_THRESHOLD = 500_000;
+const COMPACT_PROMPT = "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far\":";
 
 export type AgentEvent =
   | { type: "delta"; text: string }
@@ -19,27 +17,41 @@ export type AgentEvent =
   | { type: "interrupted" }
   | { type: "usage"; promptTokens: number; completionTokens: number };
 
-const COMPACT_PROMPT = "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far:\".";
-
-function renderTodoReminder(todos: readonly Todo[]): string {
-  const lines = todos.map((t) => {
-    const mark = t.status === "completed" ? "x" : t.status === "in_progress" ? "o" : " ";
-    return `[${mark}] ${t.content}`;
-  });
-  return `<system-reminder>\nCurrent task list (live state):\n${lines.join("\n")}\n</system-reminder>`;
+export interface AgentOptions {
+  llm: LLMClient;
+  conversation: Conversation;
+  tools: ToolRegistry;
+  ask: (question: string, options: string[]) => Promise<string>;
+  setTodos: (todos: Todo[]) => void;
+  getTodos: () => readonly Todo[];
+  stallThreshold?: number;
+  maxTurns?: number;
+  compactThreshold?: number;
 }
 
 export class Agent {
+  private llm: LLMClient;
+  private conversation: Conversation;
+  private tools: ToolRegistry;
+  private ask: (question: string, options: string[]) => Promise<string>;
+  private setTodos: (todos: Todo[]) => void;
+  private getTodos: () => readonly Todo[];
+  private stallThreshold: number;
+  private maxTurns: number;
+  private compactThreshold: number;
   private todoSnapshot: readonly Todo[] = [];
 
-  constructor(
-    private llm: LLMClient,
-    private conversation: Conversation,
-    private tools: ToolRegistry,
-    private ask: (question: string, options: string[]) => Promise<string>,
-    private setTodos: (todos: Todo[]) => void,
-    private getTodos: () => readonly Todo[]
-  ) {}
+  constructor(opts: AgentOptions) {
+    this.llm = opts.llm;
+    this.conversation = opts.conversation;
+    this.tools = opts.tools;
+    this.ask = opts.ask;
+    this.setTodos = opts.setTodos;
+    this.getTodos = opts.getTodos;
+    this.stallThreshold = opts.stallThreshold ?? 3;
+    this.maxTurns = opts.maxTurns ?? 50;
+    this.compactThreshold = opts.compactThreshold ?? 500_000;
+  }
 
   get contextTokens(): number {
     return this.conversation.getEstimatedTokens();
@@ -58,7 +70,9 @@ export class Agent {
     if (history.length === 0) return;
     const request: Message[] = [...history];
     const todos = this.getTodos();
-    if (todos.length) request.push({ role: "user", content: renderTodoReminder(todos) });
+    if (todos.length) {
+      request.push({ role: "user", content: renderTodoReminder(todos) });
+    }
     request.push({ role: "user", content: COMPACT_PROMPT });
     const msg = await this.llm.chat({ messages: request, tools: [], signal });
     this.conversation.compact((msg.content as string) || "");
@@ -94,13 +108,12 @@ export class Agent {
       this.setTodos([...this.todoSnapshot]);
       onEvent?.({ type: "interrupted" });
     };
-    if (signal?.aborted) onAbort();
-    else signal?.addEventListener("abort", onAbort, { once: true });
 
     try {
-      await this.loop(onEvent, signal);
+      await withAbort(this.loop(onEvent, signal), signal);
+    } catch {
+      if (signal?.aborted) onAbort();
     } finally {
-      signal?.removeEventListener("abort", onAbort);
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
     }
@@ -114,12 +127,14 @@ export class Agent {
     let stall = 0;
     let turns = 0;
     while (true) {
-      if (this.conversation.getEstimatedTokens() > COMPACT_THRESHOLD) {
+      if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
         try { await this.compact(signal); } catch { /* proceed anyway */ }
       }
       const messages = this.conversation.toLLM();
       const todos = this.getTodos();
-      if (todos.length) messages.push({ role: "user", content: renderTodoReminder(todos) });
+      if (todos.length) {
+        messages.push({ role: "user", content: renderTodoReminder(todos) });
+      }
       let msg: AssistantMessage;
       try {
         msg = await withAbort(this.llm.chat({
@@ -142,12 +157,12 @@ export class Agent {
         .join("|");
       stall = sig === lastSig ? stall + 1 : 1;
       lastSig = sig;
-      if (stall >= STALL_THRESHOLD) {
-        onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
+      if (stall >= this.stallThreshold) {
+        onEvent?.({ type: "error", text: `agent stalled: repeated identical tool calls` });
         return;
       }
-      if (++turns >= MAX_TURNS) {
-        onEvent?.({ type: "error", text: `agent exceeded max turns (${MAX_TURNS})` });
+      if (++turns >= this.maxTurns) {
+        onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
         return;
       }
       const results = await withAbortFallback(Promise.all(
@@ -179,4 +194,12 @@ export class Agent {
       }
     }
   }
+}
+
+function renderTodoReminder(todos: readonly Todo[]): string {
+  const lines = todos.map((t) => {
+    const mark = t.status === "completed" ? "x" : t.status === "in_progress" ? "o" : " ";
+    return `[${mark}] ${t.content}`;
+  });
+  return `<system-reminder>\nCurrent task list (live state):\n${lines.join("\n")}\n</system-reminder>`;
 }

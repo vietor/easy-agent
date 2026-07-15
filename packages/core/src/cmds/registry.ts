@@ -33,7 +33,7 @@ export class CommandRegistry {
   }
 }
 
-export function registerBuiltinCommand(commands: CommandRegistry) {
+export function registerBuiltinCommands(commands: CommandRegistry) {
   const builtins = [clearCommand, mcpCommand, compactCommand];
   for (const c of builtins) commands.register(c);
 }

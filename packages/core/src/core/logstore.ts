@@ -11,33 +11,49 @@ export type LogEntry =
   | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }
   | { kind: "system"; text: string };
 
+export class TodoStore {
+  private items: Todo[] = [];
+  private version = 0;
+  private listeners = new Set<() => void>();
+
+  get all(): readonly Todo[] {
+    return this.items;
+  }
+
+  get snapshot(): number {
+    return this.version;
+  }
+
+  set(todos: Todo[]): void {
+    this.items = todos;
+    this.version++;
+    for (const l of this.listeners) l();
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+}
+
 export class LogStore {
   private entries: LogEntry[] = [];
-  private todos: Todo[] = [];
   private version = 0;
   private listeners = new Set<() => void>();
   private pendingTools = new Map<string, number>();
   private pendingQuestions = new Map<string, number>();
 
-  getSnapshot = (): number => this.version;
-
-  subscribe = (listener: () => void): (() => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
-
   get all(): readonly LogEntry[] {
     return this.entries;
   }
 
-  getTodos(): readonly Todo[] {
-    return this.todos;
+  get snapshot(): number {
+    return this.version;
   }
 
-  setTodos(todos: Todo[]): void {
-    this.todos = todos;
-    this.version++;
-    this.emit();
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   append(entry: LogEntry): void {
@@ -48,7 +64,7 @@ export class LogStore {
       this.pendingQuestions.set(entry.id, this.entries.length - 1);
     }
     this.version++;
-    this.emit();
+    for (const l of this.listeners) l();
   }
 
   setResult(id: string, result: string, isError?: boolean): void {
@@ -59,7 +75,7 @@ export class LogStore {
     if (entry.kind === "tool" && entry.result === null) {
       this.entries[idx] = { ...entry, result, isError };
       this.version++;
-      this.emit();
+      for (const l of this.listeners) l();
     }
   }
 
@@ -71,20 +87,15 @@ export class LogStore {
     if (entry.kind === "question" && entry.answer === null) {
       this.entries[idx] = { ...entry, answer };
       this.version++;
-      this.emit();
+      for (const l of this.listeners) l();
     }
   }
 
   clear(): void {
     this.entries = [];
-    this.todos = [];
     this.pendingTools.clear();
     this.pendingQuestions.clear();
     this.version++;
-    this.emit();
-  }
-
-  private emit(): void {
-    for (const listener of this.listeners) listener();
+    for (const l of this.listeners) l();
   }
 }

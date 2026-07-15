@@ -4,7 +4,7 @@ import { loadConfig } from "./config.js";
 import {
   tryLoadSkills,
   tryReadFileText,
-  startSession,
+  createSession,
 } from "@vietor/easy-agent-core";
 import { builtinCommands } from "./cmds/builtin.js";
 import { startApp } from "./tui/App.js";
@@ -37,7 +37,7 @@ export async function main(): Promise<void> {
     .filter(Boolean)
     .join("\n\n=================\n\n");
 
-  const session = await startSession({
+  const session = await createSession({
     systemPrompt,
     llmConfig: config.llm,
     mcpServers: config.mcpServers,

@@ -2,7 +2,7 @@ import { LLMClient } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
-import { CommandRegistry, registerBuiltinCommand } from "./cmds/registry.js";
+import { CommandRegistry, registerBuiltinCommands } from "./cmds/registry.js";
 import type { Tool } from "./tools/types.js";
 import type { Command } from "./cmds/types.js";
 import type { Skill } from "./skills/types.js";
@@ -20,7 +20,7 @@ export interface SessionOptions {
   clientInfo?: { name: string; version: string };
 }
 
-export async function startSession(opts: SessionOptions): Promise<Session> {
+export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = new LLMClient(opts.llmConfig);
 
   const tools = new ToolRegistry();
@@ -37,7 +37,7 @@ export async function startSession(opts: SessionOptions): Promise<Session> {
   }
 
   const commands = new CommandRegistry();
-  registerBuiltinCommand(commands);
+  registerBuiltinCommands(commands);
 
   if (opts.commands) {
     for (const c of opts.commands) commands.register(c);

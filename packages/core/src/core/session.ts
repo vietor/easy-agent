@@ -3,12 +3,12 @@ import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
-import { Agent, type AgentEvent } from "./agent.js";
+import { Agent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { LogStore, type LogEntry } from "./logstore.js";
+import { LogStore, TodoStore, type LogEntry } from "./logstore.js";
+import { RunLoop } from "./runloop.js";
 
 export interface RunState {
   running: boolean;
@@ -27,57 +27,28 @@ export class Session {
   private mcp: MCPServers;
   private commands: CommandRegistry;
   private log = new LogStore();
+  private todoStore = new TodoStore();
+  private loop: RunLoop;
   readonly local: Map<string, unknown> = new Map();
 
   private callbacks?: SessionCallbacks;
-  private streamingText = "";
-  private runState: RunState = { running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 };
-  private abortController: AbortController | null = null;
-  private timer: ReturnType<typeof setInterval> | undefined;
-  private startTime = 0;
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
-  private lastReplyText = "";
 
-  getSnapshot = (): number => this.log.getSnapshot();
+  subscribe = (listener: () => void): (() => void) => {
+    const unsub1 = this.log.subscribe(listener);
+    const unsub2 = this.todoStore.subscribe(listener);
+    return () => { unsub1(); unsub2(); };
+  };
 
-  subscribe = (listener: () => void): (() => void) => this.log.subscribe(listener);
+  getSnapshot = (): number => this.log.snapshot + this.todoStore.snapshot;
 
   get logEntries(): readonly LogEntry[] {
     return this.log.all;
   }
 
-  get todos(): readonly Todo[] {
-    return this.log.getTodos();
-  }
-
-  constructor(llm: LLMClient, systemPrompt: string, tools: ToolRegistry, commands: CommandRegistry, mcp: MCPServers, skills?: Skill[]) {
-    const conversation = new Conversation(systemPrompt);
-    this.agent = new Agent(llm, conversation, tools, (q, o) => this.ask(q, o), (t) => this.log.setTodos(t), () => this.log.getTodos());
-    this.commands = commands;
-    this.mcp = mcp;
-    if (skills) {
-      for (const skill of skills) {
-        this.commands.register({
-          name: skill.name,
-          description: skill.description ?? skill.name,
-          execute: async () => { await this.startSkill(skill); },
-        });
-      }
-    }
-  }
-
-  dispose(): void {
-    this.abortController?.abort();
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = undefined;
-    }
-    this.mcp.kill();
-  }
-
-  setCallbacks(cb: SessionCallbacks): void {
-    this.callbacks = cb;
+  get todos(): readonly import("../tools/types.js").Todo[] {
+    return this.todoStore.all;
   }
 
   get contextTokens(): number {
@@ -88,18 +59,55 @@ export class Session {
     return this.mcp.list();
   }
 
-  private appendLog(entry: LogEntry): void {
-    this.log.append(entry);
+  get commandSchemas(): CommandSchema[] {
+    return this.commands.schemas();
   }
 
-  private clearLog(): void {
-    this.log.clear();
+  constructor(
+    llm: LLMClient,
+    systemPrompt: string,
+    tools: ToolRegistry,
+    commands: CommandRegistry,
+    mcp: MCPServers,
+    skills?: Skill[]
+  ) {
+    const conversation = new Conversation(systemPrompt);
+    this.agent = new Agent({
+      llm,
+      conversation,
+      tools,
+      ask: (q, o) => this.ask(q, o),
+      setTodos: (t) => this.todoStore.set(t),
+      getTodos: () => this.todoStore.all,
+    });
+    this.commands = commands;
+    this.mcp = mcp;
+    this.loop = new RunLoop(this.agent, this.log, this.todoStore, this.callbacks);
+    if (skills) {
+      for (const skill of skills) {
+        this.commands.register({
+          name: skill.name,
+          description: skill.description ?? skill.name,
+          execute: async () => { await this.loop.startSkill(skill); },
+        });
+      }
+    }
+  }
+
+  dispose(): void {
+    this.loop.abort();
+    this.mcp.kill();
+  }
+
+  setCallbacks(cb: SessionCallbacks): void {
+    this.callbacks = cb;
+    this.loop.setCallbacks(cb);
   }
 
   clear(): void {
     this.agent.clear();
-    this.lastReplyText = "";
-    this.clearLog();
+    this.log.clear();
+    this.todoStore.set([]);
   }
 
   export(): ConversationMessage[] {
@@ -108,35 +116,22 @@ export class Session {
 
   async compact(): Promise<boolean> {
     const ctrl = new AbortController();
-    this.abortController = ctrl;
-    this.setRunning(true);
     try {
       await this.agent.compact(ctrl.signal);
       return true;
     } catch (e) {
       if (ctrl.signal.aborted) return false;
       throw e;
-    } finally {
-      this.abortController = null;
-      this.setRunning(false);
     }
   }
 
   abort(): void {
-    this.abortController?.abort();
+    this.loop.abort();
     for (const id of this.pendingQuestions.keys()) {
       this.log.setAnswer(id, "");
       this.pendingQuestions.get(id)?.("");
     }
     this.pendingQuestions.clear();
-  }
-
-  private ask(text: string, options: string[]): Promise<string> {
-    const id = `q${++this.questionSeq}`;
-    this.appendLog({ kind: "question", id, text, options, answer: null });
-    return new Promise<string>((resolve) => {
-      this.pendingQuestions.set(id, resolve);
-    });
   }
 
   submitAnswer(id: string, answer: string): void {
@@ -148,10 +143,6 @@ export class Session {
     }
   }
 
-  get commandSchemas(): CommandSchema[] {
-    return this.commands.schemas();
-  }
-
   isCommand(name: string): boolean {
     return this.commands.exists(name);
   }
@@ -161,106 +152,23 @@ export class Session {
       name,
       {
         session: this,
-        message: (t) => this.appendLog({ kind: "system", text: t }),
-        error: (t) => this.appendLog({ kind: "error", text: t }),
+        message: (t) => this.log.append({ kind: "system", text: t }),
+        error: (t) => this.log.append({ kind: "error", text: t }),
       },
       args,
     );
   }
 
   async startPrompt(text: string): Promise<string> {
-    if (this.todos.length > 0 && this.todos.every((t) => t.status === "completed")) {
-      this.log.setTodos([]);
-    }
-    this.appendLog({ kind: "user", text });
-    await this.run((signal) => this.agent.run(text, this.makeHandler(), signal));
-    return this.lastReply();
+    await this.loop.startPrompt(text);
+    return this.loop.lastReply;
   }
 
-  private lastReply(): string {
-    return this.lastReplyText;
-  }
-
-  private async startSkill(skill: Skill): Promise<void> {
-    this.appendLog({ kind: "skill", name: skill.name });
-    await this.run((signal) => this.agent.runSkill(skill, this.makeHandler(), signal));
-  }
-
-  private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
-    this.streamingText = "";
-    this.startTime = Date.now();
-    this.abortController = new AbortController();
-    this.runState = { running: true, elapsed: 0, promptTokens: 0, completionTokens: 0 };
-    this.emitRunState();
-
-    this.timer = setInterval(() => {
-      this.runState = { ...this.runState, elapsed: Math.floor((Date.now() - this.startTime) / 1000) };
-      this.emitRunState();
-    }, 1000);
-
-    try {
-      await runFn(this.abortController.signal);
-      this.flushStreaming();
-    } catch (e) {
-      this.flushStreaming();
-      this.appendLog({ kind: "error", text: (e as Error).message });
-    } finally {
-      clearInterval(this.timer);
-      this.timer = undefined;
-      this.abortController = null;
-      this.setRunning(false);
-    }
-  }
-
-  private setRunning(running: boolean): void {
-    this.runState = { ...this.runState, running };
-    this.emitRunState();
-  }
-
-  private emitRunState(): void {
-    this.callbacks?.onRunStateChange?.(this.runState);
-  }
-
-  private makeHandler(): (e: AgentEvent) => void {
-    return (e: AgentEvent) => {
-      switch (e.type) {
-        case "delta":
-          this.streamingText += e.text;
-          this.callbacks?.onStreaming?.(this.streamingText);
-          break;
-        case "tool_start":
-          this.flushStreaming();
-          this.appendLog({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
-          break;
-        case "retry":
-          this.streamingText = "";
-          this.appendLog({ kind: "retry", attempt: e.attempt, max: e.max });
-          break;
-        case "tool_end":
-          this.log.setResult(e.id, e.result, e.isError);
-          break;
-        case "error":
-          this.flushStreaming();
-          this.appendLog({ kind: "error", text: e.text });
-          break;
-        case "interrupted":
-          this.flushStreaming();
-          this.appendLog({ kind: "interrupted" });
-          break;
-        case "usage":
-          this.runState = { ...this.runState, promptTokens: e.promptTokens, completionTokens: e.completionTokens };
-          this.emitRunState();
-          break;
-      }
-    };
-  }
-
-  private flushStreaming(): void {
-    if (this.streamingText) {
-      this.lastReplyText = this.streamingText;
-      this.appendLog({ kind: "assistant", text: this.streamingText });
-      this.streamingText = "";
-      this.callbacks?.onStreaming?.("");
-    }
+  private ask(text: string, options: string[]): Promise<string> {
+    const id = `q${++this.questionSeq}`;
+    this.log.append({ kind: "question", id, text, options, answer: null });
+    return new Promise<string>((resolve) => {
+      this.pendingQuestions.set(id, resolve);
+    });
   }
 }

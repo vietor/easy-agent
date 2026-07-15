@@ -30,7 +30,6 @@ export const fileEditTool: Tool = {
     const all = args.replace_all === true;
     if (!path) throw new Error("path is required");
     if (!oldStr) throw new Error("old_string is required");
-    if (newStr === undefined) throw new Error("new_string is required");
     const content = await readFile(path, "utf-8");
     if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}`);
     if (all) {
