@@ -22,9 +22,9 @@ import { startSession } from "@vietor/easy-agent-core";
 const session = await startSession({
   systemPrompt: "You are a helpful assistant.",
   llmConfig: {
-    baseUrl: "https://api.openai.com/v1",
+    baseUrl: "https://api.deepseek.com/v1",
     apiKey: process.env.OPENAI_API_KEY!,
-    model: "gpt-4o",
+    model: "deepseek-v4-flash",
   },
   tools: [myCustomTool],
   commands: [myCustomCommand],
@@ -188,9 +188,9 @@ type ConversationMessage =
 
 ```ts
 interface LLMConfig {
-  baseUrl: string;   // OpenAI-compatible API endpoint (e.g. "https://api.openai.com/v1")
+  baseUrl: string;   // OpenAI-compatible API endpoint (e.g. "https://api.deepseek.com/v1")
   apiKey: string;    // API key
-  model: string;     // Model name (e.g. "gpt-4o", "claude-sonnet-5")
+  model: string;     // Model name (e.g. "deepseek-v4-flash", "deepseek-v4-pro")
 }
 ```
 
@@ -492,9 +492,9 @@ import { startSession, tryLoadSkills } from "@vietor/easy-agent-core";
 const session = await startSession({
   systemPrompt: "You are a helpful assistant.",
   llmConfig: {
-    baseUrl: "https://api.openai.com/v1",
+    baseUrl: "https://api.deepseek.com/v1",
     apiKey: process.env.OPENAI_API_KEY!,
-    model: "gpt-4o",
+    model: "deepseek-v4-flash",
   },
   mcpServers: {
     filesystem: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },

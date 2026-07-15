@@ -27,9 +27,9 @@ Create `~/.easy-agent.json` in your home directory:
 ```json
 {
   "llm": {
-    "baseUrl": "https://api.openai.com/v1",
+    "baseUrl": "https://api.deepseek.com/v1",
     "apiKey": "your-api-key",
-    "model": "gpt-4o"
+    "model": "deepseek-v4-flash"
   }
 }
 ```
