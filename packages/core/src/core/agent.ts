@@ -65,7 +65,7 @@ export class Agent {
     return this.conversation.export();
   }
 
-  async compact(signal?: AbortSignal): Promise<void> {
+  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<void> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return;
     const request: Message[] = [...history];
@@ -74,7 +74,24 @@ export class Agent {
       request.push({ role: "user", content: renderTodoReminder(todos) });
     }
     request.push({ role: "user", content: COMPACT_PROMPT });
-    const msg = await this.llm.chat({ messages: request, tools: [], signal });
+    let msg: AssistantMessage;
+    try {
+      msg = await withAbort(this.llm.chat({
+        messages: request,
+        tools: [],
+        onDelta: (text) => onEvent?.({ type: "delta", text }),
+        onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
+        onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
+        signal,
+      }), signal);
+    } catch (e) {
+      if (signal?.aborted) {
+        onEvent?.({ type: "interrupted" });
+      } else {
+        onEvent?.({ type: "error", text: (e as Error).message });
+      }
+      return;
+    }
     this.conversation.compact((msg.content as string) || "");
   }
 
@@ -128,7 +145,7 @@ export class Agent {
     let turns = 0;
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
-        try { await this.compact(signal); } catch { /* proceed anyway */ }
+        await this.compact(undefined, signal);
       }
       const messages = this.conversation.toLLM();
       const todos = this.getTodos();

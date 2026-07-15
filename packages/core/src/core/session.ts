@@ -117,14 +117,8 @@ export class Session {
     return this.agent.export();
   }
 
-  async compact(signal?: AbortSignal): Promise<boolean> {
-    try {
-      await this.agent.compact(signal);
-      return true;
-    } catch (e) {
-      if (signal?.aborted) return false;
-      throw e;
-    }
+  async compact(): Promise<void> {
+    await this.loop.startCompact();
   }
 
   abort(): void {

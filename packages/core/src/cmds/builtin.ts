@@ -27,8 +27,7 @@ export const compactCommand: Command = {
   name: "compact",
   description: "Compact the agent context",
   async execute(ctx: CommandContext) {
-    const ok = await ctx.session.compact();
-    if (ok) ctx.message("context compacted");
+    await ctx.session.compact();
   },
 };
 

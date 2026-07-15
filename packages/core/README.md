@@ -1,6 +1,6 @@
 # @vietor/easy-agent-core
 
-> Lightweight AI agent framework — session orchestration, tool system, MCP client/server support, and a skill/command loader.
+> Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill/command loader.
 
 ```bash
 npm install @vietor/easy-agent-core
@@ -72,8 +72,8 @@ const session = await createSession({ systemPrompt, llmConfig });
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
-| `compact(): Promise<boolean>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Returns `false` if aborted. |
-| `abort(): void` | Abort the current prompt, cancel pending tool calls, and dismiss unanswered user questions. |
+| `compact(): Promise<void>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
+| `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
 
 ### Callbacks
@@ -107,6 +107,8 @@ interface RunState {
 
 ### Commands
 
+Commands are registered via `createSession()` and invoked as slash commands through the session.
+
 | Method | Description |
 |---|---|
 | `executeCommand(name: string, args?: string): Promise<void>` | Execute a slash command by name. |
@@ -127,8 +129,8 @@ interface RunState {
 
 | Method | Description |
 |---|---|
-| `subscribe(listener: () => void): () => void` | Subscribe to log changes; returns an unsubscribe function. |
-| `getSnapshot(): number` | Current log version (increments on every append). |
+| `subscribe(listener: () => void): () => void` | Subscribe to log or todo changes; returns an unsubscribe function. |
+| `getSnapshot(): number` | Current log version (increments on every append or todo change). |
 
 ### Cleanup
 
@@ -160,7 +162,7 @@ type LogEntry =
 | Kind | Emitted when |
 |---|---|
 | `user` | User submits a prompt (`startPrompt`). |
-| `skill` | A skill is invoked (`startSkill`). |
+| `skill` | A skill is invoked. |
 | `assistant` | The LLM finishes a text response (flushed on tool call or completion). |
 | `tool` | A tool call starts (`result: null`) or finishes (`result` populated). |
 | `retry` | The LLM client retries after a transient API error. |
@@ -190,7 +192,7 @@ type ConversationMessage =
 interface LLMConfig {
   baseUrl: string;   // OpenAI-compatible API endpoint (e.g. "https://api.deepseek.com/v1")
   apiKey: string;    // API key
-  model: string;     // Model name (e.g. "deepseek-v4-flash", "deepseek-v4-pro")
+  model: string;     // Model name (e.g. "deepseek-v4-flash")
 }
 ```
 
@@ -199,8 +201,10 @@ interface LLMConfig {
 ```ts
 interface Todo {
   content: string;
-  status: "pending" | "in_progress" | "completed";
+  status: TodoStatus;
 }
+
+type TodoStatus = "pending" | "in_progress" | "completed";
 ```
 
 ---
@@ -358,6 +362,8 @@ interface CommandSchema {
 | `/clear` | Clear the conversation and log. |
 | `/mcp` | List connected MCP servers with status and tool names. |
 | `/compact` | Compact the agent context via LLM summarization. |
+
+The raw `Command` objects are exported as `clearCommand`, `mcpCommand`, `compactCommand`, and `builtinCommands` for reuse or extension.
 
 ### Custom command example
 

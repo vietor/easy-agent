@@ -43,6 +43,10 @@ export class RunLoop {
     await this.run((signal) => this.agent.runSkill(skill, this.handleEvent, signal));
   }
 
+  async startCompact(): Promise<void> {
+    await this.run((signal) => this.agent.compact(this.handleEvent, signal));
+  }
+
   private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
     this.streamingText = "";
     this.startTime = Date.now();
