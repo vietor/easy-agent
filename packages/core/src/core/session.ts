@@ -1,4 +1,3 @@
-import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerInfo } from "../mcp/types.js";

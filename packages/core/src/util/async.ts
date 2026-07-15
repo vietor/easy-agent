@@ -39,25 +39,6 @@ function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-export interface AbortOptions {
-  signal?: AbortSignal;
-  onAbort?: () => void;
-}
-
-export async function withAbort<T>(
-  fn: (aborted: () => boolean) => Promise<T>,
-  opts: AbortOptions
-): Promise<T> {
-  const onAbort = () => opts.onAbort?.();
-  if (opts.signal?.aborted) onAbort();
-  else opts.signal?.addEventListener("abort", onAbort, { once: true });
-  try {
-    return await fn(() => !!opts.signal?.aborted);
-  } finally {
-    opts.signal?.removeEventListener("abort", onAbort);
-  }
-}
-
 export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timed = new Promise<T>((_, reject) => {
@@ -69,4 +50,25 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     }),
     timed,
   ]);
+}
+
+export function withAbortFallback<T>(promise: Promise<T>, signal: AbortSignal | undefined, fallback: T): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.resolve(fallback);
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      signal.addEventListener("abort", () => resolve(fallback), { once: true });
+    }),
+  ]);
+}
+
+export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new Error("aborted"));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new Error("aborted"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }

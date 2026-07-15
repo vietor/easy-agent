@@ -1,4 +1,4 @@
-import { withAbort } from "../util/async.js";
+import { withAbort, withAbortFallback } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import type { AssistantMessage, Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
@@ -87,9 +87,19 @@ export class Agent {
     this.conversation.add(msg);
     this.conversation.createSnapshot();
     this.todoSnapshot = this.getTodos();
+
+    const onAbort = () => {
+      this.conversation.restoreFromSnapshot();
+      this.setTodos([...this.todoSnapshot]);
+      onEvent?.({ type: "interrupted" });
+    };
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
+
     try {
       await this.loop(onEvent, signal);
     } finally {
+      signal?.removeEventListener("abort", onAbort);
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
     }
@@ -99,81 +109,65 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    await withAbort(
-      async (aborted) => {
-        let lastSig = "";
-        let stall = 0;
-        let turns = 0;
-        while (true) {
-          const messages = this.conversation.toLLM();
-          const todos = this.getTodos();
-          if (todos.length) messages.push({ role: "user", content: renderTodoReminder(todos) });
-          let msg: AssistantMessage;
-          try {
-            msg = await this.llm.chat({
-              messages,
-              tools: this.tools.schemas(),
-              onDelta: (text) => onEvent?.({ type: "delta", text }),
-              onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-              onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
-              signal,
-            });
-          } catch (e) {
-            if (aborted()) return;
-            onEvent?.({ type: "error", text: (e as Error).message });
-            return;
-          }
-          this.conversation.add(msg);
-          if (!msg.tool_calls?.length) return;
-          if (aborted()) return;
-          const sig = msg.tool_calls
-            .map((c) => `${c.function.name}:${c.function.arguments}`)
-            .join("|");
-          stall = sig === lastSig ? stall + 1 : 1;
-          lastSig = sig;
-          if (stall >= STALL_THRESHOLD) {
-            onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
-            return;
-          }
-          if (++turns >= MAX_TURNS) {
-            onEvent?.({ type: "error", text: `agent exceeded max turns (${MAX_TURNS})` });
-            return;
-          }
-          const results = await Promise.all(
-            msg.tool_calls.map(async (call) => {
-              let args: Record<string, unknown> = {};
-              let argsError = "";
-              if (call.function.arguments) {
-                try { args = JSON.parse(call.function.arguments); }
-                catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
-              }
-              const summary = this.tools.summarize(call.function.name, args);
-              onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
-              if (aborted()) return null;
-              const ctx: ToolContext = { signal, ask: this.ask, setTodos: this.setTodos };
-              const result: ToolResult = argsError
-                ? { content: argsError, isError: true }
-                : await this.tools.execute(call.function.name, args, ctx);
-              if (aborted()) return null;
-              onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
-              return { id: call.id, content: result.content };
-            })
-          );
-          if (aborted()) return;
-          for (const r of results) {
-            if (r) this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
-          }
-          if (aborted()) return;
-        }
-      },
-      {
-        signal,
-        onAbort: () => {
-          this.conversation.restoreFromSnapshot();
-          this.setTodos([...this.todoSnapshot]);
-          onEvent?.({ type: "interrupted" });
-        },
+    let lastSig = "";
+    let stall = 0;
+    let turns = 0;
+    while (true) {
+      const messages = this.conversation.toLLM();
+      const todos = this.getTodos();
+      if (todos.length) messages.push({ role: "user", content: renderTodoReminder(todos) });
+      let msg: AssistantMessage;
+      try {
+        msg = await withAbort(this.llm.chat({
+          messages,
+          tools: this.tools.schemas(),
+          onDelta: (text) => onEvent?.({ type: "delta", text }),
+          onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
+          onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
+          signal,
+        }), signal);
+      } catch (e) {
+        if (signal?.aborted) return;
+        onEvent?.({ type: "error", text: (e as Error).message });
+        return;
       }
-    );
+      this.conversation.add(msg);
+      if (!msg.tool_calls?.length) return;
+      const sig = msg.tool_calls
+        .map((c) => `${c.function.name}:${c.function.arguments}`)
+        .join("|");
+      stall = sig === lastSig ? stall + 1 : 1;
+      lastSig = sig;
+      if (stall >= STALL_THRESHOLD) {
+        onEvent?.({ type: "error", text: "agent stalled: repeated identical tool calls" });
+        return;
+      }
+      if (++turns >= MAX_TURNS) {
+        onEvent?.({ type: "error", text: `agent exceeded max turns (${MAX_TURNS})` });
+        return;
+      }
+      const results = await withAbortFallback(Promise.all(
+        msg.tool_calls.map(async (call) => {
+          let args: Record<string, unknown> = {};
+          let argsError = "";
+          if (call.function.arguments) {
+            try { args = JSON.parse(call.function.arguments); }
+            catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
+          }
+          const summary = this.tools.summarize(call.function.name, args);
+          onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
+          const ctx: ToolContext = { signal, ask: this.ask, setTodos: this.setTodos };
+          const result: ToolResult = argsError
+            ? { content: argsError, isError: true }
+            : await this.tools.execute(call.function.name, args, ctx);
+          onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
+          return { id: call.id, content: result.content };
+        })
+      ), signal, null);
+      if (!results) return;
+      for (const r of results) {
+        if (r) this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
+      }
+    }
   }
 }
