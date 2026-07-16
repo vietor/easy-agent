@@ -63,7 +63,6 @@ export class Conversation {
 
   constructor(private system: string) {
     this.systemEstimateTokens = estimateTokens(system);
-    this.messages.push({ role: "system", content: system });
     this.estimatedTokens = this.systemEstimateTokens;
   }
 
@@ -77,30 +76,33 @@ export class Conversation {
   }
 
   toLLM(): Message[] {
-    return this.messages.map((m) => (m.role === "skill" ? { role: "user", name: m.name, content: m.content } : m));
+    const result: Message[] = new Array(this.messages.length + 1);
+    result[0] = { role: "system", content: this.system };
+    for (let i = 0; i < this.messages.length; i++) {
+      const m = this.messages[i];
+      result[i + 1] = m.role === "skill" ? { role: "user", name: m.name, content: m.content } : m;
+    }
+    return result;
   }
 
   export(): ConversationMessage[] {
-    return this.messages.slice(1);
+    return this.messages.slice();
   }
 
   import(messages: ConversationMessage[]): void {
-    this.messages = [{ role: "system", content: this.system }, ...messages];
+    this.messages = messages.slice();
     this.estimatedTokens = this.systemEstimateTokens
       + messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0);
     this.messagesSnapshot = undefined;
   }
 
   clear(): void {
-    this.messages = [{ role: "system", content: this.system }];
+    this.messages = [];
     this.estimatedTokens = this.systemEstimateTokens;
   }
 
   compact(summary: string): void {
-    this.messages = [
-      { role: "system", content: this.system },
-      { role: "assistant", content: summary },
-    ];
+    this.messages = [{ role: "assistant", content: summary }];
     this.estimatedTokens = this.systemEstimateTokens + estimateTokens(summary);
   }
 
