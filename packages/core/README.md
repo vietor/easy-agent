@@ -76,23 +76,25 @@ const session = await createSession({ systemPrompt, llmConfig });
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
 
-### Callbacks
+### Run handler
 
 | Method | Description |
 |---|---|
-| `setCallbacks(cb: SessionCallbacks): void` | Register streaming and run-state updates. |
+| `setRunHandler(handler: RunHandler): void` | Register a single handler for streaming output and run-state updates. Replaces any previously set handler. |
 
-#### `SessionCallbacks`
+#### `RunHandler`
 
 ```ts
-interface SessionCallbacks {
-  onStreaming?: (text: string) => void;
-  onRunStateChange?: (state: RunState) => void;
+interface RunHandler {
+  onStream?: (text: string) => void;
+  onState?: (state: RunState) => void;
 }
 ```
 
-- `onStreaming` — called on every token delta (the full accumulated text so far). Pass `""` at the end of a flush to reset.
-- `onRunStateChange` — called initially, then every second during a run and on usage updates.
+- `onStream` — called on every token delta (the full accumulated text so far). Pass `""` at the end of a flush to reset.
+- `onState` — called initially, then every second during a run and on usage updates.
+
+Note: `setRunHandler` pushes event data (streaming text, run state) as it happens; for view invalidation use `subscribe` + `getSnapshot`.
 
 #### `RunState`
 
@@ -119,18 +121,16 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 
 | Property | Type | Description |
 |---|---|---|
-| `logEntries` | `readonly LogEntry[]` | Full conversation log. |
-| `todos` | `readonly Todo[]` | Current task list (from the TodoWrite tool). |
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
 | `local` | `Map<string, unknown>` | A local key-value store available to commands and tools during the session. |
 
-### Log subscription
+### Snapshot subscription
 
 | Method | Description |
 |---|---|
 | `subscribe(listener: () => void): () => void` | Subscribe to log or todo changes; returns an unsubscribe function. |
-| `getSnapshot(): number` | Current log version (increments on every append or todo change). |
+| `getSnapshot(): SessionView` | Current session view (`{ logEntries, todos }`); the reference stays stable until the next change. Designed for `useSyncExternalStore`. |
 
 ### Cleanup
 
@@ -141,6 +141,17 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 ---
 
 ## Types
+
+### `SessionView`
+
+The snapshot returned by `session.getSnapshot()`.
+
+```ts
+interface SessionView {
+  logEntries: readonly LogEntry[];
+  todos: readonly Todo[];
+}
+```
 
 ### `LogEntry`
 
@@ -525,16 +536,16 @@ const session = await createSession({
   },
 });
 
-session.setCallbacks({
-  onStreaming: (text) => process.stdout.write(text),
-  onRunStateChange: (s) =>
+session.setRunHandler({
+  onStream: (text) => process.stdout.write(text),
+  onState: (s) =>
     console.log(`tokens: ${s.promptTokens} prompt / ${s.completionTokens} completion`),
 });
 
 const reply = await session.startPrompt("What files are in the current directory?");
 console.log(reply);                // final assistant reply
 
-console.log(session.logEntries);   // full conversation log
+console.log(session.getSnapshot().logEntries);   // full conversation log
 console.log(session.export());     // LLM message history
 session.dispose();
 ```

@@ -12,12 +12,7 @@ export type LogEntry =
   | { kind: "system"; text: string };
 
 class VersionedStore {
-  private version = 0;
   private listeners = new Set<() => void>();
-
-  get snapshot(): number {
-    return this.version;
-  }
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -25,7 +20,6 @@ class VersionedStore {
   }
 
   protected notify(): void {
-    this.version++;
     for (const l of this.listeners) l();
   }
 }

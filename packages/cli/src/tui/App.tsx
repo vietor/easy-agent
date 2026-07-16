@@ -8,34 +8,27 @@ import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
 import { QuestionView } from "./QuestionView.js";
 import { Spinner } from "./Spinner.js";
-import type { LogEntry } from "@vietor/easy-agent-core";
 import { compactDisplay } from "../util/format.js";
 
 const STREAM_FRAME_MS = 120;
 
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
-  const version = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const view = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 });
   const [streamingText, setStreamingText] = useState("");
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const allCmds = useMemo(() => session.commandSchemas, [session]);
-  const pendingQuestion = useMemo(
-    () =>
-      session.logEntries.find(
-        (e): e is Extract<LogEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
-      ),
-    [session, version],
-  );
+  const pendingQuestion = session.getPendingQuestion();
 
   useEffect(() => {
-    session.setCallbacks({
-      onStreaming: (text) => {
+    session.setRunHandler({
+      onStream: (text) => {
         streamingRef.current = text;
         scheduleStreamingRender();
       },
-      onRunStateChange: setRunState,
+      onState: setRunState,
     });
   }, []);
 
@@ -105,7 +98,7 @@ export function App({ session }: { session: Session }) {
 
       <LogList session={session} />
 
-      {session.todos.length > 0 ? <TodoView todos={session.todos} /> : null}
+      {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
 
       {runningView}
 

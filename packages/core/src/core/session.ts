@@ -18,9 +18,14 @@ export interface RunState {
   completionTokens: number;
 }
 
-export interface SessionCallbacks {
-  onStreaming?: (text: string) => void;
-  onRunStateChange?: (state: RunState) => void;
+export interface SessionView {
+  logEntries: readonly LogEntry[];
+  todos: readonly Todo[];
+}
+
+export interface RunHandler {
+  onStream?: (text: string) => void;
+  onState?: (state: RunState) => void;
 }
 
 export interface SessionDeps {
@@ -36,28 +41,33 @@ export class Session {
   private agent: Agent;
   private mcp: MCPServers;
   private commands: CommandRegistry;
-  private log = new LogStore();
+  private logStore = new LogStore();
   private todoStore = new TodoStore();
   private loop: RunLoop;
   readonly local: Map<string, unknown> = new Map();
 
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
+  private viewCache: SessionView | null = null;
 
   subscribe = (listener: () => void): (() => void) => {
-    const unsub1 = this.log.subscribe(listener);
-    const unsub2 = this.todoStore.subscribe(listener);
+    const on = () => { this.viewCache = null; listener(); };
+    const unsub1 = this.logStore.subscribe(on);
+    const unsub2 = this.todoStore.subscribe(on);
     return () => { unsub1(); unsub2(); };
   };
 
-  getSnapshot = (): number => this.log.snapshot + this.todoStore.snapshot;
+  getSnapshot = (): SessionView => {
+    if (!this.viewCache) {
+      this.viewCache = { logEntries: this.logStore.all, todos: this.todoStore.all };
+    }
+    return this.viewCache;
+  };
 
-  get logEntries(): readonly LogEntry[] {
-    return this.log.all;
-  }
-
-  get todos(): readonly Todo[] {
-    return this.todoStore.all;
+  getPendingQuestion(): Extract<LogEntry, { kind: "question" }> | undefined {
+    return this.logStore.all.find(
+      (e): e is Extract<LogEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
+    );
   }
 
   get contextTokens(): number {
@@ -84,7 +94,7 @@ export class Session {
     });
     this.commands = deps.commands;
     this.mcp = deps.mcp;
-    this.loop = new RunLoop(this.agent, this.log, this.todoStore);
+    this.loop = new RunLoop(this.agent, this.logStore, this.todoStore);
     if (deps.skills) this.registerSkillCommands(deps.skills);
   }
 
@@ -103,13 +113,13 @@ export class Session {
     this.mcp.kill();
   }
 
-  setCallbacks(cb: SessionCallbacks): void {
-    this.loop.setCallbacks(cb);
+  setRunHandler(handler: RunHandler): void {
+    this.loop.setRunHandler(handler);
   }
 
   clear(): void {
     this.agent.clear();
-    this.log.clear();
+    this.logStore.clear();
     this.todoStore.set([]);
   }
 
@@ -124,14 +134,14 @@ export class Session {
   abort(): void {
     this.loop.abort();
     for (const id of this.pendingQuestions.keys()) {
-      this.log.setAnswer(id, "");
+      this.logStore.setAnswer(id, "");
       this.pendingQuestions.get(id)?.("");
     }
     this.pendingQuestions.clear();
   }
 
   submitAnswer(id: string, answer: string): void {
-    this.log.setAnswer(id, answer);
+    this.logStore.setAnswer(id, answer);
     const resolve = this.pendingQuestions.get(id);
     if (resolve) {
       this.pendingQuestions.delete(id);
@@ -148,8 +158,8 @@ export class Session {
       name,
       {
         session: this,
-        message: (t) => this.log.append({ kind: "system", text: t }),
-        error: (t) => this.log.append({ kind: "error", text: t }),
+        message: (t) => this.logStore.append({ kind: "system", text: t }),
+        error: (t) => this.logStore.append({ kind: "error", text: t }),
       },
       args,
     );
@@ -162,7 +172,7 @@ export class Session {
 
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
-    this.log.append({ kind: "question", id, text, options, answer: null });
+    this.logStore.append({ kind: "question", id, text, options, answer: null });
     return new Promise<string>((resolve) => {
       this.pendingQuestions.set(id, resolve);
     });

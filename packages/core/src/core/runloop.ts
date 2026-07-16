@@ -1,7 +1,7 @@
 import type { Agent, AgentEvent } from "./agent.js";
 import type { Skill } from "../skills/types.js";
 import type { LogStore, TodoStore } from "./logstore.js";
-import type { SessionCallbacks, RunState } from "./session.js";
+import type { RunHandler, RunState } from "./session.js";
 
 export class RunLoop {
   private streamingText = "";
@@ -10,7 +10,7 @@ export class RunLoop {
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
-  private callbacks?: SessionCallbacks;
+  private handler?: RunHandler;
 
   constructor(
     private agent: Agent,
@@ -18,8 +18,8 @@ export class RunLoop {
     private todos: TodoStore
   ) {}
 
-  setCallbacks(cb: SessionCallbacks): void {
-    this.callbacks = cb;
+  setRunHandler(handler: RunHandler): void {
+    this.handler = handler;
   }
 
   get lastReply(): string {
@@ -75,14 +75,14 @@ export class RunLoop {
   }
 
   private emitRunState(): void {
-    this.callbacks?.onRunStateChange?.(this.runState);
+    this.handler?.onState?.(this.runState);
   }
 
   private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
       case "delta":
         this.streamingText += e.text;
-        this.callbacks?.onStreaming?.(this.streamingText);
+        this.handler?.onStream?.(this.streamingText);
         break;
       case "tool_start":
         this.flushStreaming();
@@ -115,7 +115,7 @@ export class RunLoop {
       this.lastReplyText = this.streamingText;
       this.log.append({ kind: "assistant", text: this.streamingText });
       this.streamingText = "";
-      this.callbacks?.onStreaming?.("");
+      this.handler?.onStream?.("");
     }
   }
 }

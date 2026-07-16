@@ -1,4 +1,4 @@
-export { Session, type SessionCallbacks, type RunState } from "./core/session.js";
+export { Session, type RunHandler, type RunState, type SessionView } from "./core/session.js";
 export type { LogEntry } from "./core/logstore.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";

@@ -4,8 +4,8 @@ import type { Session } from "@vietor/easy-agent-core";
 import { LogView } from "./LogView.js";
 
 export const LogList = memo(function LogList({ session }: { session: Session }) {
-  useSyncExternalStore(session.subscribe, session.getSnapshot);
-  const entries = session.logEntries;
+  const view = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const entries = view.logEntries;
   return (
     <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
       {entries.map((entry, i) => (
