@@ -43,7 +43,7 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
       );
     case "tool":
       return (
-        <Box flexDirection="column">
+        <Box flexDirection="column" marginTop={1}>
           <Text>
             <Text color="yellow">● </Text>
             <Text color="yellow" bold>{entry.name}</Text>
@@ -65,7 +65,7 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
       );
     case "error":
       return (
-        <Box>
+        <Box marginTop={1}>
           <Text color="red">
             <Text bold>✗ </Text>
             {entry.text}

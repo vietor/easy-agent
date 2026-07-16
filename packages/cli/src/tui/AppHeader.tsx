@@ -1,14 +1,14 @@
 import { memo } from "react";
-import { Box, Text } from "ink";
+import { Box, Text, useWindowSize } from "ink";
 import { getPackageInfo } from "../util/package.js";
 
 export const AppHeader = memo(function AppHeader() {
+  const { columns } = useWindowSize();
   const pkginfo = getPackageInfo();
   return (
-    <Box flexDirection="column" paddingLeft={1}>
+    <Box width={columns} paddingX={1} flexDirection="column">
       <Box>
-        <Text color="red" bold>Easy Agent</Text>
-        <Text dimColor> v{pkginfo.version}</Text>
+        <Text bold>Easy Agent</Text><Text dimColor> v{pkginfo.version}</Text>
       </Box>
       <Text dimColor>{process.cwd()}</Text>
     </Box>

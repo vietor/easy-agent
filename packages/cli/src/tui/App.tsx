@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Box, render, Text, useApp, useInput } from "ink";
+import { Box, render, useApp, useInput, useWindowSize } from "ink";
 import type { Session, RunState } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
 import { TimelineList } from "./TimelineList.js";
@@ -8,12 +8,13 @@ import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
 import { QuestionView } from "./QuestionView.js";
 import { Spinner } from "./Spinner.js";
-import { compactDisplay } from "../util/format.js";
+import { StatusBar } from "./StatusBar.js";
 
 const STREAM_FRAME_MS = 120;
 
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
+  const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 });
   const [streamingText, setStreamingText] = useState("");
@@ -88,7 +89,7 @@ export function App({ session }: { session: Session }) {
       );
     } else if (streamingText) {
       runningView = (
-        <Box marginTop={1} paddingLeft={1} paddingRight={1}>
+        <Box marginTop={1} paddingLeft={1} paddingRight={1} borderStyle="single" borderTop={false} borderRight={false} borderBottom={false} borderColor="gray">
           <Markdown color="green">{streamingText}</Markdown>
         </Box>
       );
@@ -102,7 +103,7 @@ export function App({ session }: { session: Session }) {
   }
 
   return (
-    <Box flexDirection="column" minWidth={80}>
+    <Box width={columns} flexDirection="column">
       <AppHeader />
 
       <TimelineList session={session} />
@@ -112,10 +113,10 @@ export function App({ session }: { session: Session }) {
       {runningView}
 
       {!runState.running ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Text dimColor>[CTX {compactDisplay(session.contextTokens)}] · ESC to stop · type / for commands</Text>
+        <>
+          <StatusBar contextTokens={session.contextTokens} />
           <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
-        </Box>
+        </>
       ) : null}
     </Box>
   );
