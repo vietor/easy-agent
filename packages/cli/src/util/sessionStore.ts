@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { ConversationMessage, SessionPersistence, SessionState, Todo } from "@vietor/easy-agent-core";
+import type { ConversationMessage, SessionMeta, SessionPersistence, SessionState, Todo } from "@vietor/easy-agent-core";
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
@@ -10,7 +10,7 @@ function encodeCwd(cwd: string): string {
 export class FileSessionPersistence implements SessionPersistence {
   private readonly dir: string;
 
-  constructor(cwd: string) {
+  constructor(private cwd: string) {
     this.dir = join(homedir(), ".easy-agent", "projects", encodeCwd(cwd));
   }
 
@@ -22,7 +22,7 @@ export class FileSessionPersistence implements SessionPersistence {
     if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true });
   }
 
-  load(sessionId: string): SessionState | null {
+  async load(sessionId: string): Promise<SessionState | null> {
     const path = this.file(sessionId);
     if (!existsSync(path)) return null;
     const messages: ConversationMessage[] = [];
@@ -38,7 +38,7 @@ export class FileSessionPersistence implements SessionPersistence {
     return { messages, todos };
   }
 
-  saveAll(sessionId: string, state: SessionState): void {
+  async saveAll(sessionId: string, state: SessionState): Promise<void> {
     this.ensureDir();
     const lines = state.messages
       .map((m) => JSON.stringify({ t: "m", m }))
@@ -46,14 +46,47 @@ export class FileSessionPersistence implements SessionPersistence {
     writeFileSync(this.file(sessionId), lines.join("\n") + "\n", "utf-8");
   }
 
-  listSessions(): { id: string; mtime: number }[] {
+  async listSessions(): Promise<SessionMeta[]> {
     if (!existsSync(this.dir)) return [];
-    const out: { id: string; mtime: number }[] = [];
+    const out: SessionMeta[] = [];
     for (const name of readdirSync(this.dir)) {
       if (!name.endsWith(".jsonl")) continue;
       const id = name.slice(0, -6);
-      try { out.push({ id, mtime: statSync(join(this.dir, name)).mtimeMs }); } catch {}
+      const path = join(this.dir, name);
+      try {
+        const stat = statSync(path);
+        out.push({
+          id,
+          title: this.readTitle(path),
+          createdAt: stat.birthtimeMs || stat.mtimeMs,
+          updatedAt: stat.mtimeMs,
+          cwd: this.cwd,
+        });
+      } catch {}
     }
-    return out.sort((a, b) => b.mtime - a.mtime);
+    return out.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    const path = this.file(sessionId);
+    if (existsSync(path)) unlinkSync(path);
+  }
+
+  private readTitle(path: string): string | undefined {
+    const first = this.readFirstUser(path);
+    if (!first) return undefined;
+    const oneline = first.replace(/\s+/g, " ").trim();
+    return oneline.length > 60 ? oneline.slice(0, 60) + "…" : oneline;
+  }
+
+  private readFirstUser(path: string): string | undefined {
+    for (const line of readFileSync(path, "utf-8").split("\n")) {
+      if (!line.trim()) continue;
+      let rec: unknown;
+      try { rec = JSON.parse(line); } catch { continue; }
+      const r = rec as { t?: string; m?: ConversationMessage };
+      if (r.t === "m" && r.m && r.m.role === "user" && typeof r.m.content === "string") return r.m.content;
+    }
+    return undefined;
   }
 }

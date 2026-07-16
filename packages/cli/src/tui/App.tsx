@@ -23,13 +23,22 @@ export function App({ session }: { session: Session }) {
   const pendingQuestion = session.getPendingQuestion();
 
   useEffect(() => {
-    session.setRunHandler({
-      onStream: (text) => {
-        streamingRef.current = text;
-        scheduleStreamingRender();
-      },
-      onState: setRunState,
+    const unsub = session.subscribeEvents((e) => {
+      switch (e.type) {
+        case "assistant_delta":
+          streamingRef.current += e.text;
+          scheduleStreamingRender();
+          break;
+        case "assistant":
+          streamingRef.current = "";
+          setStreamingText("");
+          break;
+        case "state":
+          setRunState(e);
+          break;
+      }
     });
+    return unsub;
   }, []);
 
   const scheduleStreamingRender = () => {

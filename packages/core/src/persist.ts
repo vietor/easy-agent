@@ -6,8 +6,17 @@ export interface SessionState {
   todos: Todo[];
 }
 
+export interface SessionMeta {
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  cwd?: string;
+}
+
 export interface SessionPersistence {
-  load(sessionId: string): SessionState | null;
-  saveAll(sessionId: string, state: SessionState): void;
-  listSessions(): { id: string; mtime: number }[];
+  load(sessionId: string): Promise<SessionState | null>;
+  saveAll(sessionId: string, state: SessionState): Promise<void>;
+  listSessions(): Promise<SessionMeta[]>;
+  delete?(sessionId: string): Promise<void>;
 }

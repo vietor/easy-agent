@@ -1,4 +1,4 @@
-export { Session, type RunHandler, type RunState, type SessionView } from "./core/session.js";
+export { Session, type SessionEvent, type RunState, type SessionView } from "./core/session.js";
 export type { TimelineEntry } from "./core/timeline.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
@@ -12,4 +12,4 @@ export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { netFetch } from "./util/net.js";
 export { createSession, type SessionOptions } from "./sessionBuilder.js";
-export type { SessionPersistence, SessionState } from "./persist.js";
+export type { SessionPersistence, SessionState, SessionMeta } from "./persist.js";

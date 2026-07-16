@@ -8,7 +8,7 @@ import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
-import type { SessionPersistence } from "../persist.js";
+import type { SessionPersistence, SessionState } from "../persist.js";
 import { Agent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
@@ -26,10 +26,20 @@ export interface SessionView {
   todos: readonly Todo[];
 }
 
-export interface RunHandler {
-  onStream?: (text: string) => void;
-  onState?: (state: RunState) => void;
-}
+export type SessionEvent =
+  | { type: "user"; text: string }
+  | { type: "skill"; name: string }
+  | { type: "assistant_delta"; text: string }
+  | { type: "assistant"; text: string }
+  | { type: "tool_start"; id: string; name: string; summary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean }
+  | { type: "retry"; attempt: number; max: number }
+  | { type: "error"; text: string }
+  | { type: "interrupted" }
+  | { type: "question"; id: string; text: string; options: string[] }
+  | { type: "question_answered"; id: string; answer: string }
+  | { type: "system"; text: string }
+  | { type: "state"; running: boolean; elapsed: number; promptTokens: number; completionTokens: number };
 
 export interface SessionDeps {
   llm: LLMClient;
@@ -60,6 +70,8 @@ export class Session {
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
   private viewCache: SessionView | null = null;
+  private eventListeners = new Set<(e: SessionEvent) => void>();
+  private saveChain: Promise<void> = Promise.resolve();
 
   subscribe = (listener: () => void): (() => void) => {
     const on = () => { this.viewCache = null; listener(); };
@@ -73,6 +85,15 @@ export class Session {
       this.viewCache = { timeline: this.timelineStore.all, todos: this.todoStore.all };
     }
     return this.viewCache;
+  };
+
+  subscribeEvents = (listener: (e: SessionEvent) => void): (() => void) => {
+    this.eventListeners.add(listener);
+    return () => { this.eventListeners.delete(listener); };
+  };
+
+  private emit = (e: SessionEvent): void => {
+    for (const l of this.eventListeners) l(e);
   };
 
   getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
@@ -109,7 +130,7 @@ export class Session {
     });
     this.commands = deps.commands;
     this.mcp = deps.mcp;
-    this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore);
+    this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
     this.loop.onSettle = () => this.persistSnapshot();
     if (deps.skills) this.registerSkillCommands(deps.skills);
   }
@@ -129,10 +150,6 @@ export class Session {
     this.mcp.kill();
   }
 
-  setRunHandler(handler: RunHandler): void {
-    this.loop.setRunHandler(handler);
-  }
-
   clear(): void {
     this.agent.clear();
     this.timelineStore.clear();
@@ -141,16 +158,22 @@ export class Session {
   }
 
   private persistSnapshot(): void {
-    this.persistence?.saveAll(this.sessionId, { messages: this.conversation.export(), todos: [...this.todoStore.all] });
+    if (!this.persistence) return;
+    const state: SessionState = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
+    this.saveChain = this.saveChain.catch(() => {}).then(() => this.persistence!.saveAll(this.sessionId, state));
+  }
+
+  flush(): Promise<void> {
+    return this.saveChain;
   }
 
   export(): ConversationMessage[] {
     return this.agent.export();
   }
 
-  restore(): void {
+  async restore(): Promise<void> {
     if (!this.persistence) return;
-    const state = this.persistence.load(this.sessionId);
+    const state = await this.persistence.load(this.sessionId);
     if (!state) return;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
@@ -198,6 +221,7 @@ export class Session {
     this.loop.abort();
     for (const id of this.pendingQuestions.keys()) {
       this.timelineStore.setAnswer(id, "");
+      this.emit({ type: "question_answered", id, answer: "" });
       this.pendingQuestions.get(id)?.("");
     }
     this.pendingQuestions.clear();
@@ -205,6 +229,7 @@ export class Session {
 
   submitAnswer(id: string, answer: string): void {
     this.timelineStore.setAnswer(id, answer);
+    this.emit({ type: "question_answered", id, answer });
     const resolve = this.pendingQuestions.get(id);
     if (resolve) {
       this.pendingQuestions.delete(id);
@@ -221,8 +246,8 @@ export class Session {
       name,
       {
         session: this,
-        message: (t) => this.timelineStore.append({ kind: "system", text: t }),
-        error: (t) => this.timelineStore.append({ kind: "error", text: t }),
+        message: (t) => { this.timelineStore.append({ kind: "system", text: t }); this.emit({ type: "system", text: t }); },
+        error: (t) => { this.timelineStore.append({ kind: "error", text: t }); this.emit({ type: "error", text: t }); },
       },
       args,
     );
@@ -236,6 +261,7 @@ export class Session {
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
     this.timelineStore.append({ kind: "question", id, text, options, answer: null });
+    this.emit({ type: "question", id, text, options });
     return new Promise<string>((resolve) => {
       this.pendingQuestions.set(id, resolve);
     });

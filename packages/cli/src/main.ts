@@ -43,15 +43,16 @@ function parseArgs(argv: string[]): { mode: "new" | "continue" | "resume"; id?: 
   return { mode, id };
 }
 
-function listSessions(store: FileSessionPersistence): void {
-  const sessions = store.listSessions();
+async function listSessions(store: FileSessionPersistence): Promise<void> {
+  const sessions = await store.listSessions();
   if (!sessions.length) {
     console.log("No previous sessions found in this directory.");
     return;
   }
   console.log("Previous sessions (most recent first):");
   for (const s of sessions) {
-    console.log(`  ${s.id}  ${new Date(s.mtime).toLocaleString()}`);
+    const title = s.title ? `  ${s.title}` : "";
+    console.log(`  ${s.id}  ${new Date(s.updatedAt).toLocaleString()}${title}`);
   }
   console.log("\nResume with: easy-agent --resume <id>");
 }
@@ -61,7 +62,7 @@ export async function main(argv: string[] = []): Promise<void> {
   const store = new FileSessionPersistence(process.cwd());
 
   if (mode === "resume" && !id) {
-    listSessions(store);
+    await listSessions(store);
     return;
   }
 
@@ -70,7 +71,7 @@ export async function main(argv: string[] = []): Promise<void> {
   let sessionId: string | undefined;
   let resume = false;
   if (mode === "continue") {
-    const sessions = store.listSessions();
+    const sessions = await store.listSessions();
     if (sessions.length) {
       sessionId = sessions[0].id;
       resume = true;
@@ -107,7 +108,7 @@ export async function main(argv: string[] = []): Promise<void> {
     persistence: store,
   });
 
-  if (resume) session.restore();
+  if (resume) await session.restore();
 
   const app = startApp(session);
   await app.waitUntilExit().finally(() => session.dispose());

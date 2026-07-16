@@ -73,32 +73,57 @@ const session = await createSession({ systemPrompt, llmConfig });
 | Method | Description |
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
-| `restore(): void` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. |
+| `restore(): Promise<void>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
 | `compact(): Promise<void>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
 | `getPendingQuestion(): TimelineEntry & { kind: "question" } \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
 
-### Run handler
+### Events
 
 | Method | Description |
 |---|---|
-| `setRunHandler(handler: RunHandler): void` | Register a single handler for streaming output and run-state updates. Replaces any previously set handler. |
+| `subscribeEvents(listener: (e: SessionEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
+| `flush(): Promise<void>` | Resolve once all pending persistence writes for this session have settled. |
 
-#### `RunHandler`
+#### `SessionEvent`
+
+A discriminated union emitted as the session runs.
 
 ```ts
-interface RunHandler {
-  onStream?: (text: string) => void;
-  onState?: (state: RunState) => void;
-}
+type SessionEvent =
+  | { type: "user"; text: string }
+  | { type: "skill"; name: string }
+  | { type: "assistant_delta"; text: string }
+  | { type: "assistant"; text: string }
+  | { type: "tool_start"; id: string; name: string; summary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean }
+  | { type: "retry"; attempt: number; max: number }
+  | { type: "error"; text: string }
+  | { type: "interrupted" }
+  | { type: "question"; id: string; text: string; options: string[] }
+  | { type: "question_answered"; id: string; answer: string }
+  | { type: "system"; text: string }
+  | { type: "state"; running: boolean; elapsed: number; promptTokens: number; completionTokens: number };
 ```
 
-- `onStream` — called on every token delta (the full accumulated text so far). Pass `""` at the end of a flush to reset.
-- `onState` — called initially, then every second during a run and on usage updates.
+| Type | Emitted when |
+|---|---|
+| `user` | User submits a prompt (`startPrompt`). |
+| `skill` | A skill is invoked. |
+| `assistant_delta` | A streaming token delta from the LLM. |
+| `assistant` | A text response segment is flushed (on tool call or completion). |
+| `tool_start` / `tool_end` | A tool call starts / finishes. |
+| `retry` | The LLM client retries after a transient API error. |
+| `error` | An error occurred. |
+| `interrupted` | The current run was aborted. |
+| `question` | The AskUser tool poses a question. |
+| `question_answered` | The question is answered (via `submitAnswer` or `abort`). |
+| `system` | A command emits a system message. |
+| `state` | Run state changes: at run start, every second, on usage, and at run end (`running: false`). |
 
-Note: `setRunHandler` pushes event data (streaming text, run state) as it happens; for view invalidation use `subscribe` + `getSnapshot`.
+Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
 #### `RunState`
 
@@ -213,13 +238,14 @@ interface LLMConfig {
 
 ### `SessionPersistence`
 
-Interface for save/resume. Implement to persist session state between runs.
+Async interface for save/resume. Implement to persist session state between runs (filesystem, database, etc.).
 
 ```ts
 interface SessionPersistence {
-  load(sessionId: string): SessionState | null;
-  saveAll(sessionId: string, state: SessionState): void;
-  listSessions(): { id: string; mtime: number }[];
+  load(sessionId: string): Promise<SessionState | null>;
+  saveAll(sessionId: string, state: SessionState): Promise<void>;
+  listSessions(): Promise<SessionMeta[]>;
+  delete?(sessionId: string): Promise<void>;
 }
 ```
 
@@ -232,7 +258,21 @@ interface SessionState {
 }
 ```
 
+`SessionMeta` is returned by `listSessions`. Metadata is owned by the implementation: `saveAll` only persists messages and todos, so implementations update `updatedAt` on write and set `createdAt` on first creation without core overwriting a title set elsewhere.
+
+```ts
+interface SessionMeta {
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  cwd?: string;
+}
+```
+
 The `@vietor/easy-agent` CLI includes a filesystem-based implementation (`FileSessionPersistence`) that stores sessions as JSONL files under `~/.easy-agent/projects/`.
+
+Persistence writes are asynchronous and serialized per session: `saveAll` is queued internally so a run never blocks on storage. Call `session.flush()` to await any pending write (e.g. before tearing down a session).
 
 ### `Todo`
 
@@ -564,10 +604,10 @@ const session = await createSession({
   },
 });
 
-session.setRunHandler({
-  onStream: (text) => process.stdout.write(text),
-  onState: (s) =>
-    console.log(`tokens: ${s.promptTokens} prompt / ${s.completionTokens} completion`),
+session.subscribeEvents((e) => {
+  if (e.type === "assistant_delta") process.stdout.write(e.text);
+  else if (e.type === "state")
+    console.log(`tokens: ${e.promptTokens} prompt / ${e.completionTokens} completion`);
 });
 
 const reply = await session.startPrompt("What files are in the current directory?");

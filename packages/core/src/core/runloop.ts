@@ -1,7 +1,7 @@
 import type { Agent, AgentEvent } from "./agent.js";
 import type { Skill } from "../skills/types.js";
 import type { TimelineStore, TodoStore } from "./timeline.js";
-import type { RunHandler, RunState } from "./session.js";
+import type { SessionEvent, RunState } from "./session.js";
 
 export class RunLoop {
   private streamingText = "";
@@ -10,18 +10,14 @@ export class RunLoop {
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
-  private handler?: RunHandler;
   onSettle?: () => void;
 
   constructor(
     private agent: Agent,
     private timeline: TimelineStore,
-    private todos: TodoStore
+    private todos: TodoStore,
+    private emit: (e: SessionEvent) => void
   ) {}
-
-  setRunHandler(handler: RunHandler): void {
-    this.handler = handler;
-  }
 
   get lastReply(): string {
     return this.lastReplyText;
@@ -36,11 +32,13 @@ export class RunLoop {
       this.todos.set([]);
     }
     this.timeline.append({ kind: "user", text });
+    this.emit({ type: "user", text });
     await this.run((signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   async startSkill(skill: Skill): Promise<void> {
     this.timeline.append({ kind: "skill", name: skill.name });
+    this.emit({ type: "skill", name: skill.name });
     await this.run((signal) => this.agent.runSkill(skill, this.handleEvent, signal));
   }
 
@@ -66,6 +64,7 @@ export class RunLoop {
     } catch (e) {
       this.flushStreaming();
       this.timeline.append({ kind: "error", text: (e as Error).message });
+      this.emit({ type: "error", text: (e as Error).message });
     } finally {
       clearInterval(this.timer);
       this.timer = undefined;
@@ -77,33 +76,38 @@ export class RunLoop {
   }
 
   private emitRunState(): void {
-    this.handler?.onState?.(this.runState);
+    this.emit({ type: "state", ...this.runState });
   }
 
   private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
       case "delta":
         this.streamingText += e.text;
-        this.handler?.onStream?.(this.streamingText);
+        this.emit({ type: "assistant_delta", text: e.text });
         break;
       case "tool_start":
         this.flushStreaming();
         this.timeline.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
+        this.emit({ type: "tool_start", id: e.id, name: e.name, summary: e.summary });
         break;
       case "retry":
         this.streamingText = "";
         this.timeline.append({ kind: "retry", attempt: e.attempt, max: e.max });
+        this.emit({ type: "retry", attempt: e.attempt, max: e.max });
         break;
       case "tool_end":
         this.timeline.setResult(e.id, e.result, e.isError);
+        this.emit({ type: "tool_end", id: e.id, result: e.result, isError: e.isError });
         break;
       case "error":
         this.flushStreaming();
         this.timeline.append({ kind: "error", text: e.text });
+        this.emit({ type: "error", text: e.text });
         break;
       case "interrupted":
         this.flushStreaming();
         this.timeline.append({ kind: "interrupted" });
+        this.emit({ type: "interrupted" });
         break;
       case "usage":
         this.runState = { ...this.runState, promptTokens: e.promptTokens, completionTokens: e.completionTokens };
@@ -115,9 +119,10 @@ export class RunLoop {
   private flushStreaming(): void {
     if (this.streamingText) {
       this.lastReplyText = this.streamingText;
-      this.timeline.append({ kind: "assistant", text: this.streamingText });
+      const text = this.streamingText;
+      this.timeline.append({ kind: "assistant", text });
       this.streamingText = "";
-      this.handler?.onStream?.("");
+      this.emit({ type: "assistant", text });
     }
   }
 }
