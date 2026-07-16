@@ -49,6 +49,8 @@ const session = await createSession({
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
 | `builtinTools` | `BuiltinToolsOptions \| false` | *(all non-interactive)* | Toggle built-in tools; `false` to disable all, or an options object to enable interactive tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
+| `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
+| `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
 
 ---
 
@@ -71,6 +73,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | Method | Description |
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
+| `restore(): void` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
 | `compact(): Promise<void>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
@@ -207,6 +210,29 @@ interface LLMConfig {
   model: string;     // Model name (e.g. "deepseek-v4-flash")
 }
 ```
+
+### `SessionPersistence`
+
+Interface for save/resume. Implement to persist session state between runs.
+
+```ts
+interface SessionPersistence {
+  load(sessionId: string): SessionState | null;
+  saveAll(sessionId: string, state: SessionState): void;
+  listSessions(): { id: string; mtime: number }[];
+}
+```
+
+`SessionState` is the data persisted per session:
+
+```ts
+interface SessionState {
+  messages: ConversationMessage[];
+  todos: Todo[];
+}
+```
+
+The `@vietor/easy-agent` CLI includes a filesystem-based implementation (`FileSessionPersistence`) that stores sessions as JSONL files under `~/.easy-agent/projects/`.
 
 ### `Todo`
 

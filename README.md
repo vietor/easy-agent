@@ -39,24 +39,29 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/easy-agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── core/      # Agent, Session, RunLoop, Conversation, TimelineStore/TodoStore
-│   │       ├── tools/     # built-in tools (Shell, File*, Grep, Glob, WebFetch, etc.)
-│   │       ├── cmds/      # command system (registry, built-in slash commands)
-│   │       ├── llm/       # OpenAI-compatible LLM client
-│   │       ├── mcp/       # MCP client/server (stdio + Streamable HTTP)
-│   │       ├── skills/    # skill loader (SKILL.md → slash commands)
-│   │       └── util/      # netFetch (proxy-aware fetch), ripgrep, subprocess, etc.
+│   │       ├── core/                # Agent, Session, RunLoop, Conversation, Timeline
+│   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
+│   │       ├── cmds/                # command system (registry, built-in slash commands)
+│   │       ├── llm/                 # OpenAI-compatible LLM client
+│   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
+│   │       ├── skills/              # skill loader (SKILL.md → slash commands)
+│   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…
+│   │       ├── persist.ts           # SessionPersistence / SessionState interfaces
+│   │       ├── sessionBuilder.ts    # createSession() factory
+│   │       └── index.ts             # public API exports
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
 │       └── src/
-│           ├── tui/       # terminal UI components (App, TimelineView, TodoView, etc.)
-│           ├── cmds/      # CLI-specific built-in commands
-│           └── util/      # formatting, package info
+│           ├── tui/                 # terminal UI (App, TimelineView, TodoView, etc.)
+│           ├── cmds/                # CLI-specific built-in commands
+│           ├── util/                # format, package info, FileSessionPersistence
+│           ├── main.ts              # entry — parses args, wires session, starts TUI
+│           └── config.ts            # JSON config loader (~/.easy-agent.json)
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems). The `cli` package depends on `core` and provides the interactive terminal experience.
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems) plus `SessionPersistence` for save/resume. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`).
 
 ### Build order
 

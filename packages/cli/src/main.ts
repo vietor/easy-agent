@@ -81,10 +81,10 @@ export async function main(argv: string[] = []): Promise<void> {
   }
   if (!sessionId) sessionId = randomUUID();
 
-  const globalSkills = tryLoadSkills(join(homedir(), ".agents", "skills"))
+  const globalSkills = tryLoadSkills(join(homedir(), ".easy-agent", "skills"))
     ?? tryLoadSkills(join(homedir(), ".claude", "skills"));
 
-  const globalPrompt = tryReadFileText(join(homedir(), ".agents", "AGENTS.md"))
+  const globalPrompt = tryReadFileText(join(homedir(), ".easy-agent", "AGENTS.md"))
     ?? tryReadFileText(join(homedir(), ".claude", "CLAUDE.md"));
   const projectPrompt = tryReadFileText(join(process.cwd(), "AGENTS.md"))
     ?? tryReadFileText(join(process.cwd(), "CLAUDE.md"));

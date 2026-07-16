@@ -108,7 +108,10 @@ Only `name` is required; if omitted the directory name is used. The body is the 
 Launch the TUI:
 
 ```bash
-easy-agent
+easy-agent          # start a new session
+easy-agent --continue  # resume the most recent session
+easy-agent --resume <id>  # resume a specific session by ID
+easy-agent --resume      # list all saved sessions for this directory
 ```
 
 Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line preview of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
