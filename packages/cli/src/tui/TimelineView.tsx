@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
-import type { LogEntry } from "@vietor/easy-agent-core";
+import type { TimelineEntry } from "@vietor/easy-agent-core";
 
 function preview(isError: boolean, text: string): string {
   if (isError) {
@@ -14,7 +14,7 @@ function preview(isError: boolean, text: string): string {
   return `Result: ${byteCount} bytes, ${lineCount} lines`;
 }
 
-export const LogView = memo(function Entry({ entry }: { entry: LogEntry }) {
+export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntry }) {
   switch (entry.kind) {
     case "user":
       return (

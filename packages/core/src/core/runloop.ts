@@ -1,6 +1,6 @@
 import type { Agent, AgentEvent } from "./agent.js";
 import type { Skill } from "../skills/types.js";
-import type { LogStore, TodoStore } from "./logstore.js";
+import type { TimelineStore, TodoStore } from "./timeline.js";
 import type { RunHandler, RunState } from "./session.js";
 
 export class RunLoop {
@@ -14,7 +14,7 @@ export class RunLoop {
 
   constructor(
     private agent: Agent,
-    private log: LogStore,
+    private timeline: TimelineStore,
     private todos: TodoStore
   ) {}
 
@@ -34,12 +34,12 @@ export class RunLoop {
     if (this.todos.all.length > 0 && this.todos.all.every((t) => t.status === "completed")) {
       this.todos.set([]);
     }
-    this.log.append({ kind: "user", text });
+    this.timeline.append({ kind: "user", text });
     await this.run((signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   async startSkill(skill: Skill): Promise<void> {
-    this.log.append({ kind: "skill", name: skill.name });
+    this.timeline.append({ kind: "skill", name: skill.name });
     await this.run((signal) => this.agent.runSkill(skill, this.handleEvent, signal));
   }
 
@@ -64,7 +64,7 @@ export class RunLoop {
       this.flushStreaming();
     } catch (e) {
       this.flushStreaming();
-      this.log.append({ kind: "error", text: (e as Error).message });
+      this.timeline.append({ kind: "error", text: (e as Error).message });
     } finally {
       clearInterval(this.timer);
       this.timer = undefined;
@@ -86,22 +86,22 @@ export class RunLoop {
         break;
       case "tool_start":
         this.flushStreaming();
-        this.log.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
+        this.timeline.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
         break;
       case "retry":
         this.streamingText = "";
-        this.log.append({ kind: "retry", attempt: e.attempt, max: e.max });
+        this.timeline.append({ kind: "retry", attempt: e.attempt, max: e.max });
         break;
       case "tool_end":
-        this.log.setResult(e.id, e.result, e.isError);
+        this.timeline.setResult(e.id, e.result, e.isError);
         break;
       case "error":
         this.flushStreaming();
-        this.log.append({ kind: "error", text: e.text });
+        this.timeline.append({ kind: "error", text: e.text });
         break;
       case "interrupted":
         this.flushStreaming();
-        this.log.append({ kind: "interrupted" });
+        this.timeline.append({ kind: "interrupted" });
         break;
       case "usage":
         this.runState = { ...this.runState, promptTokens: e.promptTokens, completionTokens: e.completionTokens };
@@ -113,7 +113,7 @@ export class RunLoop {
   private flushStreaming(): void {
     if (this.streamingText) {
       this.lastReplyText = this.streamingText;
-      this.log.append({ kind: "assistant", text: this.streamingText });
+      this.timeline.append({ kind: "assistant", text: this.streamingText });
       this.streamingText = "";
       this.handler?.onStream?.("");
     }

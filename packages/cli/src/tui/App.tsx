@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import { Box, render, Text, useApp, useInput } from "ink";
 import type { Session, RunState } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
-import { LogList } from "./LogList.js";
+import { TimelineList } from "./TimelineList.js";
 import { TodoView } from "./TodoView.js";
 import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
@@ -96,7 +96,7 @@ export function App({ session }: { session: Session }) {
     <Box flexDirection="column" minWidth={80}>
       <AppHeader />
 
-      <LogList session={session} />
+      <TimelineList session={session} />
 
       {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
 

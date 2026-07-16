@@ -8,7 +8,7 @@ import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { Agent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { LogStore, TodoStore, type LogEntry } from "./logstore.js";
+import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
 
 export interface RunState {
@@ -19,7 +19,7 @@ export interface RunState {
 }
 
 export interface SessionView {
-  logEntries: readonly LogEntry[];
+  timeline: readonly TimelineEntry[];
   todos: readonly Todo[];
 }
 
@@ -41,7 +41,7 @@ export class Session {
   private agent: Agent;
   private mcp: MCPServers;
   private commands: CommandRegistry;
-  private logStore = new LogStore();
+  private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
   private loop: RunLoop;
   readonly localStore: Map<string, unknown> = new Map();
@@ -52,21 +52,21 @@ export class Session {
 
   subscribe = (listener: () => void): (() => void) => {
     const on = () => { this.viewCache = null; listener(); };
-    const unsub1 = this.logStore.subscribe(on);
+    const unsub1 = this.timelineStore.subscribe(on);
     const unsub2 = this.todoStore.subscribe(on);
     return () => { unsub1(); unsub2(); };
   };
 
   getSnapshot = (): SessionView => {
     if (!this.viewCache) {
-      this.viewCache = { logEntries: this.logStore.all, todos: this.todoStore.all };
+      this.viewCache = { timeline: this.timelineStore.all, todos: this.todoStore.all };
     }
     return this.viewCache;
   };
 
-  getPendingQuestion(): Extract<LogEntry, { kind: "question" }> | undefined {
-    return this.logStore.all.find(
-      (e): e is Extract<LogEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
+  getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
+    return this.timelineStore.all.find(
+      (e): e is Extract<TimelineEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
     );
   }
 
@@ -94,7 +94,7 @@ export class Session {
     });
     this.commands = deps.commands;
     this.mcp = deps.mcp;
-    this.loop = new RunLoop(this.agent, this.logStore, this.todoStore);
+    this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore);
     if (deps.skills) this.registerSkillCommands(deps.skills);
   }
 
@@ -119,7 +119,7 @@ export class Session {
 
   clear(): void {
     this.agent.clear();
-    this.logStore.clear();
+    this.timelineStore.clear();
     this.todoStore.set([]);
   }
 
@@ -134,14 +134,14 @@ export class Session {
   abort(): void {
     this.loop.abort();
     for (const id of this.pendingQuestions.keys()) {
-      this.logStore.setAnswer(id, "");
+      this.timelineStore.setAnswer(id, "");
       this.pendingQuestions.get(id)?.("");
     }
     this.pendingQuestions.clear();
   }
 
   submitAnswer(id: string, answer: string): void {
-    this.logStore.setAnswer(id, answer);
+    this.timelineStore.setAnswer(id, answer);
     const resolve = this.pendingQuestions.get(id);
     if (resolve) {
       this.pendingQuestions.delete(id);
@@ -158,8 +158,8 @@ export class Session {
       name,
       {
         session: this,
-        message: (t) => this.logStore.append({ kind: "system", text: t }),
-        error: (t) => this.logStore.append({ kind: "error", text: t }),
+        message: (t) => this.timelineStore.append({ kind: "system", text: t }),
+        error: (t) => this.timelineStore.append({ kind: "error", text: t }),
       },
       args,
     );
@@ -172,7 +172,7 @@ export class Session {
 
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
-    this.logStore.append({ kind: "question", id, text, options, answer: null });
+    this.timelineStore.append({ kind: "question", id, text, options, answer: null });
     return new Promise<string>((resolve) => {
       this.pendingQuestions.set(id, resolve);
     });

@@ -129,8 +129,8 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 
 | Method | Description |
 |---|---|
-| `subscribe(listener: () => void): () => void` | Subscribe to log or todo changes; returns an unsubscribe function. |
-| `getSnapshot(): SessionView` | Current session view (`{ logEntries, todos }`); the reference stays stable until the next change. Designed for `useSyncExternalStore`. |
+| `subscribe(listener: () => void): () => void` | Subscribe to timeline or todo changes; returns an unsubscribe function. |
+| `getSnapshot(): SessionView` | Current session view (`{ timeline, todos }`); the reference stays stable until the next change. Designed for `useSyncExternalStore`. |
 
 ### Cleanup
 
@@ -148,17 +148,17 @@ The snapshot returned by `session.getSnapshot()`.
 
 ```ts
 interface SessionView {
-  logEntries: readonly LogEntry[];
+  timeline: readonly TimelineEntry[];
   todos: readonly Todo[];
 }
 ```
 
-### `LogEntry`
+### `TimelineEntry`
 
-A discriminated union representing one entry in the conversation log.
+A discriminated union representing one entry in the session timeline.
 
 ```ts
-type LogEntry =
+type TimelineEntry =
   | { kind: "user"; text: string }
   | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
@@ -545,7 +545,7 @@ session.setRunHandler({
 const reply = await session.startPrompt("What files are in the current directory?");
 console.log(reply);                // final assistant reply
 
-console.log(session.getSnapshot().logEntries);   // full conversation log
+console.log(session.getSnapshot().timeline);   // full session timeline
 console.log(session.export());     // LLM message history
 session.dispose();
 ```

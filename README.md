@@ -39,7 +39,7 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/easy-agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── core/      # Agent, Session, RunLoop, Conversation, LogStore/TodoStore
+│   │       ├── core/      # Agent, Session, RunLoop, Conversation, TimelineStore/TodoStore
 │   │       ├── tools/     # built-in tools (Shell, File*, Grep, Glob, WebFetch, etc.)
 │   │       ├── cmds/      # command system (registry, built-in slash commands)
 │   │       ├── llm/       # OpenAI-compatible LLM client
@@ -48,7 +48,7 @@ easy-agent/
 │   │       └── util/      # netFetch (proxy-aware fetch), ripgrep, subprocess, etc.
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
 │       └── src/
-│           ├── tui/       # terminal UI components (App, LogView, TodoView, etc.)
+│           ├── tui/       # terminal UI components (App, TimelineView, TodoView, etc.)
 │           ├── cmds/      # CLI-specific built-in commands
 │           └── util/      # formatting, package info
 ├── package.json       # workspace root (private)

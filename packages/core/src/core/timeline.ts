@@ -1,6 +1,6 @@
 import type { Todo } from "../tools/types.js";
 
-export type LogEntry =
+export type TimelineEntry =
   | { kind: "user"; text: string }
   | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
@@ -37,16 +37,16 @@ export class TodoStore extends VersionedStore {
   }
 }
 
-export class LogStore extends VersionedStore {
-  private entries: LogEntry[] = [];
+export class TimelineStore extends VersionedStore {
+  private entries: TimelineEntry[] = [];
   private pendingTools = new Map<string, number>();
   private pendingQuestions = new Map<string, number>();
 
-  get all(): readonly LogEntry[] {
+  get all(): readonly TimelineEntry[] {
     return this.entries;
   }
 
-  append(entry: LogEntry): void {
+  append(entry: TimelineEntry): void {
     this.entries.push(entry);
     if (entry.kind === "tool" && entry.result === null) {
       this.pendingTools.set(entry.id, this.entries.length - 1);
