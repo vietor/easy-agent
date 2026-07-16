@@ -73,17 +73,17 @@ A stdio server omits `type` (or sets `"stdio"`); only `command` is required, `ar
 
 Easy Agent reads instructions files and appends them to the system prompt, so you can set persistent rules, conventions, or preferences. It looks in two places:
 
-1. **Global** — your home directory, applied to every conversation. Checks `~/.agents/AGENTS.md` first, then `~/.claude/CLAUDE.md`; uses the first one found.
+1. **Global** — your home directory, applied to every conversation. Checks `~/.easy-agent/AGENTS.md` first, then `~/.claude/CLAUDE.md`; uses the first one found.
 2. **Project** — your current working directory, applied per-project. Checks `./AGENTS.md` first, then `./CLAUDE.md`; uses the first one found.
 
 Both global and project files are loaded and concatenated into the system prompt if they exist.
 
 ### Skills (optional)
 
-Skills are reusable prompts that register themselves as slash commands. Create a subdirectory for each skill under `~/.agents/skills/` (or `~/.claude/skills/`) with a `SKILL.md` file:
+Skills are reusable prompts that register themselves as slash commands. Create a subdirectory for each skill under `~/.easy-agent/skills/` (or `~/.claude/skills/`) with a `SKILL.md` file:
 
 ```
-~/.claude/skills/
+~/.easy-agent/skills/
   deploy/
     SKILL.md
   review/
@@ -115,6 +115,8 @@ easy-agent --resume      # list all saved sessions for this directory
 ```
 
 Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line preview of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
+
+The TUI automatically adapts to your terminal width. A status bar at the bottom shows the current context token count, with hints for keyboard shortcuts (<kbd>ESC</kbd> to abort a running task, <kbd>/</kbd> for commands).
 
 ### Built-in tools
 

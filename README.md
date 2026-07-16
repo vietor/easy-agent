@@ -61,7 +61,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems) plus `SessionPersistence` for save/resume. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`).
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems), an event-driven interface (`SessionEvent` / `subscribeEvents`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`).
 
 ### Build order
 
