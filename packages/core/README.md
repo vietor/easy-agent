@@ -75,6 +75,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | `compact(): Promise<void>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
+| `getPendingQuestion(): TimelineEntry & { kind: "question" } \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
 
 ### Run handler
 
@@ -245,6 +246,7 @@ interface Tool {
 ```ts
 interface ToolContext {
   signal?: AbortSignal;                                   // abort signal for the current run
+  cwd: string;                                            // resolved working directory for path-based tools
   ask(question: string, options: string[]): Promise<string>; // ask the user a question
   setTodos(todos: Todo[]): void;                           // update the task list
 }

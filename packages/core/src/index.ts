@@ -11,4 +11,4 @@ export type { LLMConfig } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { netFetch } from "./util/net.js";
-export { createSession, type SessionOptions } from "./session_builder.js";
+export { createSession, type SessionOptions } from "./sessionBuilder.js";

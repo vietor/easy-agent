@@ -1,13 +1,13 @@
 import type { Tool, ToolContext, ToolResult, ToolSchema } from "./types.js";
 import { shellTool } from "./shell.js";
-import { fileReadTool } from "./file_read.js";
-import { fileWriteTool } from "./file_write.js";
-import { fileEditTool } from "./file_edit.js";
+import { fileReadTool } from "./fileRead.js";
+import { fileWriteTool } from "./fileWrite.js";
+import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
-import { webFetchTool } from "./web_fetch.js";
-import { askUserTool } from "./ask_user.js";
-import { todoWriteTool } from "./todo_write.js";
+import { webFetchTool } from "./webFetch.js";
+import { askUserTool } from "./askUser.js";
+import { todoWriteTool } from "./todoWrite.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
