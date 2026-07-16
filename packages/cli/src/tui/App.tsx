@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, useApp, useInput, useWindowSize } from "ink";
-import type { Session, RunState } from "@vietor/easy-agent-core";
+import type { Session, RunState, SessionEvent, SessionView } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
 import { TimelineList } from "./TimelineList.js";
 import { TodoView } from "./TodoView.js";
@@ -15,7 +15,7 @@ const STREAM_FRAME_MS = 120;
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
-  const view = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
   const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 });
   const [streamingText, setStreamingText] = useState("");
   const streamingRef = useRef("");
@@ -24,7 +24,7 @@ export function App({ session }: { session: Session }) {
   const pendingQuestion = session.getPendingQuestion();
 
   useEffect(() => {
-    const unsub = session.subscribeEvents((e) => {
+    const unsub = session.subscribeEvents((e: SessionEvent) => {
       switch (e.type) {
         case "assistant_delta":
           streamingRef.current += e.text;
@@ -65,7 +65,7 @@ export function App({ session }: { session: Session }) {
 
   async function handleCommand(name: string, args: string) {
     await session.executeCommand(name, args);
-    if (session.localStore.get("exitRequested")) exit();
+    if (session.localStore.get("exitRequested") != null) exit();
   }
 
   async function handlePrompt(text: string) {
