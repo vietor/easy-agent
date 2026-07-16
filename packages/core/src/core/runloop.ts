@@ -11,6 +11,7 @@ export class RunLoop {
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
   private handler?: RunHandler;
+  onSettle?: () => void;
 
   constructor(
     private agent: Agent,
@@ -71,6 +72,7 @@ export class RunLoop {
       this.abortController = null;
       this.runState = { ...this.runState, running: false };
       this.emitRunState();
+      this.onSettle?.();
     }
   }
 

@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { LLMClient } from "../llm/client.js";
+import type { AssistantMessage } from "../llm/types.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -6,6 +8,7 @@ import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
+import type { SessionPersistence } from "../persist.js";
 import { Agent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
@@ -36,6 +39,8 @@ export interface SessionDeps {
   commands: CommandRegistry;
   mcp: MCPServers;
   skills?: Skill[];
+  sessionId?: string;
+  persistence?: SessionPersistence;
 }
 
 export class Session {
@@ -46,6 +51,11 @@ export class Session {
   private todoStore = new TodoStore();
   private loop: RunLoop;
   readonly localStore: Map<string, unknown> = new Map();
+
+  private conversation: Conversation;
+  private tools: ToolRegistry;
+  readonly sessionId: string;
+  private persistence?: SessionPersistence;
 
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
@@ -84,10 +94,13 @@ export class Session {
   }
 
   constructor(deps: SessionDeps) {
-    const conversation = new Conversation(deps.systemPrompt);
+    this.conversation = new Conversation(deps.systemPrompt);
+    this.tools = deps.tools;
+    this.sessionId = deps.sessionId ?? randomUUID();
+    this.persistence = deps.persistence;
     this.agent = new Agent({
       llm: deps.llm,
-      conversation,
+      conversation: this.conversation,
       tools: deps.tools,
       cwd: deps.cwd,
       ask: (q, o) => this.ask(q, o),
@@ -97,6 +110,7 @@ export class Session {
     this.commands = deps.commands;
     this.mcp = deps.mcp;
     this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore);
+    this.loop.onSettle = () => this.persistSnapshot();
     if (deps.skills) this.registerSkillCommands(deps.skills);
   }
 
@@ -123,10 +137,57 @@ export class Session {
     this.agent.clear();
     this.timelineStore.clear();
     this.todoStore.set([]);
+    this.persistSnapshot();
+  }
+
+  private persistSnapshot(): void {
+    this.persistence?.saveAll(this.sessionId, { messages: this.conversation.export(), todos: [...this.todoStore.all] });
   }
 
   export(): ConversationMessage[] {
     return this.agent.export();
+  }
+
+  restore(): void {
+    if (!this.persistence) return;
+    const state = this.persistence.load(this.sessionId);
+    if (!state) return;
+    this.conversation.import(state.messages);
+    this.todoStore.set(state.todos);
+    this.rebuildTimeline(state.messages);
+    this.viewCache = null;
+  }
+
+  private rebuildTimeline(messages: ConversationMessage[]): void {
+    const toolResults = new Map<string, string>();
+    for (const m of messages) {
+      if (m.role === "tool") toolResults.set(m.tool_call_id, m.content);
+    }
+    for (const m of messages) {
+      if (m.role === "user") {
+        this.timelineStore.append({ kind: "user", text: m.content });
+      } else if (m.role === "skill") {
+        this.timelineStore.append({ kind: "skill", name: m.name });
+      } else if (m.role === "assistant") {
+        const text = assistantText(m);
+        if (text) this.timelineStore.append({ kind: "assistant", text });
+        if (m.tool_calls) {
+          for (const tc of m.tool_calls) {
+            let args: Record<string, unknown> = {};
+            if (tc.function.arguments) {
+              try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
+            }
+            this.timelineStore.append({
+              kind: "tool",
+              id: tc.id,
+              name: tc.function.name,
+              summary: this.tools.summarize(tc.function.name, args),
+              result: toolResults.get(tc.id) ?? null,
+            });
+          }
+        }
+      }
+    }
   }
 
   async compact(): Promise<void> {
@@ -179,4 +240,10 @@ export class Session {
       this.pendingQuestions.set(id, resolve);
     });
   }
+}
+
+function assistantText(m: AssistantMessage): string {
+  if (typeof m.content === "string") return m.content;
+  if (Array.isArray(m.content)) return m.content.filter((p) => p.type === "text").map((p) => p.text).join("");
+  return "";
 }

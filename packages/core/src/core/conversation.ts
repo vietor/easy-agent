@@ -84,6 +84,13 @@ export class Conversation {
     return this.messages.slice(1);
   }
 
+  import(messages: ConversationMessage[]): void {
+    this.messages = [{ role: "system", content: this.system }, ...messages];
+    this.estimatedTokens = this.systemEstimateTokens
+      + messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0);
+    this.messagesSnapshot = undefined;
+  }
+
   clear(): void {
     this.messages = [{ role: "system", content: this.system }];
     this.estimatedTokens = this.systemEstimateTokens;

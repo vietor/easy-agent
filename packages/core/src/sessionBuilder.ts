@@ -8,6 +8,7 @@ import type { Command } from "./cmds/types.js";
 import type { Skill } from "./skills/types.js";
 import type { MCPServerConfig } from "./mcp/types.js";
 import type { LLMConfig } from "./llm/types.js";
+import type { SessionPersistence } from "./persist.js";
 
 export interface SessionOptions {
   systemPrompt: string;
@@ -19,6 +20,8 @@ export interface SessionOptions {
   mcpServers?: Record<string, MCPServerConfig>;
   builtinTools?: BuiltinToolsOptions | false;
   clientInfo?: { name: string; version: string };
+  sessionId?: string;
+  persistence?: SessionPersistence;
 }
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
@@ -52,5 +55,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     commands,
     mcp,
     skills: opts.skills,
+    sessionId: opts.sessionId,
+    persistence: opts.persistence,
   });
 }
