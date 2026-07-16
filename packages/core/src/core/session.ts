@@ -44,7 +44,7 @@ export class Session {
   private logStore = new LogStore();
   private todoStore = new TodoStore();
   private loop: RunLoop;
-  readonly local: Map<string, unknown> = new Map();
+  readonly localStore: Map<string, unknown> = new Map();
 
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;

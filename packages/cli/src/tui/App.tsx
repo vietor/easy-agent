@@ -55,7 +55,7 @@ export function App({ session }: { session: Session }) {
 
   async function handleCommand(name: string, args: string) {
     await session.executeCommand(name, args);
-    if (session.local.get("exitRequested")) exit();
+    if (session.localStore.get("exitRequested")) exit();
   }
 
   async function handlePrompt(text: string) {

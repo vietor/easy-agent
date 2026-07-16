@@ -123,7 +123,7 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 |---|---|---|
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
-| `local` | `Map<string, unknown>` | A local key-value store available to commands and tools during the session. |
+| `localStore` | `Map<string, unknown>` | A local key-value store available to commands and tools during the session. |
 
 ### Snapshot subscription
 
@@ -370,9 +370,9 @@ interface CommandSchema {
 
 | Command | Description |
 |---|---|
-| `/clear` | Clear the conversation and log. |
-| `/mcp` | List connected MCP servers with status and tool names. |
-| `/compact` | Compact the agent context via LLM summarization. |
+| `clear` | Clear the conversation and log. |
+| `mcp` | List connected MCP servers with status and tool names. |
+| `compact` | Compact the agent context via LLM summarization. |
 
 The raw `Command` objects are exported as `clearCommand`, `mcpCommand`, `compactCommand`, and `builtinCommands` for reuse or extension.
 
@@ -396,7 +396,7 @@ const session = await createSession({
 });
 ```
 
-Commands have access to the full `Session` via `ctx.session`, including `.mcpServers`, `.clear()`, `.compact()`, `.local`, and `.executeCommand()`.
+Commands have access to the full `Session` via `ctx.session`, including `.mcpServers`, `.clear()`, `.compact()`, `.localStore`, and `.executeCommand()`.
 
 ---
 
