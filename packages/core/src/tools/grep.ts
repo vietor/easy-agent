@@ -35,7 +35,7 @@ export const grepTool: Tool = {
     required: ["pattern"],
   },
   async execute(args, ctx) {
-    const cwd = resolveCwd(args.path as string | undefined);
+    const cwd = resolveCwd(args.path as string | undefined, ctx.cwd);
     const rgArgs = ["--line-number", "--with-filename", "--no-heading"];
     if (args.ignore_case) rgArgs.push("-i");
     if (args.only_matching) rgArgs.push("-o");

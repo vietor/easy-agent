@@ -12,6 +12,7 @@ export interface Todo {
 
 export interface ToolContext {
   signal?: AbortSignal;
+  cwd: string;
   ask(question: string, options: string[]): Promise<string>;
   setTodos(todos: Todo[]): void;
 }

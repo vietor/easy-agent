@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import type { Tool } from "./types.js";
 
 const DESCRIPTION = [
@@ -15,10 +15,11 @@ export const fileWriteTool: Tool = {
     properties: { path: { type: "string" }, content: { type: "string" } },
     required: ["path", "content"],
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const path = args.path as string;
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, args.content as string, "utf-8");
+    const resolved = resolve(ctx.cwd, path);
+    await mkdir(dirname(resolved), { recursive: true });
+    await writeFile(resolved, args.content as string, "utf-8");
     return `Wrote ${path}`;
   },
   summaryArg: "path",

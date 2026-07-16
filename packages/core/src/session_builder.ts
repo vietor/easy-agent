@@ -12,6 +12,7 @@ import type { LLMConfig } from "./llm/types.js";
 export interface SessionOptions {
   systemPrompt: string;
   llmConfig: LLMConfig;
+  cwd?: string;
   tools?: Tool[];
   commands?: Command[];
   skills?: Skill[];
@@ -46,6 +47,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   return new Session({
     llm,
     systemPrompt: opts.systemPrompt,
+    cwd: opts.cwd ?? process.cwd(),
     tools,
     commands,
     mcp,

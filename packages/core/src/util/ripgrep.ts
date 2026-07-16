@@ -2,9 +2,9 @@ import { isAbsolute, join } from "node:path";
 import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
 
-export function resolveCwd(path?: string): string {
+export function resolveCwd(path?: string, base = process.cwd()): string {
   const root = path || ".";
-  return isAbsolute(root) ? root : join(process.cwd(), root);
+  return isAbsolute(root) ? root : join(base, root);
 }
 
 export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal): Promise<string[]> {

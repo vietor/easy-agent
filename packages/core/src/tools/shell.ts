@@ -29,7 +29,7 @@ export const shellTool: Tool = {
   },
   async execute(args, ctx) {
     const command = args.command as string;
-    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], {}, ctx.signal);
+    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd }, ctx.signal);
     if (r.status === 0 && !r.error) {
       return r.stdout || "(no output)";
     }

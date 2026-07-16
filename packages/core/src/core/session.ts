@@ -31,6 +31,7 @@ export interface RunHandler {
 export interface SessionDeps {
   llm: LLMClient;
   systemPrompt: string;
+  cwd: string;
   tools: ToolRegistry;
   commands: CommandRegistry;
   mcp: MCPServers;
@@ -88,6 +89,7 @@ export class Session {
       llm: deps.llm,
       conversation,
       tools: deps.tools,
+      cwd: deps.cwd,
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,

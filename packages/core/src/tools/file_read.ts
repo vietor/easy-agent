@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { Tool } from "./types.js";
 
 const DEFAULT_LIMIT = 2000;
@@ -21,8 +22,8 @@ export const fileReadTool: Tool = {
     },
     required: ["path"],
   },
-  async execute(args) {
-    const path = args.path as string;
+  async execute(args, ctx) {
+    const path = resolve(ctx.cwd, args.path as string);
     const offset = (args.offset as number) || 1;
     const limit = (args.limit as number) || DEFAULT_LIMIT;
     const content = await readFile(path, "utf-8");

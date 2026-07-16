@@ -19,7 +19,7 @@ export const globTool: Tool = {
     required: [],
   },
   async execute(args, ctx) {
-    const cwd = resolveCwd(args.path as string | undefined);
+    const cwd = resolveCwd(args.path as string | undefined, ctx.cwd);
     const rgArgs = ["--files"];
     const pattern = args.pattern as string;
     if (pattern) rgArgs.push("-g", pattern);
