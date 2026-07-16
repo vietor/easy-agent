@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import {
   tryLoadSkills,
@@ -9,6 +10,7 @@ import {
 } from "@vietor/easy-agent-core";
 import { builtinCommands } from "./cmds/builtin.js";
 import { startApp } from "./tui/App.js";
+import { getPackageInfo } from "./util/package.js";
 import { FileSessionPersistence } from "./util/sessionStore.js";
 
 const SYSTEM_PROMPT_BASE = [
@@ -23,25 +25,6 @@ const SYSTEM_PROMPT_BASE = [
   `Decision making:
 - When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.`,
 ].join("\n\n");
-
-function parseArgs(argv: string[]): { mode: "new" | "continue" | "resume"; id?: string } {
-  let mode: "new" | "continue" | "resume" = "new";
-  let id: string | undefined;
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "-c" || a === "--continue") {
-      mode = "continue";
-    } else if (a === "-r" || a === "--resume") {
-      mode = "resume";
-      const next = argv[i + 1];
-      if (next && !next.startsWith("-")) {
-        id = next;
-        i++;
-      }
-    }
-  }
-  return { mode, id };
-}
 
 async function listSessions(store: FileSessionPersistence): Promise<void> {
   const sessions = await store.listSessions();
@@ -58,10 +41,20 @@ async function listSessions(store: FileSessionPersistence): Promise<void> {
 }
 
 export async function main(argv: string[] = []): Promise<void> {
-  const { mode, id } = parseArgs(argv);
+  const pkg = getPackageInfo();
+  const program = new Command();
+  program
+    .name("easy-agent")
+    .version(pkg.version)
+    .description("Terminal-based AI agent CLI with conversational TUI")
+    .option("-c, --continue", "Continue the most recent session")
+    .option("-r, --resume [id]", "Resume a session by ID (omit to list sessions)")
+    .parse(argv, { from: "user" });
+
+  const opts = program.opts() as { continue?: boolean; resume?: string | boolean };
   const store = new FileSessionPersistence(process.cwd());
 
-  if (mode === "resume" && !id) {
+  if (opts.resume !== undefined && typeof opts.resume !== "string") {
     await listSessions(store);
     return;
   }
@@ -70,14 +63,14 @@ export async function main(argv: string[] = []): Promise<void> {
 
   let sessionId: string | undefined;
   let resume = false;
-  if (mode === "continue") {
+  if (opts.continue) {
     const sessions = await store.listSessions();
     if (sessions.length) {
       sessionId = sessions[0].id;
       resume = true;
     }
-  } else if (mode === "resume" && id) {
-    sessionId = id;
+  } else if (opts.resume && typeof opts.resume === "string") {
+    sessionId = opts.resume;
     resume = true;
   }
   if (!sessionId) sessionId = randomUUID();
