@@ -46,7 +46,6 @@ easy-agent/
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
 │   │       ├── skills/              # skill loader (SKILL.md → slash commands)
 │   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…
-│   │       ├── persist.ts           # SessionPersistence / SessionState interfaces
 │   │       ├── sessionBuilder.ts    # createSession() factory
 │   │       └── index.ts             # public API exports
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)

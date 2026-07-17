@@ -9,7 +9,7 @@ import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
-import type { SessionPersistence, SessionState } from "../persist.js";
+import type { SessionPersistence, SessionState } from "./types.js";
 import { Agent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";

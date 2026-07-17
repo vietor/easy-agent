@@ -1,5 +1,5 @@
-import type { ConversationMessage } from "./core/conversation.js";
-import type { Todo } from "./tools/types.js";
+import type { ConversationMessage } from "./conversation.js";
+import type { Todo } from "../tools/types.js";
 
 export interface SessionState {
   messages: ConversationMessage[];

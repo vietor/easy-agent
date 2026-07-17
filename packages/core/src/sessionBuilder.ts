@@ -8,7 +8,7 @@ import type { Command } from "./cmds/types.js";
 import type { Skill } from "./skills/types.js";
 import type { MCPServerConfig } from "./mcp/types.js";
 import type { LLMConfig } from "./llm/types.js";
-import type { SessionPersistence } from "./persist.js";
+import type { SessionPersistence } from "./core/types.js";
 
 export interface SessionOptions {
   systemPrompt: string;

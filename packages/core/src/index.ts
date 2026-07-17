@@ -12,4 +12,4 @@ export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { netFetch } from "./util/net.js";
 export { createSession, type SessionOptions } from "./sessionBuilder.js";
-export type { SessionPersistence, SessionState, SessionMeta } from "./persist.js";
+export type { SessionPersistence, SessionState, SessionMeta } from "./core/types.js";
