@@ -114,7 +114,10 @@ export class Session {
   }
 
   get commandSchemas(): CommandSchema[] {
-    return [...this.commands.schemas(), ...this.skills.schemas()];
+    const map = new Map<string, CommandSchema>();
+    for (const c of this.commands.schemas()) map.set(c.name, c);
+    for (const s of this.skills.schemas()) if (!map.has(s.name)) map.set(s.name, s);
+    return [...map.values()];
   }
 
   constructor(deps: SessionDeps) {
@@ -236,10 +239,12 @@ export class Session {
   }
 
   async executeCommand(name: string, args = ""): Promise<void> {
-    const skill = this.skills.get(name);
-    if (skill) {
-      await this.loop.startSkill(skill);
-      return;
+    if (!this.commands.exists(name)) {
+      const skill = this.skills.get(name);
+      if (skill) {
+        await this.loop.startSkill(skill);
+        return;
+      }
     }
     await this.commands.execute(
       name,
