@@ -9,7 +9,7 @@ import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
-import type { SessionPersistence, SessionState } from "./types.js";
+import { SessionBusyError, type SessionPersistence, type SessionState } from "./types.js";
 import { Agent } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
@@ -105,6 +105,10 @@ export class Session {
     );
   }
 
+  get running(): boolean {
+    return this.loop.running;
+  }
+
   get contextTokens(): number {
     return this.agent.contextTokens;
   }
@@ -147,7 +151,12 @@ export class Session {
     this.mcp.kill();
   }
 
+  private rejectIfBusy(): void {
+    if (this.loop.running) throw new SessionBusyError();
+  }
+
   clear(): void {
+    this.rejectIfBusy();
     this.agent.clear();
     this.timelineStore.clear();
     this.todoStore.set([]);
@@ -169,6 +178,7 @@ export class Session {
   }
 
   async restore(): Promise<void> {
+    this.rejectIfBusy();
     if (!this.persistence) return;
     const state = await this.persistence.load(this.sessionId);
     if (!state) return;
@@ -211,6 +221,7 @@ export class Session {
   }
 
   async compact(): Promise<void> {
+    this.rejectIfBusy();
     await this.loop.startCompact();
   }
 
@@ -239,6 +250,7 @@ export class Session {
   }
 
   async executeCommand(name: string, args = ""): Promise<void> {
+    this.rejectIfBusy();
     if (!this.commands.exists(name)) {
       const skill = this.skills.get(name);
       if (skill) {
@@ -258,6 +270,7 @@ export class Session {
   }
 
   async startPrompt(text: string): Promise<string> {
+    this.rejectIfBusy();
     await this.loop.startPrompt(text);
     return this.loop.lastReply;
   }

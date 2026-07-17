@@ -152,7 +152,37 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 |---|---|---|
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
+| `running` | `boolean` | Whether a prompt/compact is in progress. Check before issuing a driver call (see Reentrancy). |
 | `localStore` | `Map<string, unknown>` | A local key-value store available to commands and tools during the session. |
+
+### Reentrancy
+
+A `Session` runs one prompt/compact at a time. While a run is in progress, calling a **driver** method throws `SessionBusyError` (`code === "SESSION_BUSY"`) so a host can map it to an HTTP 409:
+
+| Driver method | Behavior when busy |
+|---|---|
+| `startPrompt`, `compact`, `executeCommand`, `clear`, `restore` | Throws `SessionBusyError`. |
+
+These remain callable during a run (they are inputs to the running loop, or read-only/teardown):
+
+| Method | Behavior when busy |
+|---|---|
+| `abort`, `submitAnswer` | Allowed - control the running loop. |
+| `subscribeEvents`, `subscribe`, `getSnapshot`, `getPendingQuestion`, `export`, `flush`, `dispose`, accessors | Allowed. |
+
+```ts
+import { SessionBusyError } from "@vietor/easy-agent-core";
+
+if (!session.running) {
+  try {
+    await session.startPrompt(text);
+  } catch (e) {
+    if (e instanceof SessionBusyError) /* -> HTTP 409 */;
+  }
+}
+```
+
+The `state` event (`running: boolean`) also signals run start/end for stream consumers.
 
 ### Snapshot subscription
 

@@ -20,3 +20,12 @@ export interface SessionPersistence {
   listSessions(): Promise<SessionMeta[]>;
   delete?(sessionId: string): Promise<void>;
 }
+
+export class SessionBusyError extends Error {
+  readonly code = "SESSION_BUSY" as const;
+
+  constructor() {
+    super("session is busy; another run is in progress");
+    this.name = "SessionBusyError";
+  }
+}

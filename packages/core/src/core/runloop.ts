@@ -23,6 +23,10 @@ export class RunLoop {
     return this.lastReplyText;
   }
 
+  get running(): boolean {
+    return this.abortController !== null;
+  }
+
   abort(): void {
     this.abortController?.abort();
   }
