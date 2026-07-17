@@ -136,6 +136,7 @@ export class Agent {
     } finally {
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
+      if (msg.role === "skill") this.conversation.collapseSkill(msg);
     }
   }
 

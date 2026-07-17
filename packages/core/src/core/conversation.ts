@@ -106,6 +106,16 @@ export class Conversation {
     this.estimatedTokens = this.systemEstimateTokens + estimateTokens(summary);
   }
 
+  collapseSkill(target: Extract<ConversationMessage, { role: "skill" }>): void {
+    const idx = this.messages.lastIndexOf(target);
+    if (idx === -1) return;
+    const m = this.messages[idx];
+    if (m.role !== "skill") return;
+    const before = estimateTokens(messageText(m));
+    m.content = `<skill "${m.name}" invoked>`;
+    this.estimatedTokens += estimateTokens(messageText(m)) - before;
+  }
+
   createSnapshot(): void {
     this.messagesSnapshot = this.messages.slice();
     this.estimatedTokensSnapshot = this.estimatedTokens;
