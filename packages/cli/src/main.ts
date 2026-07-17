@@ -105,5 +105,8 @@ export async function main(argv: string[] = []): Promise<void> {
   if (resume) await session.restore();
 
   const app = startApp(session);
-  await app.waitUntilExit().finally(() => session.dispose());
+  await app.waitUntilExit().finally(() => {
+    session.dispose();
+    console.log(["Resume this session with:", `easy-agent --resume ${sessionId}`].join("\n"));
+  });
 }
