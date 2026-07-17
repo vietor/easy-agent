@@ -64,6 +64,7 @@ export class Session {
 
   private conversation: Conversation;
   private tools: ToolRegistry;
+  readonly cwd: string;
   readonly sessionId: string;
   private persistence?: SessionPersistence;
 
@@ -117,6 +118,7 @@ export class Session {
   constructor(deps: SessionDeps) {
     this.conversation = new Conversation(deps.systemPrompt);
     this.tools = deps.tools;
+    this.cwd = deps.cwd;
     this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
     this.agent = new Agent({

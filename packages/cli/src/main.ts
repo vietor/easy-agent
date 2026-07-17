@@ -50,7 +50,9 @@ export async function main(argv: string[] = []): Promise<void> {
     .parse(argv, { from: "user" });
 
   const opts = program.opts() as { continue?: boolean; resume?: string | boolean };
-  const store = new FileSessionPersistence(process.cwd());
+
+  const cwd = process.cwd();
+  const store = new FileSessionPersistence(cwd);
 
   if (opts.resume !== undefined && typeof opts.resume !== "string") {
     await listSessions(store);
@@ -72,8 +74,6 @@ export async function main(argv: string[] = []): Promise<void> {
     resume = true;
   }
   if (!sessionId) sessionId = randomUUID();
-
-  const cwd = process.cwd();
 
   const globalSkills =
     tryLoadSkills(join(homedir(), ".easy-agent", "skills")) ?? tryLoadSkills(join(homedir(), ".claude", "skills"));

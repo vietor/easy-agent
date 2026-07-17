@@ -104,7 +104,7 @@ export function App({ session }: { session: Session }) {
 
   return (
     <Box width={columns} flexDirection="column">
-      <AppHeader />
+      <AppHeader cwd={session.cwd} />
 
       <TimelineList session={session} />
 

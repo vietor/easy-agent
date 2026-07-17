@@ -2,7 +2,7 @@ import { isAbsolute, join } from "node:path";
 import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
 
-export function resolveCwd(path?: string, base = process.cwd()): string {
+export function resolveCwd(path: string, base: string): string {
   const root = path || ".";
   return isAbsolute(root) ? root : join(base, root);
 }
