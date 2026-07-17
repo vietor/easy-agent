@@ -4,6 +4,7 @@ import type { AssistantMessage } from "../llm/types.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
+import { SkillRegistry } from "../skills/registry.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
@@ -57,6 +58,7 @@ export class Session {
   private agent: Agent;
   private mcp: MCPServers;
   private commands: CommandRegistry;
+  private skills: SkillRegistry;
   private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
   private loop: RunLoop;
@@ -112,7 +114,7 @@ export class Session {
   }
 
   get commandSchemas(): CommandSchema[] {
-    return this.commands.schemas();
+    return [...this.commands.schemas(), ...this.skills.schemas()];
   }
 
   constructor(deps: SessionDeps) {
@@ -134,17 +136,7 @@ export class Session {
     this.mcp = deps.mcp;
     this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
     this.loop.onSettle = () => this.persistSnapshot();
-    if (deps.skills) this.registerSkillCommands(deps.skills);
-  }
-
-  private registerSkillCommands(skills: Skill[]): void {
-    for (const skill of skills) {
-      this.commands.register({
-        name: skill.name,
-        description: skill.description ?? skill.name,
-        execute: async () => { await this.loop.startSkill(skill); },
-      });
-    }
+    this.skills = new SkillRegistry(deps.skills ?? []);
   }
 
   dispose(): void {
@@ -240,10 +232,15 @@ export class Session {
   }
 
   isCommand(name: string): boolean {
-    return this.commands.exists(name);
+    return this.commands.exists(name) || this.skills.has(name);
   }
 
   async executeCommand(name: string, args = ""): Promise<void> {
+    const skill = this.skills.get(name);
+    if (skill) {
+      await this.loop.startSkill(skill);
+      return;
+    }
     await this.commands.execute(
       name,
       {
