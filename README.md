@@ -52,16 +52,17 @@ easy-agent/
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
 │       └── src/
 │           ├── tui/                 # terminal UI (App, TimelineView, TodoView, etc.)
+│           │   └── components/      # shared UI components (Markdown renderer…)
 │           ├── cmds/                # CLI-specific built-in commands
 │           ├── util/                # format, package info, FileSessionPersistence
-│           ├── main.ts              # entry — parses args, wires session, starts TUI
-│           └── config.ts            # JSON config loader (~/.easy-agent.json)
+│           ├── config.ts            # JSON config loader (~/.easy-agent.json)
+│           └── cli.ts               # entry — parses args, wires session, starts TUI
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems), an event-driven interface (`SessionEvent` / `subscribeEvents`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`).
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, command/skill systems), an event-driven interface (`SessionEvent` / `subscribeEvents`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`) and a built-in skill registry for slash commands.
 
 ### Build order
 
