@@ -292,9 +292,10 @@ type ConversationMessage =
 
 ```ts
 interface LLMConfig {
-  baseUrl: string;   // OpenAI-compatible API endpoint (e.g. "https://api.deepseek.com/v1")
-  apiKey: string;    // API key
-  model: string;     // Model name (e.g. "deepseek-v4-flash")
+  baseUrl: string;            // OpenAI-compatible API endpoint (e.g. "https://api.deepseek.com/v1")
+  apiKey: string;             // API key
+  model: string;              // Model name (e.g. "deepseek-v4-flash")
+  reasoningEffort?: "high" | "max";  // Reasoning depth; defaults to "high". Set "max" for deeper reasoning on complex tasks.
 }
 ```
 

@@ -9,7 +9,7 @@ const LLMConfig = z.object({
   baseUrl: z.string(),
   apiKey: z.string(),
   model: z.string(),
-  reasoningEffort: z.enum(["none", "high", "max"]).default("none"),
+  reasoningEffort: z.enum(["high", "max"]).default("high"),
 });
 
 const StdioServerConfig = z.object({

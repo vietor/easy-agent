@@ -6,7 +6,7 @@ import { getPackageInfo } from "../util/package.js";
 export const AppHeader = memo(function AppHeader({ cwd, model, reasoningEffort }: { cwd: string; model: string; reasoningEffort: ReasoningEffort }) {
   const { columns } = useWindowSize();
   const pkginfo = getPackageInfo();
-  const reasoning = reasoningEffort !== "none" ? ` · reasoning ${reasoningEffort}` : "";
+  const reasoning = ` · reasoning ${reasoningEffort}`;
   return (
     <Box width={columns} paddingX={1} flexDirection="column" borderStyle="single" borderBottom borderTop={false} borderLeft={false} borderRight={false} borderColor="gray">
       <Box flexDirection="row" justifyContent="space-between">

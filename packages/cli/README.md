@@ -29,12 +29,17 @@ Create `~/.easy-agent.json` in your home directory:
   "llm": {
     "baseUrl": "https://api.deepseek.com/v1",
     "apiKey": "your-api-key",
-    "model": "deepseek-v4-flash"
+    "model": "deepseek-v4-flash",
+    "reasoningEffort": "high"
   }
 }
 ```
 
 `llm.baseUrl`, `llm.apiKey`, and `llm.model` are all required. Point `baseUrl` at any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, local servers, etc.) and set `model` to a model that endpoint serves.
+
+#### `reasoningEffort` (optional)
+
+Controls the depth of model reasoning. Valid values: `"high"` | `"max"`. Defaults to `"high"`. When set to `"max"` the model spends more tokens on deeper reasoning before responding — useful for complex logic, math, or multi-step analysis. The current setting is shown in the TUI header (e.g. ` · reasoning max`). Requires a model that supports the `reasoning_effort` parameter.
 
 ### Proxy
 

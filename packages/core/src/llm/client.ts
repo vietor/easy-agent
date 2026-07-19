@@ -36,7 +36,7 @@ export class LLMClient {
       fetch: netFetch,
     });
     this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort ?? "none";
+    this.reasoningEffort = config.reasoningEffort ?? "high";
   }
 
   async chat(opts: ChatOptions): Promise<AssistantMessage> {
@@ -64,7 +64,7 @@ export class LLMClient {
   ): Promise<AssistantMessage> {
     let content = "";
     const calls = new Map<number, ToolCallAcc>();
-    const useReasoning = reasoning !== false && this.reasoningEffort !== "none";
+    const useReasoning = reasoning !== false;
     const params: Record<string, unknown> = {
       model: this.model,
       messages,

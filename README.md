@@ -7,6 +7,10 @@
 
 An autonomous coding agent in the terminal — monorepo workspace.
 
+## Features
+
+- **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) in the LLM config to control the depth of model reasoning; defaults to `high`. The current setting is displayed in the TUI header.
+
 This repo contains two packages:
 
 | Package | npm | Description |

@@ -6,7 +6,22 @@ import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
-const COMPACT_PROMPT = "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far\":";
+const COMPACT_PROMPT = [
+  "Your task is to create a detailed summary of the conversation to use as context for continuing the work. ",
+  "This summary will replace the prior history, so preserve every detail needed to resume without re-reading it. ",
+  "Focus on information that is valuable for continuing the work:\n",
+  "1. Primary goal: what the user is trying to accomplish, including sub-goals, constraints, and acceptance criteria.\n",
+  "2. Decisions made and their rationale, including approaches considered but rejected.\n",
+  "3. Files read, created, or modified, with their paths and key code snippets, function signatures, or config values.\n",
+  "4. Tool calls performed and their relevant results, such as commands run, search hits, and test output.\n",
+  "5. Errors or failures encountered and how they were resolved or worked around.\n",
+  "6. Current progress: what is done and verified, and the exact state of any in-progress work.\n",
+  "7. Pending tasks, open questions, and the concrete next step to take.\n",
+  "Guidelines: be concise but thorough; never drop specific technical details; use clear sections with headers; ",
+  "omit pleasantries, narration, and verbatim transcripts; ",
+  "write the summary in the same language the user used in the conversation. ",
+  "Begin your reply with \"Summary of conversation so far\":",
+].join("");
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
 

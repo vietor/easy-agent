@@ -1,4 +1,4 @@
-export type ReasoningEffort = "none" | "high" | "max";
+export type ReasoningEffort = "high" | "max";
 
 export interface LLMConfig {
   baseUrl: string;
