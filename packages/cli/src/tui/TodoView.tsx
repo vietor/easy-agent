@@ -18,7 +18,7 @@ export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo
   const done = todos.filter((t) => t.status === "completed").length;
   const headerColor = done === todos.length ? "green" : "cyan";
   return (
-    <Box flexDirection="column" marginTop={1} paddingLeft={1} paddingRight={1}>
+    <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
       <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray" />
       <Text color={headerColor}>{`Tasks [${done}/${todos.length}]`}</Text>
       {todos.map((t, i) => (
