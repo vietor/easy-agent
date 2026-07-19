@@ -41,7 +41,7 @@ export function QuestionView({ question, onAnswer }: QuestionViewProps) {
     return (
       <Box flexDirection="column" marginTop={1} paddingLeft={1} paddingRight={1}>
         <Text color="cyan">{`? ${question.text}`}</Text>
-        <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
+        <Box borderStyle="single" borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray">
           <Text color="gray">❯ </Text>
           <TextInput value={text} onChange={setText} onSubmit={() => onAnswer(text)} />
         </Box>
@@ -52,7 +52,7 @@ export function QuestionView({ question, onAnswer }: QuestionViewProps) {
   return (
     <Box flexDirection="column" marginTop={1} paddingLeft={1} paddingRight={1}>
       <Text color="cyan">{`? ${question.text}`}</Text>
-      <Box flexDirection="column" borderStyle="single" borderColor="gray">
+      <Box flexDirection="column" borderStyle="single" borderBottom={false} borderColor="gray">
         {items.map((item, i) => (
           <Box key={item}>
             <Text color={i === selected ? "cyan" : undefined}>

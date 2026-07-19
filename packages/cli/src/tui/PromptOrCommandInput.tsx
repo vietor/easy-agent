@@ -85,7 +85,7 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
           })}
         </Box>
       ) : null}
-      <Box borderStyle="single" borderLeft={false} borderRight={false} borderColor="gray">
+      <Box borderStyle="single" borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray">
         <Text color="gray">{"> "}</Text>
         <TextInput value={input} onChange={setInput} onSubmit={onSubmit} />
       </Box>

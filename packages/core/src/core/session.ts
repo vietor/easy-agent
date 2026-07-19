@@ -117,6 +117,18 @@ export class Session {
     return this.agent.contextTokens;
   }
 
+  get model() {
+    return this.agent.model;
+  }
+
+  get reasoningEffort() {
+    return this.agent.reasoningEffort;
+  }
+
+  get compactThreshold() {
+    return this.agent.compactThreshold;
+  }
+
   get mcpServers(): readonly MCPServerInfo[] {
     return this.mcp.list();
   }

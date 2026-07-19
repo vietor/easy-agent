@@ -17,9 +17,11 @@ const COLORS: Record<TodoStatus, string> = {
 export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo[] }) {
   if (todos.length === 0) return null;
   const done = todos.filter((t) => t.status === "completed").length;
+  const headerColor = done === todos.length ? "green" : "cyan";
   return (
     <Box flexDirection="column" marginTop={1} paddingLeft={1} paddingRight={1}>
-      <Text dimColor>{`Tasks [${done}/${todos.length}]`}</Text>
+      <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray" />
+      <Text color={headerColor}>{`Tasks [${done}/${todos.length}]`}</Text>
       {todos.map((t, i) => (
         <Text key={i} color={COLORS[t.status]} strikethrough={t.status === "completed"}>
           {`${ICONS[t.status]} ${t.content}`}

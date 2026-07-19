@@ -5,18 +5,18 @@ import stringWidth from "string-width";
 
 const HEADING_COLOR = ["magentaBright", "cyanBright", "blue", "yellow", "green", "gray"];
 
-export function Markdown({ children, color }: { children: string; color?: string }) {
+export function Markdown({ children }: { children: string }) {
   const tokens = useMemo(() => lexer(children, { gfm: true }) as MarkedToken[], [children]);
-  return <Box flexDirection="column">{renderBlocks(tokens, color)}</Box>;
+  return <Box flexDirection="column">{renderBlocks(tokens)}</Box>;
 }
 
-function renderBlocks(tokens: Token[], color?: string): ReactNode {
+function renderBlocks(tokens: Token[]): ReactNode {
   return tokens.map((token, i) => (
-    <Fragment key={i}>{renderBlock(token as MarkedToken, color)}</Fragment>
+    <Fragment key={i}>{renderBlock(token as MarkedToken)}</Fragment>
   ));
 }
 
-function renderBlock(token: MarkedToken, color?: string): ReactNode {
+function renderBlock(token: MarkedToken): ReactNode {
   switch (token.type) {
     case "space":
       return <Text>{" "}</Text>;
@@ -42,17 +42,17 @@ function renderBlock(token: MarkedToken, color?: string): ReactNode {
     case "blockquote":
       return (
         <Box borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor="gray" paddingLeft={1}>
-          {renderBlocks(token.tokens, color)}
+          {renderBlocks(token.tokens)}
         </Box>
       );
     case "list":
-      return renderList(token, color);
+      return renderList(token);
     case "table":
-      return renderTable(token, color);
+      return renderTable(token);
     case "paragraph":
-      return <Text color={color}>{renderInline(token.tokens)}</Text>;
+      return <Text>{renderInline(token.tokens)}</Text>;
     case "text":
-      return <Text color={color}>{token.tokens ? renderInline(token.tokens) : token.text}</Text>;
+      return <Text>{token.tokens ? renderInline(token.tokens) : token.text}</Text>;
     case "html":
       return <Text dimColor>{token.text}</Text>;
     default:
@@ -91,7 +91,7 @@ function renderInline(tokens: Token[] | undefined): ReactNode {
   });
 }
 
-function renderList(token: Tokens.List, color?: string): ReactNode {
+function renderList(token: Tokens.List): ReactNode {
   const markers = token.items.map((item, i) => {
     if (item.task) return item.checked ? "[x]" : "[ ]";
     if (token.ordered) return `${(token.start === "" ? i + 1 : Number(token.start) + i)}.`;
@@ -102,9 +102,9 @@ function renderList(token: Tokens.List, color?: string): ReactNode {
     <Box flexDirection="column">
       {token.items.map((item, i) => (
         <Box key={i} marginTop={token.loose && i > 0 ? 1 : 0}>
-          <Text color={color}>{padAlign(markers[i], markerWidth, "right")} </Text>
+          <Text>{padAlign(markers[i], markerWidth, "right")} </Text>
           <Box flexDirection="column" flexGrow={1}>
-            {renderBlocks(item.tokens, color)}
+            {renderBlocks(item.tokens)}
           </Box>
         </Box>
       ))}
@@ -112,7 +112,7 @@ function renderList(token: Tokens.List, color?: string): ReactNode {
   );
 }
 
-function renderTable(token: Tokens.Table, color?: string): ReactNode {
+function renderTable(token: Tokens.Table): ReactNode {
   const aligns = token.align;
   const cols = token.header.length;
   const overhead = 3 * cols + 1;
@@ -133,7 +133,7 @@ function renderTable(token: Tokens.Table, color?: string): ReactNode {
         {[
           ...row.flatMap((_, c) => [
             <Text key={`s${c}`} dimColor>│</Text>,
-            <Text key={`c${c}`} color={color} bold={bold}>{` ${padAlign(wrapped[c][r] ?? "", widths[c], aligns[c])} `}</Text>,
+            <Text key={`c${c}`} bold={bold}>{` ${padAlign(wrapped[c][r] ?? "", widths[c], aligns[c])} `}</Text>,
           ]),
           <Text key="e" dimColor>│</Text>,
         ]}

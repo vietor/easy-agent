@@ -118,7 +118,7 @@ export function App({ session }: { session: Session }) {
           {reasoningText ? renderReasoning(reasoningText, showReasoning) : null}
           {streamingText ? (
             <Box marginTop={1} paddingLeft={1} paddingRight={1} borderStyle="single" borderTop={false} borderRight={false} borderBottom={false} borderColor="gray">
-              <Markdown color="green">{streamingText}</Markdown>
+              <Markdown>{streamingText}</Markdown>
             </Box>
           ) : null}
           <Box marginTop={1} paddingLeft={1}>
@@ -131,7 +131,7 @@ export function App({ session }: { session: Session }) {
 
   return (
     <Box width={columns} flexDirection="column">
-      <AppHeader cwd={session.cwd} />
+      <AppHeader cwd={session.cwd} model={session.model} reasoningEffort={session.reasoningEffort} />
 
       <TimelineList session={session} />
 
@@ -140,11 +140,16 @@ export function App({ session }: { session: Session }) {
       {runningView}
 
       {!runState.running ? (
-        <>
-          <StatusBar contextTokens={session.contextTokens} />
-          <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
-        </>
+        <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
       ) : null}
+
+      <StatusBar
+        contextTokens={session.contextTokens}
+        contextLimit={session.compactThreshold}
+        running={runState.running}
+        questionPending={!!pendingQuestion}
+        reasoningAvailable={!!reasoningText}
+      />
     </Box>
   );
 }

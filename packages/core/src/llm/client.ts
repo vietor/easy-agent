@@ -25,8 +25,8 @@ export interface ChatOptions {
 
 export class LLMClient {
   private client: OpenAI;
-  private model: string;
-  private reasoningEffort: ReasoningEffort;
+  readonly model: string;
+  readonly reasoningEffort: ReasoningEffort;
 
   constructor(config: LLMConfig) {
     this.client = new OpenAI({

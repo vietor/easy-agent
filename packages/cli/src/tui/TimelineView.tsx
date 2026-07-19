@@ -38,7 +38,7 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
     case "assistant":
       return (
         <Box marginTop={1}>
-          <Markdown color="green">{entry.text}</Markdown>
+          <Markdown>{entry.text}</Markdown>
         </Box>
       );
     case "tool":

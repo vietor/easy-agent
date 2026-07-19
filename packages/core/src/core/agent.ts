@@ -41,7 +41,7 @@ export class Agent {
   private getTodos: () => readonly Todo[];
   private stallThreshold: number;
   private maxTurns: number;
-  private compactThreshold: number;
+  readonly compactThreshold: number;
   private todoSnapshot: readonly Todo[] = [];
 
   constructor(opts: AgentOptions) {
@@ -59,6 +59,14 @@ export class Agent {
 
   get contextTokens(): number {
     return this.conversation.getEstimatedTokens();
+  }
+
+  get model() {
+    return this.llm.model;
+  }
+
+  get reasoningEffort() {
+    return this.llm.reasoningEffort;
   }
 
   clear(): void {
