@@ -273,10 +273,6 @@ export class Session {
     }
   }
 
-  isCommand(name: string): boolean {
-    return this.commands.exists(name) || this.skills.has(name);
-  }
-
   async executeCommand(name: string, args = ""): Promise<void> {
     this.rejectIfBusy();
     if (!this.commands.exists(name)) {

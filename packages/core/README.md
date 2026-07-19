@@ -146,7 +146,6 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 | Method | Description |
 |---|---|
 | `executeCommand(name: string, args?: string): Promise<void>` | Execute a slash command by name. |
-| `isCommand(name: string): boolean` | Check if a command exists. |
 | `commandSchemas: CommandSchema[]` | List all registered command schemas. |
 
 ### State accessors
