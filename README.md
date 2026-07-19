@@ -46,7 +46,7 @@ easy-agent/
 │   │       ├── core/                # Agent, Session, RunLoop, Conversation, Timeline
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── cmds/                # command system (registry, built-in slash commands)
-│   │       ├── llm/                 # OpenAI-compatible LLM client
+│   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
 │   │       ├── skills/              # skill loader (SKILL.md → slash commands)
 │   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…
