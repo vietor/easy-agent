@@ -18,6 +18,8 @@ import { RunLoop } from "./runloop.js";
 export interface RunState {
   running: boolean;
   elapsed: number;
+  thinkingElapsed: number;
+  replyElapsed: number;
   promptTokens: number;
   completionTokens: number;
 }
@@ -31,6 +33,8 @@ export type SessionEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
   | { type: "assistant_delta"; text: string }
+  | { type: "reasoning_delta"; text: string }
+  | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean }
@@ -40,7 +44,7 @@ export type SessionEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "system"; text: string }
-  | { type: "state"; running: boolean; elapsed: number; promptTokens: number; completionTokens: number };
+  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; promptTokens: number; completionTokens: number };
 
 export interface SessionDeps {
   llm: LLMClient;

@@ -6,12 +6,14 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 
 export function Spinner({
   label,
-  elapsed,
+  thinkingElapsed,
+  replyElapsed,
   promptTokens,
   completionTokens,
 }: {
   label: string;
-  elapsed: number;
+  thinkingElapsed: number;
+  replyElapsed: number;
   promptTokens: number;
   completionTokens: number;
 }) {
@@ -24,7 +26,7 @@ export function Spinner({
     <Text>
       <Text color="cyan">{SPINNER_FRAMES[frame]}</Text>
       <Text> {label}</Text>
-      <Text dimColor> · {timeDisplay(elapsed)} · ↑{compactDisplay(promptTokens)} · ↓{compactDisplay(completionTokens)}</Text>
+      <Text dimColor> · think {timeDisplay(thinkingElapsed)} · reply {timeDisplay(replyElapsed)} · ↑{compactDisplay(promptTokens)} · ↓{compactDisplay(completionTokens)}</Text>
     </Text>
   );
 }

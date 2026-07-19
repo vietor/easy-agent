@@ -1,5 +1,5 @@
 import OpenAI, { APIConnectionError, APIError } from "openai";
-import type { LLMConfig, AssistantMessage, Message } from "./types.js";
+import type { LLMConfig, ReasoningEffort, AssistantMessage, Message } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
 import { withRetry } from "../util/async.js";
 import { netFetch } from "../util/net.js";
@@ -16,14 +16,17 @@ export interface ChatOptions {
   messages: Message[];
   tools: ToolSchema[];
   onDelta?: (text: string) => void;
+  onReasoning?: (text: string) => void;
   onRetry?: (attempt: number, max: number) => void;
   onUsage?: (promptTokens: number, completionTokens: number) => void;
+  reasoning?: boolean;
   signal?: AbortSignal;
 }
 
 export class LLMClient {
   private client: OpenAI;
   private model: string;
+  private reasoningEffort: ReasoningEffort;
 
   constructor(config: LLMConfig) {
     this.client = new OpenAI({
@@ -33,10 +36,11 @@ export class LLMClient {
       fetch: netFetch,
     });
     this.model = config.model;
+    this.reasoningEffort = config.reasoningEffort ?? "none";
   }
 
   async chat(opts: ChatOptions): Promise<AssistantMessage> {
-    return withRetry(() => this.streamOnce(opts.messages, opts.tools, opts.onDelta, opts.onUsage, opts.signal), {
+    return withRetry(() => this.streamOnce(opts.messages, opts.tools, opts.onDelta, opts.onReasoning, opts.onUsage, opts.reasoning, opts.signal), {
       retries: MAX_RETRIES,
       retryable: (e) => {
         if (e instanceof APIConnectionError) return true;
@@ -53,19 +57,24 @@ export class LLMClient {
     messages: Message[],
     tools: ToolSchema[],
     onDelta?: (text: string) => void,
+    onReasoning?: (text: string) => void,
     onUsage?: (promptTokens: number, completionTokens: number) => void,
+    reasoning?: boolean,
     signal?: AbortSignal
   ): Promise<AssistantMessage> {
     let content = "";
     const calls = new Map<number, ToolCallAcc>();
+    const useReasoning = reasoning !== false && this.reasoningEffort !== "none";
+    const params: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      tools,
+      stream: true,
+      stream_options: { include_usage: true },
+    };
+    if (useReasoning) params.reasoning_effort = this.reasoningEffort;
     const stream = await this.client.chat.completions.create(
-      {
-        model: this.model,
-        messages,
-        tools,
-        stream: true,
-        stream_options: { include_usage: true },
-      },
+      params as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       { signal }
     );
 
@@ -78,6 +87,11 @@ export class LLMClient {
       if (delta.content) {
         content += delta.content;
         onDelta?.(delta.content);
+      }
+      const reasoningText = (delta as { reasoning_content?: string | null; reasoning?: string | null }).reasoning_content
+        ?? (delta as { reasoning?: string | null }).reasoning;
+      if (reasoningText) {
+        onReasoning?.(reasoningText);
       }
       if (delta.tool_calls) {
         for (const tc of delta.tool_calls) {

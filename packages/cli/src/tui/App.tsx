@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Box, render, useApp, useInput, useWindowSize } from "ink";
+import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
 import type { Session, RunState, SessionEvent, SessionView } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
 import { TimelineList } from "./TimelineList.js";
@@ -16,10 +16,14 @@ export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
-  const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 });
+  const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, promptTokens: 0, completionTokens: 0 });
   const [streamingText, setStreamingText] = useState("");
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [reasoningText, setReasoningText] = useState("");
+  const reasoningRef = useRef("");
+  const reasoningRenderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [showReasoning, setShowReasoning] = useState(false);
   const allCmds = useMemo(() => session.commandSchemas, [session]);
   const pendingQuestion = session.getPendingQuestion();
 
@@ -29,6 +33,14 @@ export function App({ session }: { session: Session }) {
         case "assistant_delta":
           streamingRef.current += e.text;
           scheduleStreamingRender();
+          break;
+        case "reasoning_delta":
+          reasoningRef.current += e.text;
+          scheduleReasoningRender();
+          break;
+        case "reasoning_clear":
+          reasoningRef.current = "";
+          setReasoningText("");
           break;
         case "assistant":
           streamingRef.current = "";
@@ -50,9 +62,21 @@ export function App({ session }: { session: Session }) {
     }, STREAM_FRAME_MS);
   };
 
+  const scheduleReasoningRender = () => {
+    if (reasoningRenderTimerRef.current) return;
+    reasoningRenderTimerRef.current = setTimeout(() => {
+      reasoningRenderTimerRef.current = undefined;
+      setReasoningText(reasoningRef.current);
+    }, STREAM_FRAME_MS);
+  };
+
   useInput((_input, key) => {
     if (pendingQuestion) {
       if (key.ctrl && _input === "c") session.abort();
+      return;
+    }
+    if (_input === "t" && runState.running && reasoningText) {
+      setShowReasoning((v) => !v);
       return;
     }
     if (key.escape) {
@@ -87,17 +111,20 @@ export function App({ session }: { session: Session }) {
           onAnswer={(ans) => session.submitAnswer(pendingQuestion.id, ans)}
         />
       );
-    } else if (streamingText) {
-      runningView = (
-        <Box marginTop={1} paddingLeft={1} paddingRight={1} borderStyle="single" borderTop={false} borderRight={false} borderBottom={false} borderColor="gray">
-          <Markdown color="green">{streamingText}</Markdown>
-        </Box>
-      );
     } else {
+      const spinnerLabel = streamingText ? "replying" : "thinking";
       runningView = (
-        <Box marginTop={1} paddingLeft={1}>
-          <Spinner label="thinking" elapsed={runState.elapsed} promptTokens={runState.promptTokens} completionTokens={runState.completionTokens} />
-        </Box>
+        <>
+          {reasoningText ? renderReasoning(reasoningText, showReasoning) : null}
+          {streamingText ? (
+            <Box marginTop={1} paddingLeft={1} paddingRight={1} borderStyle="single" borderTop={false} borderRight={false} borderBottom={false} borderColor="gray">
+              <Markdown color="green">{streamingText}</Markdown>
+            </Box>
+          ) : null}
+          <Box marginTop={1} paddingLeft={1}>
+            <Spinner label={spinnerLabel} thinkingElapsed={runState.thinkingElapsed} replyElapsed={runState.replyElapsed} promptTokens={runState.promptTokens} completionTokens={runState.completionTokens} />
+          </Box>
+        </>
       );
     }
   }
@@ -118,6 +145,27 @@ export function App({ session }: { session: Session }) {
           <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
         </>
       ) : null}
+    </Box>
+  );
+}
+
+function renderReasoning(text: string, expanded: boolean): ReactNode {
+  const lines = text.split("\n");
+  const firstLine = (lines[0] ?? "").slice(0, 80);
+  if (expanded) {
+    return (
+      <Box marginTop={1} paddingLeft={1} flexDirection="column">
+        <Text dimColor>┊ thinking (t to collapse)</Text>
+        <Box paddingLeft={1}>
+          <Text dimColor>{text}</Text>
+        </Box>
+      </Box>
+    );
+  }
+  const extra = lines.length > 1 ? ` …+${lines.length - 1} lines` : "";
+  return (
+    <Box marginTop={1} paddingLeft={1}>
+      <Text dimColor>┊ {firstLine}{extra} (t to expand)</Text>
     </Box>
   );
 }

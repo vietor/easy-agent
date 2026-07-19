@@ -1,7 +1,10 @@
+export type ReasoningEffort = "none" | "high" | "max";
+
 export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
+  reasoningEffort?: ReasoningEffort;
 }
 
 export interface TextContentPart {

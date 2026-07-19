@@ -5,8 +5,10 @@ import type { SessionEvent, RunState } from "./session.js";
 
 export class RunLoop {
   private streamingText = "";
+  private reasoningText = "";
+  private replyStart: number | null = null;
   private lastReplyText = "";
-  private runState: RunState = { running: false, elapsed: 0, promptTokens: 0, completionTokens: 0 };
+  private runState: RunState = { running: false, elapsed: 0, promptTokens: 0, completionTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -52,13 +54,15 @@ export class RunLoop {
 
   private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
     this.streamingText = "";
+    this.reasoningText = "";
+    this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { running: true, elapsed: 0, promptTokens: 0, completionTokens: 0 };
+    this.runState = { running: true, elapsed: 0, promptTokens: 0, completionTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
     this.emitRunState();
 
     this.timer = setInterval(() => {
-      this.runState = { ...this.runState, elapsed: Math.floor((Date.now() - this.startTime) / 1000) };
+      this.runState = { ...this.runState, ...this.computeTimings() };
       this.emitRunState();
     }, 1000);
 
@@ -73,10 +77,24 @@ export class RunLoop {
       clearInterval(this.timer);
       this.timer = undefined;
       this.abortController = null;
-      this.runState = { ...this.runState, running: false };
+      this.runState = { ...this.runState, ...this.computeTimings(), running: false };
       this.emitRunState();
+      this.flushReasoning();
       this.onSettle?.();
     }
+  }
+
+  private computeTimings(): { elapsed: number; thinkingElapsed: number; replyElapsed: number } {
+    const now = Date.now();
+    const elapsed = Math.floor((now - this.startTime) / 1000);
+    if (this.replyStart === null) {
+      return { elapsed, thinkingElapsed: elapsed, replyElapsed: 0 };
+    }
+    return {
+      elapsed,
+      thinkingElapsed: Math.floor((this.replyStart - this.startTime) / 1000),
+      replyElapsed: Math.floor((now - this.replyStart) / 1000),
+    };
   }
 
   private emitRunState(): void {
@@ -86,8 +104,13 @@ export class RunLoop {
   private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
       case "delta":
+        if (this.replyStart === null) this.replyStart = Date.now();
         this.streamingText += e.text;
         this.emit({ type: "assistant_delta", text: e.text });
+        break;
+      case "reasoning_delta":
+        this.reasoningText += e.text;
+        this.emit({ type: "reasoning_delta", text: e.text });
         break;
       case "tool_start":
         this.flushStreaming();
@@ -96,6 +119,7 @@ export class RunLoop {
         break;
       case "retry":
         this.streamingText = "";
+        this.flushReasoning();
         this.timeline.append({ kind: "retry", attempt: e.attempt, max: e.max });
         this.emit({ type: "retry", attempt: e.attempt, max: e.max });
         break;
@@ -127,6 +151,14 @@ export class RunLoop {
       this.timeline.append({ kind: "assistant", text });
       this.streamingText = "";
       this.emit({ type: "assistant", text });
+    }
+    this.flushReasoning();
+  }
+
+  private flushReasoning(): void {
+    if (this.reasoningText) {
+      this.reasoningText = "";
+      this.emit({ type: "reasoning_clear" });
     }
   }
 }

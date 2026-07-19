@@ -10,6 +10,7 @@ const COMPACT_PROMPT = "Summarize this conversation into a concise context summa
 
 export type AgentEvent =
   | { type: "delta"; text: string }
+  | { type: "reasoning_delta"; text: string }
   | { type: "retry"; attempt: number; max: number }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean }
@@ -82,6 +83,7 @@ export class Agent {
       msg = await withAbort(this.llm.chat({
         messages: request,
         tools: [],
+        reasoning: false,
         onDelta: (text) => onEvent?.({ type: "delta", text }),
         onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
         onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
@@ -162,6 +164,7 @@ export class Agent {
           messages,
           tools: this.tools.schemas(),
           onDelta: (text) => onEvent?.({ type: "delta", text }),
+          onReasoning: (text) => onEvent?.({ type: "reasoning_delta", text }),
           onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
           onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
           signal,
