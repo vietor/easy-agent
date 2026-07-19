@@ -1,3 +1,5 @@
+import type { ToolSchema } from "../tools/types.js";
+
 export type ReasoningEffort = "high" | "max";
 
 export type WireApi = "completions" | "anthropic";
@@ -44,3 +46,20 @@ export type Message =
   | { role: "user"; content: string | TextContentPart[]; name?: string }
   | AssistantMessage
   | { role: "tool"; tool_call_id: string; content: string };
+
+export interface ChatOptions {
+  messages: Message[];
+  tools: ToolSchema[];
+  onDelta?: (text: string) => void;
+  onReasoning?: (text: string) => void;
+  onRetry?: (attempt: number, max: number) => void;
+  onUsage?: (promptTokens: number, completionTokens: number) => void;
+  reasoning?: boolean;
+  signal?: AbortSignal;
+}
+
+export interface LLMClient {
+  readonly model: string;
+  readonly reasoningEffort: ReasoningEffort;
+  chat(opts: ChatOptions): Promise<AssistantMessage>;
+}

@@ -1,4 +1,4 @@
-import { LLMClient } from "./llm/client.js";
+import { createLLM } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
@@ -28,7 +28,7 @@ export interface SessionOptions {
 }
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
-  const llm = new LLMClient(opts.llmConfig);
+  const llm = createLLM(opts.llmConfig);
 
   const tools = new ToolRegistry();
   if (opts.builtinTools !== false) {

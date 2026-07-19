@@ -1,18 +1,11 @@
-import OpenAI, { APIConnectionError, APIError } from "openai";
-import type { LLMConfig, ReasoningEffort, AssistantMessage } from "./types.js";
-import type { ChatOptions } from "./client.js";
+import OpenAI from "openai";
+import type { LLMConfig, ReasoningEffort, AssistantMessage, ChatOptions } from "./types.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAcc {
   id: string;
   name: string;
   arguments: string;
-}
-
-export function isCompletionsRetryable(e: unknown): boolean {
-  if (e instanceof APIConnectionError) return true;
-  if (e instanceof APIError && e.status) return e.status === 429 || e.status >= 500;
-  return false;
 }
 
 export class CompletionsAdapter {
@@ -42,8 +35,8 @@ export class CompletionsAdapter {
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
+      ...(useReasoning && { reasoning_effort: this.reasoningEffort })
     };
-    if (useReasoning) params.reasoning_effort = this.reasoningEffort;
     const stream = await this.client.chat.completions.create(
       params as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       { signal }

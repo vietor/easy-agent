@@ -1,6 +1,7 @@
-import Anthropic, { APIConnectionError, APIError } from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import type {
   AssistantMessage,
+  ChatOptions,
   LLMConfig,
   Message,
   ReasoningEffort,
@@ -9,7 +10,6 @@ import type {
   ThinkingBlock,
 } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
-import type { ChatOptions } from "./client.js";
 import { netFetch } from "../util/net.js";
 
 const THINKING_BUDGET: Record<ReasoningEffort, number> = {
@@ -18,12 +18,6 @@ const THINKING_BUDGET: Record<ReasoningEffort, number> = {
 };
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
-
-export function isAnthropicRetryable(e: unknown): boolean {
-  if (e instanceof APIConnectionError) return true;
-  if (e instanceof APIError && e.status) return e.status === 429 || e.status >= 500;
-  return false;
-}
 
 export class AnthropicAdapter {
   private client: Anthropic;
@@ -53,6 +47,7 @@ export class AnthropicAdapter {
       ...(system && { system }),
       ...(useThinking && {
         thinking: { type: "enabled" as const, budget_tokens: budget },
+        output_config: { effort: this.reasoningEffort },
       }),
       ...(opts.tools.length > 0 && { tools: opts.tools.map(toAnthropicTool) }),
     };
