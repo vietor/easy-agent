@@ -1,10 +1,13 @@
 export type ReasoningEffort = "high" | "max";
 
+export type WireApi = "completions" | "anthropic";
+
 export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
   reasoningEffort?: ReasoningEffort;
+  wireApi?: WireApi;
 }
 
 export interface TextContentPart {
@@ -18,10 +21,22 @@ export interface ToolCall {
   function: { name: string; arguments: string };
 }
 
+export interface ThinkingBlock {
+  type: "thinking";
+  thinking: string;
+  signature: string;
+}
+
+export interface RedactedThinkingBlock {
+  type: "redacted_thinking";
+  data: string;
+}
+
 export interface AssistantMessage {
   role: "assistant";
   content: string | null | TextContentPart[];
   tool_calls?: ToolCall[];
+  thinking?: Array<ThinkingBlock | RedactedThinkingBlock>;
 }
 
 export type Message =

@@ -42,7 +42,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llmConfig` | `LLMConfig` | *(required)* | OpenAI-compatible endpoint config. |
+| `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `commands` | `Command[]` | `undefined` | Custom slash commands. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; each registers as a slash command. |
@@ -291,12 +291,18 @@ type ConversationMessage =
 
 ```ts
 interface LLMConfig {
-  baseUrl: string;            // OpenAI-compatible API endpoint (e.g. "https://api.deepseek.com/v1")
+  baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com")
   apiKey: string;             // API key
-  model: string;              // Model name (e.g. "deepseek-v4-flash")
+  model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5")
   reasoningEffort?: "high" | "max";  // Reasoning depth; defaults to "high". Set "max" for deeper reasoning on complex tasks.
+  wireApi?: "completions" | "anthropic";  // Wire protocol; defaults to "completions" (OpenAI Chat Completions). Set "anthropic" to use the Anthropic Messages API via the official SDK.
 }
 ```
+
+`wireApi` selects the request/response protocol the client speaks:
+
+- `"completions"` (default) - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`.
+- `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k); thinking blocks are preserved across tool-use turns as required by the API.
 
 ### `SessionPersistence`
 

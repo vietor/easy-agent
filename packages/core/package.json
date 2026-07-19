@@ -14,6 +14,7 @@
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/vietor/easy-agent.git" },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vscode/ripgrep": "^1.18.0",
     "htmlparser2": "^12.0.0",

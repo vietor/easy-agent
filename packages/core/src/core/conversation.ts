@@ -50,6 +50,11 @@ function messageText(msg: ConversationMessage): string {
       if (tc.function?.arguments) parts.push(tc.function.arguments);
     }
   }
+  if ("thinking" in msg && msg.thinking) {
+    for (const t of msg.thinking) {
+      if (t.type === "thinking") parts.push(t.thinking);
+    }
+  }
   return parts.join(" ");
 }
 

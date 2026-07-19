@@ -10,6 +10,7 @@ const LLMConfig = z.object({
   apiKey: z.string(),
   model: z.string(),
   reasoningEffort: z.enum(["high", "max"]).default("high"),
+  wireApi: z.enum(["completions", "anthropic"]).default("completions"),
 });
 
 const StdioServerConfig = z.object({

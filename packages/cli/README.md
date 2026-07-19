@@ -37,6 +37,25 @@ Create `~/.easy-agent.json` in your home directory:
 
 `llm.baseUrl`, `llm.apiKey`, and `llm.model` are all required. Point `baseUrl` at any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, local servers, etc.) and set `model` to a model that endpoint serves.
 
+#### `wireApi` (optional)
+
+Selects the wire protocol the client speaks. Valid values: `"completions"` | `"anthropic"`. Defaults to `"completions"`.
+
+- `"completions"` - OpenAI Chat Completions compatible endpoint (the default). `reasoningEffort` is sent as `reasoning_effort`.
+- `"anthropic"` - Anthropic Messages API via the official SDK. Point `baseUrl` at an Anthropic-compatible endpoint (e.g. `https://api.anthropic.com`) and `model` at a Claude model. `reasoningEffort` enables extended thinking (`"high"` = 16k budget, `"max"` = 32k).
+
+```json
+{
+  "llm": {
+    "baseUrl": "https://api.anthropic.com",
+    "apiKey": "your-api-key",
+    "model": "claude-sonnet-5",
+    "wireApi": "anthropic",
+    "reasoningEffort": "high"
+  }
+}
+```
+
 #### `reasoningEffort` (optional)
 
 Controls the depth of model reasoning. Valid values: `"high"` | `"max"`. Defaults to `"high"`. When set to `"max"` the model spends more tokens on deeper reasoning before responding — useful for complex logic, math, or multi-step analysis. The current setting is shown in the TUI header (e.g. ` · reasoning max`). Requires a model that supports the `reasoning_effort` parameter.
