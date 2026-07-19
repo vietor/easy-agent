@@ -51,6 +51,9 @@ const session = await createSession({
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
+| `compactThreshold` | `number` | `800000` | Estimated-token threshold that triggers auto-compaction of the conversation. |
+| `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
+| `stallThreshold` | `number` | `3` | Consecutive identical tool-call sets before the run is treated as stalled. |
 
 ---
 
@@ -66,7 +69,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 
 | Method | Description |
 |---|---|
-| `startPrompt(text: string): Promise<string>` | Submit a user message and run the agent loop (LLM → tool calls → LLM) until a final answer or error. Returns the final assistant reply text. |
+| `startPrompt(text: string): Promise<PromptResult>` | Submit a user message and run the agent loop (LLM → tool calls → LLM) until a final answer or error. Returns a `PromptResult` with the run `status` and the final assistant `reply`. |
 
 ### Managing conversation
 
@@ -75,7 +78,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | `clear(): void` | Reset the conversation and log. |
 | `restore(): Promise<void>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
-| `compact(): Promise<void>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
+| `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
 | `getPendingQuestion(): TimelineEntry & { kind: "question" } \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
@@ -120,7 +123,7 @@ type SessionEvent =
 | `interrupted` | The current run was aborted. |
 | `question` | The AskUser tool poses a question. |
 | `question_answered` | The question is answered (via `submitAnswer` or `abort`). |
-| `system` | A command emits a system message. |
+| `system` | A command emits a system message, or the run auto-compacts context. |
 | `state` | Run state changes: at run start, every second, on usage, and at run end (`running: false`). |
 
 Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
@@ -211,6 +214,35 @@ interface SessionView {
   todos: readonly Todo[];
 }
 ```
+
+### `PromptResult`
+
+Returned by `session.startPrompt()`.
+
+```ts
+interface PromptResult {
+  status: RunStatus;
+  reply: string;
+}
+```
+
+`status` indicates how the run ended; `reply` is the final assistant text (may be partial or empty when `status !== "ok"`). Error details are delivered via the `error` event; subscribe to `subscribeEvents` for the full picture.
+
+### `RunStatus`
+
+```ts
+type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
+```
+
+| Status | Meaning |
+|---|---|
+| `ok` | The run completed with a final assistant reply. |
+| `aborted` | The run was aborted via `abort()`. |
+| `error` | The run ended due to an LLM/API error. |
+| `stalled` | The agent repeated identical tool calls past `stallThreshold`. |
+| `maxturns` | The agent exceeded `maxTurns`. |
+
+Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted, `"error"` on failure).
 
 ### `TimelineEntry`
 
@@ -401,6 +433,8 @@ const session = await createSession({
 });
 // or disable all built-in tools:
 // builtinTools: false
+// or disable specific built-in tools by name (e.g. a read-only agent):
+// builtinTools: { disable: ["Shell", "FileWrite", "FileEdit"] }
 ```
 
 ### Custom tools example
@@ -640,8 +674,8 @@ session.subscribeEvents((e) => {
     console.log(`tokens: ${e.promptTokens} prompt / ${e.completionTokens} completion`);
 });
 
-const reply = await session.startPrompt("What files are in the current directory?");
-console.log(reply);                // final assistant reply
+const result = await session.startPrompt("What files are in the current directory?");
+console.log(result.reply);                // final assistant reply
 
 console.log(session.getSnapshot().timeline);   // full session timeline
 console.log(session.export());     // LLM message history

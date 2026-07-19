@@ -1,4 +1,4 @@
-import type { Agent, AgentEvent } from "./agent.js";
+import type { Agent, AgentEvent, RunStatus } from "./agent.js";
 import type { Skill } from "../skills/types.js";
 import type { TimelineStore, TodoStore } from "./timeline.js";
 import type { SessionEvent, RunState } from "./session.js";
@@ -8,6 +8,7 @@ export class RunLoop {
   private reasoningText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
+  private lastStatusValue: RunStatus = "ok";
   private runState: RunState = { running: false, elapsed: 0, promptTokens: 0, completionTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -23,6 +24,10 @@ export class RunLoop {
 
   get lastReply(): string {
     return this.lastReplyText;
+  }
+
+  get lastStatus(): RunStatus {
+    return this.lastStatusValue;
   }
 
   get running(): boolean {
@@ -52,13 +57,14 @@ export class RunLoop {
     await this.run((signal) => this.agent.compact(this.handleEvent, signal));
   }
 
-  private async run(runFn: (signal: AbortSignal) => Promise<void>): Promise<void> {
+  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
     this.streamingText = "";
     this.reasoningText = "";
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
     this.runState = { running: true, elapsed: 0, promptTokens: 0, completionTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
+    this.lastStatusValue = "ok";
     this.emitRunState();
 
     this.timer = setInterval(() => {
@@ -66,10 +72,12 @@ export class RunLoop {
       this.emitRunState();
     }, 1000);
 
+    let status: RunStatus = "ok";
     try {
-      await runFn(this.abortController.signal);
+      status = await runFn(this.abortController.signal);
       this.flushStreaming();
     } catch (e) {
+      status = "error";
       this.flushStreaming();
       this.timeline.append({ kind: "error", text: (e as Error).message });
       this.emit({ type: "error", text: (e as Error).message });
@@ -77,6 +85,7 @@ export class RunLoop {
       clearInterval(this.timer);
       this.timer = undefined;
       this.abortController = null;
+      this.lastStatusValue = status;
       this.runState = { ...this.runState, ...this.computeTimings(), running: false };
       this.emitRunState();
       this.flushReasoning();
@@ -136,6 +145,10 @@ export class RunLoop {
         this.flushStreaming();
         this.timeline.append({ kind: "interrupted" });
         this.emit({ type: "interrupted" });
+        break;
+      case "system":
+        this.timeline.append({ kind: "system", text: e.text });
+        this.emit({ type: "system", text: e.text });
         break;
       case "usage":
         this.runState = { ...this.runState, promptTokens: e.promptTokens, completionTokens: e.completionTokens };

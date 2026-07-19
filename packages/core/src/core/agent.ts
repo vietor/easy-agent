@@ -8,6 +8,8 @@ import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
 const COMPACT_PROMPT = "Summarize this conversation into a concise context summary. Preserve the user's goal, decisions made, files touched, and current progress. Write the summary in the same language the user used in the conversation. Begin your reply with \"Summary of conversation so far\":";
 
+export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
+
 export type AgentEvent =
   | { type: "delta"; text: string }
   | { type: "reasoning_delta"; text: string }
@@ -16,6 +18,7 @@ export type AgentEvent =
   | { type: "tool_end"; id: string; result: string; isError?: boolean }
   | { type: "error"; text: string }
   | { type: "interrupted" }
+  | { type: "system"; text: string }
   | { type: "usage"; promptTokens: number; completionTokens: number };
 
 export interface AgentOptions {
@@ -54,7 +57,7 @@ export class Agent {
     this.getTodos = opts.getTodos;
     this.stallThreshold = opts.stallThreshold ?? 3;
     this.maxTurns = opts.maxTurns ?? 50;
-    this.compactThreshold = opts.compactThreshold ?? 500_000;
+    this.compactThreshold = opts.compactThreshold ?? 800_000;
   }
 
   get contextTokens(): number {
@@ -77,9 +80,9 @@ export class Agent {
     return this.conversation.export();
   }
 
-  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<void> {
+  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
     const history = this.conversation.toLLM().slice(1);
-    if (history.length === 0) return;
+    if (history.length === 0) return "ok";
     const request: Message[] = [...history];
     const todos = this.getTodos();
     if (todos.length) {
@@ -100,35 +103,36 @@ export class Agent {
     } catch (e) {
       if (signal?.aborted) {
         onEvent?.({ type: "interrupted" });
-      } else {
-        onEvent?.({ type: "error", text: (e as Error).message });
+        return "aborted";
       }
-      return;
+      onEvent?.({ type: "error", text: (e as Error).message });
+      return "error";
     }
     this.conversation.compact((msg.content as string) || "");
+    return "ok";
   }
 
   async run(
     userInput: string,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<void> {
-    await this.runTurn({ role: "user", content: userInput }, onEvent, signal);
+  ): Promise<RunStatus> {
+    return this.runTurn({ role: "user", content: userInput }, onEvent, signal);
   }
 
   async runSkill(
     skill: Skill,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<void> {
-    await this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
+  ): Promise<RunStatus> {
+    return this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
   }
 
   private async runTurn(
     msg: ConversationMessage,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<void> {
+  ): Promise<RunStatus> {
     this.conversation.add(msg);
     this.conversation.createSnapshot();
     this.todoSnapshot = this.getTodos();
@@ -140,9 +144,13 @@ export class Agent {
     };
 
     try {
-      await withAbort(this.loop(onEvent, signal), signal);
-    } catch {
-      if (signal?.aborted) onAbort();
+      return await withAbort(this.loop(onEvent, signal), signal);
+    } catch (e) {
+      if (signal?.aborted) {
+        onAbort();
+        return "aborted";
+      }
+      throw e;
     } finally {
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
@@ -153,12 +161,13 @@ export class Agent {
   private async loop(
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<void> {
+  ): Promise<RunStatus> {
     let lastSig = "";
     let stall = 0;
     let turns = 0;
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
+        onEvent?.({ type: "system", text: "auto-compacting context" });
         await this.compact(undefined, signal);
       }
       const messages = this.conversation.toLLM();
@@ -178,12 +187,12 @@ export class Agent {
           signal,
         }), signal);
       } catch (e) {
-        if (signal?.aborted) return;
+        if (signal?.aborted) return "aborted";
         onEvent?.({ type: "error", text: (e as Error).message });
-        return;
+        return "error";
       }
       this.conversation.add(msg);
-      if (!msg.tool_calls?.length) return;
+      if (!msg.tool_calls?.length) return "ok";
       const sig = msg.tool_calls
         .map((c) => `${c.function.name}:${c.function.arguments}`)
         .join("|");
@@ -191,14 +200,14 @@ export class Agent {
       lastSig = sig;
       if (stall >= this.stallThreshold) {
         onEvent?.({ type: "error", text: `agent stalled: repeated identical tool calls` });
-        return;
+        return "stalled";
       }
       if (++turns >= this.maxTurns) {
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
-        return;
+        return "maxturns";
       }
       const results = await this.runToolCalls(msg, onEvent, signal);
-      if (!results) return;
+      if (!results) return "aborted";
       for (const r of results) {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
       }

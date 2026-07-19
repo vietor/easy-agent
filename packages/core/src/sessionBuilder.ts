@@ -22,6 +22,9 @@ export interface SessionOptions {
   clientInfo?: { name: string; version: string };
   sessionId?: string;
   persistence?: SessionPersistence;
+  compactThreshold?: number;
+  maxTurns?: number;
+  stallThreshold?: number;
 }
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
@@ -57,5 +60,8 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     skills: opts.skills,
     sessionId: opts.sessionId,
     persistence: opts.persistence,
+    compactThreshold: opts.compactThreshold,
+    maxTurns: opts.maxTurns,
+    stallThreshold: opts.stallThreshold,
   });
 }

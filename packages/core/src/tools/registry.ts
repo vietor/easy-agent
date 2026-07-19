@@ -11,20 +11,25 @@ import { todoWriteTool } from "./todoWrite.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
+  private schemasCache: ToolSchema[] | null = null;
 
   register(tool: Tool): void {
     this.tools.set(tool.name, tool);
+    this.schemasCache = null;
   }
 
   schemas(): ToolSchema[] {
-    return [...this.tools.values()].map((t) => ({
-      type: "function" as const,
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters,
-      },
-    }));
+    if (!this.schemasCache) {
+      this.schemasCache = [...this.tools.values()].map((t) => ({
+        type: "function" as const,
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        },
+      }));
+    }
+    return this.schemasCache;
   }
 
   async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
@@ -55,11 +60,16 @@ export class ToolRegistry {
 export interface BuiltinToolsOptions {
   askUser?: boolean;
   todoWrite?: boolean;
+  disable?: string[];
 }
 
 export function registerBuiltinTools(tools: ToolRegistry, opts?: BuiltinToolsOptions) {
+  const disable = opts?.disable;
   const builtins = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
   if (opts?.askUser) builtins.push(askUserTool);
   if (opts?.todoWrite) builtins.push(todoWriteTool);
-  for (const t of builtins) tools.register(t);
+  for (const t of builtins) {
+    if (disable?.includes(t.name)) continue;
+    tools.register(t);
+  }
 }

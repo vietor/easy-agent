@@ -10,7 +10,7 @@ import type { Todo } from "../tools/types.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { SessionBusyError, type SessionPersistence, type SessionState } from "./types.js";
-import { Agent } from "./agent.js";
+import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
@@ -27,6 +27,11 @@ export interface RunState {
 export interface SessionView {
   timeline: readonly TimelineEntry[];
   todos: readonly Todo[];
+}
+
+export interface PromptResult {
+  status: RunStatus;
+  reply: string;
 }
 
 export type SessionEvent =
@@ -56,6 +61,9 @@ export interface SessionDeps {
   skills?: Skill[];
   sessionId?: string;
   persistence?: SessionPersistence;
+  stallThreshold?: number;
+  maxTurns?: number;
+  compactThreshold?: number;
 }
 
 export class Session {
@@ -154,6 +162,9 @@ export class Session {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
+      stallThreshold: deps.stallThreshold,
+      maxTurns: deps.maxTurns,
+      compactThreshold: deps.compactThreshold,
     });
     this.commands = deps.commands;
     this.mcp = deps.mcp;
@@ -236,9 +247,10 @@ export class Session {
     }
   }
 
-  async compact(): Promise<void> {
+  async compact(): Promise<RunStatus> {
     this.rejectIfBusy();
     await this.loop.startCompact();
+    return this.loop.lastStatus;
   }
 
   abort(): void {
@@ -285,10 +297,10 @@ export class Session {
     );
   }
 
-  async startPrompt(text: string): Promise<string> {
+  async startPrompt(text: string): Promise<PromptResult> {
     this.rejectIfBusy();
     await this.loop.startPrompt(text);
-    return this.loop.lastReply;
+    return { status: this.loop.lastStatus, reply: this.loop.lastReply };
   }
 
   private ask(text: string, options: string[]): Promise<string> {
