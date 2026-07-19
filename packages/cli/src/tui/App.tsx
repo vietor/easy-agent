@@ -135,9 +135,9 @@ export function App({ session }: { session: Session }) {
         </Box>
       ): null}
 
-      {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
-
       {runningView}
+
+      {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
 
       {!runState.running ? (
         <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />

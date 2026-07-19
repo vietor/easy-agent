@@ -35,7 +35,7 @@ export class CompletionsAdapter {
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
-      ...(useReasoning && { reasoning_effort: this.reasoningEffort })
+      ...(useReasoning && { reasoning_effort: this.reasoningEffort === "max" ? "xhigh" : this.reasoningEffort })
     };
     const stream = await this.client.chat.completions.create(
       params as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
@@ -52,8 +52,8 @@ export class CompletionsAdapter {
         content += delta.content;
         onDelta?.(delta.content);
       }
-      const reasoningText = (delta as { reasoning_content?: string | null; reasoning?: string | null }).reasoning_content
-        ?? (delta as { reasoning?: string | null }).reasoning;
+      const reasoningDelta = delta as { reasoning_content?: string | null; reasoning?: string | null };
+      const reasoningText = reasoningDelta.reasoning_content ?? reasoningDelta.reasoning;
       if (reasoningText) {
         onReasoning?.(reasoningText);
       }
