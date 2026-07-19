@@ -15,7 +15,6 @@ const COLORS: Record<TodoStatus, string> = {
 };
 
 export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo[] }) {
-  if (todos.length === 0) return null;
   const done = todos.filter((t) => t.status === "completed").length;
   const headerColor = done === todos.length ? "green" : "cyan";
   return (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
 import type { Session, RunState, SessionEvent, SessionView } from "@vietor/easy-agent-core";
 import { Markdown } from "./components/Markdown.js";
-import { TimelineList } from "./TimelineList.js";
+import { TimelineView } from "./TimelineView.js";
 import { TodoView } from "./TodoView.js";
 import { AppHeader } from "./AppHeader.js";
 import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
@@ -133,7 +133,13 @@ export function App({ session }: { session: Session }) {
     <Box width={columns} flexDirection="column">
       <AppHeader cwd={session.cwd} model={session.model} reasoningEffort={session.reasoningEffort} />
 
-      <TimelineList session={session} />
+      {view.timeline.length > 0? (
+        <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
+          {view.timeline.map((entry, i) => (
+            <TimelineView key={i} entry={entry} />
+          ))}
+        </Box>
+      ): null}
 
       {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
 

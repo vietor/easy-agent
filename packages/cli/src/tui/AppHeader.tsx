@@ -8,7 +8,7 @@ export const AppHeader = memo(function AppHeader({ cwd, model, reasoningEffort }
   const pkginfo = getPackageInfo();
   const reasoning = ` · reasoning ${reasoningEffort}`;
   return (
-    <Box width={columns} paddingX={1} flexDirection="column" borderStyle="single" borderBottom borderTop={false} borderLeft={false} borderRight={false} borderColor="gray">
+    <Box width={columns} paddingX={1} flexDirection="column">
       <Box flexDirection="row" justifyContent="space-between">
         <Text><Text bold>Easy Agent</Text><Text dimColor> v{pkginfo.version}</Text></Text>
         <Text dimColor>{`${model}${reasoning}`}</Text>
