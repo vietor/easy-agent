@@ -171,7 +171,7 @@ function toMessageParam(m: Message, includeThinking: boolean): Anthropic.Message
       });
     }
   }
-  return { role: "assistant", content: blocks.length ? blocks : text };
+  return { role: "assistant", content: blocks.length ? blocks : (text || "-") };
 }
 
 function mergeContent(

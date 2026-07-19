@@ -39,9 +39,9 @@ export class CompletionsAdapter {
     const params: Record<string, unknown> = {
       model: this.model,
       messages,
-      tools,
       stream: true,
       stream_options: { include_usage: true },
+      ...(tools.length > 0 && { tools }),
     };
     if (useReasoning) params.reasoning_effort = this.reasoningEffort;
     const stream = await this.client.chat.completions.create(
@@ -71,7 +71,8 @@ export class CompletionsAdapter {
             acc = { id: tc.id ?? "", name: "", arguments: "" };
             calls.set(tc.index, acc);
           }
-          if (tc.function?.name) acc.name += tc.function.name;
+          if (tc.id) acc.id = tc.id;
+          if (tc.function?.name) acc.name = tc.function.name;
           if (tc.function?.arguments) acc.arguments += tc.function.arguments;
         }
       }
