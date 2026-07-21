@@ -9,7 +9,16 @@ An autonomous coding agent in the terminal — monorepo workspace.
 
 ## Features
 
-- **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) in the LLM config to control the depth of model reasoning; defaults to `high`. The current setting is displayed in the TUI header.
+- **Multi-backend LLM client** — pluggable wire protocol that supports both OpenAI Chat Completions (`"completions"`) and Anthropic Messages API (`"anthropic"`) backends.
+- **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) to control reasoning depth; displayed live in the TUI header.
+- **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
+- **Session persistence** — save/resume conversations with async `SessionPersistence` and `flush()` write-completion guarantees; CLI supports `--continue` / `--resume`.
+- **Built-in tool system** — Shell, FileRead/Write/Edit, Glob, Grep, WebFetch, AskUser, TodoWrite — plus a simple `Tool` interface for custom tools.
+- **Skill system** — `SKILL.md` files in `~/.easy-agent/skills/` register as slash commands automatically.
+- **Context compaction** — auto-triggered LLM summarization when the conversation nears the token limit; also available as `/compact`.
+- **Stall & turn limits** — detects repeated identical tool calls (`stallThreshold`) and caps agent loop iterations (`maxTurns`), configurable per session.
+- **Reentrancy protection** — `SessionBusyError` guards against concurrent `startPrompt`/`compact` calls.
+- **Token usage tracking** — per-run `inputTokens` / `outputTokens` counters displayed in the TUI and exposed via events.
 
 This repo contains two packages:
 
