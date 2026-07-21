@@ -99,6 +99,8 @@ type SessionEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
   | { type: "assistant_delta"; text: string }
+  | { type: "reasoning_delta"; text: string }
+  | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean }
@@ -108,7 +110,7 @@ type SessionEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "system"; text: string }
-  | { type: "state"; running: boolean; elapsed: number; inputTokens: number; outputTokens: number };
+  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
 
 | Type | Emitted when |
@@ -116,6 +118,8 @@ type SessionEvent =
 | `user` | User submits a prompt (`startPrompt`). |
 | `skill` | A skill is invoked. |
 | `assistant_delta` | A streaming token delta from the LLM. |
+| `reasoning_delta` | A streaming thinking/reasoning token delta (extended thinking). |
+| `reasoning_clear` | Clears the accumulated reasoning text (e.g. on new tool round). |
 | `assistant` | A text response segment is flushed (on tool call or completion). |
 | `tool_start` / `tool_end` | A tool call starts / finishes. |
 | `retry` | The LLM client retries after a transient API error. |
@@ -134,8 +138,10 @@ Note: `subscribeEvents` is the primary stream for network/remote consumers (mult
 interface RunState {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
-  inputTokens: number;    // cumulative prompt tokens for the current run
-  outputTokens: number; // cumulative completion tokens for the current run
+  thinkingElapsed: number; // seconds spent in thinking/reasoning phase
+  replyElapsed: number;    // seconds spent in reply (text generation) phase
+  inputTokens: number;     // cumulative input (prompt) tokens for the current run
+  outputTokens: number;    // cumulative output (completion) tokens for the current run
 }
 ```
 
@@ -152,6 +158,9 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 
 | Property | Type | Description |
 |---|---|---|
+| `model` | `string` | The LLM model name (e.g. `"deepseek-v4-flash"`). |
+| `reasoningEffort` | `"high" \| "max"` | The configured reasoning effort. |
+| `compactThreshold` | `number` | Estimated-token threshold that triggers auto-compaction. |
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
 | `running` | `boolean` | Whether a prompt/compact is in progress. Check before issuing a driver call (see Reentrancy). |

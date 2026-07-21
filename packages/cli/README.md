@@ -104,7 +104,7 @@ Both global and project files are loaded and concatenated into the system prompt
 
 ### Skills (optional)
 
-Skills are reusable prompts that register themselves as slash commands. Create a subdirectory for each skill under `~/.easy-agent/skills/` (or `~/.claude/skills/`) with a `SKILL.md` file:
+Skills are reusable prompts that register themselves as slash commands. Create a subdirectory for each skill under `~/.easy-agent/skills/` with a `SKILL.md` file (falls back to `~/.claude/skills/`):
 
 ```
 ~/.easy-agent/skills/
@@ -140,7 +140,9 @@ easy-agent --resume      # list all saved sessions for this directory
 
 Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line preview of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
 
-The TUI automatically adapts to your terminal width. A status bar at the bottom shows the current context token count, with hints for keyboard shortcuts (<kbd>ESC</kbd> to abort a running task, <kbd>/</kbd> for commands).
+The TUI header shows the model name, version, and configured reasoning effort (e.g. `deepseek-v4-flash · reasoning high`). While the agent is running, a spinner displays the thinking and reply elapsed time alongside token counts (e.g. `⠋ thinking · think 2s · reply 0s · ↑1.2k · ↓0.4k`). If the LLM emits extended thinking blocks, a collapsible reasoning panel appears — press <kbd>t</kbd> to expand/collapse it.
+
+A status bar at the bottom shows the context token usage with a progress bar and percentage, along with keyboard shortcut hints: <kbd>ESC</kbd> to abort a running task, <kbd>t</kbd> to toggle reasoning (when available), and <kbd>/</kbd> for commands.
 
 ### Built-in tools
 
