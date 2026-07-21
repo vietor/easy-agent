@@ -95,11 +95,7 @@ function isTextualMime(mime: string): boolean {
   );
 }
 
-const DESCRIPTION = [
-  "Fetch a URL via GET and return its content as markdown (default) or plain text.",
-  "Follows redirects.",
-  "HTML is converted; other textual types (JSON, XML, plain text) are returned raw; non-textual content (images, binaries) is rejected.",
-].join(" ");
+const DESCRIPTION = "Fetch a URL via GET and return content as markdown (default) or plain text. Follows redirects. HTML is converted; JSON/XML/text returned raw; binaries rejected.";
 
 export const webFetchTool: Tool = {
   name: "WebFetch",

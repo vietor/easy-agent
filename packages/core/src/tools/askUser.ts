@@ -1,11 +1,6 @@
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = [
-  "Ask the user a question and wait for their answer.",
-  "Use when a decision belongs to the user: multiple reasonable approaches, an irreversible or consequential action, or an ambiguous request. Present choices via options rather than prose.",
-  "options is an optional list of choices; the user may also type a custom answer.",
-  "Returns the user's answer as text; an empty string means the user skipped the question.",
-].join(" ");
+const DESCRIPTION = "Ask the user a question. Use when a decision belongs to the user: multiple reasonable approaches, irreversible actions, or ambiguous requests. Returns the answer as text.";
 
 export const askUserTool: Tool = {
   name: "AskUser",

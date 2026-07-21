@@ -2,14 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = [
-  "Replace occurrences of old_string with new_string in a file.",
-  "Always read the file (FileRead) before editing — old_string must match the exact current content including whitespace and indentation; include enough surrounding context to be unique.",
-  "Make minimal, surgical changes that match the surrounding code style.",
-  "By default old_string must appear exactly once; set replace_all to true to replace every occurrence.",
-  "When copying old_string from FileRead output, strip the leading line-number prefix (digits and tab) before matching.",
-  "For full rewrites prefer FileWrite.",
-].join(" ");
+const DESCRIPTION = "Replace old_string with new_string in a file. Read the file first — old_string must match exactly including whitespace/indentation. Must be unique unless replace_all is set. For full rewrites prefer FileWrite.";
 
 export const fileEditTool: Tool = {
   name: "FileEdit",

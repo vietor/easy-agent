@@ -3,11 +3,7 @@ import type { Tool } from "./types.js";
 
 const DEFAULT_HEAD_LIMIT = 200;
 
-const DESCRIPTION = [
-  "Search file contents under a directory recursively for a regex pattern (RE2 syntax).",
-  "Includes hidden files (e.g. .env, .gitignore); skips node_modules and .git.",
-  "By default returns matching lines as path:line:content, capped at 200 lines; use output_mode, head_limit, and context options to control output.",
-].join(" ");
+const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines.";
 
 export const grepTool: Tool = {
   name: "Grep",
@@ -17,20 +13,16 @@ export const grepTool: Tool = {
     properties: {
       pattern: { type: "string" },
       path: { type: "string", description: "root directory, defaults to cwd" },
-      glob: { type: "string", description: "glob pattern to filter files (e.g. *.ts)" },
-      type: { type: "string", description: "file type to search (e.g. ts, js, py, rust, go)" },
-      output_mode: {
-        type: "string",
-        enum: ["content", "files_with_matches", "count"],
-        description: "content (default, matching lines), files_with_matches (file paths only), count (match counts per file)",
-      },
-      ignore_case: { type: "boolean", description: "case-insensitive match" },
-      before: { type: "number", description: "lines to show before each match" },
-      after: { type: "number", description: "lines to show after each match" },
-      context: { type: "number", description: "lines to show before and after each match" },
-      only_matching: { type: "boolean", description: "print only the matched (non-empty) parts" },
-      multiline: { type: "boolean", description: "allow patterns to span newlines" },
-      head_limit: { type: "number", description: "max output lines (default 200)" },
+      glob: { type: "string", description: "filter files, e.g. *.ts" },
+      type: { type: "string", description: "file type, e.g. ts, js, py" },
+      output_mode: { type: "string", enum: ["content", "files_with_matches", "count"], description: "defaults to content" },
+      ignore_case: { type: "boolean", description: "case-insensitive" },
+      before: { type: "number", description: "lines before each match" },
+      after: { type: "number", description: "lines after each match" },
+      context: { type: "number", description: "lines before and after each match" },
+      only_matching: { type: "boolean", description: "only the matched parts" },
+      multiline: { type: "boolean", description: "patterns may span newlines" },
+      head_limit: { type: "number", description: "max output lines, default 200" },
     },
     required: ["pattern"],
   },

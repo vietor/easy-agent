@@ -2,10 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = [
-  "Write content to a file, overwriting it entirely if it exists and creating parent directories as needed.",
-  "Use for new files or full rewrites; for targeted changes prefer FileEdit.",
-].join(" ");
+const DESCRIPTION = "Write content to a file, overwriting if it exists and creating parent directories. For targeted changes prefer FileEdit.";
 
 export const fileWriteTool: Tool = {
   name: "FileWrite",

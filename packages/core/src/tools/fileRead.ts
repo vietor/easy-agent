@@ -4,11 +4,7 @@ import type { Tool } from "./types.js";
 
 const DEFAULT_LIMIT = 2000;
 
-const DESCRIPTION = [
-  "Read a file's contents as UTF-8 text, returned with line numbers (cat -n format).",
-  "path may be relative (to the working directory) or absolute.",
-  "Reads up to 2000 lines by default; use offset and limit to page through larger files.",
-].join(" ");
+const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further.";
 
 export const fileReadTool: Tool = {
   name: "FileRead",

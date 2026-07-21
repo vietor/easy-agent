@@ -1,11 +1,7 @@
 import { resolveCwd, runRgLines } from "../util/ripgrep.js";
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = [
-  "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts); omit pattern to list every file.",
-  "Includes hidden files (e.g. .env, .gitignore); skips node_modules and .git.",
-  "Returns paths relative to the root, one per line.",
-].join(" ");
+const DESCRIPTION = "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Skips node_modules and .git.";
 
 export const globTool: Tool = {
   name: "Glob",
