@@ -20,4 +20,5 @@ export interface MCPServerInfo {
   type: "stdio" | "http";
   status: "pending" | "connected" | "failed" | "disabled";
   tools: string[];
+  error?: string;
 }

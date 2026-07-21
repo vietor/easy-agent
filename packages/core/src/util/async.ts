@@ -55,12 +55,11 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 export function withAbortFallback<T>(promise: Promise<T>, signal: AbortSignal | undefined, fallback: T): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) return Promise.resolve(fallback);
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => {
-      signal.addEventListener("abort", () => resolve(fallback), { once: true });
-    }),
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => resolve(fallback);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {

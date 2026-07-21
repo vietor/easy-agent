@@ -69,7 +69,7 @@ function extractContent(result: CallToolResult): string {
 }
 
 export class MCPServers {
-  private servers = new Map<string, { type: ServerType; status: MCPServerInfo["status"]; client?: MCPClient; tools: string[] }>();
+  private servers = new Map<string, { type: ServerType; status: MCPServerInfo["status"]; client?: MCPClient; tools: string[]; error?: string }>();
   private pending = new Set<MCPClient>();
   private disposed = false;
 
@@ -106,7 +106,7 @@ export class MCPServers {
         } catch (e) {
           client.kill();
           if (!this.disposed) {
-            this.servers.set(name, { type, status: "failed", tools: [] });
+            this.servers.set(name, { type, status: "failed", tools: [], error: (e as Error).message });
           }
         } finally {
           this.pending.delete(client);
@@ -133,7 +133,7 @@ export class MCPServers {
   }
 
   list(): MCPServerInfo[] {
-    return [...this.servers.entries()].map(([name, s]) => ({ name, type: s.type, status: s.status, tools: s.tools }));
+    return [...this.servers.entries()].map(([name, s]) => ({ name, type: s.type, status: s.status, tools: s.tools, error: s.error }));
   }
 
   kill(): void {

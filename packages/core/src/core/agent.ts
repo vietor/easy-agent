@@ -245,7 +245,7 @@ export class Agent {
         const result: ToolResult = argsError
           ? { content: argsError, isError: true }
           : await this.tools.execute(call.function.name, args, ctx);
-        onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
+        if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError });
         return { id: call.id, content: result.content };
       })
     ), signal, null);

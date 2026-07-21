@@ -138,8 +138,8 @@ Note: `subscribeEvents` is the primary stream for network/remote consumers (mult
 interface RunState {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
-  thinkingElapsed: number; // seconds spent in thinking/reasoning phase
-  replyElapsed: number;    // seconds spent in reply (text generation) phase
+  thinkingElapsed: number; // seconds before the first assistant text token (incl. reasoning/tools)
+  replyElapsed: number;    // seconds after the first assistant text token (incl. later tool rounds)
   inputTokens: number;     // cumulative input (prompt) tokens for the current run
   outputTokens: number;    // cumulative output (completion) tokens for the current run
 }

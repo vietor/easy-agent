@@ -108,7 +108,9 @@ export class Session {
   };
 
   private emit = (e: SessionEvent): void => {
-    for (const l of this.eventListeners) l(e);
+    for (const l of [...this.eventListeners]) {
+      try { l(e); } catch {}
+    }
   };
 
   getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
