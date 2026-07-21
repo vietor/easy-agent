@@ -6,7 +6,6 @@ import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
-const MAX_TOOL_RESULT_CHARS = 8000;
 
 const COMPACT_PROMPT = [
   "Summarize the conversation above for context continuation. Preserve:\n",
@@ -204,9 +203,6 @@ export class Agent {
         onEvent?.({ type: "error", text: (e as Error).message });
         return "error";
       }
-      if (msg.tool_calls?.length && typeof msg.content === "string" && msg.content.length > 200) {
-        msg = { ...msg, content: msg.content.slice(0, 200) };
-      }
       this.conversation.add(msg);
       if (!msg.tool_calls?.length) return "ok";
       const sig = msg.tool_calls
@@ -225,10 +221,7 @@ export class Agent {
       const results = await this.runToolCalls(msg, onEvent, signal);
       if (!results) return "aborted";
       for (const r of results) {
-        const content = r.content.length > MAX_TOOL_RESULT_CHARS
-          ? r.content.slice(0, MAX_TOOL_RESULT_CHARS) + `\n... (truncated ${r.content.length - MAX_TOOL_RESULT_CHARS} chars)`
-          : r.content;
-        this.conversation.add({ role: "tool", tool_call_id: r.id, content });
+        this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
       }
     }
   }
