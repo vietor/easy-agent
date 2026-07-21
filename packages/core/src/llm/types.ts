@@ -53,7 +53,7 @@ export interface ChatOptions {
   onDelta?: (text: string) => void;
   onReasoning?: (text: string) => void;
   onRetry?: (attempt: number, max: number) => void;
-  onUsage?: (promptTokens: number, completionTokens: number) => void;
+  onUsage?: (inputTokens: number, outputTokens: number) => void;
   reasoning?: boolean;
   signal?: AbortSignal;
 }

@@ -9,7 +9,7 @@ export class RunLoop {
   private replyStart: number | null = null;
   private lastReplyText = "";
   private lastStatusValue: RunStatus = "ok";
-  private runState: RunState = { running: false, elapsed: 0, promptTokens: 0, completionTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
+  private runState: RunState = { running: false, elapsed: 0, inputTokens: 0, outputTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -63,7 +63,7 @@ export class RunLoop {
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { running: true, elapsed: 0, promptTokens: 0, completionTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
+    this.runState = { running: true, elapsed: 0, inputTokens: 0, outputTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
     this.lastStatusValue = "ok";
     this.emitRunState();
 
@@ -151,7 +151,7 @@ export class RunLoop {
         this.emit({ type: "system", text: e.text });
         break;
       case "usage":
-        this.runState = { ...this.runState, promptTokens: e.promptTokens, completionTokens: e.completionTokens };
+        this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };
         this.emitRunState();
         break;
     }

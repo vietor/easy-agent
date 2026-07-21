@@ -108,7 +108,7 @@ type SessionEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "system"; text: string }
-  | { type: "state"; running: boolean; elapsed: number; promptTokens: number; completionTokens: number };
+  | { type: "state"; running: boolean; elapsed: number; inputTokens: number; outputTokens: number };
 ```
 
 | Type | Emitted when |
@@ -134,8 +134,8 @@ Note: `subscribeEvents` is the primary stream for network/remote consumers (mult
 interface RunState {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
-  promptTokens: number;    // cumulative prompt tokens for the current run
-  completionTokens: number; // cumulative completion tokens for the current run
+  inputTokens: number;    // cumulative prompt tokens for the current run
+  outputTokens: number; // cumulative completion tokens for the current run
 }
 ```
 
@@ -677,7 +677,7 @@ const session = await createSession({
 session.subscribeEvents((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
   else if (e.type === "state")
-    console.log(`tokens: ${e.promptTokens} prompt / ${e.completionTokens} completion`);
+    console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
 });
 
 const result = await session.startPrompt("What files are in the current directory?");

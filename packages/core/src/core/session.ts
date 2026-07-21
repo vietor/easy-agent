@@ -20,8 +20,8 @@ export interface RunState {
   elapsed: number;
   thinkingElapsed: number;
   replyElapsed: number;
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export interface SessionView {
@@ -49,7 +49,7 @@ export type SessionEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "system"; text: string }
-  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; promptTokens: number; completionTokens: number };
+  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 
 export interface SessionDeps {
   llm: LLMClient;

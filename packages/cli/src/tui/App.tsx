@@ -16,7 +16,7 @@ export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
-  const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, promptTokens: 0, completionTokens: 0 });
+  const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   const [streamingText, setStreamingText] = useState("");
   const streamingRef = useRef("");
   const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -116,7 +116,7 @@ export function App({ session }: { session: Session }) {
             </Box>
           ) : null}
           <Box marginTop={1} paddingLeft={1}>
-            <Spinner label={spinnerLabel} thinkingElapsed={runState.thinkingElapsed} replyElapsed={runState.replyElapsed} promptTokens={runState.promptTokens} completionTokens={runState.completionTokens} />
+            <Spinner label={spinnerLabel} thinkingElapsed={runState.thinkingElapsed} replyElapsed={runState.replyElapsed} inputTokens={runState.inputTokens} outputTokens={runState.outputTokens} />
           </Box>
         </>
       );

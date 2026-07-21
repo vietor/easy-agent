@@ -8,14 +8,14 @@ export function Spinner({
   label,
   thinkingElapsed,
   replyElapsed,
-  promptTokens,
-  completionTokens,
+  inputTokens,
+  outputTokens,
 }: {
   label: string;
   thinkingElapsed: number;
   replyElapsed: number;
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 }) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
@@ -26,7 +26,7 @@ export function Spinner({
     <Text>
       <Text color="cyan">{SPINNER_FRAMES[frame]}</Text>
       <Text> {label}</Text>
-      <Text dimColor> · think {timeDisplay(thinkingElapsed)} · reply {timeDisplay(replyElapsed)} · ↑{compactDisplay(promptTokens)} · ↓{compactDisplay(completionTokens)}</Text>
+      <Text dimColor> · think {timeDisplay(thinkingElapsed)} · reply {timeDisplay(replyElapsed)} · ↑{compactDisplay(inputTokens)} · ↓{compactDisplay(outputTokens)}</Text>
     </Text>
   );
 }

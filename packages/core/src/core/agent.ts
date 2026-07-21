@@ -34,7 +34,7 @@ export type AgentEvent =
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "system"; text: string }
-  | { type: "usage"; promptTokens: number; completionTokens: number };
+  | { type: "usage"; inputTokens: number; outputTokens: number };
 
 export interface AgentOptions {
   llm: LLMClient;
@@ -112,7 +112,7 @@ export class Agent {
         reasoning: false,
         onDelta: (text) => onEvent?.({ type: "delta", text }),
         onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-        onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
+        onUsage: (inputTokens, outputTokens) => onEvent?.({ type: "usage", inputTokens, outputTokens }),
         signal,
       }), signal);
     } catch (e) {
@@ -198,7 +198,7 @@ export class Agent {
           onDelta: (text) => onEvent?.({ type: "delta", text }),
           onReasoning: (text) => onEvent?.({ type: "reasoning_delta", text }),
           onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-          onUsage: (promptTokens, completionTokens) => onEvent?.({ type: "usage", promptTokens, completionTokens }),
+          onUsage: (inputTokens, outputTokens) => onEvent?.({ type: "usage", inputTokens, outputTokens }),
           signal,
         }), signal);
       } catch (e) {
