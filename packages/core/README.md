@@ -57,6 +57,23 @@ const session = await createSession({
 
 ---
 
+## `SYSTEM_PROMPT_BOUNDARY`
+
+**`SYSTEM_PROMPT_BOUNDARY: string`**
+
+A constant separator that `createSession` appends between the user-provided `systemPrompt` and the auto-generated tool-use/behavior guidelines. Also exported so callers can use it when composing their own system prompt from multiple segments:
+
+```ts
+import { SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
+
+const systemPrompt = [
+  coreInstructions,
+  contextRules,
+].join(SYSTEM_PROMPT_BOUNDARY);
+```
+
+---
+
 ## `Session`
 
 The main session object. Create one via `createSession()`.
