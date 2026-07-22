@@ -10,6 +10,8 @@ import type { MCPServerConfig } from "./mcp/types.js";
 import type { LLMConfig } from "./llm/types.js";
 import type { SessionPersistence } from "./core/types.js";
 
+export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY --> \n\n';
+
 export interface SessionOptions {
   systemPrompt: string;
   llmConfig: LLMConfig;
@@ -26,6 +28,12 @@ export interface SessionOptions {
   maxTurns?: number;
   stallThreshold?: number;
 }
+
+const TOOL_USE_PROMPT = [
+  "Tool use:",
+  "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently.",
+  "- Do not batch calls that depend on a prior result or that modify the same file or resource.",
+].join("\n");
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llmConfig);
@@ -52,7 +60,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
 
   return new Session({
     llm,
-    systemPrompt: opts.systemPrompt,
+    systemPrompt: opts.systemPrompt + SYSTEM_PROMPT_BOUNDARY + TOOL_USE_PROMPT,
     cwd: opts.cwd ?? process.cwd(),
     tools,
     commands,

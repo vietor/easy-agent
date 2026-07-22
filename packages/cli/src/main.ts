@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
-import { tryLoadSkills, tryReadFileText, createSession } from "@vietor/easy-agent-core";
+import { tryLoadSkills, tryReadFileText, createSession, SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
 import { builtinCommands } from "./cmds/builtin.js";
 import { startApp } from "./tui/App.js";
 import { getPackageInfo } from "./util/package.js";
@@ -85,7 +85,7 @@ export async function main(argv: string[] = []): Promise<void> {
 
   const systemPrompt = [buildSystemPromptBase(cwd), globalPrompt, projectPrompt]
     .filter(Boolean)
-    .join("\n\n=================\n\n");
+    .join(SYSTEM_PROMPT_BOUNDARY);
 
   const session = await createSession({
     systemPrompt,

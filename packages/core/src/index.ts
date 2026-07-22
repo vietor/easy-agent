@@ -12,5 +12,5 @@ export type { LLMConfig, ReasoningEffort, WireApi } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { netFetch } from "./util/net.js";
-export { createSession, type SessionOptions } from "./sessionBuilder.js";
+export { createSession, SYSTEM_PROMPT_BOUNDARY, type SessionOptions } from "./sessionBuilder.js";
 export { SessionBusyError, type SessionPersistence, type SessionState, type SessionMeta } from "./core/types.js";
