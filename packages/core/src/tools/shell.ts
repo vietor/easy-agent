@@ -1,5 +1,5 @@
 import { runProcess } from "../util/subprocess.js";
-import type { Tool } from "./types.js";
+import type { Tool, ToolResult } from "./types.js";
 
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : "/bin/sh";
@@ -20,13 +20,16 @@ export const shellTool: Tool = {
     properties: { command: { type: "string" } },
     required: ["command"],
   },
-  async execute(args, ctx) {
+  async execute(args, ctx): Promise<ToolResult> {
     const command = args.command as string;
     const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd }, ctx.signal);
     if (r.status === 0 && !r.error) {
-      return r.stdout || "(no output)";
+      return { content: r.stdout || "(no output)" };
     }
-    return (r.stdout || "") + (r.stderr || "") + (r.error?.message || "");
+    return {
+      content: (r.stdout || "") + (r.stderr || "") + (r.error?.message || ""),
+      isError: true,
+    };
   },
   summaryArg: "command",
 };
