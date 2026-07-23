@@ -12,7 +12,7 @@ export interface ProcessResult {
 export function runProcess(
   cmd: string,
   args: string[],
-  opts: { cwd?: string } = {},
+  opts: { cwd?: string; timeout?: number } = {},
   signal?: AbortSignal
 ): Promise<ProcessResult> {
   return new Promise((resolve) => {
@@ -20,39 +20,55 @@ export function runProcess(
       cwd: opts.cwd,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    const onAbort = () => child.kill();
-    if (signal) {
-      signal.addEventListener("abort", onAbort, { once: true });
-      if (signal.aborted) onAbort();
-    }
+
     const outChunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
     let size = 0;
     let overflow = false;
+    let settled = false;
+
+    function settle(result: ProcessResult) {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", kill);
+      resolve(result);
+    }
+
+    function kill() { child.kill(); }
+
+    if (signal) {
+      signal.addEventListener("abort", kill, { once: true });
+      if (signal.aborted) kill();
+    }
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const { timeout } = opts;
+    if (timeout && timeout > 0) {
+      timer = setTimeout(() => {
+        kill();
+        settle({
+          stdout: Buffer.concat(outChunks).toString("utf-8"),
+          stderr: Buffer.concat(errChunks).toString("utf-8"),
+          status: null,
+          error: new Error(`Command timed out (${timeout / 1000}s)`),
+        });
+      }, timeout);
+    }
+
     child.stdout?.on("data", (c: Buffer) => {
       outChunks.push(c);
       size += c.length;
-      if (size > MAX_BUFFER) {
-        overflow = true;
-        child.kill();
-      }
+      if (size > MAX_BUFFER) { overflow = true; kill(); }
     });
-    child.stderr?.on("data", (c: Buffer) => {
-      errChunks.push(c);
-    });
-    child.on("error", (error) => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve({ stdout: "", stderr: "", status: null, error });
-    });
+    child.stderr?.on("data", (c: Buffer) => { errChunks.push(c); });
+    child.on("error", (error) => settle({ stdout: "", stderr: "", status: null, error }));
     child.on("close", (status) => {
-      signal?.removeEventListener("abort", onAbort);
       const stdout = Buffer.concat(outChunks).toString("utf-8");
       const stderr = Buffer.concat(errChunks).toString("utf-8");
-      resolve(
-        overflow
-          ? { stdout, stderr, status, error: new Error("output exceeded maxBuffer") }
-          : { stdout, stderr, status }
-      );
+      settle(overflow
+        ? { stdout, stderr, status, error: new Error(`Command output exceeded ${MAX_BUFFER / 1024 / 1024}MB`) }
+        : { stdout, stderr, status });
     });
   });
 }

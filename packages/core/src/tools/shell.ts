@@ -22,12 +22,13 @@ export const shellTool: Tool = {
   },
   async execute(args, ctx): Promise<ToolResult> {
     const command = args.command as string;
-    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd }, ctx.signal);
+    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd, timeout: 300_000 }, ctx.signal);
     if (r.status === 0 && !r.error) {
       return { content: r.stdout || "(no output)" };
     }
+    const parts = [r.stdout, r.stderr, r.error?.message].filter(Boolean);
     return {
-      content: (r.stdout || "") + (r.stderr || "") + (r.error?.message || ""),
+      content: parts.join("\n") || "(no output)",
       isError: true,
     };
   },
