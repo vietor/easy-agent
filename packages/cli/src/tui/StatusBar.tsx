@@ -23,7 +23,7 @@ export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, 
   return (
     <Box width={columns} paddingX={1} flexDirection="row" justifyContent="space-between" borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray">
       <Text>
-        <Text dimColor>{`ctx ${compactDisplay(contextTokens)} `}</Text>
+        <Text dimColor>{`context ${compactDisplay(contextTokens)} `}</Text>
         <Text color={ctxColor}>{`▕${bar}▏ ${pct}%`}</Text>
       </Text>
       <Text dimColor>{hints}</Text>

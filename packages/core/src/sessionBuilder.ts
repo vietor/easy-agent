@@ -30,9 +30,12 @@ export interface SessionOptions {
 }
 
 const TOOL_USE_PROMPT = [
-  "Tool use:",
+  "Tool-Use Guidelines:",
+  "The user's instructions in the preceding sections take precedence over these defaults.",
+  "",
   "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently.",
   "- Do not batch calls that depend on a prior result or that modify the same file or resource.",
+  "- For file operations (read/write/edit/glob/grep) and fetching URLs, prefer the dedicated tool over Shell.",
 ].join("\n");
 
 export async function createSession(opts: SessionOptions): Promise<Session> {

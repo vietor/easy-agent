@@ -9,8 +9,8 @@ const commandPrefix = isWindows
   : "";
 
 const DESCRIPTION = isWindows
-  ? "Execute a PowerShell command (powershell.exe, NOT pwsh). Use semicolons for chaining. No stdin/interactive prompts. Prefer FileRead/FileWrite/FileEdit/Glob/Grep/WebFetch over Shell when possible."
-  : "Execute a POSIX sh command. No stdin/interactive prompts. Use sudo -n for privileged commands. Prefer FileRead/FileWrite/FileEdit/Glob/Grep/WebFetch over Shell when possible.";
+  ? "Execute a PowerShell command (powershell.exe, NOT pwsh). Use semicolons for chaining. No stdin/interactive prompts."
+  : "Execute a POSIX sh command. No stdin/interactive prompts. Use sudo -n for privileged commands.";
 
 export const shellTool: Tool = {
   name: "Shell",
