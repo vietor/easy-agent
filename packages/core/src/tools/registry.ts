@@ -6,15 +6,16 @@ import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
+import { getContentBytes } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
     const text = result.content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-    return text.length > 100 ? text.slice(0, 100) + "…" : text;
+    return text.length > 75 ? text.slice(0, 75) + "…" : text;
   }
-  const byteCount = Buffer.byteLength(result.content, "utf-8");
-  const lineCount = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
-  return `Result: ${byteCount} bytes, ${lineCount} lines`;
+  const bytes = getContentBytes(result.content);
+  const lines = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
+  return `Retrieved ${bytes} bytes, ${lines} lines`;
 }
 
 export class ToolRegistry {
