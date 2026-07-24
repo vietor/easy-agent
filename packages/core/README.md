@@ -47,7 +47,7 @@ const session = await createSession({
 | `commands` | `Command[]` | `undefined` | Custom slash commands. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; each registers as a slash command. |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtinTools` | `BuiltinToolsOptions \| false` | *(all non-interactive)* | Toggle built-in tools; `false` to disable all, or an options object to enable interactive tools. |
+| `builtinTools` | `BuiltinToolsOptions \| false` | *(all enabled)* | Toggle built-in tools individually; `false` to disable all. All tools default to `true` except `askUser` and `todoWrite` which default to `false`. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
@@ -405,11 +405,16 @@ interface Tool {
 
 ```ts
 interface ToolContext {
-  signal?: AbortSignal;                                   // abort signal for the current run
-  cwd: string;                                            // resolved working directory for path-based tools
-  ask(question: string, options: string[]): Promise<string>; // ask the user a question
-  setTodos(todos: Todo[]): void;                           // update the task list
+  signal?: AbortSignal;  // abort signal for the current run
+  cwd: string;           // resolved working directory for path-based tools
 }
+```
+
+Tools that need user interaction (`AskUser`) or task management (`TodoWrite`) receive those capabilities via factory functions rather than through `ToolContext`:
+
+```ts
+import { createAskUserTool } from "@vietor/easy-agent-core";
+const askUserTool = createAskUserTool(async (question, options) => { /* ... */ });
 ```
 
 ### `ToolResult`
@@ -450,12 +455,7 @@ Non-interactive tools (always registered):
 | **Grep** | Content search with regex. |
 | **WebFetch** | Fetch URL content. |
 
-Interactive tools (require `builtinTools` option):
-
-| Tool | Option | Description |
-|---|---|---|
-| **AskUser** | `builtinTools.askUser: true` | Prompt the user for input. |
-| **TodoWrite** | `builtinTools.todoWrite: true` | Structured multi-step task tracking. |
+Each built-in tool can be toggled individually via `builtinTools`. All tools default to enabled except `askUser` and `todoWrite` which must be explicitly enabled.
 
 ```ts
 const session = await createSession({
@@ -463,10 +463,10 @@ const session = await createSession({
   llmConfig: { ... },
   builtinTools: { askUser: true, todoWrite: true },
 });
-// or disable all built-in tools:
+// Disable all built-in tools:
 // builtinTools: false
-// or disable specific built-in tools by name (e.g. a read-only agent):
-// builtinTools: { disable: ["Shell", "FileWrite", "FileEdit"] }
+// Disable specific tools:
+// builtinTools: { shell: false, webFetch: false }
 ```
 
 ### Custom tools example

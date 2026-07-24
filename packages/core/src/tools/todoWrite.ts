@@ -30,35 +30,37 @@ function parseTodos(args: Record<string, unknown>) {
   return { todos, done, normalized };
 }
 
-export const todoWriteTool: Tool = {
-  name: "TodoWrite",
-  description: DESCRIPTION,
-  parameters: {
-    type: "object",
-    properties: {
-      todos: {
-        type: "array",
-        description: "The full task list, in execution order.",
-        items: {
-          type: "object",
-          properties: {
-            content: { type: "string", description: "A short imperative description of the step." },
-            status: { type: "string", enum: STATUSES, description: "Current status of the step." },
+export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
+  return {
+    name: "TodoWrite",
+    description: DESCRIPTION,
+    parameters: {
+      type: "object",
+      properties: {
+        todos: {
+          type: "array",
+          description: "The full task list, in execution order.",
+          items: {
+            type: "object",
+            properties: {
+              content: { type: "string", description: "A short imperative description of the step." },
+              status: { type: "string", enum: STATUSES, description: "Current status of the step." },
+            },
+            required: ["content", "status"],
           },
-          required: ["content", "status"],
         },
       },
+      required: ["todos"],
     },
-    required: ["todos"],
-  },
-  summarizeArgs(args) {
-    const { todos, done } = parseTodos(args);
-    return `${done}/${todos.length}`;
-  },
-  async execute(args, ctx) {
-    const { todos, done, normalized } = parseTodos(args);
-    ctx.setTodos(todos);
-    const note = normalized ? ` (normalized ${normalized} item${normalized === 1 ? "" : "s"} to one in_progress)` : "";
-    return `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done)${note}.`;
-  },
-};
+    summarizeArgs(args) {
+      const { todos, done } = parseTodos(args);
+      return `${done}/${todos.length}`;
+    },
+    async execute(args, _ctx) {
+      const { todos, done, normalized } = parseTodos(args);
+      setTodos(todos);
+      const note = normalized ? ` (normalized ${normalized} item${normalized === 1 ? "" : "s"} to one in_progress)` : "";
+      return `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done)${note}.`;
+    },
+  };
+}

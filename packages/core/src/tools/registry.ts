@@ -6,16 +6,24 @@ import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
-import { askUserTool } from "./askUser.js";
-import { todoWriteTool } from "./todoWrite.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
   private schemasCache: ToolSchema[] | null = null;
 
-  register(tool: Tool): void {
+  register(tool: Tool): this {
     this.tools.set(tool.name, tool);
     this.schemasCache = null;
+    return this;
+  }
+
+  registerAll(tools: Tool[]): this {
+    for (const t of tools) this.register(t);
+    return this;
+  }
+
+  has(name: string): boolean {
+    return this.tools.has(name);
   }
 
   schemas(): ToolSchema[] {
@@ -58,18 +66,26 @@ export class ToolRegistry {
 }
 
 export interface BuiltinToolsOptions {
+  shell?: boolean;
+  fileRead?: boolean;
+  fileWrite?: boolean;
+  fileEdit?: boolean;
+  glob?: boolean;
+  grep?: boolean;
+  webFetch?: boolean;
   askUser?: boolean;
   todoWrite?: boolean;
-  disable?: string[];
+}
+
+const CORE_TOOLS: Tool[] = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
+
+function optionKey(tool: Tool): keyof BuiltinToolsOptions {
+  return (tool.name[0].toLowerCase() + tool.name.slice(1)) as keyof BuiltinToolsOptions;
 }
 
 export function registerBuiltinTools(tools: ToolRegistry, opts?: BuiltinToolsOptions) {
-  const disable = opts?.disable;
-  const builtins = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
-  if (opts?.askUser) builtins.push(askUserTool);
-  if (opts?.todoWrite) builtins.push(todoWriteTool);
-  for (const t of builtins) {
-    if (disable?.includes(t.name)) continue;
-    tools.register(t);
+  for (const tool of CORE_TOOLS) {
+    if (opts?.[optionKey(tool)] === false) continue;
+    tools.register(tool);
   }
 }

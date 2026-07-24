@@ -5,8 +5,10 @@ import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { SkillRegistry } from "../skills/registry.js";
-import type { ToolRegistry } from "../tools/registry.js";
+import type { ToolRegistry, BuiltinToolsOptions } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
+import { createAskUserTool } from "../tools/askUser.js";
+import { createTodoWriteTool } from "../tools/todoWrite.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { SessionBusyError, type SessionPersistence, type SessionState } from "./types.js";
@@ -59,6 +61,7 @@ export interface SessionDeps {
   commands: CommandRegistry;
   mcp: MCPServers;
   skills?: Skill[];
+  builtinTools?: BuiltinToolsOptions;
   sessionId?: string;
   persistence?: SessionPersistence;
   stallThreshold?: number;
@@ -156,12 +159,18 @@ export class Session {
     this.cwd = deps.cwd;
     this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
+    if (deps.builtinTools?.askUser) {
+      deps.tools.register(createAskUserTool((q, o) => this.ask(q, o)));
+    }
+    if (deps.builtinTools?.todoWrite) {
+      deps.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
+    }
+
     this.agent = new Agent({
       llm: deps.llm,
       conversation: this.conversation,
       tools: deps.tools,
       cwd: deps.cwd,
-      ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
       stallThreshold: deps.stallThreshold,

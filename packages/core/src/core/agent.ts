@@ -38,7 +38,6 @@ export interface AgentOptions {
   conversation: Conversation;
   tools: ToolRegistry;
   cwd: string;
-  ask: (question: string, options: string[]) => Promise<string>;
   setTodos: (todos: Todo[]) => void;
   getTodos: () => readonly Todo[];
   stallThreshold?: number;
@@ -51,7 +50,6 @@ export class Agent {
   private conversation: Conversation;
   private tools: ToolRegistry;
   private cwd: string;
-  private ask: (question: string, options: string[]) => Promise<string>;
   private setTodos: (todos: Todo[]) => void;
   private getTodos: () => readonly Todo[];
   private stallThreshold: number;
@@ -64,7 +62,6 @@ export class Agent {
     this.conversation = opts.conversation;
     this.tools = opts.tools;
     this.cwd = opts.cwd;
-    this.ask = opts.ask;
     this.setTodos = opts.setTodos;
     this.getTodos = opts.getTodos;
     this.stallThreshold = opts.stallThreshold ?? 3;
@@ -241,7 +238,7 @@ export class Agent {
         }
         const summary = this.tools.summarize(call.function.name, args);
         onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
-        const ctx: ToolContext = { signal, cwd: this.cwd, ask: this.ask, setTodos: this.setTodos };
+        const ctx: ToolContext = { signal, cwd: this.cwd };
         const result: ToolResult = argsError
           ? { content: argsError, isError: true }
           : await this.tools.execute(call.function.name, args, ctx);

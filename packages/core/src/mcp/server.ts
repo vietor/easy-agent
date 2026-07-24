@@ -102,7 +102,7 @@ export class MCPServers {
             return;
           }
           this.servers.set(name, { type, status: "connected", client, tools: mcpTools.map((t) => t.name) });
-          for (const t of mcpTools) this.tools.register(this.adapt(name, client, t));
+          this.tools.registerAll(mcpTools.map((t) => this.adapt(name, client, t)));
         } catch (e) {
           client.kill();
           if (!this.disposed) {

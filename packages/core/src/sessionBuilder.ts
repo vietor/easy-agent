@@ -46,22 +46,18 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     registerBuiltinTools(tools, opts.builtinTools || undefined);
   }
   if (opts.tools) {
-    for (const t of opts.tools) tools.register(t);
-  }
-
-  const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "easy-agent-core", version: "0.0.0" });
-  if (opts.mcpServers) {
-    await mcp.connect(opts.mcpServers);
+    tools.registerAll(opts.tools);
   }
 
   const commands = new CommandRegistry();
   registerBuiltinCommands(commands);
-
   if (opts.commands) {
     for (const c of opts.commands) commands.register(c);
   }
 
-  return new Session({
+  const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "easy-agent-core", version: "0.0.0" });
+
+  const session = new Session({
     llm,
     systemPrompt: opts.systemPrompt + SYSTEM_PROMPT_BOUNDARY + TOOL_USE_PROMPT,
     cwd: opts.cwd ?? process.cwd(),
@@ -69,10 +65,17 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     commands,
     mcp,
     skills: opts.skills,
+    builtinTools: opts.builtinTools === false ? undefined : opts.builtinTools,
     sessionId: opts.sessionId,
     persistence: opts.persistence,
     compactThreshold: opts.compactThreshold,
     maxTurns: opts.maxTurns,
     stallThreshold: opts.stallThreshold,
   });
+
+  if (opts.mcpServers) {
+    await mcp.connect(opts.mcpServers);
+  }
+
+  return session;
 }
