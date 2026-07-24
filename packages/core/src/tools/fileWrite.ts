@@ -19,5 +19,10 @@ export const fileWriteTool: Tool = {
     await writeFile(resolved, args.content as string, "utf-8");
     return `Wrote ${path}`;
   },
+  getPreview(result) {
+    if (result.isError) return "Write failed";
+    const bytes = Buffer.byteLength(result.content, "utf-8");
+    return `Wrote ${bytes} bytes`;
+  },
   summaryArg: "path",
 };

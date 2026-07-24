@@ -7,6 +7,16 @@ import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
 
+function defaultPreview(result: ToolResult): string {
+  if (result.isError) {
+    const text = result.content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > 100 ? text.slice(0, 100) + "…" : text;
+  }
+  const byteCount = Buffer.byteLength(result.content, "utf-8");
+  const lineCount = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
+  return `Result: ${byteCount} bytes, ${lineCount} lines`;
+}
+
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
   private schemasCache: ToolSchema[] | null = null;
@@ -50,6 +60,16 @@ export class ToolRegistry {
     } catch (e) {
       return { content: `Error: ${(e as Error).message}`, isError: true };
     }
+  }
+
+  getPreview(name: string, result: ToolResult, durationMs?: number): string {
+    const tool = this.tools.get(name);
+    const preview = tool?.getPreview
+      ? tool.getPreview(result, durationMs)
+      : defaultPreview(result);
+    return durationMs !== undefined
+      ? `[${(durationMs / 1000).toFixed(1)}s] ${preview}`
+      : preview;
   }
 
   summarize(name: string, args: Record<string, unknown>): string {

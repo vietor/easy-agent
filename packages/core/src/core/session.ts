@@ -44,7 +44,7 @@ export type SessionEvent =
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
   | { type: "retry"; attempt: number; max: number }
   | { type: "error"; text: string }
   | { type: "interrupted" }
@@ -229,8 +229,14 @@ export class Session {
 
   private rebuildTimeline(messages: ConversationMessage[]): void {
     const toolResults = new Map<string, string>();
+    const toolAnnotations = new Map<string, { preview?: string; isError?: boolean }>();
     for (const m of messages) {
-      if (m.role === "tool") toolResults.set(m.tool_call_id, m.content);
+      if (m.role === "tool") {
+        toolResults.set(m.tool_call_id, m.content);
+        if (m.preview !== undefined || m.isError !== undefined) {
+          toolAnnotations.set(m.tool_call_id, { preview: m.preview, isError: m.isError });
+        }
+      }
     }
     for (const m of messages) {
       if (m.role === "user") {
@@ -246,12 +252,15 @@ export class Session {
             if (tc.function.arguments) {
               try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
             }
+            const ann = toolAnnotations.get(tc.id);
             this.timelineStore.append({
               kind: "tool",
               id: tc.id,
               name: tc.function.name,
               summary: this.tools.summarize(tc.function.name, args),
               result: toolResults.get(tc.id) ?? null,
+              preview: ann?.preview,
+              isError: ann?.isError,
             });
           }
         }

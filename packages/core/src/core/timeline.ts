@@ -4,7 +4,7 @@ export type TimelineEntry =
   | { kind: "user"; text: string }
   | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean }
+  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean; preview?: string }
   | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
@@ -56,13 +56,13 @@ export class TimelineStore extends VersionedStore {
     this.notify();
   }
 
-  setResult(id: string, result: string, isError?: boolean): void {
+  setResult(id: string, result: string, isError?: boolean, preview?: string): void {
     const idx = this.pendingTools.get(id);
     if (idx === undefined) return;
     this.pendingTools.delete(id);
     const entry = this.entries[idx];
     if (entry.kind === "tool" && entry.result === null) {
-      this.entries[idx] = { ...entry, result, isError };
+      this.entries[idx] = { ...entry, result, isError, preview };
       this.notify();
     }
   }

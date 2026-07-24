@@ -3,17 +3,6 @@ import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
 import type { TimelineEntry } from "@vietor/easy-agent-core";
 
-function preview(isError: boolean, text: string): string {
-  if (isError) {
-    const previewText = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-    return previewText.length > 100 ? previewText.slice(0, 100) + "…" : previewText;
-  }
-
-  const lineCount = text.length === 0 ? 0 : (text.match(/\n/g) || []).length + 1;
-  const byteCount = Buffer.byteLength(text, "utf-8");
-  return `Result: ${byteCount} bytes, ${lineCount} lines`;
-}
-
 export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntry }) {
   switch (entry.kind) {
     case "user":
@@ -50,7 +39,7 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
             {entry.summary ? <Text dimColor> {entry.summary}</Text> : null}
           </Text>
           {entry.result !== null ? (
-            <Text color={entry.isError ? "red" : "gray"}>{`  ${preview(entry.isError ?? false, entry.result)}`}</Text>
+            <Text color={entry.isError ? "red" : "gray"}>{`  ${entry.preview}`}</Text>
           ) : null}
         </Box>
       );

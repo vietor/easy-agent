@@ -133,8 +133,8 @@ export class RunLoop {
         this.emit({ type: "retry", attempt: e.attempt, max: e.max });
         break;
       case "tool_end":
-        this.timeline.setResult(e.id, e.result, e.isError);
-        this.emit({ type: "tool_end", id: e.id, result: e.result, isError: e.isError });
+        this.timeline.setResult(e.id, e.result, e.isError, e.preview);
+        this.emit({ type: "tool_end", id: e.id, result: e.result, isError: e.isError, preview: e.preview });
         break;
       case "error":
         this.flushStreaming();

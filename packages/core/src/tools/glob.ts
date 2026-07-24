@@ -23,5 +23,10 @@ export const globTool: Tool = {
     const files = await runRgLines(rgArgs, cwd, ctx.signal);
     return files.length ? files.join("\n") : "(no matches)";
   },
+  getPreview(result) {
+    if (result.isError || result.content === "(no matches)") return "Found 0 files";
+    const count = result.content.split("\n").filter((l) => l && !l.startsWith("(")).length;
+    return `Found ${count} file${count !== 1 ? "s" : ""}`;
+  },
   summaryArg: ["pattern", "path"],
 };

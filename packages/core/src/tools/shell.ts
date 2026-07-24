@@ -32,5 +32,8 @@ export const shellTool: Tool = {
       isError: true,
     };
   },
+  getPreview(result) {
+    return result.isError ? "Command failed" : "Command executed";
+  },
   summaryArg: "command",
 };

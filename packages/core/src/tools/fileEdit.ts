@@ -36,5 +36,10 @@ export const fileEditTool: Tool = {
     await writeFile(resolved, content.replace(oldStr, newStr), "utf-8");
     return `Edited ${path}`;
   },
+  getPreview(result) {
+    if (result.isError) return "Edit failed";
+    const bytes = Buffer.byteLength(result.content, "utf-8");
+    return `Edited ${bytes} bytes`;
+  },
   summaryArg: "path",
 };

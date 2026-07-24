@@ -75,5 +75,10 @@ export const webFetchTool: Tool = {
     if (!contentType.includes("html")) return body;
     return htmlToMarkdown(body);
   },
+  getPreview(result) {
+    if (result.isError) return "Fetch failed";
+    const bytes = Buffer.byteLength(result.content, "utf-8");
+    return `Fetched ${bytes} bytes`;
+  },
   summaryArg: "url",
 };

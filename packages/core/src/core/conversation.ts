@@ -5,7 +5,7 @@ export type ConversationMessage =
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
   | AssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string };
+  | { role: "tool"; tool_call_id: string; content: string; preview?: string; isError?: boolean };
 
 function estimateTokens(text: string): number {
   if (!text) return 0;
@@ -61,7 +61,13 @@ export class Conversation {
     result[0] = { role: "system", content: this.system };
     for (let i = 0; i < this.messages.length; i++) {
       const m = this.messages[i];
-      result[i + 1] = m.role === "skill" ? { role: "user", name: m.name, content: m.content } : m;
+      if (m.role === "tool") {
+        result[i + 1] = { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
+      } else if (m.role === "skill") {
+        result[i + 1] = { role: "user", name: m.name, content: m.content };
+      } else {
+        result[i + 1] = m;
+      }
     }
     return result;
   }

@@ -39,5 +39,9 @@ export const fileReadTool: Tool = {
     }
     return out;
   },
+  getPreview(result) {
+    const bytes = Buffer.byteLength(result.content, "utf-8");
+    return `Read ${bytes} bytes`;
+  },
   summaryArg: "path",
 };

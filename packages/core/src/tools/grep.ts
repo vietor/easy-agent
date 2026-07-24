@@ -54,5 +54,10 @@ export const grepTool: Tool = {
     }
     return lines.join("\n");
   },
+  getPreview(result) {
+    if (result.isError || result.content === "(no matches)") return "Found 0 matches";
+    const count = result.content.split("\n").filter((l) => l && !l.startsWith("(")).length;
+    return `Found ${count} matche${count !== 1 ? "s" : ""}`;
+  },
   summaryArg: ["pattern", "path"],
 };
