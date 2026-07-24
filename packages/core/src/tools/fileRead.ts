@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Tool } from "./types.js";
-import { getContentBytes } from "../util/text.js";
+import { compactFormat, getContentBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
 
@@ -43,7 +43,7 @@ export const fileReadTool: Tool = {
   getPreview(result) {
     if (result.isError) return "Read failed";
     const bytes = getContentBytes(result.content);
-    return `Read ${bytes} bytes`;
+    return `Read ${compactFormat(bytes)} bytes`;
   },
   summaryArg: "path",
 };

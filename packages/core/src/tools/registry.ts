@@ -6,7 +6,7 @@ import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
-import { getContentBytes } from "../util/text.js";
+import { timeFormat, compactFormat, getContentBytes  } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
@@ -15,7 +15,7 @@ function defaultPreview(result: ToolResult): string {
   }
   const bytes = getContentBytes(result.content);
   const lines = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
-  return `Retrieved ${bytes} bytes, ${lines} lines`;
+  return `Retrieved ${compactFormat(bytes)} bytes, ${compactFormat(lines)} lines`;
 }
 
 export class ToolRegistry {
@@ -69,7 +69,7 @@ export class ToolRegistry {
       ? tool.getPreview(result)
       : defaultPreview(result);
     return durationMs !== undefined
-      ? `[${(durationMs / 1000).toFixed(1)}s] ${preview}`
+      ? `[${timeFormat(durationMs / 1000)}] ${preview}`
       : preview;
   }
 

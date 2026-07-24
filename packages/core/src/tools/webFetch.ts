@@ -1,7 +1,7 @@
 import TurndownService from "turndown";
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { getContentBytes } from "../util/text.js";
+import { compactFormat, getContentBytes } from "../util/text.js";
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -78,7 +78,7 @@ export const webFetchTool: Tool = {
   getPreview(result) {
     if (result.isError) return "Fetch failed";
     const bytes = getContentBytes(result.content);
-    return `Fetched ${bytes} bytes`;
+    return `Fetched ${compactFormat(bytes)} bytes`;
   },
   summaryArg: "url",
 };
