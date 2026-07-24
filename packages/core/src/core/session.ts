@@ -112,7 +112,7 @@ export class Session {
 
   private emit = (e: SessionEvent): void => {
     for (const l of [...this.eventListeners]) {
-      try { l(e); } catch {}
+      try { l(e); } catch { /* isolate listener errors */ }
     }
   };
 
@@ -204,6 +204,7 @@ export class Session {
   private persistSnapshot(): void {
     if (!this.persistence) return;
     const state: SessionState = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
+    // Catch + chain: persistence failures must never block the agent loop.
     this.saveChain = this.saveChain.catch(() => {}).then(() => this.persistence!.saveAll(this.sessionId, state));
   }
 

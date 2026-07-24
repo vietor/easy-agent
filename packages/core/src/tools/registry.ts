@@ -18,7 +18,8 @@ export class ToolRegistry {
   }
 
   registerAll(tools: Tool[]): this {
-    for (const t of tools) this.register(t);
+    for (const t of tools) this.tools.set(t.name, t);
+    this.schemasCache = null; // invalidate once, not N times
     return this;
   }
 

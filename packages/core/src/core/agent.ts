@@ -215,7 +215,7 @@ export class Agent {
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
         return "maxturns";
       }
-      const results = await this.runToolCalls(msg, onEvent, signal);
+      const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
       if (!results) return "aborted";
       for (const r of results) {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content });
@@ -224,12 +224,12 @@ export class Agent {
   }
 
   private async runToolCalls(
-    msg: AssistantMessage,
+    calls: NonNullable<AssistantMessage["tool_calls"]>,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<{ id: string; content: string }[] | null> {
     return withAbortFallback(Promise.all(
-      msg.tool_calls!.map(async (call) => {
+      calls.map(async (call) => {
         let args: Record<string, unknown> = {};
         let argsError = "";
         if (call.function.arguments) {
