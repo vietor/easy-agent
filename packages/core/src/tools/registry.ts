@@ -65,7 +65,7 @@ export class ToolRegistry {
   getPreview(name: string, result: ToolResult, durationMs?: number): string {
     const tool = this.tools.get(name);
     const preview = tool?.getPreview
-      ? tool.getPreview(result, durationMs)
+      ? tool.getPreview(result)
       : defaultPreview(result);
     return durationMs !== undefined
       ? `[${(durationMs / 1000).toFixed(1)}s] ${preview}`

@@ -120,7 +120,7 @@ type SessionEvent =
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
   | { type: "retry"; attempt: number; max: number }
   | { type: "error"; text: string }
   | { type: "interrupted" }
@@ -278,7 +278,7 @@ type TimelineEntry =
   | { kind: "user"; text: string }
   | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean }
+  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean; preview?: string }
   | { kind: "retry"; attempt: number; max: number }
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
@@ -392,6 +392,7 @@ interface Tool {
   parameters: Record<string, unknown>;   // JSON Schema object
   summaryArg?: string | string[];        // parameter key(s) used for display summary
   summarizeArgs?: (args: Record<string, unknown>) => string; // custom summary function
+  getPreview?(result: ToolResult): string; // result preview for timeline display
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ToolResult>;
 }
 ```
@@ -400,6 +401,7 @@ interface Tool {
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
 - Return a plain string (equivalent to `{ content: string }`) or a `ToolResult` with an optional `isError` flag.
 - `summaryArg` / `summarizeArgs` control what appears in the tool log entry's `summary` field.
+- `getPreview` (optional) returns a short result preview for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default preview (byte/line count) when not defined.
 
 ### `ToolContext`
 
@@ -453,7 +455,7 @@ Non-interactive tools (always registered):
 | **FileEdit** | Surgical text replacement. |
 | **Glob** | File listing by glob pattern. |
 | **Grep** | Content search with regex. |
-| **WebFetch** | Fetch URL content. |
+| **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. |
 
 Each built-in tool can be toggled individually via `builtinTools`. All tools default to enabled except `askUser` and `todoWrite` which must be explicitly enabled.
 

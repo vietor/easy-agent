@@ -30,6 +30,6 @@ export interface Tool {
   parameters: Record<string, unknown>;
   summaryArg?: string | string[];
   summarizeArgs?: (args: Record<string, unknown>) => string;
-  getPreview?(result: ToolResult, durationMs?: number): string;
+  getPreview?(result: ToolResult): string;
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ToolResult>;
 }

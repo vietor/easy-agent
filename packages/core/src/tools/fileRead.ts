@@ -40,6 +40,7 @@ export const fileReadTool: Tool = {
     return out;
   },
   getPreview(result) {
+    if (result.isError) return "Read failed";
     const bytes = Buffer.byteLength(result.content, "utf-8");
     return `Read ${bytes} bytes`;
   },

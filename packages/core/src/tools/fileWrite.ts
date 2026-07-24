@@ -21,8 +21,7 @@ export const fileWriteTool: Tool = {
   },
   getPreview(result) {
     if (result.isError) return "Write failed";
-    const bytes = Buffer.byteLength(result.content, "utf-8");
-    return `Wrote ${bytes} bytes`;
+    return "Write completed";
   },
   summaryArg: "path",
 };

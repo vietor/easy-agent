@@ -2,6 +2,7 @@ import { resolveCwd, runRgLines } from "../util/ripgrep.js";
 import type { Tool } from "./types.js";
 
 const DEFAULT_HEAD_LIMIT = 200;
+const NO_MATCHES = "(no matches)";
 
 const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines.";
 
@@ -47,7 +48,7 @@ export const grepTool: Tool = {
     else if (output_mode === "count") rgArgs.push("-c");
     rgArgs.push(args.pattern as string, ".");
     const lines = await runRgLines(rgArgs, cwd, ctx.signal);
-    if (!lines.length) return "(no matches)";
+    if (!lines.length) return NO_MATCHES;
     const headLimit = (args.head_limit as number) || DEFAULT_HEAD_LIMIT;
     if (lines.length > headLimit) {
       return lines.slice(0, headLimit).join("\n") + `\n(${lines.length - headLimit} more matches, truncated)`;
@@ -55,8 +56,13 @@ export const grepTool: Tool = {
     return lines.join("\n");
   },
   getPreview(result) {
-    if (result.isError || result.content === "(no matches)") return "Found 0 matches";
-    const count = result.content.split("\n").filter((l) => l && !l.startsWith("(")).length;
+    if (result.isError) return "Grep failed";
+    if (result.content === NO_MATCHES) return "Found 0 matches";
+    const lines = result.content.split("\n");
+    let count = lines.filter((l) => l).length;
+    if (lines.length > 1 && /^\(\d+ more matches, truncated\)$/.test(lines[lines.length - 1])) {
+      count--;
+    }
     return `Found ${count} matche${count !== 1 ? "s" : ""}`;
   },
   summaryArg: ["pattern", "path"],

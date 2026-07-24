@@ -38,8 +38,7 @@ export const fileEditTool: Tool = {
   },
   getPreview(result) {
     if (result.isError) return "Edit failed";
-    const bytes = Buffer.byteLength(result.content, "utf-8");
-    return `Edited ${bytes} bytes`;
+    return "Edit completed";
   },
   summaryArg: "path",
 };
