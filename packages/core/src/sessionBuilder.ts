@@ -35,7 +35,8 @@ const TOOL_USE_PROMPT = [
   "",
   "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently.",
   "- Do not batch calls that depend on a prior result or that modify the same file or resource.",
-  "- For file operations (read/write/edit/glob/grep) and fetching URLs, prefer the dedicated tool over Shell.",
+  "- For file operations (read/write/edit/glob/grep) and fetching URLs, prefer the dedicated tool (if available) over Shell.",
+  "- For sequential multi-step tasks (3+ steps), use TodoWrite (if available) to create a task list first, then execute each step and update its status.",
 ].join("\n");
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
