@@ -107,6 +107,7 @@ export function App({ session }: { session: Session }) {
       );
     } else {
       const spinnerLabel = streamingText ? "replying" : "thinking";
+      const hasPendingTool = view.timeline.some((e) => e.kind === "tool" && e.result === null);
       runningView = (
         <>
           {reasoningText ? renderReasoning(reasoningText, showReasoning) : null}
@@ -115,9 +116,11 @@ export function App({ session }: { session: Session }) {
               <Markdown>{streamingText}</Markdown>
             </Box>
           ) : null}
-          <Box marginTop={1} paddingLeft={1}>
-            <Spinner label={spinnerLabel} thinkingElapsed={runState.thinkingElapsed} replyElapsed={runState.replyElapsed} inputTokens={runState.inputTokens} outputTokens={runState.outputTokens} />
-          </Box>
+          {hasPendingTool ? null : (
+            <Box marginTop={1} paddingLeft={1}>
+              <Spinner label={spinnerLabel} thinkingElapsed={runState.thinkingElapsed} replyElapsed={runState.replyElapsed} inputTokens={runState.inputTokens} outputTokens={runState.outputTokens} />
+            </Box>
+          )}
         </>
       );
     }

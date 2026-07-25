@@ -1,15 +1,16 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
+import { SPINNER_FRAMES } from "./Spinner.js";
 import type { TimelineEntry } from "@vietor/easy-agent-core";
 
-export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntry }) {
+export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEntry }) {
   switch (entry.kind) {
     case "user":
       return (
         <Box marginTop={1}>
           <Text>
-            <Text color="cyan">❯ </Text>
+            <Text color="cyan">{"> "}</Text>
             {entry.text}
           </Text>
         </Box>
@@ -31,18 +32,7 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
         </Box>
       );
     case "tool":
-      return (
-        <Box flexDirection="column" marginTop={1}>
-          <Text>
-            <Text color="yellow">● </Text>
-            <Text color="yellow" bold>{entry.name}</Text>
-            {entry.summary ? <Text dimColor> {entry.summary}</Text> : null}
-          </Text>
-          {entry.result !== null ? (
-            <Text color={entry.isError ? "red" : "gray"}>{`  ${entry.preview}`}</Text>
-          ) : null}
-        </Box>
-      );
+      return <ToolEntry entry={entry} />;
     case "retry":
       return (
         <Box>
@@ -75,7 +65,7 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
       return (
         <Box marginTop={1} flexDirection="column">
           <Text color="cyan">{`? ${entry.text}`}</Text>
-          <Text dimColor>{`  › ${entry.answer || "(skipped)"}`}</Text>
+          <Text dimColor>{`  ⎿  ${entry.answer || "(skipped)"}`}</Text>
         </Box>
       );
     case "system":
@@ -86,3 +76,30 @@ export const TimelineView = memo(function Entry({ entry }: { entry: TimelineEntr
       );
   }
 });
+
+function ToolEntry({ entry }: { entry: Extract<TimelineEntry, { kind: "tool" }> }) {
+  const running = entry.result === null;
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 80);
+    return () => clearInterval(id);
+  }, [running]);
+
+  const icon = running ? SPINNER_FRAMES[frame] : "●";
+  const iconColor = running ? "cyan" : entry.isError ? "red" : "green";
+  const nameColor = entry.isError ? "red" : "yellow";
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text>
+        <Text color={iconColor}>{`${icon} `}</Text>
+        <Text bold color={nameColor}>{entry.name}</Text>
+        {entry.summary ? <Text dimColor>{`(${entry.summary})`}</Text> : null}
+      </Text>
+      {entry.result !== null ? (
+        <Text color={entry.isError ? "red" : "gray"}>{`  ⎿  ${entry.preview}`}</Text>
+      ) : null}
+    </Box>
+  );
+}
