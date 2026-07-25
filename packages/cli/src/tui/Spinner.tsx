@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Text } from "ink";
 import { timeFormat, compactFormat } from "@vietor/easy-agent-core";
 
-export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export function Spinner({
   label,

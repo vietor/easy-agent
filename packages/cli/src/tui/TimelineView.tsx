@@ -1,7 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/Markdown.js";
-import { SPINNER_FRAMES } from "./Spinner.js";
 import type { TimelineEntry } from "@vietor/easy-agent-core";
 
 export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEntry }) {
@@ -79,14 +78,14 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
 
 function ToolEntry({ entry }: { entry: Extract<TimelineEntry, { kind: "tool" }> }) {
   const running = entry.result === null;
-  const [frame, setFrame] = useState(0);
+  const [on, setOn] = useState(true);
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 80);
+    const id = setInterval(() => setOn((v) => !v), 500);
     return () => clearInterval(id);
   }, [running]);
 
-  const icon = running ? SPINNER_FRAMES[frame] : "●";
+  const icon = running ? (on ? "●" : " ") : "●";
   const iconColor = running ? "cyan" : entry.isError ? "red" : "green";
   const nameColor = entry.isError ? "red" : "yellow";
 
