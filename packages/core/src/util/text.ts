@@ -2,7 +2,7 @@ const timeFormatter = new Intl.NumberFormat("en-US", {
   style: "unit",
   unit: "second",
   unitDisplay: "narrow",
-  maximumFractionDigits: 1,
+  maximumFractionDigits: 2,
 });
 
 const compactFormatter = new Intl.NumberFormat("en-US", {
