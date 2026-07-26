@@ -5,7 +5,7 @@ import { compactFormat, getContentBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
 
-const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further.";
+const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further. Binary files may return garbled output or fail; prefer Grep for unknown file types.";
 
 export const fileReadTool: Tool = {
   name: "FileRead",

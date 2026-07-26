@@ -10,7 +10,7 @@ import type { MCPServerConfig } from "./mcp/types.js";
 import type { LLMConfig } from "./llm/types.js";
 import type { SessionPersistence } from "./core/types.js";
 
-export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY --> \n\n';
+export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
 
 export interface SessionOptions {
   systemPrompt: string;

@@ -2,7 +2,7 @@ import type { Tool, Todo, TodoStatus } from "./types.js";
 
 const STATUSES: TodoStatus[] = ["pending", "in_progress", "completed"];
 
-const DESCRIPTION = "Manage the task list for multi-step work (3+ steps). Pass the FULL list each call; it replaces the previous list. Keep one in_progress at a time. status: pending, in_progress, completed.";
+const DESCRIPTION = "Manage the task list for tasks with 3+ steps. Pass the FULL list each call; it replaces the previous list. Keep one in_progress at a time. status: pending, in_progress, completed.";
 
 function parseTodos(args: Record<string, unknown>) {
   const raw = Array.isArray(args.todos) ? (args.todos as Partial<Todo>[]) : [];

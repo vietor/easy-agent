@@ -4,7 +4,7 @@ import type { Tool } from "./types.js";
 const DEFAULT_HEAD_LIMIT = 200;
 const NO_MATCHES = "(no matches)";
 
-const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines.";
+const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit.";
 
 export const grepTool: Tool = {
   name: "Grep",

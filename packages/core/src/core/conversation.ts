@@ -100,7 +100,7 @@ export class Conversation {
     const m = this.messages[idx];
     if (m.role !== "skill") return;
     const before = estimateTokens(messageText(m));
-    m.content = `<skill "${m.name}" invoked>`;
+    m.content = `<skill "${m.name}" invoked - its instructions were followed above>`;
     this.estimatedTokens += estimateTokens(messageText(m)) - before;
   }
 

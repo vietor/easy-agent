@@ -35,7 +35,7 @@ function isTextualMime(mime: string): boolean {
   );
 }
 
-const DESCRIPTION = "Primary tool for all HTTP GET requests. Returns raw text for JSON/XML/text content; converts HTML pages to markdown automatically. Rejects binary content. Follows redirects.";
+const DESCRIPTION = "Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content. GET only; no custom headers or request body. Follows redirects.";
 
 export const webFetchTool: Tool = {
   name: "WebFetch",

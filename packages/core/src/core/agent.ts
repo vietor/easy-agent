@@ -16,6 +16,7 @@ const COMPACT_PROMPT = [
   "5. Errors/failures and how they were resolved.\n",
   "6. Current progress: what is done, verified, and in-progress state.\n",
   "7. Pending tasks, open questions, concrete next step.\n",
+  "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. Keep only what the next turn needs to continue without re-reading history.\n",
   "Concise but thorough; keep technical specifics; use the conversation language. ",
   "Start with \"Summary of conversation so far\":",
 ].join("");
@@ -257,5 +258,7 @@ function renderTodoReminder(todos: readonly Todo[]): string {
     const mark = t.status === "completed" ? "✓" : t.status === "in_progress" ? "●" : "○";
     return `${mark} ${t.content}`;
   });
-  return `<system-reminder>TODO: ${items.join(" | ")}</system-reminder>`;
+  const focus = todos.find((t) => t.status === "in_progress");
+  const focusLine = focus ? ` Current focus: ${focus.content}` : "";
+  return `<system-reminder>TODO: ${items.join(" | ")}${focusLine}</system-reminder>`;
 }

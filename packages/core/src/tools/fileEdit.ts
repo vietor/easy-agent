@@ -26,7 +26,7 @@ export const fileEditTool: Tool = {
     if (!path) throw new Error("path is required");
     if (!oldStr) throw new Error("old_string is required");
     const content = await readFile(resolved, "utf-8");
-    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}`);
+    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}; re-read the file with FileRead to get the exact current text (watch whitespace/indentation)`);
     if (all) {
       await writeFile(resolved, content.split(oldStr).join(newStr), "utf-8");
       return `Edited ${path} (replaced all)`;
