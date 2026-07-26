@@ -35,7 +35,7 @@ const TOOL_USE_PROMPT = [
   "",
   "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently; do not batch calls that depend on a prior result or that modify the same file or resource.",
   "- For file operations (read/write/edit/glob/grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.",
-  "- For sequential multi-step tasks (3+ steps), use TodoWrite when available: create a task list first, then update each task's status as you execute.",
+  "- For multi-step tasks (3+ steps), use TodoWrite when available: create a task list first, then update each task's status as you execute.",
 ].join("\n");
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
