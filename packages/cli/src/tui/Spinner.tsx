@@ -26,7 +26,7 @@ export function Spinner({
     <Text>
       <Text color="cyan">{SPINNER_FRAMES[frame]}</Text>
       <Text> {label}</Text>
-      <Text dimColor> · think {timeFormat(thinkingElapsed)} · reply {timeFormat(replyElapsed)} · ↑{compactFormat(inputTokens)} · ↓{compactFormat(outputTokens)}</Text>
+      <Text dimColor> · work {timeFormat(thinkingElapsed)} · reply {timeFormat(replyElapsed)} · ↑{compactFormat(inputTokens)} · ↓{compactFormat(outputTokens)}</Text>
     </Text>
   );
 }

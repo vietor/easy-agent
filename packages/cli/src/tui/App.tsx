@@ -106,7 +106,7 @@ export function App({ session }: { session: Session }) {
         />
       );
     } else {
-      const spinnerLabel = streamingText ? "replying" : "thinking";
+      const spinnerLabel = streamingText ? "replying" : "working";
       runningView = (
         <>
           {reasoningText ? renderReasoning(reasoningText, showReasoning) : null}
