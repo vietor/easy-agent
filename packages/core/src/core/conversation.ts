@@ -35,6 +35,12 @@ function messageText(msg: ConversationMessage): string {
   return parts.join(" ");
 }
 
+function toLLMMessage(m: ConversationMessage): Message {
+  if (m.role === "tool") return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
+  if (m.role === "skill") return { role: "user", name: m.name, content: m.content };
+  return m;
+}
+
 export class Conversation {
   private readonly systemEstimateTokens: number;
 
@@ -42,6 +48,7 @@ export class Conversation {
   private estimatedTokens = 0;
   private messagesSnapshot?: ConversationMessage[];
   private estimatedTokensSnapshot = 0;
+  private llmCache: Message[] | null = null;
 
   constructor(private system: string) {
     this.systemEstimateTokens = estimateTokens(system);
@@ -55,22 +62,22 @@ export class Conversation {
   add(msg: ConversationMessage): void {
     this.messages.push(msg);
     this.estimatedTokens += estimateTokens(messageText(msg));
+    if (this.llmCache) {
+      this.llmCache.push(toLLMMessage(msg));
+    }
   }
 
   toLLM(): Message[] {
+    if (this.llmCache) {
+      return this.llmCache.slice();
+    }
     const result: Message[] = new Array(this.messages.length + 1);
     result[0] = { role: "system", content: this.system };
     for (let i = 0; i < this.messages.length; i++) {
-      const m = this.messages[i];
-      if (m.role === "tool") {
-        result[i + 1] = { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
-      } else if (m.role === "skill") {
-        result[i + 1] = { role: "user", name: m.name, content: m.content };
-      } else {
-        result[i + 1] = m;
-      }
+      result[i + 1] = toLLMMessage(this.messages[i]);
     }
-    return result;
+    this.llmCache = result;
+    return result.slice();
   }
 
   export(): ConversationMessage[] {
@@ -81,17 +88,22 @@ export class Conversation {
     this.messages = messages.slice();
     this.estimatedTokens = this.systemEstimateTokens
       + messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0);
-    this.messagesSnapshot = undefined;
+    this.clearSnapshot();
+    this.llmCache = null;
   }
 
   clear(): void {
     this.messages = [];
     this.estimatedTokens = this.systemEstimateTokens;
+    this.clearSnapshot();
+    this.llmCache = null;
   }
 
   compact(summary: string): void {
     this.messages = [{ role: "assistant", content: summary }];
     this.estimatedTokens = this.systemEstimateTokens + estimateTokens(summary);
+    this.clearSnapshot();
+    this.llmCache = null;
   }
 
   collapseSkill(target: Extract<ConversationMessage, { role: "skill" }>): void {
@@ -102,6 +114,7 @@ export class Conversation {
     const before = estimateTokens(messageText(m));
     m.content = `<skill "${m.name}" invoked - its instructions were followed above>`;
     this.estimatedTokens += estimateTokens(messageText(m)) - before;
+    this.llmCache = null;
   }
 
   createSnapshot(): void {
@@ -114,6 +127,8 @@ export class Conversation {
     if (snap) {
       this.messages = snap.slice();
       this.estimatedTokens = this.estimatedTokensSnapshot;
+      this.clearSnapshot();
+      this.llmCache = null;
     }
   }
 

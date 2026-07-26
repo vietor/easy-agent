@@ -90,6 +90,7 @@ export class Session {
   private viewCache: SessionView | null = null;
   private eventListeners = new Set<(e: SessionEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
+  private latestUnansweredQuestion: Extract<TimelineEntry, { kind: "question" }> | undefined;
 
   subscribe = (listener: () => void): (() => void) => {
     const on = () => { this.viewCache = null; listener(); };
@@ -117,9 +118,7 @@ export class Session {
   };
 
   getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
-    return this.timelineStore.all.find(
-      (e): e is Extract<TimelineEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
-    );
+    return this.latestUnansweredQuestion;
   }
 
   get running(): boolean {
@@ -182,6 +181,7 @@ export class Session {
     this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
     this.loop.onSettle = () => this.persistSnapshot();
     this.skills = new SkillRegistry(deps.skills ?? []);
+    this.latestUnansweredQuestion = undefined;
   }
 
   dispose(): void {
@@ -198,6 +198,7 @@ export class Session {
     this.agent.clear();
     this.timelineStore.clear();
     this.todoStore.set([]);
+    this.latestUnansweredQuestion = undefined;
     this.persistSnapshot();
   }
 
@@ -225,6 +226,7 @@ export class Session {
     this.todoStore.set(state.todos);
     this.rebuildTimeline(state.messages);
     this.viewCache = null;
+    this.latestUnansweredQuestion = undefined;
   }
 
   private rebuildTimeline(messages: ConversationMessage[]): void {
@@ -282,10 +284,14 @@ export class Session {
       this.pendingQuestions.get(id)?.("");
     }
     this.pendingQuestions.clear();
+    this.latestUnansweredQuestion = undefined;
   }
 
   submitAnswer(id: string, answer: string): void {
     this.timelineStore.setAnswer(id, answer);
+    if (this.latestUnansweredQuestion?.id === id) {
+      this.latestUnansweredQuestion = undefined;
+    }
     this.emit({ type: "question_answered", id, answer });
     const resolve = this.pendingQuestions.get(id);
     if (resolve) {
@@ -322,7 +328,9 @@ export class Session {
 
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
-    this.timelineStore.append({ kind: "question", id, text, options, answer: null });
+    const entry: Extract<TimelineEntry, { kind: "question" }> = { kind: "question", id, text, options, answer: null };
+    this.timelineStore.append(entry);
+    this.latestUnansweredQuestion = entry;
     this.emit({ type: "question", id, text, options });
     return new Promise<string>((resolve) => {
       this.pendingQuestions.set(id, resolve);
