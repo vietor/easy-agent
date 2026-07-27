@@ -118,7 +118,12 @@ export class Agent {
       onEvent?.({ type: "error", text: (e as Error).message });
       return "error";
     }
-    this.conversation.compact((msg.content as string) || "");
+    const compactText = (typeof msg.content === "string" ? msg.content : "") || "";
+    if (!compactText) {
+      onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
+      return "error";
+    }
+    this.conversation.compact(compactText);
     return "ok";
   }
 
@@ -153,8 +158,13 @@ export class Agent {
       onEvent?.({ type: "interrupted" });
     };
 
+    let status: RunStatus;
     try {
-      return await withAbort(this.loop(onEvent, signal), signal);
+      status = await withAbort(this.loop(onEvent, signal), signal);
+      if (status === "aborted") {
+        onAbort();
+      }
+      return status;
     } catch (e) {
       if (signal?.aborted) {
         onAbort();

@@ -224,6 +224,7 @@ export class Session {
     if (!state) return;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
+    this.timelineStore.clear();
     this.rebuildTimeline(state.messages);
     this.viewCache = null;
     this.latestUnansweredQuestion = undefined;
