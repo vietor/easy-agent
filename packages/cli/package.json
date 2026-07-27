@@ -1,6 +1,6 @@
 {
   "name": "@vietor/easy-agent",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "type": "module",
   "main": "dist/cli.js",
   "bin": {
@@ -38,6 +38,8 @@
   },
   "keywords": [
     "ai",
-    "cli"
+    "cli",
+    "llm",
+    "agent"
   ]
 }
