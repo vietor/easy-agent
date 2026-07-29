@@ -665,6 +665,31 @@ if (content) {
 }
 ```
 
+### `htmlToMarkdown`
+
+**`htmlToMarkdown(html: string): string`**
+
+Convert HTML to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Strips script, style, title, meta, head, noscript, template, link, and base elements.
+
+```ts
+import { htmlToMarkdown } from "@vietor/easy-agent-core";
+
+const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
+// "# Hello\n\nWorld"
+```
+
+### `getContentBytes`
+
+**`getContentBytes(content: string): number`**
+
+Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
+
+```ts
+import { getContentBytes } from "@vietor/easy-agent-core";
+
+const bytes = getContentBytes("Hello");   // 5
+```
+
 ### `netFetch`
 
 **`netFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>`**

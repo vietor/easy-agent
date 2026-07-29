@@ -1,22 +1,6 @@
-import TurndownService from "turndown";
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { compactFormat, getContentBytes } from "../util/text.js";
-
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  hr: "---",
-  bulletListMarker: "-",
-  codeBlockStyle: "fenced",
-  emDelimiter: "*",
-  strongDelimiter: "**",
-  linkStyle: "inlined",
-});
-turndown.remove(["script", "style", "title", "meta", "head", "noscript", "template", "link", "base"]);
-
-function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html);
-}
+import { compactFormat, getContentBytes, htmlToMarkdown } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();
