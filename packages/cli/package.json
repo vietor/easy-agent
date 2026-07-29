@@ -16,21 +16,24 @@
   },
   "description": "Terminal-based AI agent CLI with conversational TUI (Ink/React) powered by easy-agent-core",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/vietor/easy-agent.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vietor/easy-agent.git"
+  },
   "dependencies": {
     "@vietor/easy-agent-core": "workspace:*",
-    "commander": "^13.0.0",
-    "ink": "^7.1.0",
+    "commander": "^13.1.0",
+    "ink": "^7.1.1",
     "ink-text-input": "^6.0.0",
-    "marked": "^18.0.5",
-    "react": "^19.2.7",
-    "string-width": "^8.2.1",
+    "marked": "^18.0.7",
+    "react": "^19.2.8",
+    "string-width": "^8.2.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.20.1",
     "@types/react": "^19.2.17",
-    "tsx": "^4.23.0",
+    "tsx": "^4.23.1",
     "typescript": "^6.0.3"
   },
   "engines": {

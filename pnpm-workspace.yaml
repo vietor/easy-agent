@@ -1,2 +1,6 @@
 packages:
   - 'packages/*'
+
+updateConfig:
+  ignoreDependencies:
+    - "@types/node"
