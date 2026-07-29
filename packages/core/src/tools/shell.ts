@@ -10,16 +10,29 @@ const commandPrefix = isWindows
 
 const PRIVILEGED_RE = /(^|[;&|()`\n])\s*(sudo|su|doas|pkexec)\b/;
 
-const DESCRIPTION = [
-  isWindows
-    ? "Run a command in the working directory via Windows PowerShell 5.1 (powershell.exe; NOT pwsh/PowerShell 7). It is not bash: chain with ';' not '&&'/'||' (for run-on-success: 'if ($?) {...}'); env vars are '$env:NAME' not '$NAME'; 'ls'/'rm'/'cp' are PowerShell aliases - use cmdlet parameters (-Recurse, -Force), not GNU flags (-la, -rf)."
-    : "Execute a bash command in the working directory. Privileged commands (sudo/su/doas/pkexec) are blocked.",
-  "No stdin/interactive prompts or long-running commands (dev servers, `tail -f`, watch mode); they hang until timeout.",
-].join(" ");
+const DESCRIPTION_POWERSHELL = `
+Windows PowerShell 5.1 (powershell.exe — NOT pwsh/bash).
+
+WARNING — three common mistakes:
+• Use ; not &&/|| to chain commands
+• Use \` (backtick) to escape, not \\
+• Use $env:NAME, not $NAME
+
+QUOTING: '...' literal. "..." expands $var, $env:NAME, $(...).
+SYNTAX: Conditional: if ($?) { }. No heredocs (<<) or background (&).
+LIMITATIONS: No stdin. Long-running killed at timeout.
+`;
+
+const DESCRIPTION_BASH = `
+Execute a bash command.
+
+QUOTING: Always double-quote: "$FILE" not $FILE.
+LIMITATIONS: Blocked: sudo/su/doas/pkexec. No stdin. Long-running killed at timeout.
+`;
 
 export const shellTool: Tool = {
   name: "Shell",
-  description: DESCRIPTION,
+  description: isWindows? DESCRIPTION_POWERSHELL: DESCRIPTION_BASH,
   parameters: {
     type: "object",
     properties: { command: { type: "string" } },
