@@ -29,13 +29,18 @@ export interface SessionOptions {
   stallThreshold?: number;
 }
 
-function buildSystemPrompt(base: string, skills?: Skill[]): string {
+function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined): string {
   const parts = [base];
   if (skills?.length) {
     const lines = skills.map((s) => `- \`${s.name}\`: ${s.description || "no description"}`);
     parts.push(["Available skills (call via the Skill tool):", ...lines].join("\n"));
   }
-  parts.push(TOOL_USE_PROMPT);
+  const toolUseLines = [TOOL_USE_PROMPT];
+  if (typeof builtinTools === "object") {
+    if (builtinTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
+    if (builtinTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
+  }
+  parts.push(toolUseLines.join("\n"));
   return parts.join(SYSTEM_PROMPT_BOUNDARY);
 }
 
@@ -45,8 +50,11 @@ const TOOL_USE_PROMPT = [
   "",
   "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently; do not batch calls that depend on a prior result or that modify the same file or resource.",
   "- For file operations (read/write/edit/glob/grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.",
-  "- For multi-step tasks (3+ steps), use TodoWrite when available: create a task list first, then update each task's status as you execute.",
 ].join("\n");
+
+const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), use TodoWrite: create a task list first, then update each task's status as you execute.";
+
+const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking.";
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llmConfig);
@@ -69,7 +77,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
 
   const session = new Session({
     llm,
-    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills),
+    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtinTools),
     cwd: opts.cwd ?? process.cwd(),
     tools,
     commands,

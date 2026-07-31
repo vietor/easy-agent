@@ -19,8 +19,6 @@ function buildSystemPromptBase(cwd: string) {
     `Environment:
 - Platform: ${process.platform}
 - Working directory: ${cwd}`,
-    `Decision making:
-- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous; when you have enough to proceed, act without asking.`,
     `Working style:
 - Read relevant code/config before acting; do not guess implementation details or restate files from memory.
 - Make surgical changes and match existing style; do not refactor unrelated code.
