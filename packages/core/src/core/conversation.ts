@@ -46,8 +46,10 @@ export class Conversation {
 
   private messages: ConversationMessage[] = [];
   private estimatedTokens = 0;
+  private collapsedCount = 0;
   private messagesSnapshot?: ConversationMessage[];
   private estimatedTokensSnapshot = 0;
+  private collapsedCountSnapshot = 0;
   private llmCache: Message[] | null = null;
 
   constructor(private system: string) {
@@ -88,6 +90,7 @@ export class Conversation {
     this.messages = messages.slice();
     this.estimatedTokens = this.systemEstimateTokens
       + messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0);
+    this.collapsedCount = 0;
     this.clearSnapshot();
     this.llmCache = null;
   }
@@ -95,6 +98,7 @@ export class Conversation {
   clear(): void {
     this.messages = [];
     this.estimatedTokens = this.systemEstimateTokens;
+    this.collapsedCount = 0;
     this.clearSnapshot();
     this.llmCache = null;
   }
@@ -102,15 +106,20 @@ export class Conversation {
   compact(summary: string): void {
     this.messages = [{ role: "assistant", content: summary }];
     this.estimatedTokens = this.systemEstimateTokens + estimateTokens(summary);
+    this.collapsedCount = 0;
     this.clearSnapshot();
     this.llmCache = null;
   }
 
-  collapseSkill(target: Extract<ConversationMessage, { role: "skill" }>): void {
-    const idx = this.messages.lastIndexOf(target);
-    if (idx === -1) return;
-    const m = this.messages[idx];
-    if (m.role !== "skill") return;
+  collapseSkills(): void {
+    for (let i = this.collapsedCount; i < this.messages.length; i++) {
+      const m = this.messages[i];
+      if (m.role === "skill") this.collapseOne(m);
+    }
+    this.collapsedCount = this.messages.length;
+  }
+
+  private collapseOne(m: Extract<ConversationMessage, { role: "skill" }>): void {
     const before = estimateTokens(messageText(m));
     m.content = `<skill "${m.name}" invoked - its instructions were followed above>`;
     this.estimatedTokens += estimateTokens(messageText(m)) - before;
@@ -120,6 +129,7 @@ export class Conversation {
   createSnapshot(): void {
     this.messagesSnapshot = this.messages.slice();
     this.estimatedTokensSnapshot = this.estimatedTokens;
+    this.collapsedCountSnapshot = this.collapsedCount;
   }
 
   restoreFromSnapshot(): void {
@@ -127,6 +137,7 @@ export class Conversation {
     if (snap) {
       this.messages = snap.slice();
       this.estimatedTokens = this.estimatedTokensSnapshot;
+      this.collapsedCount = this.collapsedCountSnapshot;
       this.clearSnapshot();
       this.llmCache = null;
     }
@@ -135,5 +146,6 @@ export class Conversation {
   clearSnapshot(): void {
     this.messagesSnapshot = undefined;
     this.estimatedTokensSnapshot = 0;
+    this.collapsedCountSnapshot = 0;
   }
 }

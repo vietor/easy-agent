@@ -29,6 +29,16 @@ export interface SessionOptions {
   stallThreshold?: number;
 }
 
+function buildSystemPrompt(base: string, skills?: Skill[]): string {
+  const parts = [base];
+  if (skills?.length) {
+    const lines = skills.map((s) => `- \`${s.name}\`: ${s.description || "no description"}`);
+    parts.push(["Available skills (call via the Skill tool):", ...lines].join("\n"));
+  }
+  parts.push(TOOL_USE_PROMPT);
+  return parts.join(SYSTEM_PROMPT_BOUNDARY);
+}
+
 const TOOL_USE_PROMPT = [
   "Tool-Use Guidelines:",
   "The user's instructions in the preceding sections take precedence over these defaults.",
@@ -59,7 +69,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
 
   const session = new Session({
     llm,
-    systemPrompt: opts.systemPrompt + SYSTEM_PROMPT_BOUNDARY + TOOL_USE_PROMPT,
+    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills),
     cwd: opts.cwd ?? process.cwd(),
     tools,
     commands,

@@ -4,6 +4,7 @@ export type { TimelineEntry } from "./core/timeline.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";
+export { createSkillTool } from "./tools/skill.js";
 export type { Command, CommandSchema, CommandContext } from "./cmds/types.js";
 export { clearCommand, mcpCommand, compactCommand, builtinCommands } from "./cmds/builtin.js";
 export type { Skill } from "./skills/types.js";

@@ -8,6 +8,7 @@ import { SkillRegistry } from "../skills/registry.js";
 import type { ToolRegistry, BuiltinToolsOptions } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import { createAskUserTool } from "../tools/askUser.js";
+import { createSkillTool } from "../tools/skill.js";
 import { createTodoWriteTool } from "../tools/todoWrite.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
@@ -158,11 +159,15 @@ export class Session {
     this.cwd = deps.cwd;
     this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
+    this.skills = new SkillRegistry(deps.skills ?? []);
     if (deps.builtinTools?.askUser) {
       deps.tools.register(createAskUserTool((q, o) => this.ask(q, o)));
     }
     if (deps.builtinTools?.todoWrite) {
       deps.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
+    }
+    if (deps.builtinTools?.skill !== false) {
+      deps.tools.register(createSkillTool((name) => this.skills.get(name)));
     }
 
     this.agent = new Agent({
@@ -175,12 +180,12 @@ export class Session {
       stallThreshold: deps.stallThreshold,
       maxTurns: deps.maxTurns,
       compactThreshold: deps.compactThreshold,
+      resolveSkill: (name) => this.skills.get(name),
     });
     this.commands = deps.commands;
     this.mcp = deps.mcp;
     this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
     this.loop.onSettle = () => this.persistSnapshot();
-    this.skills = new SkillRegistry(deps.skills ?? []);
     this.latestUnansweredQuestion = undefined;
   }
 

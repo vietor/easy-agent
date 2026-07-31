@@ -136,6 +136,10 @@ export class RunLoop {
         this.timeline.setResult(e.id, e.result, e.isError, e.preview);
         this.emit({ type: "tool_end", id: e.id, result: e.result, isError: e.isError, preview: e.preview });
         break;
+      case "skill":
+        this.timeline.append({ kind: "skill", name: e.name });
+        this.emit({ type: "skill", name: e.name });
+        break;
       case "error":
         this.flushStreaming();
         this.timeline.append({ kind: "error", text: e.text });

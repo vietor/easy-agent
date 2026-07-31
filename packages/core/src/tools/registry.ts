@@ -97,6 +97,7 @@ export interface BuiltinToolsOptions {
   webFetch?: boolean;
   askUser?: boolean;
   todoWrite?: boolean;
+  skill?: boolean;
 }
 
 const CORE_TOOLS: Tool[] = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];

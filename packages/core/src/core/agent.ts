@@ -29,6 +29,7 @@ export type AgentEvent =
   | { type: "retry"; attempt: number; max: number }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
+  | { type: "skill"; name: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "system"; text: string }
@@ -44,6 +45,7 @@ export interface AgentOptions {
   stallThreshold?: number;
   maxTurns?: number;
   compactThreshold?: number;
+  resolveSkill?: (name: string) => Skill | undefined;
 }
 
 export class Agent {
@@ -57,6 +59,7 @@ export class Agent {
   private maxTurns: number;
   readonly compactThreshold: number;
   private todoSnapshot: readonly Todo[] = [];
+  private resolveSkill?: (name: string) => Skill | undefined;
 
   constructor(opts: AgentOptions) {
     this.llm = opts.llm;
@@ -68,6 +71,7 @@ export class Agent {
     this.stallThreshold = opts.stallThreshold ?? 3;
     this.maxTurns = opts.maxTurns ?? 50;
     this.compactThreshold = opts.compactThreshold ?? 800_000;
+    this.resolveSkill = opts.resolveSkill;
   }
 
   get contextTokens(): number {
@@ -174,7 +178,7 @@ export class Agent {
     } finally {
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
-      if (msg.role === "skill") this.conversation.collapseSkill(msg);
+      this.conversation.collapseSkills();
     }
   }
 
@@ -230,6 +234,19 @@ export class Agent {
       if (!results) return "aborted";
       for (const r of results) {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, preview: r.preview, isError: r.isError });
+      }
+      for (const tc of msg.tool_calls) {
+        if (tc.function.name !== "Skill" || !this.resolveSkill) continue;
+        let args: Record<string, unknown> = {};
+        if (tc.function.arguments) {
+          try { args = JSON.parse(tc.function.arguments); } catch { /* ignore */ }
+        }
+        const name = args.name as string;
+        if (!name) continue;
+        const skill = this.resolveSkill(name);
+        if (!skill) continue;
+        this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
+        onEvent?.({ type: "skill", name: skill.name });
       }
     }
   }
