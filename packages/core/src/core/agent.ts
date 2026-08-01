@@ -42,9 +42,9 @@ export interface AgentOptions {
   cwd: string;
   setTodos: (todos: Todo[]) => void;
   getTodos: () => readonly Todo[];
-  stallThreshold?: number;
-  maxTurns?: number;
-  compactThreshold?: number;
+  stallThreshold: number;
+  maxTurns: number;
+  compactThreshold: number;
   resolveSkill?: (name: string) => Skill | undefined;
 }
 
@@ -68,9 +68,9 @@ export class Agent {
     this.cwd = opts.cwd;
     this.setTodos = opts.setTodos;
     this.getTodos = opts.getTodos;
-    this.stallThreshold = opts.stallThreshold ?? 3;
-    this.maxTurns = opts.maxTurns ?? 50;
-    this.compactThreshold = opts.compactThreshold ?? 800_000;
+    this.stallThreshold = opts.stallThreshold;
+    this.maxTurns = opts.maxTurns;
+    this.compactThreshold = opts.compactThreshold;
     this.resolveSkill = opts.resolveSkill;
   }
 
@@ -189,6 +189,8 @@ export class Agent {
     let lastSig = "";
     let stall = 0;
     let turns = 0;
+    let textOnlyStreak = 0;
+    let pendingNudge = "";
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
         onEvent?.({ type: "system", text: "auto-compacting context" });
@@ -198,6 +200,10 @@ export class Agent {
       const todos = this.getTodos();
       if (todos.length) {
         messages.push({ role: "user", content: renderTodoReminder(todos) });
+      }
+      if (pendingNudge) {
+        messages.push({ role: "user", content: pendingNudge });
+        pendingNudge = "";
       }
       let msg: AssistantMessage;
       try {
@@ -216,7 +222,19 @@ export class Agent {
         return "error";
       }
       this.conversation.add(msg);
-      if (!msg.tool_calls?.length) return "ok";
+      if (!msg.tool_calls?.length) {
+        const todos = this.getTodos();
+        if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
+          if (++textOnlyStreak >= this.stallThreshold) {
+            onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks` });
+            return "stalled";
+          }
+          pendingNudge = renderIncompleteTodoNudge(todos);
+          continue;
+        }
+        return "ok";
+      }
+      textOnlyStreak = 0;
       const sig = msg.tool_calls
         .map((c) => `${c.function.name}:${c.function.arguments}`)
         .join("|");
@@ -287,5 +305,15 @@ function renderTodoReminder(todos: readonly Todo[]): string {
   });
   const focus = todos.find((t) => t.status === "in_progress");
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";
-  return `<system-reminder>TODO: ${items.join(" | ")}${focusLine}</system-reminder>`;
+  const incomplete = todos.filter(t => t.status !== "completed");
+  const warning = incomplete.length > 0
+    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response — update status via TodoWrite after each task finishes.`
+    : "";
+  return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
+}
+
+function renderIncompleteTodoNudge(todos: readonly Todo[]): string {
+  const incomplete = todos.filter(t => t.status !== "completed");
+  const names = incomplete.map(t => `"${t.content}"`).join(", ");
+  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to complete them. Call TodoWrite to mark each one completed before your final text response.</system-reminder>`;
 }

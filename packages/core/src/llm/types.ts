@@ -8,8 +8,10 @@ export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
-  reasoningEffort?: ReasoningEffort;
-  wireApi?: WireApi;
+  reasoningEffort: ReasoningEffort;
+  wireApi: WireApi;
+  /** Context window in tokens; used to derive the compaction threshold. */
+  contextWindow: number;
 }
 
 export interface TextContentPart {
@@ -61,5 +63,6 @@ export interface ChatOptions {
 export interface LLMClient {
   readonly model: string;
   readonly reasoningEffort: ReasoningEffort;
+  readonly contextWindow: number;
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }

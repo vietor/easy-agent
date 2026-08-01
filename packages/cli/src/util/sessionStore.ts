@@ -1,6 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFile, writeFile } from "node:fs/promises";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { ellipsisText } from "@vietor/easy-agent-core";
 import type { ConversationMessage, SessionMeta, SessionPersistence, SessionState, Todo } from "@vietor/easy-agent-core";
 
 function encodeCwd(cwd: string): string {
@@ -9,6 +11,7 @@ function encodeCwd(cwd: string): string {
 
 export class FileSessionPersistence implements SessionPersistence {
   private readonly dir: string;
+  private writtenCounts = new Map<string, number>();
 
   constructor(private cwd: string) {
     this.dir = join(homedir(), ".easy-agent", "projects", encodeCwd(cwd));
@@ -35,15 +38,25 @@ export class FileSessionPersistence implements SessionPersistence {
       if (r.t === "m" && r.m) messages.push(r.m);
       else if (r.t === "todo" && r.todos) todos = r.todos;
     }
+    this.writtenCounts.set(sessionId, messages.length);
     return { messages, todos };
   }
 
   async saveAll(sessionId: string, state: SessionState): Promise<void> {
     this.ensureDir();
+    const written = this.writtenCounts.get(sessionId) ?? 0;
     const lines = state.messages
+      .slice(written)
       .map((m) => JSON.stringify({ t: "m", m }))
       .concat([JSON.stringify({ t: "todo", todos: state.todos })]);
-    writeFileSync(this.file(sessionId), lines.join("\n") + "\n", "utf-8");
+    const path = this.file(sessionId);
+    if (state.messages.length < written) {
+      // conversation shrank (abort restore / compact): rewrite the whole file
+      await writeFile(path, lines.join("\n") + "\n", "utf-8");
+    } else {
+      await appendFile(path, lines.join("\n") + "\n", "utf-8");
+    }
+    this.writtenCounts.set(sessionId, state.messages.length);
   }
 
   async listSessions(): Promise<SessionMeta[]> {
@@ -70,13 +83,13 @@ export class FileSessionPersistence implements SessionPersistence {
   async delete(sessionId: string): Promise<void> {
     const path = this.file(sessionId);
     if (existsSync(path)) unlinkSync(path);
+    this.writtenCounts.delete(sessionId);
   }
 
   private readTitle(path: string): string | undefined {
     const first = this.readFirstUser(path);
     if (!first) return undefined;
-    const oneline = first.replace(/\s+/g, " ").trim();
-    return oneline.length > 60 ? oneline.slice(0, 60) + "…" : oneline;
+    return ellipsisText(first, 75);
   }
 
   private readFirstUser(path: string): string | undefined {

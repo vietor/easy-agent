@@ -19,7 +19,27 @@ function isTextualMime(mime: string): boolean {
   );
 }
 
-const DESCRIPTION = "Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content. GET only; no custom headers or request body. Follows redirects.";
+const MAX_BYTES = 10 * 1024 * 1024;
+
+const DESCRIPTION = "Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over 10MB. GET only; no custom headers or request body. Follows redirects.";
+
+async function readTextBounded(res: Response, maxBytes: number): Promise<string> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new Error(`response body exceeds ${maxBytes} bytes`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
 
 export const webFetchTool: Tool = {
   name: "WebFetch",
@@ -52,10 +72,14 @@ export const webFetchTool: Tool = {
       throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);
     }
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
-    const body = await res.text();
     const contentType = res.headers.get("content-type") || "";
     const mime = mimeFrom(contentType);
     if (!isTextualMime(mime)) throw new Error(`unsupported content type: ${mime} for ${url}`);
+    const contentLength = Number(res.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_BYTES) {
+      throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_BYTES})`);
+    }
+    const body = await readTextBounded(res, MAX_BYTES);
     if (!contentType.includes("html")) return body;
     return htmlToMarkdown(body);
   },

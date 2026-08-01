@@ -12,7 +12,7 @@ export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig, ReasoningEffort, WireApi } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
-export { timeFormat, compactFormat, getContentBytes, htmlToMarkdown } from "./util/text.js";
+export { timeFormat, compactFormat, getContentBytes, ellipsisText, htmlToMarkdown } from "./util/text.js";
 export { netFetch } from "./util/net.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY, type SessionOptions } from "./sessionBuilder.js";
 export { SessionBusyError, type SessionPersistence, type SessionState, type SessionMeta } from "./core/types.js";

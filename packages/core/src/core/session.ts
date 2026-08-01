@@ -65,9 +65,9 @@ export interface SessionDeps {
   builtinTools?: BuiltinToolsOptions;
   sessionId?: string;
   persistence?: SessionPersistence;
-  stallThreshold?: number;
-  maxTurns?: number;
-  compactThreshold?: number;
+  stallThreshold: number;
+  maxTurns: number;
+  compactThreshold: number;
 }
 
 export class Session {

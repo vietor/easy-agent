@@ -40,3 +40,8 @@ export function compactFormat(value: number) {
 export function getContentBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
+
+export function ellipsisText(content: string, length: number) {
+  const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+  return text.length > length ? text.slice(0, length) + "…" : text;
+}

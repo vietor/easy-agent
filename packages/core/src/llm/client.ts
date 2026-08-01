@@ -10,11 +10,12 @@ const MAX_RETRIES = 3;
 function isRetryableError(e: unknown): boolean {
   if ((e as { name?: string }).name === "APIConnectionError") return true;
   const status = (e as { status?: number }).status;
-  return status != null && status >= 500;
+  return status != null && (status === 429 || status >= 500);
 }
 
 interface Adapter {
   readonly model: string;
+  readonly contextWindow: number;
   stream(opts: ChatOptions): Promise<AssistantMessage>;
 }
 
@@ -36,6 +37,7 @@ export function createLLM(config: LLMConfig): LLMClient {
   return {
     model: adapter.model,
     reasoningEffort: adapter.reasoningEffort,
+    contextWindow: adapter.contextWindow,
     chat: withRetryChat(adapter),
   };
 }

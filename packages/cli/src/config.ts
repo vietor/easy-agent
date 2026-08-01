@@ -11,6 +11,7 @@ const LLMConfig = z.object({
   model: z.string(),
   reasoningEffort: z.enum(["high", "max"]).default("high"),
   wireApi: z.enum(["completions", "anthropic"]).default("completions"),
+  contextWindow: z.number().int().positive().default(1_000_000),
 });
 
 const StdioServerConfig = z.object({

@@ -23,6 +23,7 @@ export class AnthropicAdapter {
   private client: Anthropic;
   readonly model: string;
   readonly reasoningEffort: ReasoningEffort;
+  readonly contextWindow: number;
 
   constructor(config: LLMConfig) {
     this.client = new Anthropic({
@@ -32,7 +33,8 @@ export class AnthropicAdapter {
       fetch: netFetch,
     });
     this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort ?? "high";
+    this.reasoningEffort = config.reasoningEffort;
+    this.contextWindow = config.contextWindow;
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {

@@ -6,12 +6,11 @@ import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
-import { timeFormat, compactFormat, getContentBytes  } from "../util/text.js";
+import { timeFormat, compactFormat, getContentBytes, ellipsisText } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
-    const text = result.content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-    return text.length > 75 ? text.slice(0, 75) + "…" : text;
+    return ellipsisText(result.content, 75);
   }
   const bytes = getContentBytes(result.content);
   const lines = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;

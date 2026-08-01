@@ -24,23 +24,22 @@ export interface SessionOptions {
   clientInfo?: { name: string; version: string };
   sessionId?: string;
   persistence?: SessionPersistence;
-  compactThreshold?: number;
   maxTurns?: number;
   stallThreshold?: number;
 }
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined): string {
   const parts = [base];
-  if (skills?.length) {
-    const lines = skills.map((s) => `- \`${s.name}\`: ${s.description || "no description"}`);
-    parts.push(["Available skills (call via the Skill tool):", ...lines].join("\n"));
-  }
   const toolUseLines = [TOOL_USE_PROMPT];
   if (typeof builtinTools === "object") {
     if (builtinTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtinTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
   }
   parts.push(toolUseLines.join("\n"));
+  if (skills?.length) {
+    const lines = skills.map((s) => `- \`${s.name}\`: ${s.description || "no description"}`);
+    parts.push(["Available skills (call via the Skill tool):", ...lines].join("\n"));
+  }
   return parts.join(SYSTEM_PROMPT_BOUNDARY);
 }
 
@@ -52,7 +51,7 @@ const TOOL_USE_PROMPT = [
   "- For file operations (read/write/edit/glob/grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.",
 ].join("\n");
 
-const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), use TodoWrite: create a task list first, then update each task's status as you execute.";
+const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use TodoWrite: create the task list first, then update each task's status as you execute. Never execute a multi-step task without a TodoWrite task list.";
 
 const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking.";
 
@@ -86,9 +85,9 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     builtinTools: opts.builtinTools === false ? undefined : opts.builtinTools,
     sessionId: opts.sessionId,
     persistence: opts.persistence,
-    compactThreshold: opts.compactThreshold,
-    maxTurns: opts.maxTurns,
-    stallThreshold: opts.stallThreshold,
+    stallThreshold: opts.stallThreshold ?? 3,
+    maxTurns: opts.maxTurns ?? 50,
+    compactThreshold: Math.floor(llm.contextWindow * 0.75),
   });
 
   if (opts.mcpServers) {

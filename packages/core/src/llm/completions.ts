@@ -12,6 +12,7 @@ export class CompletionsAdapter {
   private client: OpenAI;
   readonly model: string;
   readonly reasoningEffort: ReasoningEffort;
+  readonly contextWindow: number;
 
   constructor(config: LLMConfig) {
     this.client = new OpenAI({
@@ -21,7 +22,8 @@ export class CompletionsAdapter {
       fetch: netFetch,
     });
     this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort ?? "high";
+    this.reasoningEffort = config.reasoningEffort;
+    this.contextWindow = config.contextWindow;
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
