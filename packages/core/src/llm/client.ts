@@ -1,4 +1,4 @@
-import type { AssistantMessage, ChatOptions, LLMClient, LLMConfig } from "./types.js";
+import type { BaseAdapter, ChatOptions, LLMClient, LLMConfig } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { withRetry } from "../util/async.js";
@@ -13,13 +13,7 @@ function isRetryableError(e: unknown): boolean {
   return status != null && (status === 429 || status >= 500);
 }
 
-interface Adapter {
-  readonly model: string;
-  readonly contextWindow: number;
-  stream(opts: ChatOptions): Promise<AssistantMessage>;
-}
-
-function withRetryChat(adapter: Adapter): LLMClient["chat"] {
+function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
   return (opts) =>
     withRetry(() => adapter.stream(opts), {
       retries: MAX_RETRIES,

@@ -1,5 +1,9 @@
 import type { ConversationMessage } from "./conversation.js";
-import type { Todo } from "../tools/types.js";
+import type { Tool, Todo } from "../tools/types.js";
+import type { BuiltinToolsOptions } from "../tools/registry.js";
+import type { Skill } from "../skills/types.js";
+import type { MCPServerConfig } from "../mcp/types.js";
+import type { LLMConfig } from "../llm/types.js";
 
 export interface SessionState {
   messages: ConversationMessage[];
@@ -29,3 +33,44 @@ export class SessionBusyError extends Error {
     this.name = "SessionBusyError";
   }
 }
+
+export interface SessionOptions {
+  systemPrompt: string;
+  llmConfig: LLMConfig;
+  cwd?: string;
+  tools?: Tool[];
+  skills?: Skill[];
+  mcpServers?: Record<string, MCPServerConfig>;
+  builtinTools?: BuiltinToolsOptions | false;
+  clientInfo?: { name: string; version: string };
+  sessionId?: string;
+  persistence?: SessionPersistence;
+  maxTurns?: number;
+  stallThreshold?: number;
+}
+
+export interface RunState {
+  running: boolean;
+  elapsed: number;
+  thinkingElapsed: number;
+  replyElapsed: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export type SessionEvent =
+  | { type: "user"; text: string }
+  | { type: "skill"; name: string }
+  | { type: "assistant_delta"; text: string }
+  | { type: "reasoning_delta"; text: string }
+  | { type: "reasoning_clear" }
+  | { type: "assistant"; text: string }
+  | { type: "tool_start"; id: string; name: string; summary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
+  | { type: "retry"; attempt: number; max: number }
+  | { type: "error"; text: string }
+  | { type: "interrupted" }
+  | { type: "question"; id: string; text: string; options: string[] }
+  | { type: "question_answered"; id: string; answer: string }
+  | { type: "notice"; text: string }
+  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };

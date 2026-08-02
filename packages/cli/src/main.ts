@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { tryLoadSkills, tryReadFileText, createSession, SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
-import { builtinCommands } from "./cmds/builtin.js";
 import { startApp } from "./tui/App.js";
 import { getPackageInfo } from "./util/package.js";
 import { FileSessionPersistence } from "./util/sessionStore.js";
@@ -94,7 +93,6 @@ export async function main(argv: string[] = []): Promise<void> {
     llmConfig: config.llm,
     mcpServers: config.mcpServers,
     skills: globalSkills,
-    commands: builtinCommands,
     builtinTools: {
       askUser: true,
       todoWrite: true,

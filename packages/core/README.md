@@ -1,6 +1,6 @@
 # @vietor/easy-agent-core
 
-> Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill/command loader.
+> Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader.
 
 ```bash
 npm install @vietor/easy-agent-core
@@ -14,7 +14,7 @@ Requires Node.js ≥ 22 (ESM only).
 
 **`createSession(options: SessionOptions): Promise<Session>`**
 
-Factory that wires together the LLM client, tool registry, MCP servers, skill-based commands, and custom commands into a ready-to-use `Session` instance.
+Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance.
 
 ```ts
 import { createSession } from "@vietor/easy-agent-core";
@@ -25,9 +25,11 @@ const session = await createSession({
     baseUrl: "https://api.deepseek.com/v1",
     apiKey: "your-api-key",
     model: "deepseek-v4-flash",
+    reasoningEffort: "high",
+    wireApi: "completions",
+    contextWindow: 1_000_000,
   },
   tools: [myCustomTool],
-  commands: [myCustomCommand],
   skills: tryLoadSkills("./skills") ?? [],
   mcpServers: {
     filesystem: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
@@ -45,10 +47,9 @@ const session = await createSession({
 | `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
-| `commands` | `Command[]` | `undefined` | Custom slash commands. |
-| `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or as slash commands. |
+| `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtinTools` | `BuiltinToolsOptions \| false` | *(all enabled)* | Enable `askUser`/`todoWrite`/`skill` (all off by default); disable other built-in tools by listing their names in `disabled`. `false` to disable all built-in tools. |
+| `builtinTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | Enable `askUser`/`todoWrite`/`skill`/`subAgent` (all off by default); disable core tools by listing their names in `disabled`. `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
@@ -78,7 +79,7 @@ const systemPrompt = [
 
 ## `Session`
 
-The main session object. Create one via `createSession()`.
+The main session object. Create one via `createSession()` — it wires the LLM client, tool registry, and MCP servers, and connects MCP servers listed in `mcpServers`:
 
 ```ts
 const session = await createSession({ systemPrompt, llmConfig });
@@ -128,7 +129,7 @@ type SessionEvent =
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
-  | { type: "system"; text: string }
+  | { type: "notice"; text: string }
   | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
 
@@ -146,7 +147,7 @@ type SessionEvent =
 | `interrupted` | The current run was aborted. |
 | `question` | The AskUser tool poses a question. |
 | `question_answered` | The question is answered (via `submitAnswer` or `abort`). |
-| `system` | A command emits a system message, or the run auto-compacts context. |
+| `notice` | `session.timelineNotice()` is called, or the run auto-compacts context. |
 | `state` | Run state changes: at run start, every second, on usage, and at run end (`running: false`). |
 
 Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
@@ -164,14 +165,16 @@ interface RunState {
 }
 ```
 
-### Commands
+### Skills & messages
 
-Commands are registered via `createSession()` and invoked as slash commands through the session.
+The command system lives in host code. Core exposes the primitives hosts build on:
 
 | Method | Description |
 |---|---|
-| `executeCommand(name: string, args?: string): Promise<void>` | Execute a slash command by name. |
-| `commandSchemas: CommandSchema[]` | List all registered command schemas. |
+| `runSkill(name: string): Promise<boolean>` | Run a skill by name through the agent loop. Returns `false` (no error emitted) if the name is unknown; throws `SessionBusyError` if a run is in progress. |
+| `timelineNotice(text: string): void` | Append a notice entry to the timeline and emit a `notice` event. |
+| `timelineError(text: string): void` | Append an error entry to the timeline and emit an `error` event. |
+| `skills: readonly Skill[]` | All loaded skills. |
 
 ### State accessors
 
@@ -183,7 +186,7 @@ Commands are registered via `createSession()` and invoked as slash commands thro
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
 | `running` | `boolean` | Whether a prompt/compact is in progress. Check before issuing a driver call (see Reentrancy). |
-| `localStore` | `Map<string, unknown>` | A local key-value store available to commands and tools during the session. |
+| `localStore` | `Map<string, unknown>` | A local key-value store available to tools and host code during the session. |
 
 ### Reentrancy
 
@@ -191,7 +194,7 @@ A `Session` runs one prompt/compact at a time. While a run is in progress, calli
 
 | Driver method | Behavior when busy |
 |---|---|
-| `startPrompt`, `compact`, `executeCommand`, `clear`, `restore` | Throws `SessionBusyError`. |
+| `startPrompt`, `compact`, `runSkill`, `clear`, `restore` | Throws `SessionBusyError`. |
 
 These remain callable during a run (they are inputs to the running loop, or read-only/teardown):
 
@@ -285,7 +288,7 @@ type TimelineEntry =
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
   | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }
-  | { kind: "system"; text: string };
+  | { kind: "notice"; text: string };
 ```
 
 | Kind | Emitted when |
@@ -298,7 +301,7 @@ type TimelineEntry =
 | `error` | An error occurred (LLM failure, agent stall, etc.). |
 | `interrupted` | The current run was aborted. |
 | `question` | A question is posed to the user (from AskUser tool). `answer` is `null` until answered. |
-| `system` | A system message (e.g. from a command via `ctx.message()`). |
+| `notice` | A notice (from `session.timelineNotice()`). |
 
 ### `ConversationMessage`
 
@@ -366,8 +369,6 @@ interface SessionMeta {
   cwd?: string;
 }
 ```
-
-The `@vietor/easy-agent` CLI includes a filesystem-based implementation (`FileSessionPersistence`) that stores sessions as JSONL files under `~/.easy-agent/projects/`.
 
 Persistence writes are asynchronous and serialized per session: `saveAll` is queued internally so a run never blocks on storage. Call `session.flush()` to await any pending write (e.g. before tearing down a session).
 
@@ -459,7 +460,7 @@ The format sent to the LLM's `tools` parameter. Generated automatically from reg
 
 ### Built-in tools
 
-Non-interactive tools (always registered):
+Core tools (registered by default; disable by listing their names in `builtinTools.disabled`):
 
 | Tool | Description |
 |---|---|
@@ -470,9 +471,17 @@ Non-interactive tools (always registered):
 | **Glob** | File listing by glob pattern. |
 | **Grep** | Content search with regex. |
 | **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. |
-| **Skill** | Invoke a skill by name; loads its instructions into context. Available skills are listed in the system prompt. |
 
-All tools are enabled by default except `askUser`, `todoWrite` and `skill`, which must be explicitly enabled via `builtinTools` (`askUser: true`, `todoWrite: true`, `skill: true`). Other built-in tools can be disabled by listing their names in `builtinTools.disabled`. The `Skill` tool is only useful when `skills` are provided.
+Interactive/optional tools are **off by default** and registered only when explicitly enabled via `builtinTools` (`askUser: true`, `todoWrite: true`, `skill: true`, `subAgent: true`):
+
+| Tool | Description |
+|---|---|
+| **AskUser** | Ask the user a question and wait for the answer. |
+| **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
+| **Skill** | Invoke a skill by name; loads its instructions into context. Only useful when `skills` are provided. |
+| **SubAgent** | Run a nested read-only explore/plan sub-agent. |
+
+`builtinTools: false` disables all built-in tools.
 
 ```ts
 const session = await createSession({
@@ -515,69 +524,7 @@ const session = await createSession({
 
 ## Command System
 
-### `Command`
-
-```ts
-interface Command {
-  name: string;
-  description: string;
-  execute(ctx: CommandContext, args: string): Promise<void>;
-}
-```
-
-- `name` is the slash command name (e.g. `"hello"` → invoked as `/hello`).
-- `args` is the raw text typed after the command name.
-
-### `CommandContext`
-
-```ts
-interface CommandContext {
-  session: Session;
-  message(text: string): void;  // append a system log entry
-  error(text: string): void;    // append an error log entry
-}
-```
-
-### `CommandSchema`
-
-```ts
-interface CommandSchema {
-  name: string;
-  description: string;
-}
-```
-
-### Built-in commands
-
-| Command | Description |
-|---|---|
-| `clear` | Clear the conversation and log. |
-| `mcp` | List connected MCP servers with status and tool names. |
-| `compact` | Compact the agent context via LLM summarization. |
-
-The raw `Command` objects are exported as `clearCommand`, `mcpCommand`, `compactCommand`, and `builtinCommands` for reuse or extension.
-
-### Custom command example
-
-```ts
-import type { Command } from "@vietor/easy-agent-core";
-
-const helloCommand: Command = {
-  name: "hello",
-  description: "Say hello",
-  async execute(ctx, args) {
-    ctx.message(`Hello, ${args || "world"}!`);
-  },
-};
-
-const session = await createSession({
-  systemPrompt: "...",
-  llmConfig: { ... },
-  commands: [helloCommand],
-});
-```
-
-Commands have access to the full `Session` via `ctx.session`, including `.mcpServers`, `.clear()`, `.compact()`, `.localStore`, and `.executeCommand()`.
+Slash commands are a **host-side (UI) concept** — the core package no longer ships a command system. Hosts implement their own dispatcher on top of the session primitives: `startPrompt()`, `runSkill()`, `timelineNotice()`, `timelineError()`, and the `skills` getter.
 
 ---
 
@@ -593,7 +540,7 @@ interface Skill {
 }
 ```
 
-Skills are loaded from directories containing a `SKILL.md` file. They are listed in the system prompt so the agent can invoke them via the built-in **Skill** tool, and can also be run directly as slash commands through `executeCommand`.
+Skills are loaded from directories containing a `SKILL.md` file. They are listed in the system prompt so the agent can invoke them via the built-in **Skill** tool, and can also be run directly by hosts via `session.runSkill(name)` (e.g. mapped to slash commands).
 
 ### `tryLoadSkills`
 
@@ -773,6 +720,9 @@ const session = await createSession({
     baseUrl: "https://api.deepseek.com/v1",
     apiKey: "your-api-key",
     model: "deepseek-v4-flash",
+    reasoningEffort: "high",
+    wireApi: "completions",
+    contextWindow: 1_000_000,
   },
   mcpServers: {
     filesystem: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },

@@ -1,7 +1,7 @@
 import type { Agent, AgentEvent, RunStatus } from "./agent.js";
 import type { Skill } from "../skills/types.js";
 import type { TimelineStore, TodoStore } from "./timeline.js";
-import type { SessionEvent, RunState } from "./session.js";
+import type { SessionEvent, RunState } from "./types.js";
 
 export class RunLoop {
   private streamingText = "";
@@ -142,8 +142,8 @@ export class RunLoop {
         this.flushStreaming();
         this.timeline.append({ kind: "interrupted" });
         break;
-      case "system":
-        this.timeline.append({ kind: "system", text: e.text });
+      case "notice":
+        this.timeline.append({ kind: "notice", text: e.text });
         break;
       case "usage":
         this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };

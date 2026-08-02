@@ -52,22 +52,12 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-export function withAbortFallback<T>(promise: Promise<T>, signal: AbortSignal | undefined, fallback: T): Promise<T> {
+export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?: () => T): Promise<T> {
   if (!signal) return promise;
-  if (signal.aborted) return Promise.resolve(fallback);
+  if (signal.aborted) return onAbort ? Promise.resolve(onAbort()) : Promise.reject(new Error("aborted"));
   return new Promise<T>((resolve, reject) => {
-    const onAbort = () => resolve(fallback);
-    signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
-  });
-}
-
-export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) return promise;
-  if (signal.aborted) return Promise.reject(new Error("aborted"));
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(new Error("aborted"));
-    signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+    const handleAbort = () => { if (onAbort) resolve(onAbort()); else reject(new Error("aborted")); };
+    signal.addEventListener("abort", handleAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", handleAbort));
   });
 }

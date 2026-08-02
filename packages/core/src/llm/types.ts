@@ -67,6 +67,35 @@ export interface LLMClient {
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }
 
+export abstract class BaseAdapter {
+  readonly model: string;
+  readonly reasoningEffort: ReasoningEffort;
+  readonly contextWindow: number;
+
+  protected constructor(config: LLMConfig) {
+    this.model = config.model;
+    this.reasoningEffort = config.reasoningEffort;
+    this.contextWindow = config.contextWindow;
+  }
+
+  abstract stream(opts: ChatOptions): Promise<AssistantMessage>;
+}
+
+export function textOf(content: string | TextContentPart[] | null | undefined): string {
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  return content.map((p) => p.text).join("");
+}
+
+export function parseToolArgs(args: string | undefined): { args: Record<string, unknown>; error?: string } {
+  if (!args) return { args: {} };
+  try {
+    return { args: JSON.parse(args) as Record<string, unknown> };
+  } catch (e) {
+    return { args: {}, error: (e as Error).message };
+  }
+}
+
 export function compactThresholdFor(contextWindow: number): number {
   return Math.floor(contextWindow * 0.75);
 }

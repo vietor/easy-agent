@@ -1,13 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type {
-  AssistantMessage,
-  ChatOptions,
-  LLMConfig,
-  Message,
-  ReasoningEffort,
-  RedactedThinkingBlock,
-  TextContentPart,
-  ThinkingBlock,
+import {
+  BaseAdapter,
+  parseToolArgs,
+  textOf,
+  type AssistantMessage,
+  type ChatOptions,
+  type LLMConfig,
+  type Message,
+  type ReasoningEffort,
+  type RedactedThinkingBlock,
+  type ThinkingBlock,
 } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
@@ -19,22 +21,17 @@ const THINKING_BUDGET: Record<ReasoningEffort, number> = {
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 
-export class AnthropicAdapter {
+export class AnthropicAdapter extends BaseAdapter {
   private client: Anthropic;
-  readonly model: string;
-  readonly reasoningEffort: ReasoningEffort;
-  readonly contextWindow: number;
 
   constructor(config: LLMConfig) {
+    super(config);
     this.client = new Anthropic({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
       maxRetries: 0,
       fetch: netFetch,
     });
-    this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort;
-    this.contextWindow = config.contextWindow;
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
@@ -106,7 +103,7 @@ function toAnthropicMessages(
   const rest: Message[] = [];
   for (const m of messages) {
     if (m.role === "system") {
-      const text = toText(m.content);
+      const text = textOf(m.content);
       system = system ? `${system}\n\n${text}` : text;
     } else {
       rest.push(m);
@@ -118,7 +115,7 @@ function toAnthropicMessages(
     rest[0].role === "assistant" &&
     !(rest[0] as AssistantMessage).tool_calls?.length
   ) {
-    const text = toText((rest[0] as AssistantMessage).content);
+    const text = textOf((rest[0] as AssistantMessage).content);
     if (text) system = system ? `${system}\n\n${text}` : text;
     rest.shift();
   }
@@ -143,7 +140,7 @@ function toAnthropicMessages(
 
 function toMessageParam(m: Message, includeThinking: boolean): Anthropic.MessageParam {
   if (m.role === "user") {
-    return { role: "user", content: toText(m.content) };
+    return { role: "user", content: textOf(m.content) };
   }
   if (m.role === "tool") {
     return {
@@ -156,7 +153,7 @@ function toMessageParam(m: Message, includeThinking: boolean): Anthropic.Message
   if (includeThinking && a.thinking) {
     for (const t of a.thinking) blocks.push(t as Anthropic.ContentBlockParam);
   }
-  const text = toText(a.content);
+  const text = textOf(a.content);
   if (text) blocks.push({ type: "text", text });
   if (a.tool_calls) {
     for (const tc of a.tool_calls) {
@@ -164,7 +161,7 @@ function toMessageParam(m: Message, includeThinking: boolean): Anthropic.Message
         type: "tool_use",
         id: tc.id,
         name: tc.function.name,
-        input: parseInput(tc.function.arguments),
+        input: parseToolArgs(tc.function.arguments).args,
       });
     }
   }
@@ -190,17 +187,3 @@ function mergeContent(
   return blocks;
 }
 
-function toText(content: string | TextContentPart[] | null | undefined): string {
-  if (!content) return "";
-  if (typeof content === "string") return content;
-  return content.map((p) => p.text).join("");
-}
-
-function parseInput(args: string): unknown {
-  if (!args) return {};
-  try {
-    return JSON.parse(args);
-  } catch {
-    return {};
-  }
-}

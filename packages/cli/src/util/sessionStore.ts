@@ -9,6 +9,15 @@ function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
 }
 
+function parseJsonLines<T>(text: string): T[] {
+  const out: T[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    try { out.push(JSON.parse(line) as T); } catch { /* skip malformed lines */ }
+  }
+  return out;
+}
+
 export class FileSessionPersistence implements SessionPersistence {
   private readonly dir: string;
   private writtenCounts = new Map<string, number>();
@@ -30,11 +39,7 @@ export class FileSessionPersistence implements SessionPersistence {
     if (!existsSync(path)) return null;
     const messages: ConversationMessage[] = [];
     let todos: Todo[] = [];
-    for (const line of readFileSync(path, "utf-8").split("\n")) {
-      if (!line.trim()) continue;
-      let rec: unknown;
-      try { rec = JSON.parse(line); } catch { continue; }
-      const r = rec as { t?: string; m?: ConversationMessage; todos?: Todo[] };
+    for (const r of parseJsonLines<{ t?: string; m?: ConversationMessage; todos?: Todo[] }>(readFileSync(path, "utf-8"))) {
       if (r.t === "m" && r.m) messages.push(r.m);
       else if (r.t === "todo" && r.todos) todos = r.todos;
     }
@@ -93,11 +98,7 @@ export class FileSessionPersistence implements SessionPersistence {
   }
 
   private readFirstUser(path: string): string | undefined {
-    for (const line of readFileSync(path, "utf-8").split("\n")) {
-      if (!line.trim()) continue;
-      let rec: unknown;
-      try { rec = JSON.parse(line); } catch { continue; }
-      const r = rec as { t?: string; m?: ConversationMessage };
+    for (const r of parseJsonLines<{ t?: string; m?: ConversationMessage }>(readFileSync(path, "utf-8"))) {
       if (r.t === "m" && r.m && r.m.role === "user" && typeof r.m.content === "string") return r.m.content;
     }
     return undefined;

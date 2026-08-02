@@ -33,10 +33,6 @@ export class ToolRegistry {
     return this;
   }
 
-  has(name: string): boolean {
-    return this.tools.has(name);
-  }
-
   get(name: string): Tool | undefined {
     return this.tools.get(name);
   }

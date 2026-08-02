@@ -1,4 +1,4 @@
-import { compactThresholdFor, type LLMClient } from "../llm/types.js";
+import { compactThresholdFor, textOf, type LLMClient } from "../llm/types.js";
 import type { ConversationMessage } from "../core/conversation.js";
 import type { Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
@@ -124,11 +124,8 @@ function lastAssistantText(messages: ConversationMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.role !== "assistant") continue;
-    if (typeof m.content === "string") return m.content;
-    if (Array.isArray(m.content)) {
-      const text = m.content.filter((p) => p.type === "text").map((p) => p.text).join("");
-      if (text) return text;
-    }
+    const text = textOf(m.content);
+    if (text) return text;
   }
   return "";
 }

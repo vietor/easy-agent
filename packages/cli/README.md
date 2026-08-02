@@ -163,6 +163,7 @@ A status bar at the bottom shows the context token usage with a progress bar and
 | `/mcp` | List linked MCP servers, their status, and exposed tools |
 | `/clear` | Reset the conversation |
 | `/compact` | Compress the conversation into a summary to free context |
+| `/skill` | List available skills |
 | `/export` | Save the current conversation to `conversation-{timestamp}.jsonl` |
 | `/quit` or `/exit` | Leave the app |
 

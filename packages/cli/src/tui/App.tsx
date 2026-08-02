@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
 import type { Session, RunState, SessionEvent, SessionView } from "@vietor/easy-agent-core";
+import { executeCommand, commandSchemas } from "../cmds/dispatch.js";
 import { Markdown } from "./components/Markdown.js";
 import { TimelineView } from "./TimelineView.js";
 import { TodoView } from "./TodoView.js";
@@ -12,39 +13,51 @@ import { StatusBar } from "./StatusBar.js";
 
 const STREAM_FRAME_MS = 120;
 
+function useThrottledText(frameMs: number) {
+  const [text, setText] = useState("");
+  const bufRef = useRef("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const append = (t: string) => {
+    bufRef.current += t;
+    if (timerRef.current === undefined) {
+      timerRef.current = setTimeout(() => {
+        timerRef.current = undefined;
+        setText(bufRef.current);
+      }, frameMs);
+    }
+  };
+  const reset = () => {
+    bufRef.current = "";
+    setText("");
+  };
+  return { text, append, reset };
+}
+
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
   const [runState, setRunState] = useState<RunState>({ running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
-  const [streamingText, setStreamingText] = useState("");
-  const streamingRef = useRef("");
-  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [reasoningText, setReasoningText] = useState("");
-  const reasoningRef = useRef("");
-  const reasoningRenderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const streaming = useThrottledText(STREAM_FRAME_MS);
+  const reasoning = useThrottledText(STREAM_FRAME_MS);
   const [showReasoning, setShowReasoning] = useState(false);
-  const allCmds = useMemo(() => session.commandSchemas, [session]);
+  const allCmds = useMemo(() => commandSchemas(session), [session]);
   const pendingQuestion = session.getPendingQuestion();
 
   useEffect(() => {
     const unsub = session.subscribeEvents((e: SessionEvent) => {
       switch (e.type) {
         case "assistant_delta":
-          streamingRef.current += e.text;
-          scheduleStreamingRender();
+          streaming.append(e.text);
           break;
         case "reasoning_delta":
-          reasoningRef.current += e.text;
-          scheduleReasoningRender();
+          reasoning.append(e.text);
           break;
         case "reasoning_clear":
-          reasoningRef.current = "";
-          setReasoningText("");
+          reasoning.reset();
           break;
         case "assistant":
-          streamingRef.current = "";
-          setStreamingText("");
+          streaming.reset();
           break;
         case "state":
           setRunState(e);
@@ -54,28 +67,12 @@ export function App({ session }: { session: Session }) {
     return unsub;
   }, []);
 
-  const scheduleStreamingRender = () => {
-    if (renderTimerRef.current) return;
-    renderTimerRef.current = setTimeout(() => {
-      renderTimerRef.current = undefined;
-      setStreamingText(streamingRef.current);
-    }, STREAM_FRAME_MS);
-  };
-
-  const scheduleReasoningRender = () => {
-    if (reasoningRenderTimerRef.current) return;
-    reasoningRenderTimerRef.current = setTimeout(() => {
-      reasoningRenderTimerRef.current = undefined;
-      setReasoningText(reasoningRef.current);
-    }, STREAM_FRAME_MS);
-  };
-
   useInput((_input, key) => {
     if (pendingQuestion) {
       if (key.ctrl && _input === "c") session.abort();
       return;
     }
-    if (_input === "t" && runState.running && reasoningText) {
+    if (_input === "t" && runState.running && reasoning.text) {
       setShowReasoning((v) => !v);
       return;
     }
@@ -88,7 +85,7 @@ export function App({ session }: { session: Session }) {
   });
 
   async function handleCommand(name: string, args: string) {
-    await session.executeCommand(name, args);
+    await executeCommand(name, args, session);
     if (session.localStore.get("exitRequested") != null) exit();
   }
 
@@ -106,13 +103,13 @@ export function App({ session }: { session: Session }) {
         />
       );
     } else {
-      const spinnerLabel = streamingText ? "replying" : "working";
+      const spinnerLabel = streaming.text ? "replying" : "working";
       runningView = (
         <>
-          {reasoningText ? renderReasoning(reasoningText, showReasoning) : null}
-          {streamingText ? (
+          {reasoning.text ? renderReasoning(reasoning.text, showReasoning) : null}
+          {streaming.text ? (
             <Box marginTop={1} paddingLeft={1} paddingRight={1} borderStyle="single" borderTop={false} borderRight={false} borderBottom={false} borderColor="gray">
-              <Markdown>{streamingText}</Markdown>
+              <Markdown>{streaming.text}</Markdown>
             </Box>
           ) : null}
           <Box marginTop={1} paddingLeft={1}>
@@ -148,7 +145,7 @@ export function App({ session }: { session: Session }) {
         contextLimit={session.compactThreshold}
         running={runState.running}
         questionPending={!!pendingQuestion}
-        reasoningAvailable={!!reasoningText}
+        reasoningAvailable={!!reasoning.text}
       />
     </Box>
   );

@@ -1,9 +1,10 @@
-import { withAbort, withAbortFallback } from "../util/async.js";
+import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
-import type { AssistantMessage, Message } from "../llm/types.js";
+import { parseToolArgs, type AssistantMessage, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
+import { SKILL_TOOL_NAME } from "../tools/skill.js";
 import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
 
 
@@ -32,7 +33,7 @@ export type AgentEvent =
   | { type: "skill"; name: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
-  | { type: "system"; text: string }
+  | { type: "notice"; text: string }
   | { type: "usage"; inputTokens: number; outputTokens: number };
 
 export interface AgentOptions {
@@ -193,7 +194,7 @@ export class Agent {
     let pendingNudge = "";
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
-        onEvent?.({ type: "system", text: "auto-compacting context" });
+        onEvent?.({ type: "notice", text: "auto-compacting context" });
         const compactStatus = await this.compact(undefined, signal);
         if (compactStatus !== "ok") return compactStatus;
       }
@@ -255,11 +256,8 @@ export class Agent {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, preview: r.preview, isError: r.isError });
       }
       for (const tc of msg.tool_calls) {
-        if (tc.function.name !== "Skill" || !this.resolveSkill) continue;
-        let args: Record<string, unknown> = {};
-        if (tc.function.arguments) {
-          try { args = JSON.parse(tc.function.arguments); } catch { /* ignore */ }
-        }
+        if (tc.function.name !== SKILL_TOOL_NAME || !this.resolveSkill) continue;
+        const { args } = parseToolArgs(tc.function.arguments);
         const name = args.name as string;
         if (!name) continue;
         const skill = this.resolveSkill(name);
@@ -275,14 +273,11 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<{ id: string; content: string; preview?: string; isError?: boolean }[] | null> {
-    return withAbortFallback(Promise.all(
+    return withAbort(Promise.all(
       calls.map(async (call) => {
-        let args: Record<string, unknown> = {};
-        let argsError = "";
-        if (call.function.arguments) {
-          try { args = JSON.parse(call.function.arguments); }
-          catch (e) { argsError = `Error: invalid arguments: ${(e as Error).message}`; }
-        }
+        const parsed = parseToolArgs(call.function.arguments);
+        const args = parsed.args;
+        const argsError = parsed.error ? `Error: invalid arguments: ${parsed.error}` : "";
         const summary = this.tools.summarize(call.function.name, args);
         onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
         const ctx: ToolContext = { signal, cwd: this.cwd };
@@ -295,7 +290,7 @@ export class Agent {
         if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });
         return { id: call.id, content: result.content, preview, isError: result.isError };
       })
-    ), signal, null);
+    ), signal, () => null);
   }
 }
 

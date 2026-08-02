@@ -1,4 +1,4 @@
-import type { AssistantMessage, Message } from "../llm/types.js";
+import { textOf, type AssistantMessage, type Message } from "../llm/types.js";
 import { getContentBytes } from "../util/text.js";
 
 export type ConversationMessage =
@@ -15,12 +15,8 @@ function estimateTokens(text: string): number {
 
 function messageText(msg: ConversationMessage): string {
   const parts: string[] = [];
-  if (typeof msg.content === "string") parts.push(msg.content);
-  else if (Array.isArray(msg.content)) {
-    for (const p of msg.content) {
-      if (p.type === "text") parts.push(p.text);
-    }
-  }
+  const t = textOf(msg.content);
+  if (t) parts.push(t);
   if ("tool_calls" in msg && msg.tool_calls) {
     for (const tc of msg.tool_calls) {
       if (tc.function?.name) parts.push(tc.function.name);

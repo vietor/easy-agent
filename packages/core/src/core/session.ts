@@ -1,31 +1,33 @@
-import { randomUUID } from "node:crypto";
 import type { LLMClient } from "../llm/client.js";
-import type { AssistantMessage } from "../llm/types.js";
+import { parseToolArgs, textOf } from "../llm/types.js";
 import type { MCPServers } from "../mcp/server.js";
-import type { MCPServerInfo } from "../mcp/types.js";
+import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
-import { SkillRegistry } from "../skills/registry.js";
 import type { ToolRegistry, BuiltinToolsOptions } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import { createAskUserTool } from "../tools/askUser.js";
 import { createSkillTool } from "../tools/skill.js";
 import { createTodoWriteTool } from "../tools/todoWrite.js";
 import { createSubAgentTool } from "../tools/subAgent.js";
-import type { CommandRegistry } from "../cmds/registry.js";
-import type { CommandSchema } from "../cmds/types.js";
-import { SessionBusyError, type SessionPersistence, type SessionState } from "./types.js";
-import { Agent, type AgentEvent, type RunStatus } from "./agent.js";
+import { SessionBusyError, type SessionEvent, type SessionPersistence, type SessionState } from "./types.js";
+import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
 
-export interface RunState {
-  running: boolean;
-  elapsed: number;
-  thinkingElapsed: number;
-  replyElapsed: number;
-  inputTokens: number;
-  outputTokens: number;
+export interface SessionDeps {
+  systemPrompt: string;
+  cwd: string;
+  sessionId: string;
+  persistence?: SessionPersistence;
+  skills?: Skill[];
+  builtinTools?: BuiltinToolsOptions;
+  llm: LLMClient;
+  tools: ToolRegistry;
+  mcp: MCPServers;
+  stallThreshold: number;
+  maxTurns: number;
+  compactThreshold: number;
 }
 
 export interface SessionView {
@@ -38,36 +40,10 @@ export interface PromptResult {
   reply: string;
 }
 
-export type SessionEvent =
-  | AgentEvent
-  | { type: "user"; text: string }
-  | { type: "reasoning_clear" }
-  | { type: "assistant"; text: string }
-  | { type: "question"; id: string; text: string; options: string[] }
-  | { type: "question_answered"; id: string; answer: string }
-  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
-
-export interface SessionDeps {
-  llm: LLMClient;
-  systemPrompt: string;
-  cwd: string;
-  tools: ToolRegistry;
-  commands: CommandRegistry;
-  mcp: MCPServers;
-  skills?: Skill[];
-  builtinTools?: BuiltinToolsOptions;
-  sessionId?: string;
-  persistence?: SessionPersistence;
-  stallThreshold: number;
-  maxTurns: number;
-  compactThreshold: number;
-}
-
 export class Session {
   private agent: Agent;
   private mcp: MCPServers;
-  private commands: CommandRegistry;
-  private skills: SkillRegistry;
+  private skillsMap = new Map<string, Skill>();
   private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
   private loop: RunLoop;
@@ -105,6 +81,24 @@ export class Session {
     return () => { this.eventListeners.delete(listener); };
   };
 
+  timelineNotice = (text: string): void => {
+    this.timelineStore.append({ kind: "notice", text });
+    this.emit({ type: "notice", text });
+  };
+
+  timelineError = (text: string): void => {
+    this.timelineStore.append({ kind: "error", text });
+    this.emit({ type: "error", text });
+  };
+
+  runSkill = async (name: string): Promise<boolean> => {
+    this.rejectIfBusy();
+    const skill = this.skillsMap.get(name);
+    if (!skill) return false;
+    await this.loop.startSkill(skill);
+    return true;
+  };
+
   private emit = (e: SessionEvent): void => {
     for (const l of [...this.eventListeners]) {
       try { l(e); } catch { /* isolate listener errors */ }
@@ -139,50 +133,50 @@ export class Session {
     return this.mcp.list();
   }
 
-  get commandSchemas(): CommandSchema[] {
-    const map = new Map<string, CommandSchema>();
-    for (const c of this.commands.schemas()) map.set(c.name, c);
-    for (const s of this.skills.schemas()) if (!map.has(s.name)) map.set(s.name, s);
-    return [...map.values()];
+  get skills(): readonly Skill[] {
+    return [...this.skillsMap.values()];
   }
 
   constructor(deps: SessionDeps) {
     this.conversation = new Conversation(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd;
-    this.sessionId = deps.sessionId ?? randomUUID();
+    this.sessionId = deps.sessionId;
     this.persistence = deps.persistence;
-    this.skills = new SkillRegistry(deps.skills ?? []);
+    for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
     if (deps.builtinTools?.askUser) {
-      deps.tools.register(createAskUserTool((q, o) => this.ask(q, o)));
+      this.tools.register(createAskUserTool((q, o) => this.ask(q, o)));
     }
     if (deps.builtinTools?.todoWrite) {
-      deps.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
+      this.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
     }
     if (deps.builtinTools?.skill) {
-      deps.tools.register(createSkillTool((name) => this.skills.get(name)));
+      this.tools.register(createSkillTool((name) => this.skillsMap.get(name)));
     }
     if (deps.builtinTools?.subAgent) {
-      deps.tools.register(createSubAgentTool({ llm: deps.llm, tools: deps.tools }));
+      this.tools.register(createSubAgentTool({ llm: deps.llm, tools: this.tools }));
     }
 
     this.agent = new Agent({
       llm: deps.llm,
       conversation: this.conversation,
-      tools: deps.tools,
-      cwd: deps.cwd,
+      tools: this.tools,
+      cwd: this.cwd,
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
       stallThreshold: deps.stallThreshold,
       maxTurns: deps.maxTurns,
       compactThreshold: deps.compactThreshold,
-      resolveSkill: (name) => this.skills.get(name),
+      resolveSkill: (name) => this.skillsMap.get(name),
     });
-    this.commands = deps.commands;
     this.mcp = deps.mcp;
     this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
     this.loop.onSettle = () => this.persistSnapshot();
     this.latestUnansweredQuestion = undefined;
+  }
+
+  async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {
+    await this.mcp.connect(servers);
   }
 
   dispose(): void {
@@ -248,14 +242,11 @@ export class Session {
       } else if (m.role === "skill") {
         this.timelineStore.append({ kind: "skill", name: m.name });
       } else if (m.role === "assistant") {
-        const text = assistantText(m);
+        const text = textOf(m.content);
         if (text) this.timelineStore.append({ kind: "assistant", text });
         if (m.tool_calls) {
           for (const tc of m.tool_calls) {
-            let args: Record<string, unknown> = {};
-            if (tc.function.arguments) {
-              try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
-            }
+            const { args } = parseToolArgs(tc.function.arguments);
             const ann = toolAnnotations.get(tc.id);
             this.timelineStore.append({
               kind: "tool",
@@ -302,26 +293,6 @@ export class Session {
     }
   }
 
-  async executeCommand(name: string, args = ""): Promise<void> {
-    this.rejectIfBusy();
-    if (!this.commands.exists(name)) {
-      const skill = this.skills.get(name);
-      if (skill) {
-        await this.loop.startSkill(skill);
-        return;
-      }
-    }
-    await this.commands.execute(
-      name,
-      {
-        session: this,
-        message: (t) => { this.timelineStore.append({ kind: "system", text: t }); this.emit({ type: "system", text: t }); },
-        error: (t) => { this.timelineStore.append({ kind: "error", text: t }); this.emit({ type: "error", text: t }); },
-      },
-      args,
-    );
-  }
-
   async startPrompt(text: string): Promise<PromptResult> {
     this.rejectIfBusy();
     await this.loop.startPrompt(text);
@@ -338,10 +309,4 @@ export class Session {
       this.pendingQuestions.set(id, resolve);
     });
   }
-}
-
-function assistantText(m: AssistantMessage): string {
-  if (typeof m.content === "string") return m.content;
-  if (Array.isArray(m.content)) return m.content.filter((p) => p.type === "text").map((p) => p.text).join("");
-  return "";
 }

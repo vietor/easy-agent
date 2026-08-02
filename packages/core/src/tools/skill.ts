@@ -3,11 +3,13 @@ import type { Tool } from "./types.js";
 
 const DESCRIPTION = "Invoke a skill by name. Skills are packaged instructions that extend capabilities. Available skills and their descriptions are listed in the system prompt. When invoked, the skill's instructions are loaded into context — follow them.";
 
+export const SKILL_TOOL_NAME = "Skill" as const;
+
 export function createSkillTool(
   resolve: (name: string) => Skill | undefined
 ): Tool {
   return {
-    name: "Skill",
+    name: SKILL_TOOL_NAME,
     description: DESCRIPTION,
     parameters: {
       type: "object",
@@ -27,5 +29,8 @@ export function createSkillTool(
       }
       return { content: `Skill "${name}" loaded. Follow its instructions above.` };
     },
+    getPreview(_result) {
+      return 'Successfully loaded skill';
+    }
   };
 }

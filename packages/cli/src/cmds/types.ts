@@ -1,4 +1,4 @@
-import type { Session } from "../core/session.js";
+import type { Session } from "@vietor/easy-agent-core";
 
 export interface CommandContext {
   session: Session;

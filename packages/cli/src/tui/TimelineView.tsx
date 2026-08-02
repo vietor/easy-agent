@@ -67,7 +67,7 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
           <Text dimColor>{`  ⎿  ${entry.answer || "(skipped)"}`}</Text>
         </Box>
       );
-    case "system":
+    case "notice":
       return (
         <Box>
           <Text color="blue">{entry.text}</Text>

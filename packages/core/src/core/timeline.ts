@@ -9,7 +9,7 @@ export type TimelineEntry =
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
   | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }
-  | { kind: "system"; text: string };
+  | { kind: "notice"; text: string };
 
 class VersionedStore {
   private listeners = new Set<() => void>();

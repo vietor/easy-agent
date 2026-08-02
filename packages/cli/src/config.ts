@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import type { LLMConfig as CoreLLMConfig, MCPServerConfig as CoreMCPServerConfig } from "@vietor/easy-agent-core";
 
 const CONFIG_FILE = ".easy-agent.json";
 
@@ -39,6 +40,13 @@ const Config = z.object({
 export type LLMConfig = z.infer<typeof LLMConfig>;
 export type MCPServerConfig = z.infer<typeof MCPServerConfig>;
 export type Config = z.infer<typeof Config>;
+
+// Compile-time drift guard: the zod schemas below must stay structurally
+// identical to the core types; a mismatch fails the build.
+type _LLMDrift = [z.infer<typeof LLMConfig>] extends [CoreLLMConfig] ? ([CoreLLMConfig] extends [z.infer<typeof LLMConfig>] ? true : never) : never;
+type _MCPDrift = [z.infer<typeof MCPServerConfig>] extends [CoreMCPServerConfig] ? ([CoreMCPServerConfig] extends [z.infer<typeof MCPServerConfig>] ? true : never) : never;
+const _llmDrift: _LLMDrift = true;
+const _mcpDrift: _MCPDrift = true;
 
 export function loadConfig(): Config {
   const path = join(homedir(), CONFIG_FILE);

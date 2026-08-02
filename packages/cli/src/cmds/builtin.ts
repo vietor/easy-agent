@@ -1,5 +1,54 @@
 import { writeFileSync } from "node:fs";
-import type { Command } from "@vietor/easy-agent-core";
+import type { Command } from "./types.js";
+
+export const clearCommand: Command = {
+  name: "clear",
+  description: "Clear the conversation and log",
+  async execute(ctx) {
+    ctx.session.clear();
+  },
+};
+
+export const mcpCommand: Command = {
+  name: "mcp",
+  description: "List linked MCP servers",
+  async execute(ctx) {
+    const servers = ctx.session.mcpServers;
+    const text = servers.length
+      ? [
+          "MCP servers:",
+          ...servers.map((s) => {
+            const base = `❯ ${s.name} ⋅ ${s.type} ⋅ ${s.status} ∶ ${s.tools.join(", ") || "(no tools)"}`;
+            return s.error ? `${base}\n  ${s.error}` : base;
+          }),
+        ].join("\n")
+      : "No MCP servers linked.";
+    ctx.message(text);
+  },
+};
+
+export const compactCommand: Command = {
+  name: "compact",
+  description: "Compact the agent context",
+  async execute(ctx) {
+    await ctx.session.compact();
+  },
+};
+
+export const skillCommand: Command = {
+  name: "skill",
+  description: "List available skills",
+  async execute(ctx) {
+    const skills = ctx.session.skills;
+    const text = skills.length
+      ? [
+          "Skills:",
+          ...skills.map((s) => `❯ ${s.name} ∶ ${s.description || "no description"}`),
+        ].join("\n")
+      : "No skills available.";
+    ctx.message(text);
+  },
+};
 
 export const exitCommand: Command = {
   name: "exit",
@@ -27,6 +76,10 @@ export const exportCommand: Command = {
 };
 
 export const builtinCommands: Command[] = [
+  clearCommand,
+  mcpCommand,
+  compactCommand,
+  skillCommand,
   exitCommand,
   { ...exitCommand, name: "quit" },
   exportCommand,
