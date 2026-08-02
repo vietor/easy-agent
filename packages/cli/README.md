@@ -155,6 +155,7 @@ A status bar at the bottom shows the context token usage with a progress bar and
 - **WebFetch** — fetch a URL as markdown or text.
 - **AskUser** — ask the user a question and wait for their answer.
 - **TodoWrite** — track multi-step work as a task list (pending / in_progress / completed), shown live as a panel in the TUI.
+- **SubAgent** — delegate investigation (`explore`) or implementation-planning (`plan`) subtasks to a nested read-only sub-agent.
 
 ### Slash commands
 

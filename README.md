@@ -13,7 +13,7 @@ An autonomous coding agent in the terminal — monorepo workspace.
 - **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) to control reasoning depth; displayed live in the TUI header.
 - **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
 - **Session persistence** — save/resume conversations with async `SessionPersistence` and `flush()` write-completion guarantees; CLI supports `--continue` / `--resume`.
-- **Built-in tool system** — Shell, FileRead/Write/Edit, Glob, Grep, WebFetch, AskUser, TodoWrite — plus a simple `Tool` interface for custom tools.
+- **Built-in tool system** — Shell, FileRead/Write/Edit, Glob, Grep, WebFetch, AskUser, TodoWrite, SubAgent (nested read-only explore/plan agents) — plus a simple `Tool` interface for custom tools.
 - **Skill system** — `SKILL.md` files in `~/.easy-agent/skills/` register as slash commands automatically.
 - **Context compaction** — auto-triggered LLM summarization when the conversation nears the token limit; also available as `/compact`.
 - **Stall & turn limits** — detects repeated identical tool calls (`stallThreshold`) and caps agent loop iterations (`maxTurns`), configurable per session.
@@ -58,16 +58,17 @@ easy-agent/
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
 │   │       ├── skills/              # skill loader (SKILL.md files)
 │   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…
-│   │       ├── sessionBuilder.ts    # createSession() factory
+│   │       ├── createSession.ts     # createSession() factory
 │   │       └── index.ts             # public API exports
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
 │       └── src/
 │           ├── tui/                 # terminal UI (App, TimelineView, TodoView, etc.)
 │           │   └── components/      # shared UI components (Markdown renderer…)
 │           ├── cmds/                # built-in slash commands + dispatcher
-│           ├── util/                # format, package info, FileSessionPersistence
+│           ├── util/                # package info, FileSessionPersistence
 │           ├── config.ts            # JSON config loader (~/.easy-agent.json)
-│           └── cli.ts               # entry — parses args, wires session, starts TUI
+│           ├── main.ts              # parses args, wires session, starts TUI
+│           └── cli.ts               # shebang entry — calls main()
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
 └── tsconfig.json      # base TypeScript config

@@ -4,13 +4,16 @@ const STATUSES: TodoStatus[] = ["pending", "in_progress", "completed"];
 
 const DESCRIPTION = "Manage the task list for tasks with 3+ steps. Pass the FULL list each call; it replaces the previous list. Keep one in_progress at a time. status: pending, in_progress, completed.";
 
-function parseTodos(args: Record<string, unknown>) {
-  const raw = Array.isArray(args.todos) ? (args.todos as Partial<Todo>[]) : [];
+function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: number; normalized: number; error?: string } {
+  const raw = args.todos;
+  if (!Array.isArray(raw)) {
+    return { todos: [], done: 0, normalized: 0, error: `"todos" must be an array of {content, status} objects, got ${typeof raw}` };
+  }
   const todos: Todo[] = [];
   let done = 0;
   let normalized = 0;
   let seenInProgress = false;
-  for (const t of raw) {
+  for (const t of raw as Partial<Todo>[]) {
     if (!t) continue;
     const content = typeof t.content === "string" ? t.content.trim() : "";
     if (!content) continue;
@@ -53,11 +56,12 @@ export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
       required: ["todos"],
     },
     summarizeArgs(args) {
-      const { todos, done } = parseTodos(args);
-      return `${done}/${todos.length}`;
+      const { todos, done, error } = parseTodos(args);
+      return error ? "invalid" : `${done}/${todos.length}`;
     },
     async execute(args, _ctx) {
-      const { todos, done, normalized } = parseTodos(args);
+      const { todos, done, normalized, error } = parseTodos(args);
+      if (error) return { content: `Error: ${error}`, isError: true };
       setTodos(todos);
       const note = normalized ? ` (normalized ${normalized} item${normalized === 1 ? "" : "s"} to one in_progress)` : "";
       return `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done)${note}.`;
