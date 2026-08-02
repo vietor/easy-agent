@@ -12,7 +12,7 @@ import { createSubAgentTool } from "../tools/subAgent.js";
 import { SessionBusyError, type SessionEvent, type SessionPersistence, type SessionState } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
+import { ListenerSet, TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
 
 export interface SessionDeps {
@@ -58,7 +58,7 @@ export class Session {
   private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
   private viewCache: SessionView | null = null;
-  private eventListeners = new Set<(e: SessionEvent) => void>();
+  private eventListeners = new ListenerSet<(e: SessionEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
   private latestUnansweredQuestion: Extract<TimelineEntry, { kind: "question" }> | undefined;
 
@@ -76,19 +76,15 @@ export class Session {
     return this.viewCache;
   };
 
-  subscribeEvents = (listener: (e: SessionEvent) => void): (() => void) => {
-    this.eventListeners.add(listener);
-    return () => { this.eventListeners.delete(listener); };
-  };
+  subscribeEvents = (listener: (e: SessionEvent) => void): (() => void) =>
+    this.eventListeners.subscribe(listener);
 
   timelineNotice = (text: string): void => {
-    this.timelineStore.append({ kind: "notice", text });
-    this.emit({ type: "notice", text });
+    this.timelineAppend("notice", text);
   };
 
   timelineError = (text: string): void => {
-    this.timelineStore.append({ kind: "error", text });
-    this.emit({ type: "error", text });
+    this.timelineAppend("error", text);
   };
 
   runSkill = async (name: string): Promise<boolean> => {
@@ -99,10 +95,13 @@ export class Session {
     return true;
   };
 
+  private timelineAppend(kind: "notice" | "error", text: string): void {
+    this.timelineStore.append({ kind, text });
+    this.emit({ type: kind, text });
+  }
+
   private emit = (e: SessionEvent): void => {
-    for (const l of [...this.eventListeners]) {
-      try { l(e); } catch { /* isolate listener errors */ }
-    }
+    this.eventListeners.notify(e);
   };
 
   getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
