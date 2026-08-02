@@ -1,3 +1,4 @@
+import type { ToolResult } from "../tools/types.js";
 import TurndownService from "turndown";
 
 const turndown = new TurndownService({
@@ -44,4 +45,15 @@ export function getTextBytes(content: string): number {
 export function ellipsisText(content: string, length: number) {
   const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   return text.length > length ? text.slice(0, length) + "…" : text;
+}
+
+export function previewBytes(prefix: string, result: ToolResult, failText: string): string {
+  if (result.isError) return failText;
+  return `${prefix} ${compactFormat(getTextBytes(result.content))} bytes`;
+}
+
+export function previewCount(word: "file" | "match", count: number, isError: boolean, failText: string): string {
+  if (isError) return failText;
+  const plural = word === "match" ? "matches" : "files";
+  return `Found ${count} ${count === 1 ? word : plural}`;
 }

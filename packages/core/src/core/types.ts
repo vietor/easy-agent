@@ -58,6 +58,10 @@ export interface RunState {
   outputTokens: number;
 }
 
+export function createInitialRunState(): RunState {
+  return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
+}
+
 export type SessionEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
