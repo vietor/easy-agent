@@ -43,17 +43,19 @@ const session = await createSession({
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
 | `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). |
+| `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `commands` | `Command[]` | `undefined` | Custom slash commands. |
-| `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; each registers as a slash command. |
+| `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or as slash commands. |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
 | `builtinTools` | `BuiltinToolsOptions \| false` | *(all enabled)* | Toggle built-in tools individually; `false` to disable all. All tools default to `true` except `askUser` and `todoWrite` which default to `false`. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
-| `compactThreshold` | `number` | `800000` | Estimated-token threshold that triggers auto-compaction of the conversation. |
 | `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
-| `stallThreshold` | `number` | `3` | Consecutive identical tool-call sets before the run is treated as stalled. |
+| `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
+
+The auto-compaction threshold is not configurable — it's derived internally as 75% of `llmConfig.contextWindow` and exposed via `session.compactThreshold`.
 
 ---
 
@@ -264,7 +266,7 @@ type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
 | `ok` | The run completed with a final assistant reply. |
 | `aborted` | The run was aborted via `abort()`. |
 | `error` | The run ended due to an LLM/API error. |
-| `stalled` | The agent repeated identical tool calls past `stallThreshold`. |
+| `stalled` | The agent stalled past `stallThreshold`: repeated identical tool calls, or repeated text-only responses while todos are incomplete. |
 | `maxturns` | The agent exceeded `maxTurns`. |
 
 Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted, `"error"` on failure).
@@ -308,7 +310,7 @@ type ConversationMessage =
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
   | AssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string };
+  | { role: "tool"; tool_call_id: string; content: string; preview?: string; isError?: boolean };
 
 // AssistantMessage includes optional tool_calls[] for function-calling
 ```
@@ -320,14 +322,15 @@ interface LLMConfig {
   baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com")
   apiKey: string;             // API key
   model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5")
-  reasoningEffort?: "high" | "max";  // Reasoning depth; defaults to "high". Set "max" for deeper reasoning on complex tasks.
-  wireApi?: "completions" | "anthropic";  // Wire protocol; defaults to "completions" (OpenAI Chat Completions). Set "anthropic" to use the Anthropic Messages API via the official SDK.
+  reasoningEffort: "high" | "max";  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks
+  wireApi: "completions" | "anthropic";  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK)
+  contextWindow: number;      // Context window in tokens; 75% of it is used as the auto-compaction threshold
 }
 ```
 
 `wireApi` selects the request/response protocol the client speaks:
 
-- `"completions"` (default) - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`.
+- `"completions"` - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`.
 - `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k); thinking blocks are preserved across tool-use turns as required by the API.
 
 ### `SessionPersistence`
@@ -419,6 +422,17 @@ import { createAskUserTool } from "@vietor/easy-agent-core";
 const askUserTool = createAskUserTool(async (question, options) => { /* ... */ });
 ```
 
+### `createSkillTool`
+
+**`createSkillTool(resolve: (name: string) => Skill | undefined): Tool`**
+
+Build a Skill tool backed by a custom skill resolver. The built-in Skill tool is registered automatically when the session has skills; use this factory to wire skills into sessions with different tooling.
+
+```ts
+import { createSkillTool } from "@vietor/easy-agent-core";
+const skillTool = createSkillTool((name) => mySkills.get(name));
+```
+
 ### `ToolResult`
 
 ```ts
@@ -456,8 +470,9 @@ Non-interactive tools (always registered):
 | **Glob** | File listing by glob pattern. |
 | **Grep** | Content search with regex. |
 | **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. |
+| **Skill** | Invoke a skill by name; loads its instructions into context. Available skills are listed in the system prompt. |
 
-Each built-in tool can be toggled individually via `builtinTools`. All tools default to enabled except `askUser` and `todoWrite` which must be explicitly enabled.
+Each built-in tool can be toggled individually via `builtinTools`. All tools default to enabled except `askUser` and `todoWrite` which must be explicitly enabled. The `Skill` tool is also enabled by default (disable via `builtinTools: { skill: false }`) but is only useful when `skills` are provided.
 
 ```ts
 const session = await createSession({
@@ -578,7 +593,7 @@ interface Skill {
 }
 ```
 
-Skills are loaded from directories containing a `SKILL.md` file and registered as slash commands automatically.
+Skills are loaded from directories containing a `SKILL.md` file. They are listed in the system prompt so the agent can invoke them via the built-in **Skill** tool, and can also be run directly as slash commands through `executeCommand`.
 
 ### `tryLoadSkills`
 
@@ -643,6 +658,7 @@ interface MCPServerInfo {
   type: "stdio" | "http";
   status: "pending" | "connected" | "failed" | "disabled";
   tools: string[];
+  error?: string;  // connection error message when status is "failed"
 }
 ```
 
@@ -688,6 +704,42 @@ Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
 import { getContentBytes } from "@vietor/easy-agent-core";
 
 const bytes = getContentBytes("Hello");   // 5
+```
+
+### `timeFormat`
+
+**`timeFormat(value: number): string`**
+
+Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result previews.
+
+```ts
+import { timeFormat } from "@vietor/easy-agent-core";
+
+timeFormat(3.24);   // "3.24s"
+```
+
+### `compactFormat`
+
+**`compactFormat(value: number): string`**
+
+Format a number compactly (e.g. `1.2K`). Used for byte/line counts in previews.
+
+```ts
+import { compactFormat } from "@vietor/easy-agent-core";
+
+compactFormat(1234);   // "1.23K"
+```
+
+### `ellipsisText`
+
+**`ellipsisText(content: string, length: number): string`**
+
+Collapse whitespace and truncate text to `length` characters with a trailing `…`.
+
+```ts
+import { ellipsisText } from "@vietor/easy-agent-core";
+
+ellipsisText("a\nvery   long line", 8);   // "a very l…"
 ```
 
 ### `netFetch`
