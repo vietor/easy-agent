@@ -1,15 +1,7 @@
 import type { Todo } from "../tools/types.js";
-
-export type TimelineEntry =
-  | { kind: "user"; text: string }
-  | { kind: "skill"; name: string }
-  | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean; preview?: string }
-  | { kind: "retry"; attempt: number; max: number }
-  | { kind: "error"; text: string }
-  | { kind: "interrupted" }
-  | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }
-  | { kind: "notice"; text: string };
+import { parseToolArgs, textOf } from "../llm/types.js";
+import type { ConversationMessage } from "./conversation.js";
+import type { SessionEvent, TimelineEntry } from "./types.js";
 
 export class ListenerSet<T extends (...args: any[]) => void = () => void> {
   private listeners = new Set<T>();
@@ -58,7 +50,49 @@ export class TimelineStore {
     return this.listeners.subscribe(listener);
   }
 
-  append(entry: TimelineEntry): void {
+  /** The single event -> timeline translation: how every SessionEvent becomes an entry. */
+  applyEvent(e: SessionEvent): void {
+    switch (e.type) {
+      case "user":
+        this.append({ kind: "user", text: e.text });
+        break;
+      case "skill":
+        this.append({ kind: "skill", name: e.name });
+        break;
+      case "assistant":
+        this.append({ kind: "assistant", text: e.text });
+        break;
+      case "tool_start":
+        this.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
+        break;
+      case "tool_end":
+        this.setResult(e.id, e.result, e.isError, e.preview);
+        break;
+      case "retry":
+        this.append({ kind: "retry", attempt: e.attempt, max: e.max });
+        break;
+      case "error":
+        this.append({ kind: "error", text: e.text });
+        break;
+      case "interrupted":
+        this.append({ kind: "interrupted" });
+        break;
+      case "notice":
+        this.append({ kind: "notice", text: e.text });
+        break;
+      // question/question_answered flow through appendQuestion/setAnswer (Session.ask/submitAnswer)
+      case "question":
+      case "question_answered":
+      // stream-only events are never stored
+      case "assistant_delta":
+      case "reasoning_delta":
+      case "reasoning_clear":
+      case "state":
+        break;
+    }
+  }
+
+  private append(entry: TimelineEntry): void {
     this.entries.push(entry);
     if (entry.kind === "tool" && entry.result === null) {
       this.pendingTools.set(entry.id, this.entries.length - 1);
@@ -136,4 +170,44 @@ export class TimelineStore {
     this.pendingQuestions.clear();
     this.listeners.notify();
   }
+}
+
+/** Replay persisted conversation messages as the events that produced them (for session restore). */
+export function messagesToSessionEvents(
+  messages: ConversationMessage[],
+  summarize: (name: string, args: Record<string, unknown>) => string
+): SessionEvent[] {
+  const toolResults = new Map<string, { content: string; preview?: string; isError?: boolean }>();
+  for (const m of messages) {
+    if (m.role === "tool") {
+      const result: { content: string; preview?: string; isError?: boolean } = { content: m.content };
+      if (m.preview !== undefined || m.isError !== undefined) {
+        result.preview = m.preview;
+        result.isError = m.isError;
+      }
+      toolResults.set(m.tool_call_id, result);
+    }
+  }
+  const events: SessionEvent[] = [];
+  for (const m of messages) {
+    if (m.role === "user") {
+      events.push({ type: "user", text: m.content });
+    } else if (m.role === "skill") {
+      events.push({ type: "skill", name: m.name });
+    } else if (m.role === "assistant") {
+      const text = textOf(m.content);
+      if (text) events.push({ type: "assistant", text });
+      if (m.tool_calls) {
+        for (const tc of m.tool_calls) {
+          const { args } = parseToolArgs(tc.function.arguments);
+          events.push({ type: "tool_start", id: tc.id, name: tc.function.name, summary: summarize(tc.function.name, args) });
+          const result = toolResults.get(tc.id);
+          if (result) {
+            events.push({ type: "tool_end", id: tc.id, result: result.content, isError: result.isError, preview: result.preview });
+          }
+        }
+      }
+    }
+  }
+  return events;
 }

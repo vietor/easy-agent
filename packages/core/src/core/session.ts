@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient } from "../llm/client.js";
-import { parseToolArgs, textOf } from "../llm/types.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
@@ -11,10 +10,10 @@ import { createAskUserTool } from "../tools/askUser.js";
 import { createSkillTool } from "../tools/skill.js";
 import { createTodoWriteTool } from "../tools/todoWrite.js";
 import { createSubAgentTool } from "../tools/subAgent.js";
-import { SessionBusyError, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
+import { SessionBusyError, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState, type TimelineEntry } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { ListenerSet, TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
+import { ListenerSet, TimelineStore, TodoStore, messagesToSessionEvents } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
 
 export interface SessionDeps extends Omit<SessionOptions, "tools"> {
@@ -89,7 +88,7 @@ export class Session {
   };
 
   private timelineAppend(kind: "notice" | "error", text: string): void {
-    this.timelineStore.append({ kind, text });
+    this.timelineStore.applyEvent({ type: kind, text });
     this.emit({ type: kind, text });
   }
 
@@ -226,40 +225,8 @@ export class Session {
   }
 
   private rebuildTimeline(messages: ConversationMessage[]): void {
-    const toolResults = new Map<string, string>();
-    const toolAnnotations = new Map<string, { preview?: string; isError?: boolean }>();
-    for (const m of messages) {
-      if (m.role === "tool") {
-        toolResults.set(m.tool_call_id, m.content);
-        if (m.preview !== undefined || m.isError !== undefined) {
-          toolAnnotations.set(m.tool_call_id, { preview: m.preview, isError: m.isError });
-        }
-      }
-    }
-    for (const m of messages) {
-      if (m.role === "user") {
-        this.timelineStore.append({ kind: "user", text: m.content });
-      } else if (m.role === "skill") {
-        this.timelineStore.append({ kind: "skill", name: m.name });
-      } else if (m.role === "assistant") {
-        const text = textOf(m.content);
-        if (text) this.timelineStore.append({ kind: "assistant", text });
-        if (m.tool_calls) {
-          for (const tc of m.tool_calls) {
-            const { args } = parseToolArgs(tc.function.arguments);
-            const ann = toolAnnotations.get(tc.id);
-            this.timelineStore.append({
-              kind: "tool",
-              id: tc.id,
-              name: tc.function.name,
-              summary: this.tools.summarize(tc.function.name, args),
-              result: toolResults.get(tc.id) ?? null,
-              preview: ann?.preview,
-              isError: ann?.isError,
-            });
-          }
-        }
-      }
+    for (const e of messagesToSessionEvents(messages, (n, a) => this.tools.summarize(n, a))) {
+      this.timelineStore.applyEvent(e);
     }
   }
 

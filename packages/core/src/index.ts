@@ -1,6 +1,6 @@
 export { Session, type SessionDeps, type SessionView, type PromptResult } from "./core/session.js";
 export type { RunStatus } from "./core/agent.js";
-export type { TimelineEntry } from "./core/timeline.js";
+export type { TimelineEntry } from "./core/types.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export { TODO_STATUS_GLYPHS } from "./tools/types.js";

@@ -42,13 +42,13 @@ export class RunLoop {
     if (this.todos.all.length > 0 && this.todos.all.every((t) => t.status === "completed")) {
       this.todos.set([]);
     }
-    this.timeline.append({ kind: "user", text });
+    this.timeline.applyEvent({ type: "user", text });
     this.emit({ type: "user", text });
     await this.run((signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   async startSkill(skill: Skill): Promise<void> {
-    this.timeline.append({ kind: "skill", name: skill.name });
+    this.timeline.applyEvent({ type: "skill", name: skill.name });
     this.emit({ type: "skill", name: skill.name });
     await this.run((signal) => this.agent.runSkill(skill, this.handleEvent, signal));
   }
@@ -79,7 +79,7 @@ export class RunLoop {
     } catch (e) {
       status = "error";
       this.flushStreaming();
-      this.timeline.append({ kind: "error", text: (e as Error).message });
+      this.timeline.applyEvent({ type: "error", text: (e as Error).message });
       this.emit({ type: "error", text: (e as Error).message });
     } finally {
       clearInterval(this.timer);
@@ -120,37 +120,19 @@ export class RunLoop {
       case "reasoning_delta":
         this.reasoningText += e.text;
         break;
-      case "tool_start":
-        this.flushStreaming();
-        this.timeline.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
-        break;
       case "retry":
         // keep the partial reply visible before the retry replays from scratch
-        this.flushStreaming();
-        this.timeline.append({ kind: "retry", attempt: e.attempt, max: e.max });
-        break;
-      case "tool_end":
-        this.timeline.setResult(e.id, e.result, e.isError, e.preview);
-        break;
-      case "skill":
-        this.timeline.append({ kind: "skill", name: e.name });
-        break;
+      case "tool_start":
       case "error":
-        this.flushStreaming();
-        this.timeline.append({ kind: "error", text: e.text });
-        break;
       case "interrupted":
         this.flushStreaming();
-        this.timeline.append({ kind: "interrupted" });
-        break;
-      case "notice":
-        this.timeline.append({ kind: "notice", text: e.text });
         break;
       case "usage":
         this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };
         this.emitRunState();
         return; // usage is folded into "state"; never forwarded as its own event
     }
+    this.timeline.applyEvent(e);
     this.emit(e);
   };
 
@@ -158,7 +140,7 @@ export class RunLoop {
     if (this.streamingText) {
       this.lastReplyText = this.streamingText;
       const text = this.streamingText;
-      this.timeline.append({ kind: "assistant", text });
+      this.timeline.applyEvent({ type: "assistant", text });
       this.streamingText = "";
       this.emit({ type: "assistant", text });
     }

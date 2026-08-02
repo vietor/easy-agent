@@ -78,3 +78,18 @@ export type SessionEvent =
   | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
   | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
+
+/** Timeline entries are the persisted subset of SessionEvent with pending-state fields (tool result, question answer). */
+type WithKind<T extends SessionEvent["type"], K extends string> =
+  Omit<Extract<SessionEvent, { type: T }>, "type"> & { kind: K };
+
+export type TimelineEntry =
+  | WithKind<"user", "user">
+  | WithKind<"skill", "skill">
+  | WithKind<"assistant", "assistant">
+  | (WithKind<"tool_start", "tool"> & { result: string | null; isError?: boolean; preview?: string })
+  | WithKind<"retry", "retry">
+  | WithKind<"error", "error">
+  | WithKind<"interrupted", "interrupted">
+  | (WithKind<"question", "question"> & { answer: string | null })
+  | WithKind<"notice", "notice">;

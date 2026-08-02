@@ -2,6 +2,7 @@ import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import { parseToolArgs, type AssistantMessage, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
+import type { SessionEvent } from "./types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { SKILL_TOOL_NAME } from "../tools/skill.js";
@@ -25,15 +26,7 @@ const COMPACT_PROMPT = [
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
 
 export type AgentEvent =
-  | { type: "assistant_delta"; text: string }
-  | { type: "reasoning_delta"; text: string }
-  | { type: "retry"; attempt: number; max: number }
-  | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
-  | { type: "skill"; name: string }
-  | { type: "error"; text: string }
-  | { type: "interrupted" }
-  | { type: "notice"; text: string }
+  | Exclude<SessionEvent, { type: "user" | "assistant" | "reasoning_clear" | "question" | "question_answered" | "state" }>
   | { type: "usage"; inputTokens: number; outputTokens: number };
 
 export interface AgentOptions {
