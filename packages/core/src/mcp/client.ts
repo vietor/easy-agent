@@ -16,7 +16,6 @@ export class MCPClient {
   private stderrBuf: string[] = [];
 
   constructor(
-    private name: string,
     config: MCPServerConfig,
     clientInfo: { name: string; version: string },
   ) {

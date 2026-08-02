@@ -50,13 +50,14 @@ export class FileSessionPersistence implements SessionPersistence {
   async saveAll(sessionId: string, state: SessionState): Promise<void> {
     this.ensureDir();
     const written = this.writtenCounts.get(sessionId) ?? 0;
+    const shrink = state.messages.length < written;
     const lines = state.messages
-      .slice(written)
+      // on shrink (abort restore / compact) rewrite everything, not just the tail
+      .slice(shrink ? 0 : written)
       .map((m) => JSON.stringify({ t: "m", m }))
       .concat([JSON.stringify({ t: "todo", todos: state.todos })]);
     const path = this.file(sessionId);
-    if (state.messages.length < written) {
-      // conversation shrank (abort restore / compact): rewrite the whole file
+    if (shrink) {
       await writeFile(path, lines.join("\n") + "\n", "utf-8");
     } else {
       await appendFile(path, lines.join("\n") + "\n", "utf-8");

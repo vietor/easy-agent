@@ -19,11 +19,11 @@ export const fileEditTool: Tool = {
   },
   async execute(args, ctx) {
     const path = args.path as string;
+    if (!path) throw new Error("path is required");
     const resolved = resolve(ctx.cwd, path);
     const oldStr = args.old_string as string;
     const newStr = args.new_string as string;
     const all = args.replace_all === true;
-    if (!path) throw new Error("path is required");
     if (!oldStr) throw new Error("old_string is required");
     const content = await readFile(resolved, "utf-8");
     if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}; re-read the file with FileRead to get the exact current text (watch whitespace/indentation)`);

@@ -85,12 +85,20 @@ export function App({ session }: { session: Session }) {
   });
 
   async function handleCommand(name: string, args: string) {
-    await executeCommand(name, args, session);
+    try {
+      await executeCommand(name, args, session);
+    } catch (e) {
+      session.timelineError((e as Error).message);
+    }
     if (session.localStore.get("exitRequested") != null) exit();
   }
 
   async function handlePrompt(text: string) {
-    await session.startPrompt(text);
+    try {
+      await session.startPrompt(text);
+    } catch (e) {
+      session.timelineError((e as Error).message);
+    }
   }
 
   let runningView: ReactNode = null;

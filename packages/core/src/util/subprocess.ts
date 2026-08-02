@@ -60,6 +60,11 @@ export function runProcess(
       signal.addEventListener("abort", kill, { once: true });
       if (signal.aborted) kill();
     }
+    // pid is undefined until the child has spawned, so an abort before that
+    // point leaves kill() a no-op; re-check once the process exists
+    child.on("spawn", () => {
+      if (signal?.aborted) kill();
+    });
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const { timeout } = opts;
@@ -80,7 +85,11 @@ export function runProcess(
       size += c.length;
       if (size > MAX_BUFFER) { overflow = true; kill(); }
     });
-    child.stderr?.on("data", (c: Buffer) => { errChunks.push(c); });
+    child.stderr?.on("data", (c: Buffer) => {
+      errChunks.push(c);
+      size += c.length;
+      if (size > MAX_BUFFER) { overflow = true; kill(); }
+    });
     child.on("error", (error) => settle({ stdout: "", stderr: "", status: null, error }));
     child.on("close", (status) => {
       const stdout = Buffer.concat(outChunks).toString("utf-8");

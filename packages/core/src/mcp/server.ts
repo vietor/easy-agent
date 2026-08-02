@@ -89,7 +89,14 @@ export class MCPServers {
           return;
         }
         this.servers.set(name, { type, status: "pending", tools: [] });
-        const client = new MCPClient(name, cfg, this.clientInfo);
+        let client: MCPClient;
+        try {
+          client = new MCPClient(cfg, this.clientInfo);
+        } catch (e) {
+          // constructor validates config (e.g. URL); a bad entry must not take down the others
+          this.servers.set(name, { type, status: "failed", tools: [], error: (e as Error).message });
+          return;
+        }
         this.pending.add(client);
         try {
           await withTimeout(client.connect(), CONNECT_TIMEOUT);
