@@ -66,3 +66,7 @@ export interface LLMClient {
   readonly contextWindow: number;
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }
+
+export function compactThresholdFor(contextWindow: number): number {
+  return Math.floor(contextWindow * 0.75);
+}

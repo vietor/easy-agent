@@ -99,6 +99,7 @@ export async function main(argv: string[] = []): Promise<void> {
       askUser: true,
       todoWrite: true,
       skill: true,
+      subAgent: true,
     },
     cwd: cwd,
     sessionId,
@@ -108,8 +109,9 @@ export async function main(argv: string[] = []): Promise<void> {
   if (resume) await session.restore();
 
   const app = startApp(session);
-  await app.waitUntilExit().finally(() => {
+  await app.waitUntilExit().finally(async () => {
     session.dispose();
+    await session.flush();
     console.log(["Resume this session with:", `easy-agent --resume ${sessionId}`].join("\n"));
   });
 }

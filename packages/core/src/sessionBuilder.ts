@@ -2,12 +2,13 @@ import { createLLM } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
+import { TOOL_USE_PROMPT } from "./tools/prompt.js";
 import { CommandRegistry, registerBuiltinCommands } from "./cmds/registry.js";
 import type { Tool } from "./tools/types.js";
 import type { Command } from "./cmds/types.js";
 import type { Skill } from "./skills/types.js";
 import type { MCPServerConfig } from "./mcp/types.js";
-import type { LLMConfig } from "./llm/types.js";
+import { compactThresholdFor, type LLMConfig } from "./llm/types.js";
 import type { SessionPersistence } from "./core/types.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
@@ -34,6 +35,7 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinToo
   if (typeof builtinTools === "object") {
     if (builtinTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtinTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
+    if (builtinTools.subAgent) toolUseLines.push(SUBAGENT_GUIDANCE);
   }
   parts.push(toolUseLines.join("\n"));
   if (skills?.length) {
@@ -43,17 +45,11 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinToo
   return parts.join(SYSTEM_PROMPT_BOUNDARY);
 }
 
-const TOOL_USE_PROMPT = [
-  "Tool-Use Guidelines:",
-  "The user's instructions in the preceding sections take precedence over these defaults.",
-  "",
-  "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently; do not batch calls that depend on a prior result or that modify the same file or resource.",
-  "- For file operations (read/write/edit/glob/grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.",
-].join("\n");
-
 const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use TodoWrite: create the task list first, then update each task's status as you execute. Never execute a multi-step task without a TodoWrite task list.";
 
 const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking.";
+
+const SUBAGENT_GUIDANCE = '- For investigation or planning subtasks, consider delegating to a sub-agent via the SubAgent tool (type: "explore" to investigate the codebase or web, type: "plan" to produce an implementation plan) and continue the work yourself based on its report. Sub-agents are read-only and cannot write or edit files; perform any edits yourself.';
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llmConfig);
@@ -87,7 +83,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     persistence: opts.persistence,
     stallThreshold: opts.stallThreshold ?? 3,
     maxTurns: opts.maxTurns ?? 50,
-    compactThreshold: Math.floor(llm.contextWindow * 0.75),
+    compactThreshold: compactThresholdFor(llm.contextWindow),
   });
 
   if (opts.mcpServers) {

@@ -24,7 +24,7 @@ const COMPACT_PROMPT = [
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
 
 export type AgentEvent =
-  | { type: "delta"; text: string }
+  | { type: "assistant_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
   | { type: "retry"; attempt: number; max: number }
   | { type: "tool_start"; id: string; name: string; summary: string }
@@ -109,7 +109,7 @@ export class Agent {
         messages: request,
         tools: [],
         reasoning: false,
-        onDelta: (text) => onEvent?.({ type: "delta", text }),
+        onDelta: (text) => onEvent?.({ type: "assistant_delta", text }),
         onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
         onUsage: (inputTokens, outputTokens) => onEvent?.({ type: "usage", inputTokens, outputTokens }),
         signal,
@@ -194,7 +194,8 @@ export class Agent {
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
         onEvent?.({ type: "system", text: "auto-compacting context" });
-        await this.compact(undefined, signal);
+        const compactStatus = await this.compact(undefined, signal);
+        if (compactStatus !== "ok") return compactStatus;
       }
       const messages = this.conversation.toLLM();
       const todos = this.getTodos();
@@ -210,7 +211,7 @@ export class Agent {
         msg = await withAbort(this.llm.chat({
           messages,
           tools: this.tools.schemas(),
-          onDelta: (text) => onEvent?.({ type: "delta", text }),
+          onDelta: (text) => onEvent?.({ type: "assistant_delta", text }),
           onReasoning: (text) => onEvent?.({ type: "reasoning_delta", text }),
           onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
           onUsage: (inputTokens, outputTokens) => onEvent?.({ type: "usage", inputTokens, outputTokens }),

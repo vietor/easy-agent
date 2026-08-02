@@ -37,6 +37,10 @@ export class ToolRegistry {
     return this.tools.has(name);
   }
 
+  get(name: string): Tool | undefined {
+    return this.tools.get(name);
+  }
+
   schemas(): ToolSchema[] {
     if (!this.schemasCache) {
       this.schemasCache = [...this.tools.values()].map((t) => ({
@@ -87,11 +91,12 @@ export class ToolRegistry {
 }
 
 export interface BuiltinToolsOptions {
-  /** Tools to disable, by lowercase-camelCase name (e.g. "shell", "fileRead"). AskUser, TodoWrite and Skill are toggled by their own flags and cannot be disabled here. */
+  /** Tools to disable, by lowercase-camelCase name (e.g. "shell", "fileRead"). AskUser, TodoWrite, Skill and SubAgent are toggled by their own flags and cannot be disabled here. */
   disabled?: string[];
   askUser?: boolean;
   todoWrite?: boolean;
   skill?: boolean;
+  subAgent?: boolean;
 }
 
 const CORE_TOOLS: Tool[] = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];

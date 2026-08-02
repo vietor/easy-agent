@@ -10,10 +10,11 @@ import type { Todo } from "../tools/types.js";
 import { createAskUserTool } from "../tools/askUser.js";
 import { createSkillTool } from "../tools/skill.js";
 import { createTodoWriteTool } from "../tools/todoWrite.js";
+import { createSubAgentTool } from "../tools/subAgent.js";
 import type { CommandRegistry } from "../cmds/registry.js";
 import type { CommandSchema } from "../cmds/types.js";
 import { SessionBusyError, type SessionPersistence, type SessionState } from "./types.js";
-import { Agent, type RunStatus } from "./agent.js";
+import { Agent, type AgentEvent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
@@ -38,20 +39,12 @@ export interface PromptResult {
 }
 
 export type SessionEvent =
+  | AgentEvent
   | { type: "user"; text: string }
-  | { type: "skill"; name: string }
-  | { type: "assistant_delta"; text: string }
-  | { type: "reasoning_delta"; text: string }
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
-  | { type: "retry"; attempt: number; max: number }
-  | { type: "error"; text: string }
-  | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
-  | { type: "system"; text: string }
   | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 
 export interface SessionDeps {
@@ -168,6 +161,9 @@ export class Session {
     }
     if (deps.builtinTools?.skill) {
       deps.tools.register(createSkillTool((name) => this.skills.get(name)));
+    }
+    if (deps.builtinTools?.subAgent) {
+      deps.tools.register(createSubAgentTool({ llm: deps.llm, tools: deps.tools }));
     }
 
     this.agent = new Agent({

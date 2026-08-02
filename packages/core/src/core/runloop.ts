@@ -112,53 +112,45 @@ export class RunLoop {
 
   private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
-      case "delta":
+      case "assistant_delta":
         if (this.replyStart === null) this.replyStart = Date.now();
         this.streamingText += e.text;
-        this.emit({ type: "assistant_delta", text: e.text });
         break;
       case "reasoning_delta":
         this.reasoningText += e.text;
-        this.emit({ type: "reasoning_delta", text: e.text });
         break;
       case "tool_start":
         this.flushStreaming();
         this.timeline.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
-        this.emit({ type: "tool_start", id: e.id, name: e.name, summary: e.summary });
         break;
       case "retry":
         this.streamingText = "";
         this.flushReasoning();
         this.timeline.append({ kind: "retry", attempt: e.attempt, max: e.max });
-        this.emit({ type: "retry", attempt: e.attempt, max: e.max });
         break;
       case "tool_end":
         this.timeline.setResult(e.id, e.result, e.isError, e.preview);
-        this.emit({ type: "tool_end", id: e.id, result: e.result, isError: e.isError, preview: e.preview });
         break;
       case "skill":
         this.timeline.append({ kind: "skill", name: e.name });
-        this.emit({ type: "skill", name: e.name });
         break;
       case "error":
         this.flushStreaming();
         this.timeline.append({ kind: "error", text: e.text });
-        this.emit({ type: "error", text: e.text });
         break;
       case "interrupted":
         this.flushStreaming();
         this.timeline.append({ kind: "interrupted" });
-        this.emit({ type: "interrupted" });
         break;
       case "system":
         this.timeline.append({ kind: "system", text: e.text });
-        this.emit({ type: "system", text: e.text });
         break;
       case "usage":
         this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };
         this.emitRunState();
-        break;
+        return; // usage is folded into "state"; never forwarded as its own event
     }
+    this.emit(e);
   };
 
   private flushStreaming(): void {
