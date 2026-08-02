@@ -1,5 +1,5 @@
 import type { Skill } from "../skills/types.js";
-import type { Tool } from "./types.js";
+import { toolError, type Tool } from "./types.js";
 
 const DESCRIPTION = "Invoke a skill by name. Skills are packaged instructions that extend capabilities. Available skills and their descriptions are listed in the system prompt. When invoked, the skill's instructions are loaded into context — follow them.";
 
@@ -22,10 +22,10 @@ export function createSkillTool(
     async execute(args, _ctx) {
       const name = (args.name as string || "").trim();
       if (!name) {
-        return { content: "Error: skill name is required", isError: true };
+        return toolError("skill name is required");
       }
       if (!resolve(name)) {
-        return { content: `Error: skill "${name}" not found`, isError: true };
+        return toolError(`skill "${name}" not found`);
       }
       return { content: `Skill "${name}" loaded. Follow its instructions above.` };
     },

@@ -1,12 +1,6 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
-import type { Todo, TodoStatus } from "@vietor/easy-agent-core";
-
-const ICONS: Record<TodoStatus, string> = {
-  pending: "○",
-  in_progress: "◐",
-  completed: "✓",
-};
+import { TODO_STATUS_GLYPHS, type Todo, type TodoStatus } from "@vietor/easy-agent-core";
 
 const COLORS: Record<TodoStatus, string> = {
   pending: "gray",
@@ -23,7 +17,7 @@ export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo
       <Text color={headerColor}>{`Tasks [${done}/${todos.length}]`}</Text>
       {todos.map((t, i) => (
         <Text key={i} color={COLORS[t.status]} strikethrough={t.status === "completed"}>
-          {`${ICONS[t.status]} ${t.content}`}
+          {`${TODO_STATUS_GLYPHS[t.status]} ${t.content}`}
         </Text>
       ))}
     </Box>

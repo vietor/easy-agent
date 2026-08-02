@@ -1,7 +1,7 @@
 import { open, type FileHandle } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Tool } from "./types.js";
-import { compactFormat, getTextBytes } from "../util/text.js";
+import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
 const MAX_FILE_BYTES = 20_000_000;
@@ -89,9 +89,7 @@ export const fileReadTool: Tool = {
     }
   },
   getPreview(result) {
-    if (result.isError) return "Read failed";
-    const bytes = getTextBytes(result.content);
-    return `Read ${compactFormat(bytes)} bytes`;
+    return previewBytes("Read", result, "Read failed");
   },
   summaryArg: "path",
 };

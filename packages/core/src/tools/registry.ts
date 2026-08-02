@@ -1,4 +1,4 @@
-import type { Tool, ToolContext, ToolResult, ToolSchema } from "./types.js";
+import { toolError, type Tool, type ToolContext, type ToolResult, type ToolSchema } from "./types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./fileRead.js";
 import { fileWriteTool } from "./fileWrite.js";
@@ -6,11 +6,12 @@ import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
+import { MAX_PREVIEW_LEN } from "../util/constants.js";
 import { timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
-    return ellipsisText(result.content, 75);
+    return ellipsisText(result.content, MAX_PREVIEW_LEN);
   }
   const bytes = getTextBytes(result.content);
   const lines = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
@@ -53,12 +54,12 @@ export class ToolRegistry {
 
   async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const tool = this.tools.get(name);
-    if (!tool) return { content: `Error: unknown tool ${name}`, isError: true };
+    if (!tool) return toolError(`unknown tool ${name}`);
     try {
       const r = await tool.execute(args, ctx);
       return typeof r === "string" ? { content: r } : r;
     } catch (e) {
-      return { content: `Error: ${(e as Error).message}`, isError: true };
+      return toolError((e as Error).message);
     }
   }
 

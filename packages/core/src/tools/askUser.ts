@@ -1,4 +1,4 @@
-import type { Tool } from "./types.js";
+import { toolError, type Tool } from "./types.js";
 
 const DESCRIPTION = "Ask the user a question and wait for the answer. Provide at least one option. Returns the answer as text.";
 
@@ -18,7 +18,7 @@ export function createAskUserTool(ask: (question: string, options: string[]) => 
       const question = args.question as string;
       const options = Array.isArray(args.options) ? (args.options as string[]) : [];
       if (!options.length) {
-        return { content: "Error: options must contain at least one choice", isError: true };
+        return toolError("options must contain at least one choice");
       }
       return ask(question, options);
     },

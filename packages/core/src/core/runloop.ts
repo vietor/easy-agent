@@ -1,7 +1,7 @@
 import type { Agent, AgentEvent, RunStatus } from "./agent.js";
 import type { Skill } from "../skills/types.js";
 import type { TimelineStore, TodoStore } from "./timeline.js";
-import type { SessionEvent, RunState } from "./types.js";
+import { createInitialRunState, type SessionEvent, type RunState } from "./types.js";
 
 export class RunLoop {
   private streamingText = "";
@@ -9,7 +9,7 @@ export class RunLoop {
   private replyStart: number | null = null;
   private lastReplyText = "";
   private lastStatusValue: RunStatus = "ok";
-  private runState: RunState = { running: false, elapsed: 0, inputTokens: 0, outputTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
+  private runState: RunState = createInitialRunState();
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -63,7 +63,7 @@ export class RunLoop {
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { running: true, elapsed: 0, inputTokens: 0, outputTokens: 0, thinkingElapsed: 0, replyElapsed: 0 };
+    this.runState = { ...createInitialRunState(), running: true };
     this.lastStatusValue = "ok";
     this.emitRunState();
 

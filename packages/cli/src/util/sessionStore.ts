@@ -2,8 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { ellipsisText } from "@vietor/easy-agent-core";
-import type { ConversationMessage, SessionMeta, SessionPersistence, SessionState, Todo } from "@vietor/easy-agent-core";
+import { ellipsisText, MAX_PREVIEW_LEN, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionState, type Todo } from "@vietor/easy-agent-core";
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
@@ -89,7 +88,7 @@ export class FileSessionPersistence implements SessionPersistence {
   private readTitle(path: string): string | undefined {
     const first = this.readFirstUser(path);
     if (!first) return undefined;
-    return ellipsisText(first, 75);
+    return ellipsisText(first, MAX_PREVIEW_LEN);
   }
 
   private readFirstUser(path: string): string | undefined {

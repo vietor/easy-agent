@@ -1,4 +1,4 @@
-import type { Tool, Todo, TodoStatus } from "./types.js";
+import { toolError, type Tool, type Todo, type TodoStatus } from "./types.js";
 
 const STATUSES: TodoStatus[] = ["pending", "in_progress", "completed"];
 
@@ -61,7 +61,7 @@ export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
     },
     async execute(args, _ctx) {
       const { todos, done, normalized, error } = parseTodos(args);
-      if (error) return { content: `Error: ${error}`, isError: true };
+      if (error) return toolError(error);
       setTodos(todos);
       const note = normalized ? ` (normalized ${normalized} item${normalized === 1 ? "" : "s"} to one in_progress)` : "";
       return `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done)${note}.`;

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createLLM } from "./llm/client.js";
 import { compactThresholdFor } from "./llm/types.js";
+import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "./util/constants.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
@@ -53,8 +54,8 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     llm,
     tools,
     mcp,
-    stallThreshold: opts.stallThreshold ?? 3,
-    maxTurns: opts.maxTurns ?? 50,
+    stallThreshold: opts.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
+    maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,
     compactThreshold: compactThresholdFor(llm.contextWindow),
   });
 

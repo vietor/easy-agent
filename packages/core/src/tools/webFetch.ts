@@ -1,6 +1,7 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { compactFormat, getTextBytes, htmlToMarkdown } from "../util/text.js";
+import { MAX_FETCH_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
+import { previewBytes, htmlToMarkdown } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();
@@ -18,9 +19,6 @@ function isTextualMime(mime: string): boolean {
     mime === "application/x-javascript"
   );
 }
-
-const MAX_BYTES = 10 * 1024 * 1024;
-const REQUEST_TIMEOUT = 60_000;
 
 const DESCRIPTION = "Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over 10MB. GET only; no custom headers or request body. Follows redirects.";
 
@@ -59,8 +57,8 @@ export const webFetchTool: Tool = {
   async execute(args, ctx) {
     const url = args.url as string;
     const signal = ctx.signal
-      ? AbortSignal.any([ctx.signal, AbortSignal.timeout(REQUEST_TIMEOUT)])
-      : AbortSignal.timeout(REQUEST_TIMEOUT);
+      ? AbortSignal.any([ctx.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])
+      : AbortSignal.timeout(REQUEST_TIMEOUT_MS);
     let res: Response;
     try {
       res = await netFetch(url, {
@@ -75,7 +73,7 @@ export const webFetchTool: Tool = {
       });
     } catch (e) {
       if (signal.aborted && !ctx.signal?.aborted) {
-        throw new Error(`fetch ${url} timed out after ${REQUEST_TIMEOUT / 1000}s`);
+        throw new Error(`fetch ${url} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
       }
       throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);
     }
@@ -84,17 +82,15 @@ export const webFetchTool: Tool = {
     const mime = mimeFrom(contentType);
     if (!isTextualMime(mime)) throw new Error(`unsupported content type: ${mime} for ${url}`);
     const contentLength = Number(res.headers.get("content-length"));
-    if (Number.isFinite(contentLength) && contentLength > MAX_BYTES) {
-      throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_BYTES})`);
+    if (Number.isFinite(contentLength) && contentLength > MAX_FETCH_BYTES) {
+      throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_FETCH_BYTES})`);
     }
-    const body = await readTextBounded(res, MAX_BYTES);
+    const body = await readTextBounded(res, MAX_FETCH_BYTES);
     if (!contentType.includes("html")) return body;
     return htmlToMarkdown(body);
   },
   getPreview(result) {
-    if (result.isError) return "Fetch failed";
-    const bytes = getTextBytes(result.content);
-    return `Fetched ${compactFormat(bytes)} bytes`;
+    return previewBytes("Fetched", result, "Fetch failed");
   },
   summaryArg: "url",
 };

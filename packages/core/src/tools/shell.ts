@@ -1,6 +1,7 @@
 import { runProcess } from "../util/subprocess.js";
-import type { Tool, ToolResult } from "./types.js";
-import { compactFormat, getTextBytes } from "../util/text.js";
+import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
+import { toolError, type Tool } from "./types.js";
+import { previewBytes } from "../util/text.js";
 
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : (process.env.SHELL || "/bin/bash");
@@ -39,25 +40,20 @@ export const shellTool: Tool = {
     properties: { command: { type: "string" } },
     required: ["command"],
   },
-  async execute(args, ctx): Promise<ToolResult> {
+  async execute(args, ctx) {
     const command = args.command as string;
     if (!isWindows && PRIVILEGED_RE.test(command)) {
-      return { content: "Error: privileged commands (sudo/su/doas/pkexec) are not allowed", isError: true };
+      return toolError("privileged commands (sudo/su/doas/pkexec) are not allowed");
     }
-    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd, timeout: 300_000 }, ctx.signal);
+    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd, timeout: CALL_TIMEOUT_MS }, ctx.signal);
     if (r.status === 0 && !r.error) {
-      return { content: r.stdout || "(no output)" };
+      return { content: r.stdout || NO_OUTPUT };
     }
     const parts = [r.stdout, r.stderr, r.error?.message].filter(Boolean);
-    return {
-      content: parts.join("\n") || "(no output)",
-      isError: true,
-    };
+    return toolError(parts.join("\n") || NO_OUTPUT);
   },
   getPreview(result) {
-    if (result.isError) return "Command failed";
-    const bytes = getTextBytes(result.content);
-    return `Command executed ${compactFormat(bytes)} bytes`;
+    return previewBytes("Command executed", result, "Command failed");
   },
   summaryArg: "command",
 };

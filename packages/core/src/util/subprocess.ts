@@ -1,6 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-
-const MAX_BUFFER = 10 * 1024 * 1024;
+import { MAX_PROCESS_BUFFER } from "./constants.js";
 
 export interface ProcessResult {
   stdout: string;
@@ -88,19 +87,19 @@ export function runProcess(
     child.stdout?.on("data", (c: Buffer) => {
       outChunks.push(c);
       size += c.length;
-      if (size > MAX_BUFFER) { overflow = true; kill(); }
+      if (size > MAX_PROCESS_BUFFER) { overflow = true; kill(); }
     });
     child.stderr?.on("data", (c: Buffer) => {
       errChunks.push(c);
       size += c.length;
-      if (size > MAX_BUFFER) { overflow = true; kill(); }
+      if (size > MAX_PROCESS_BUFFER) { overflow = true; kill(); }
     });
     child.on("error", (error) => settle({ stdout: "", stderr: "", status: null, error }));
     child.on("close", (status) => {
       const stdout = Buffer.concat(outChunks).toString("utf-8");
       const stderr = Buffer.concat(errChunks).toString("utf-8");
       settle(overflow
-        ? { stdout, stderr, status, error: new Error(`Command output exceeded ${MAX_BUFFER / 1024 / 1024}MB`) }
+        ? { stdout, stderr, status, error: new Error(`Command output exceeded ${MAX_PROCESS_BUFFER / 1024 / 1024}MB`) }
         : { stdout, stderr, status });
     });
   });

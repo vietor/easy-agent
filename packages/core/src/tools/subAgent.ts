@@ -1,6 +1,7 @@
 import { compactThresholdFor, textOf, type LLMClient } from "../llm/types.js";
 import type { ConversationMessage } from "../core/conversation.js";
-import type { Tool } from "./types.js";
+import { DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { toolError, type Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { Agent } from "../core/agent.js";
 import { Conversation } from "../core/conversation.js";
@@ -76,10 +77,10 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       const task = ((args.task as string) ?? "").trim();
       const def = defs.find((d) => d.type === type);
       if (!def) {
-        return { content: `Error: unknown sub-agent type "${type}". Valid types: ${defs.map((d) => d.type).join(", ")}`, isError: true };
+        return toolError(`unknown sub-agent type "${type}". Valid types: ${defs.map((d) => d.type).join(", ")}`);
       }
       if (!task) {
-        return { content: "Error: task is required", isError: true };
+        return toolError("task is required");
       }
 
       const subTools = new ToolRegistry();
@@ -96,7 +97,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         cwd: ctx.cwd,
         setTodos: () => {},
         getTodos: () => [],
-        stallThreshold: deps.stallThreshold ?? 3,
+        stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
         maxTurns: deps.maxTurns ?? 20,
         compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.contextWindow),
       });

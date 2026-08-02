@@ -5,7 +5,7 @@ import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { SKILL_TOOL_NAME } from "../tools/skill.js";
-import type { ToolContext, ToolResult, Todo } from "../tools/types.js";
+import { toolError, TODO_STATUS_GLYPHS, type ToolContext, type ToolResult, type Todo } from "../tools/types.js";
 
 
 const COMPACT_PROMPT = [
@@ -277,14 +277,12 @@ export class Agent {
       calls.map(async (call) => {
         const parsed = parseToolArgs(call.function.arguments);
         const args = parsed.args;
-        const argsError = parsed.error ? `Error: invalid arguments: ${parsed.error}` : "";
+        const argsError = parsed.error ? toolError(`invalid arguments: ${parsed.error}`) : undefined;
         const summary = this.tools.summarize(call.function.name, args);
         onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
         const ctx: ToolContext = { signal, cwd: this.cwd };
         const start = performance.now();
-        const result: ToolResult = argsError
-          ? { content: argsError, isError: true }
-          : await this.tools.execute(call.function.name, args, ctx);
+        const result: ToolResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
         const duration = performance.now() - start;
         const preview = this.tools.getPreview(call.function.name, result, duration);
         if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });
@@ -296,8 +294,7 @@ export class Agent {
 
 function renderTodoReminder(todos: readonly Todo[]): string {
   const items = todos.map((t) => {
-    const mark = t.status === "completed" ? "✓" : t.status === "in_progress" ? "●" : "○";
-    return `${mark} ${t.content}`;
+    return `${TODO_STATUS_GLYPHS[t.status]} ${t.content}`;
   });
   const focus = todos.find((t) => t.status === "in_progress");
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";

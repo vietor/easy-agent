@@ -1,7 +1,7 @@
 import { resolveCwd, runRgLines } from "../util/ripgrep.js";
+import { NO_MATCHES } from "../util/constants.js";
+import { previewCount } from "../util/text.js";
 import type { Tool } from "./types.js";
-
-const NO_MATCHES = "(no matches)";
 
 const DESCRIPTION = "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Skips node_modules and .git.";
 
@@ -26,10 +26,9 @@ export const globTool: Tool = {
     return files.length ? files.join("\n") : NO_MATCHES;
   },
   getPreview(result) {
-    if (result.isError) return "Glob failed";
     if (result.content === NO_MATCHES) return "Found 0 files";
     const count = result.content.split("\n").filter((l) => l).length;
-    return `Found ${count} file${count !== 1 ? "s" : ""}`;
+    return previewCount("file", count, !!result.isError, "Glob failed");
   },
   summaryArg: ["pattern", "path"],
 };

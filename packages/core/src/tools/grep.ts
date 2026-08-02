@@ -1,8 +1,9 @@
 import { resolveCwd, runRgLines } from "../util/ripgrep.js";
+import { NO_MATCHES } from "../util/constants.js";
+import { previewCount } from "../util/text.js";
 import type { Tool } from "./types.js";
 
 const DEFAULT_HEAD_LIMIT = 200;
-const NO_MATCHES = "(no matches)";
 
 const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit.";
 
@@ -57,14 +58,13 @@ export const grepTool: Tool = {
     return lines.join("\n");
   },
   getPreview(result) {
-    if (result.isError) return "Grep failed";
     if (result.content === NO_MATCHES) return "Found 0 matches";
     const lines = result.content.split("\n");
     let count = lines.filter((l) => l).length;
     if (lines.length > 1 && /^\(\d+ more matches, truncated\)$/.test(lines[lines.length - 1])) {
       count--;
     }
-    return `Found ${count} matche${count !== 1 ? "s" : ""}`;
+    return previewCount("match", count, !!result.isError, "Grep failed");
   },
   summaryArg: ["pattern", "path"],
 };
