@@ -1,5 +1,5 @@
 import { appendFile, writeFile } from "node:fs/promises";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { ellipsisText } from "@vietor/easy-agent-core";
@@ -84,12 +84,6 @@ export class FileSessionPersistence implements SessionPersistence {
       } catch {}
     }
     return out.sort((a, b) => b.updatedAt - a.updatedAt);
-  }
-
-  async delete(sessionId: string): Promise<void> {
-    const path = this.file(sessionId);
-    if (existsSync(path)) unlinkSync(path);
-    this.writtenCounts.delete(sessionId);
   }
 
   private readTitle(path: string): string | undefined {
