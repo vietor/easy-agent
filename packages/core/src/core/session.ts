@@ -49,7 +49,6 @@ export class Session {
   readonly sessionId: string;
   private persistence?: SessionPersistence;
 
-  private pendingQuestions = new Map<string, (answer: string) => void>();
   private questionSeq = 0;
   private viewCache: SessionView | null = null;
   private eventListeners = new ListenerSet<(e: SessionEvent) => void>();
@@ -272,26 +271,16 @@ export class Session {
 
   abort(): void {
     this.loop.abort();
-    for (const id of this.pendingQuestions.keys()) {
-      this.timelineStore.setAnswer(id, "");
+    const ids = this.timelineStore.resolveAllAnswers("");
+    for (const id of ids) {
       this.emit({ type: "question_answered", id, answer: "" });
-      this.pendingQuestions.get(id)?.("");
     }
-    this.pendingQuestions.clear();
     this.latestUnansweredQuestion = undefined;
   }
 
   submitAnswer(id: string, answer: string): void {
     this.timelineStore.setAnswer(id, answer);
-    if (this.latestUnansweredQuestion?.id === id) {
-      this.latestUnansweredQuestion = undefined;
-    }
     this.emit({ type: "question_answered", id, answer });
-    const resolve = this.pendingQuestions.get(id);
-    if (resolve) {
-      this.pendingQuestions.delete(id);
-      resolve(answer);
-    }
   }
 
   async startPrompt(text: string): Promise<PromptResult> {
@@ -302,12 +291,15 @@ export class Session {
 
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
-    const entry: Extract<TimelineEntry, { kind: "question" }> = { kind: "question", id, text, options, answer: null };
-    this.timelineStore.append(entry);
-    this.latestUnansweredQuestion = entry;
+    this.latestUnansweredQuestion = { kind: "question", id, text, options, answer: null };
     this.emit({ type: "question", id, text, options });
     return new Promise<string>((resolve) => {
-      this.pendingQuestions.set(id, resolve);
+      this.timelineStore.appendQuestion({ id, text, options }, (answer) => {
+        if (this.latestUnansweredQuestion?.id === id) {
+          this.latestUnansweredQuestion = undefined;
+        }
+        resolve(answer);
+      });
     });
   }
 }
