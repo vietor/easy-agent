@@ -5,7 +5,7 @@ import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { SKILL_TOOL_NAME } from "../tools/skill.js";
-import { toolError, TODO_STATUS_GLYPHS, type ToolContext, type ToolResult, type Todo } from "../tools/types.js";
+import { toolError, TODO_STATUS_GLYPHS, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "../tools/types.js";
 
 
 const COMPACT_PROMPT = [
@@ -104,25 +104,11 @@ export class Agent {
       request.push({ role: "user", content: renderTodoReminder(todos) });
     }
     request.push({ role: "user", content: COMPACT_PROMPT });
-    let msg: AssistantMessage;
-    try {
-      msg = await withAbort(this.llm.chat({
-        messages: request,
-        tools: [],
-        reasoning: false,
-        onDelta: (text) => onEvent?.({ type: "assistant_delta", text }),
-        onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-        onUsage: (inputTokens, outputTokens) => onEvent?.({ type: "usage", inputTokens, outputTokens }),
-        signal,
-      }), signal);
-    } catch (e) {
-      if (signal?.aborted) {
-        onEvent?.({ type: "interrupted" });
-        return "aborted";
-      }
-      onEvent?.({ type: "error", text: (e as Error).message });
-      return "error";
-    }
+    const msg = await this.chatOnce(
+      { messages: request, tools: [], reasoning: false, onEvent, signal },
+      () => onEvent?.({ type: "interrupted" })
+    );
+    if (typeof msg === "string") return msg;
     const compactText = (typeof msg.content === "string" ? msg.content : "") || "";
     if (!compactText) {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
@@ -207,22 +193,11 @@ export class Agent {
         messages.push({ role: "user", content: pendingNudge });
         pendingNudge = "";
       }
-      let msg: AssistantMessage;
-      try {
-        msg = await withAbort(this.llm.chat({
-          messages,
-          tools: this.tools.schemas(),
-          onDelta: (text) => onEvent?.({ type: "assistant_delta", text }),
-          onReasoning: (text) => onEvent?.({ type: "reasoning_delta", text }),
-          onRetry: (attempt, max) => onEvent?.({ type: "retry", attempt, max }),
-          onUsage: (inputTokens, outputTokens) => onEvent?.({ type: "usage", inputTokens, outputTokens }),
-          signal,
-        }), signal);
-      } catch (e) {
-        if (signal?.aborted) return "aborted";
-        onEvent?.({ type: "error", text: (e as Error).message });
-        return "error";
-      }
+      const msg = await this.chatOnce(
+        { messages, tools: this.tools.schemas(), onEvent, signal },
+        () => {}
+      );
+      if (typeof msg === "string") return msg;
       this.conversation.add(msg);
       if (!msg.tool_calls?.length) {
         const todos = this.getTodos();
@@ -265,6 +240,31 @@ export class Agent {
         this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
         onEvent?.({ type: "skill", name: skill.name });
       }
+    }
+  }
+
+  private async chatOnce(
+    opts: { messages: Message[]; tools: ToolSchema[]; reasoning?: boolean; onEvent?: (e: AgentEvent) => void; signal?: AbortSignal },
+    onAbort: () => void
+  ): Promise<AssistantMessage | RunStatus> {
+    try {
+      return await withAbort(this.llm.chat({
+        messages: opts.messages,
+        tools: opts.tools,
+        reasoning: opts.reasoning,
+        onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
+        onReasoning: (text) => opts.onEvent?.({ type: "reasoning_delta", text }),
+        onRetry: (attempt, max) => opts.onEvent?.({ type: "retry", attempt, max }),
+        onUsage: (inputTokens, outputTokens) => opts.onEvent?.({ type: "usage", inputTokens, outputTokens }),
+        signal: opts.signal,
+      }), opts.signal);
+    } catch (e) {
+      if (opts.signal?.aborted) {
+        onAbort();
+        return "aborted";
+      }
+      opts.onEvent?.({ type: "error", text: (e as Error).message });
+      return "error";
     }
   }
 
