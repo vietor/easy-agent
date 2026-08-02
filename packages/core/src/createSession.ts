@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createLLM } from "./llm/client.js";
 import { compactThresholdFor } from "./llm/types.js";
-import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "./util/constants.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
@@ -45,17 +44,13 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "easy-agent-core", version: "0.0.0" });
 
   const session = new Session({
+    ...opts,
     systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtinTools),
     cwd: opts.cwd ?? process.cwd(),
     sessionId: opts.sessionId ?? randomUUID(),
-    persistence: opts.persistence,
-    builtinTools: opts.builtinTools === false ? undefined : opts.builtinTools,
-    skills: opts.skills,
     llm,
     tools,
     mcp,
-    stallThreshold: opts.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
-    maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,
     compactThreshold: compactThresholdFor(llm.contextWindow),
   });
 

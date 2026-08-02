@@ -1,32 +1,26 @@
+import { randomUUID } from "node:crypto";
 import type { LLMClient } from "../llm/client.js";
 import { parseToolArgs, textOf } from "../llm/types.js";
+import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
-import type { ToolRegistry, BuiltinToolsOptions } from "../tools/registry.js";
+import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import { createAskUserTool } from "../tools/askUser.js";
 import { createSkillTool } from "../tools/skill.js";
 import { createTodoWriteTool } from "../tools/todoWrite.js";
 import { createSubAgentTool } from "../tools/subAgent.js";
-import { SessionBusyError, type SessionEvent, type SessionPersistence, type SessionState } from "./types.js";
+import { SessionBusyError, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, type TimelineEntry } from "./timeline.js";
 import { RunLoop } from "./runloop.js";
 
-export interface SessionDeps {
-  systemPrompt: string;
-  cwd: string;
-  sessionId: string;
-  persistence?: SessionPersistence;
-  skills?: Skill[];
-  builtinTools?: BuiltinToolsOptions;
+export interface SessionDeps extends Omit<SessionOptions, "tools"> {
   llm: LLMClient;
   tools: ToolRegistry;
   mcp: MCPServers;
-  stallThreshold: number;
-  maxTurns: number;
   compactThreshold: number;
 }
 
@@ -139,20 +133,21 @@ export class Session {
   constructor(deps: SessionDeps) {
     this.conversation = new Conversation(deps.systemPrompt);
     this.tools = deps.tools;
-    this.cwd = deps.cwd;
-    this.sessionId = deps.sessionId;
+    this.cwd = deps.cwd ?? process.cwd();
+    this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
-    if (deps.builtinTools?.askUser) {
+    const builtinTools = deps.builtinTools === false ? undefined : deps.builtinTools;
+    if (builtinTools?.askUser) {
       this.tools.register(createAskUserTool((q, o) => this.ask(q, o)));
     }
-    if (deps.builtinTools?.todoWrite) {
+    if (builtinTools?.todoWrite) {
       this.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
     }
-    if (deps.builtinTools?.skill) {
+    if (builtinTools?.skill) {
       this.tools.register(createSkillTool((name) => this.skillsMap.get(name)));
     }
-    if (deps.builtinTools?.subAgent) {
+    if (builtinTools?.subAgent) {
       this.tools.register(createSubAgentTool({
         llm: deps.llm,
         tools: this.tools,
@@ -169,8 +164,8 @@ export class Session {
       cwd: this.cwd,
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
-      stallThreshold: deps.stallThreshold,
-      maxTurns: deps.maxTurns,
+      stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
+      maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
       compactThreshold: deps.compactThreshold,
       resolveSkill: (name) => this.skillsMap.get(name),
     });
