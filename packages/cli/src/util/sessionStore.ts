@@ -92,7 +92,15 @@ export class FileSessionPersistence implements SessionPersistence {
   }
 
   private readFirstUser(path: string): string | undefined {
-    for (const r of parseJsonLines<{ t?: string; m?: ConversationMessage }>(readFileSync(path, "utf-8"))) {
+    // scan line-by-line with early exit instead of materializing the whole parsed file
+    for (const line of readFileSync(path, "utf-8").split("\n")) {
+      if (!line.trim()) continue;
+      let r: { t?: string; m?: ConversationMessage };
+      try {
+        r = JSON.parse(line) as { t?: string; m?: ConversationMessage };
+      } catch {
+        continue; // skip malformed lines
+      }
       if (r.t === "m" && r.m && r.m.role === "user" && typeof r.m.content === "string") return r.m.content;
     }
     return undefined;
