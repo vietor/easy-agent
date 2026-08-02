@@ -60,35 +60,51 @@ function renderBlock(token: MarkedToken): ReactNode {
   }
 }
 
-function renderInline(tokens: Token[] | undefined): ReactNode {
-  if (!tokens || tokens.length === 0) return null;
-  return tokens.map((token, i) => {
+function renderInline(tokens: Token[] | undefined, mode: "react" | "text" = "react"): ReactNode | string {
+  if (!tokens || tokens.length === 0) return mode === "react" ? null : "";
+  const inner = (t: Token[] | undefined) => renderInline(t, mode);
+  const out = tokens.map((token, i) => {
     const tok = token as MarkedToken;
     switch (tok.type) {
-      case "text":
-        return <Text key={i}>{tok.tokens ? renderInline(tok.tokens) : tok.text}</Text>;
-      case "strong":
-        return <Text key={i} bold>{renderInline(tok.tokens)}</Text>;
-      case "em":
-        return <Text key={i} italic>{renderInline(tok.tokens)}</Text>;
+      case "text": {
+        const content = tok.tokens ? inner(tok.tokens) : tok.text;
+        return mode === "react" ? <Text key={i}>{content}</Text> : content;
+      }
+      case "strong": {
+        const content = inner(tok.tokens);
+        return mode === "react" ? <Text key={i} bold>{content}</Text> : content;
+      }
+      case "em": {
+        const content = inner(tok.tokens);
+        return mode === "react" ? <Text key={i} italic>{content}</Text> : content;
+      }
       case "codespan":
-        return <Text key={i} color="cyan">{tok.text}</Text>;
-      case "del":
-        return <Text key={i} strikethrough>{renderInline(tok.tokens)}</Text>;
-      case "link":
-        return <Text key={i} color="blue" underline>{renderInline(tok.tokens)}</Text>;
-      case "image":
-        return <Text key={i} color="magenta">{tok.text || tok.href}</Text>;
+        return mode === "react" ? <Text key={i} color="cyan">{tok.text}</Text> : tok.text;
+      case "del": {
+        const content = inner(tok.tokens);
+        return mode === "react" ? <Text key={i} strikethrough>{content}</Text> : content;
+      }
+      case "link": {
+        const content = inner(tok.tokens);
+        return mode === "react" ? <Text key={i} color="blue" underline>{content}</Text> : content;
+      }
+      case "image": {
+        const content = tok.text || tok.href;
+        return mode === "react" ? <Text key={i} color="magenta">{content}</Text> : content;
+      }
       case "br":
-        return <Text key={i}>{"\n"}</Text>;
+        return mode === "react" ? <Text key={i}>{"\n"}</Text> : "";
       case "escape":
-        return <Text key={i}>{tok.text}</Text>;
+        return mode === "react" ? <Text key={i}>{tok.text}</Text> : tok.text;
       case "html":
-        return <Text key={i} dimColor>{tok.text}</Text>;
+        return mode === "react" ? <Text key={i} dimColor>{tok.text}</Text> : tok.text;
       default:
-        return <Text key={i}>{(tok as { text?: string }).text ?? ""}</Text>;
+        return mode === "react"
+          ? <Text key={i}>{(tok as { text?: string }).text ?? ""}</Text>
+          : (tok as { text?: string }).text ?? "";
     }
   });
+  return mode === "react" ? out : out.join("");
 }
 
 function renderList(token: Tokens.List): ReactNode {
@@ -120,13 +136,13 @@ function renderTable(token: Tokens.Table): ReactNode {
   const natural = new Array<number>(cols).fill(0);
   for (const row of [token.header, ...token.rows]) {
     for (let c = 0; c < cols; c++) {
-      const w = stringWidth(tokensToText(row[c].tokens));
+      const w = stringWidth(renderInline(row[c].tokens, "text") as string);
       if (w > natural[c]) natural[c] = w;
     }
   }
   const widths = fitWidths(natural, available);
   const renderRow = (row: Tokens.TableCell[], bold = false) => {
-    const wrapped = row.map((tc, c) => wrapText(tokensToText(tc.tokens), widths[c]));
+    const wrapped = row.map((tc, c) => wrapText(renderInline(tc.tokens, "text") as string, widths[c]));
     const height = Math.max(1, ...wrapped.map(lines => lines.length));
     return Array.from({ length: height }, (_, r) => (
       <Text key={r}>
@@ -153,37 +169,6 @@ function renderTable(token: Tokens.Table): ReactNode {
       <Text dimColor>{border("└", "┴", "┘")}</Text>
     </Box>
   );
-}
-
-function tokensToText(tokens: Token[] | undefined): string {
-  if (!tokens) return "";
-  return tokens.map(tokenToText).join("");
-}
-
-function tokenToText(token: Token): string {
-  const t = token as MarkedToken;
-  switch (t.type) {
-    case "text":
-      return t.tokens ? tokensToText(t.tokens) : t.text;
-    case "strong":
-    case "em":
-    case "del":
-      return tokensToText(t.tokens);
-    case "codespan":
-      return t.text;
-    case "link":
-      return tokensToText(t.tokens);
-    case "image":
-      return t.text || t.href;
-    case "br":
-      return "";
-    case "escape":
-      return t.text;
-    case "html":
-      return t.text;
-    default:
-      return (t as { text?: string }).text ?? "";
-  }
 }
 
 function padAlign(text: string, width: number, align: "left" | "right" | "center" | null): string {
