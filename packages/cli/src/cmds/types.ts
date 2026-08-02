@@ -14,5 +14,5 @@ export interface CommandSchema {
 export interface Command {
   name: string;
   description: string;
-  execute(ctx: CommandContext, args: string): Promise<void>;
+  execute(ctx: CommandContext): Promise<void>;
 }

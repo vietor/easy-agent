@@ -4,12 +4,12 @@ import type { CommandContext, CommandSchema } from "./types.js";
 
 const commands = new Map(builtinCommands.map((c) => [c.name, c]));
 
-export async function executeCommand(name: string, args: string, session: Session): Promise<void> {
+export async function executeCommand(name: string, session: Session): Promise<void> {
   const cmd = commands.get(name);
   if (cmd) {
     const ctx: CommandContext = { session, message: session.timelineNotice, error: session.timelineError };
     try {
-      await cmd.execute(ctx, args);
+      await cmd.execute(ctx);
     } catch (e) {
       ctx.error((e as Error).message);
     }

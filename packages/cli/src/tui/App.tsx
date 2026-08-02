@@ -87,9 +87,9 @@ export function App({ session }: { session: Session }) {
     }
   });
 
-  async function handleCommand(name: string, args: string) {
+  async function handleCommand(name: string) {
     try {
-      await executeCommand(name, args, session);
+      await executeCommand(name, session);
     } catch (e) {
       session.timelineError((e as Error).message);
     }

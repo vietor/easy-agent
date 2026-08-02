@@ -5,7 +5,7 @@ import type { CommandSchema } from "../cmds/types.js";
 
 interface PromptOrCommandInputProps {
   commands: CommandSchema[];
-  onCommand: (name: string, args: string) => void;
+  onCommand: (name: string) => void;
   onPrompt: (value: string) => void;
 }
 
@@ -55,19 +55,18 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
     setInput("");
     if (!text) return;
     if (text.startsWith("/")) {
-      const [name, ...rest] = text.slice(1).split(/\s+/);
-      const args = rest.join(" ");
+      const name = text.slice(1).split(/\s+/)[0];
       if (filtered.length > 0) {
         const cmd = filtered[selectedIndex];
-        onCommand(cmd ? cmd.name : name, args);
+        onCommand(cmd ? cmd.name : name);
       } else {
-        onCommand(name, args);
+        onCommand(name);
       }
       return;
     }
-    const [first, ...rest] = text.split(/\s+/);
+    const first = text.split(/\s+/)[0];
     if (commands.some((c) => c.name === first)) {
-      onCommand(first, rest.join(" "));
+      onCommand(first);
       return;
     }
     onPrompt(text);
