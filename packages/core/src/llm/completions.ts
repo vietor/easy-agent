@@ -24,6 +24,7 @@ export class CompletionsAdapter extends BaseAdapter {
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
     const { messages, tools, onDelta, onReasoning, onUsage, reasoning, signal } = opts;
     let content = "";
+    let refusal = "";
     const calls = new Map<number, ToolCallAcc>();
     const useReasoning = reasoning !== false;
     const params: Record<string, unknown> = {
@@ -54,6 +55,11 @@ export class CompletionsAdapter extends BaseAdapter {
       if (reasoningText) {
         onReasoning?.(reasoningText);
       }
+      const refusalDelta = delta as { refusal?: string | null };
+      if (refusalDelta.refusal) {
+        refusal += refusalDelta.refusal;
+        onDelta?.(refusalDelta.refusal);
+      }
       if (delta.tool_calls) {
         for (const tc of delta.tool_calls) {
           let acc = calls.get(tc.index);
@@ -70,7 +76,7 @@ export class CompletionsAdapter extends BaseAdapter {
 
     const message: AssistantMessage = {
       role: "assistant",
-      content: content || null,
+      content: content || refusal || null,
     };
     if (calls.size) {
       message.tool_calls = [...calls.entries()]

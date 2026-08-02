@@ -125,9 +125,24 @@ function toAnthropicMessages(
     const param = toMessageParam(m, includeThinking);
     const last = out[out.length - 1];
     if (last && last.role === param.role) {
-      last.content = mergeContent(last.content, param.content);
+      const merged = mergeContent(last.content, param.content);
+      if (merged === null) out.push(param);
+      else last.content = merged;
     } else {
       out.push(param);
+    }
+  }
+
+  // an assistant reply ending with tool_use but no tool_result (e.g. a restored
+  // interrupted run) is rejected by the API — supply a placeholder result
+  const last = out[out.length - 1];
+  if (last && last.role === "assistant" && Array.isArray(last.content)) {
+    const toolUses = last.content.filter((b) => b.type === "tool_use");
+    if (toolUses.length) {
+      out.push({
+        role: "user",
+        content: toolUses.map((b) => ({ type: "tool_result" as const, tool_use_id: b.id, content: "(interrupted)" })),
+      });
     }
   }
 
@@ -168,10 +183,16 @@ function toMessageParam(m: Message, includeThinking: boolean): Anthropic.Message
   return { role: "assistant", content: blocks.length ? blocks : (text || "-") };
 }
 
+function hasToolResult(content: Anthropic.MessageParam["content"]): boolean {
+  return Array.isArray(content) && content.some((block) => (block as { type?: string }).type === "tool_result");
+}
+
 function mergeContent(
   a: Anthropic.MessageParam["content"],
   b: Anthropic.MessageParam["content"]
-): Anthropic.MessageParam["content"] {
+): Anthropic.MessageParam["content"] | null {
+  // a tool_result block must be the only content of its user message
+  if (hasToolResult(a) || hasToolResult(b)) return null;
   if (typeof a === "string" && typeof b === "string") return a ? `${a}\n${b}` : b;
   const blocks: Anthropic.ContentBlockParam[] = [];
   if (typeof a === "string") {

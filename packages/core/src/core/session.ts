@@ -212,17 +212,18 @@ export class Session {
     return this.agent.export();
   }
 
-  async restore(): Promise<void> {
+  async restore(): Promise<boolean> {
     this.rejectIfBusy();
-    if (!this.persistence) return;
+    if (!this.persistence) return false;
     const state = await this.persistence.load(this.sessionId);
-    if (!state) return;
+    if (!state) return false;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
     this.timelineStore.clear();
     this.rebuildTimeline(state.messages);
     this.viewCache = null;
     this.latestUnansweredQuestion = undefined;
+    return true;
   }
 
   private rebuildTimeline(messages: ConversationMessage[]): void {

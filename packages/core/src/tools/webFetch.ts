@@ -20,11 +20,13 @@ function isTextualMime(mime: string): boolean {
 }
 
 const MAX_BYTES = 10 * 1024 * 1024;
+const REQUEST_TIMEOUT = 60_000;
 
 const DESCRIPTION = "Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over 10MB. GET only; no custom headers or request body. Follows redirects.";
 
 async function readTextBounded(res: Response, maxBytes: number): Promise<string> {
-  const reader = res.body!.getReader();
+  if (!res.body) return "";
+  const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let text = "";
   let bytes = 0;
@@ -56,6 +58,9 @@ export const webFetchTool: Tool = {
   },
   async execute(args, ctx) {
     const url = args.url as string;
+    const signal = ctx.signal
+      ? AbortSignal.any([ctx.signal, AbortSignal.timeout(REQUEST_TIMEOUT)])
+      : AbortSignal.timeout(REQUEST_TIMEOUT);
     let res: Response;
     try {
       res = await netFetch(url, {
@@ -66,9 +71,12 @@ export const webFetchTool: Tool = {
           "Cache-Control": "no-cache",
         },
         redirect: "follow",
-        signal: ctx.signal,
+        signal,
       });
     } catch (e) {
+      if (signal.aborted && !ctx.signal?.aborted) {
+        throw new Error(`fetch ${url} timed out after ${REQUEST_TIMEOUT / 1000}s`);
+      }
       throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);
     }
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);

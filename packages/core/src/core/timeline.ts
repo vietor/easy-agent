@@ -20,7 +20,9 @@ class VersionedStore {
   }
 
   protected notify(): void {
-    for (const l of this.listeners) l();
+    for (const l of this.listeners) {
+      try { l(); } catch { /* isolate listener errors */ }
+    }
   }
 }
 

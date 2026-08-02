@@ -9,7 +9,7 @@ export function resolveCwd(path: string, base: string): string {
 
 export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal): Promise<string[]> {
   const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", "-g", "!node_modules/**", ...args];
-  const r = await runProcess(rgPath, rgArgs, { cwd }, signal);
+  const r = await runProcess(rgPath, rgArgs, { cwd, timeout: 60_000 }, signal);
   if (r.error) throw r.error;
   if (r.status !== 0 && r.status !== 1) {
     throw new Error((r.stderr || "").trim() || `ripgrep exited with ${r.status}`);

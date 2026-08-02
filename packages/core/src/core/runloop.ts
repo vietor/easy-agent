@@ -125,8 +125,8 @@ export class RunLoop {
         this.timeline.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
         break;
       case "retry":
-        this.streamingText = "";
-        this.flushReasoning();
+        // keep the partial reply visible before the retry replays from scratch
+        this.flushStreaming();
         this.timeline.append({ kind: "retry", attempt: e.attempt, max: e.max });
         break;
       case "tool_end":

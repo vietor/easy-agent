@@ -7,17 +7,20 @@ export type { LLMClient, ChatOptions };
 
 const MAX_RETRIES = 3;
 
-function isRetryableError(e: unknown): boolean {
+function isRetryableError(e: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return false;
   if ((e as { name?: string }).name === "APIConnectionError") return true;
   const status = (e as { status?: number }).status;
-  return status != null && (status === 429 || status >= 500);
+  if (status != null) return status === 429 || status >= 500;
+  // no HTTP status: connection-level failure (DNS, refused, dropped stream)
+  return true;
 }
 
 function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
   return (opts) =>
     withRetry(() => adapter.stream(opts), {
       retries: MAX_RETRIES,
-      retryable: isRetryableError,
+      retryable: (e) => isRetryableError(e, opts.signal),
       backoff: (attempt) => 1000 * 2 ** attempt,
       onRetry: opts.onRetry,
       signal: opts.signal,

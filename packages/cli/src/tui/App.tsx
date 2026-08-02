@@ -59,6 +59,9 @@ export function App({ session }: { session: Session }) {
         case "assistant":
           streaming.reset();
           break;
+        case "retry":
+          streaming.reset();
+          break;
         case "state":
           setRunState(e);
           break;

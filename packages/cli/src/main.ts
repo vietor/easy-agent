@@ -104,7 +104,25 @@ export async function main(argv: string[] = []): Promise<void> {
     persistence: store,
   });
 
-  if (resume) await session.restore();
+  if (resume) {
+    const restored = await session.restore();
+    if (!restored) {
+      console.error(`Session not found: ${sessionId}`);
+      process.exit(1);
+    }
+  }
+
+  // Ctrl+C is handled by Ink in raw mode; these cover external kills
+  // (task manager, CI timeouts) so pending writes still get flushed
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) process.exit(1);
+    shuttingDown = true;
+    session.dispose();
+    session.flush().catch(() => {}).finally(() => process.exit(0));
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
 
   const app = startApp(session);
   await app.waitUntilExit().finally(async () => {
