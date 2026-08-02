@@ -44,7 +44,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). |
+| `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). Only `baseUrl`, `apiKey`, and `model` are required; `reasoningEffort`, `wireApi`, and `contextWindow` default to `"high"`, `"completions"`, and `1_000_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -322,12 +322,12 @@ type ConversationMessage =
 
 ```ts
 interface LLMConfig {
-  baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com")
-  apiKey: string;             // API key
-  model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5")
-  reasoningEffort: "high" | "max";  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks
-  wireApi: "completions" | "anthropic";  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK)
-  contextWindow: number;      // Context window in tokens; 75% of it is used as the auto-compaction threshold
+  baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com") — required
+  apiKey: string;             // API key — required
+  model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
+  reasoningEffort?: "high" | "max";  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks (default: "high")
+  wireApi?: "completions" | "anthropic";  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK) (default: "completions")
+  contextWindow?: number;     // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
 }
 ```
 

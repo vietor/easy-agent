@@ -87,6 +87,12 @@ pnpm --filter @vietor/easy-agent build
 
 Or simply `pnpm build` which runs both in order.
 
+### Testing
+
+```bash
+pnpm test     # run the core test suite (Node's built-in test runner)
+```
+
 ## Publishing
 
 Both packages are published to npmjs under the `@vietor` scope.
