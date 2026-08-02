@@ -1,6 +1,6 @@
 import { runProcess } from "../util/subprocess.js";
 import type { Tool, ToolResult } from "./types.js";
-import { compactFormat, getContentBytes } from "../util/text.js";
+import { compactFormat, getTextBytes } from "../util/text.js";
 
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : (process.env.SHELL || "/bin/bash");
@@ -56,7 +56,7 @@ export const shellTool: Tool = {
   },
   getPreview(result) {
     if (result.isError) return "Command failed";
-    const bytes = getContentBytes(result.content);
+    const bytes = getTextBytes(result.content);
     return `Command executed ${compactFormat(bytes)} bytes`;
   },
   summaryArg: "command",

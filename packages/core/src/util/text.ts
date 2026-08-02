@@ -37,7 +37,7 @@ export function compactFormat(value: number) {
   return compactFormatter.format(value);
 }
 
-export function getContentBytes(content: string): number {
+export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 

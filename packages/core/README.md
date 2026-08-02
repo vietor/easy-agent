@@ -641,16 +641,16 @@ const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
 // "# Hello\n\nWorld"
 ```
 
-### `getContentBytes`
+### `getTextBytes`
 
-**`getContentBytes(content: string): number`**
+**`getTextBytes(content: string): number`**
 
 Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
 
 ```ts
-import { getContentBytes } from "@vietor/easy-agent-core";
+import { getTextBytes } from "@vietor/easy-agent-core";
 
-const bytes = getContentBytes("Hello");   // 5
+const bytes = getTextBytes("Hello");   // 5
 ```
 
 ### `timeFormat`

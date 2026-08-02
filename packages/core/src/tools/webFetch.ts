@@ -1,6 +1,6 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { compactFormat, getContentBytes, htmlToMarkdown } from "../util/text.js";
+import { compactFormat, getTextBytes, htmlToMarkdown } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();
@@ -85,7 +85,7 @@ export const webFetchTool: Tool = {
   },
   getPreview(result) {
     if (result.isError) return "Fetch failed";
-    const bytes = getContentBytes(result.content);
+    const bytes = getTextBytes(result.content);
     return `Fetched ${compactFormat(bytes)} bytes`;
   },
   summaryArg: "url",

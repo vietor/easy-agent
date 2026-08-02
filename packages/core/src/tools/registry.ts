@@ -6,13 +6,13 @@ import { fileEditTool } from "./fileEdit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./webFetch.js";
-import { timeFormat, compactFormat, getContentBytes, ellipsisText } from "../util/text.js";
+import { timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
     return ellipsisText(result.content, 75);
   }
-  const bytes = getContentBytes(result.content);
+  const bytes = getTextBytes(result.content);
   const lines = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
   return `Retrieved ${compactFormat(bytes)} bytes, ${compactFormat(lines)} lines`;
 }

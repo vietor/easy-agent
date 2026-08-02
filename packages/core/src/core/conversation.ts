@@ -1,5 +1,5 @@
 import { textOf, type AssistantMessage, type Message } from "../llm/types.js";
-import { getContentBytes } from "../util/text.js";
+import { getTextBytes } from "../util/text.js";
 
 export type ConversationMessage =
   | { role: "system"; content: string }
@@ -10,7 +10,7 @@ export type ConversationMessage =
 
 function estimateTokens(text: string): number {
   if (!text) return 0;
-  return Math.round(getContentBytes(text) / 4);
+  return Math.round(getTextBytes(text) / 4);
 }
 
 function messageText(msg: ConversationMessage): string {
