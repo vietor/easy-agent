@@ -83,25 +83,23 @@ export class Conversation {
   }
 
   import(messages: ConversationMessage[]): void {
-    this.messages = messages.slice();
-    this.estimatedTokens = this.systemEstimateTokens
-      + messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0);
-    this.collapsedCount = 0;
-    this.clearSnapshot();
-    this.llmCache = null;
+    this.resetMessages(
+      messages.slice(),
+      messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0)
+    );
   }
 
   clear(): void {
-    this.messages = [];
-    this.estimatedTokens = this.systemEstimateTokens;
-    this.collapsedCount = 0;
-    this.clearSnapshot();
-    this.llmCache = null;
+    this.resetMessages([], 0);
   }
 
   compact(summary: string): void {
-    this.messages = [{ role: "assistant", content: summary }];
-    this.estimatedTokens = this.systemEstimateTokens + estimateTokens(summary);
+    this.resetMessages([{ role: "assistant", content: summary }], estimateTokens(summary));
+  }
+
+  private resetMessages(messages: ConversationMessage[], extraTokens: number): void {
+    this.messages = messages;
+    this.estimatedTokens = this.systemEstimateTokens + extraTokens;
     this.collapsedCount = 0;
     this.clearSnapshot();
     this.llmCache = null;
