@@ -88,11 +88,7 @@ export function App({ session }: { session: Session }) {
   });
 
   async function handleCommand(name: string) {
-    try {
-      await executeCommand(name, session);
-    } catch (e) {
-      session.timelineError((e as Error).message);
-    }
+    await executeCommand(name, session);
     if (session.localStore.get("exitRequested") != null) exit();
   }
 

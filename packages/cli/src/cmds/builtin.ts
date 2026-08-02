@@ -75,12 +75,20 @@ export const exportCommand: Command = {
   },
 };
 
+export const quitCommand: Command = {
+  name: "quit",
+  description: "Exit the conversation",
+  async execute(ctx) {
+    ctx.session.localStore.set("exitRequested", true);
+  },
+};
+
 export const builtinCommands: Command[] = [
   clearCommand,
   mcpCommand,
   compactCommand,
   skillCommand,
   exitCommand,
-  { ...exitCommand, name: "quit" },
+  quitCommand,
   exportCommand,
 ];

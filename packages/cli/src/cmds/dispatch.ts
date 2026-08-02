@@ -15,7 +15,12 @@ export async function executeCommand(name: string, session: Session): Promise<vo
     }
     return;
   }
-  if (await session.runSkill(name)) return;
+  try {
+    if (await session.runSkill(name)) return;
+  } catch (e) {
+    session.timelineError((e as Error).message);
+    return;
+  }
   session.timelineError(`unknown command: /${name}`);
 }
 
