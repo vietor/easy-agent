@@ -6,20 +6,12 @@ import { Agent } from "../core/agent.js";
 import { Conversation } from "../core/conversation.js";
 import { TOOL_USE_PROMPT } from "./prompt.js";
 
-export type SubAgentType = "explore" | "plan";
-
-export interface SubAgentDef {
-  type: SubAgentType;
-  name: string;
-  description: string;
-  systemPrompt: string;
-}
-
 export interface SubAgentToolDeps {
   llm: LLMClient;
   tools: ToolRegistry;
-  subAgents?: readonly SubAgentDef[];
+  stallThreshold?: number;
   maxTurns?: number;
+  compactThreshold?: number;
 }
 
 /** Read-only tools available inside a sub-agent loop. SubAgent itself is absent, so recursion is impossible. */
@@ -43,7 +35,7 @@ const PLAN_PROMPT = [
   "- Be specific and actionable; do not speculate beyond what you read.",
 ].join("\n");
 
-export const SUB_AGENT_DEFS: readonly SubAgentDef[] = [
+const SUB_AGENT_DEFS = [
   {
     type: "explore",
     name: "Explore",
@@ -56,13 +48,13 @@ export const SUB_AGENT_DEFS: readonly SubAgentDef[] = [
     description: "Produce a step-by-step implementation plan for a task.",
     systemPrompt: PLAN_PROMPT,
   },
-];
+] as const;
 
 const TOOL_DESCRIPTION =
   'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). The sub-agent can only read files, search, and fetch URLs; it cannot write or edit files, run shell commands, or ask questions. Returns the sub-agent\'s final report as text. type: "explore" — investigate and answer questions about the codebase or web; "plan" — produce a step-by-step implementation plan.';
 
 export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
-  const defs = deps.subAgents ?? SUB_AGENT_DEFS;
+  const defs = SUB_AGENT_DEFS;
   return {
     name: "SubAgent",
     description: TOOL_DESCRIPTION,
@@ -104,9 +96,9 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         cwd: ctx.cwd,
         setTodos: () => {},
         getTodos: () => [],
-        stallThreshold: 3,
+        stallThreshold: deps.stallThreshold ?? 3,
         maxTurns: deps.maxTurns ?? 20,
-        compactThreshold: compactThresholdFor(deps.llm.contextWindow),
+        compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.contextWindow),
       });
 
       const status = await subAgent.run(task, undefined, ctx.signal);

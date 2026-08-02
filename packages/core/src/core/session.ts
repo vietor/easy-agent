@@ -154,7 +154,13 @@ export class Session {
       this.tools.register(createSkillTool((name) => this.skillsMap.get(name)));
     }
     if (deps.builtinTools?.subAgent) {
-      this.tools.register(createSubAgentTool({ llm: deps.llm, tools: this.tools }));
+      this.tools.register(createSubAgentTool({
+        llm: deps.llm,
+        tools: this.tools,
+        stallThreshold: deps.stallThreshold,
+        maxTurns: deps.maxTurns,
+        compactThreshold: deps.compactThreshold,
+      }));
     }
 
     this.agent = new Agent({
