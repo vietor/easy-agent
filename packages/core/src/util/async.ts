@@ -1,3 +1,10 @@
+export class AbortedError extends Error {
+  constructor() {
+    super("aborted");
+    this.name = "AbortedError";
+  }
+}
+
 export interface RetryOptions {
   retries: number;
   retryable: (e: unknown) => boolean;
@@ -24,12 +31,12 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Pr
 function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      reject(new Error("aborted"));
+      reject(new AbortedError());
       return;
     }
     const onAbort = () => {
       clearTimeout(timer);
-      reject(new Error("aborted"));
+      reject(new AbortedError());
     };
     const timer = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
@@ -54,9 +61,9 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 
 export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?: () => T): Promise<T> {
   if (!signal) return promise;
-  if (signal.aborted) return onAbort ? Promise.resolve(onAbort()) : Promise.reject(new Error("aborted"));
+  if (signal.aborted) return onAbort ? Promise.resolve(onAbort()) : Promise.reject(new AbortedError());
   return new Promise<T>((resolve, reject) => {
-    const handleAbort = () => { if (onAbort) resolve(onAbort()); else reject(new Error("aborted")); };
+    const handleAbort = () => { if (onAbort) resolve(onAbort()); else reject(new AbortedError()); };
     signal.addEventListener("abort", handleAbort, { once: true });
     promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", handleAbort));
   });
