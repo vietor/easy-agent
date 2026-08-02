@@ -154,11 +154,19 @@ export function toAnthropicMessages(
         : []
     );
     const missing = toolUses.filter((b) => !satisfied.has(b.id));
-    if (missing.length) {
-      out.splice(i + 1, 0, {
-        role: "user",
-        content: missing.map((b) => ({ type: "tool_result" as const, tool_use_id: b.id, content: "(interrupted)" })),
-      });
+    if (!missing.length) continue;
+    const placeholder: Anthropic.ContentBlockParam[] = missing.map((b) => ({
+      type: "tool_result" as const,
+      tool_use_id: b.id,
+      content: "(interrupted)",
+    }));
+    // append into the following result-only message (keeps its results adjacent),
+    // or insert a placeholder message right after the assistant
+    const next2 = out[i + 1];
+    if (next2 && next2.role === "user" && Array.isArray(next2.content) && next2.content.every((b) => b.type === "tool_result")) {
+      next2.content = [...next2.content, ...placeholder];
+    } else {
+      out.splice(i + 1, 0, { role: "user", content: placeholder });
     }
   }
 
@@ -203,12 +211,19 @@ function hasToolResult(content: Anthropic.MessageParam["content"]): boolean {
   return Array.isArray(content) && content.some((block) => (block as { type?: string }).type === "tool_result");
 }
 
+function hasText(content: Anthropic.MessageParam["content"]): boolean {
+  return typeof content === "string" ? content.length > 0 : content.some((b) => b.type === "text");
+}
+
 function mergeContent(
   a: Anthropic.MessageParam["content"],
   b: Anthropic.MessageParam["content"]
 ): Anthropic.MessageParam["content"] | null {
-  // a tool_result block must be the only content of its user message
-  if (hasToolResult(a) || hasToolResult(b)) return null;
+  // a tool_result block must be the only content of its user message — text and
+  // tool_result never share one, so keep such pairs separate; result-only
+  // messages MUST merge: the API requires every tool_use of an assistant
+  // message to have its tool_result in the immediately-following message
+  if ((hasText(a) || hasText(b)) && (hasToolResult(a) || hasToolResult(b))) return null;
   if (typeof a === "string" && typeof b === "string") return a ? `${a}\n${b}` : b;
   const blocks: Anthropic.ContentBlockParam[] = [];
   if (typeof a === "string") {
