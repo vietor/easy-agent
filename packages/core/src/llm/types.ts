@@ -67,18 +67,11 @@ export interface LLMClient {
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }
 
-export abstract class BaseAdapter {
+export interface BaseAdapter {
   readonly model: string;
   readonly reasoningEffort: ReasoningEffort;
   readonly contextWindow: number;
-
-  protected constructor(config: LLMConfig) {
-    this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort;
-    this.contextWindow = config.contextWindow;
-  }
-
-  abstract stream(opts: ChatOptions): Promise<AssistantMessage>;
+  stream(opts: ChatOptions): Promise<AssistantMessage>;
 }
 
 export function textOf(content: string | TextContentPart[] | null | undefined): string {

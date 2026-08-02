@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
-  BaseAdapter,
+  type BaseAdapter,
   parseToolArgs,
   textOf,
   type AssistantMessage,
@@ -21,11 +21,16 @@ const THINKING_BUDGET: Record<ReasoningEffort, number> = {
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 
-export class AnthropicAdapter extends BaseAdapter {
+export class AnthropicAdapter implements BaseAdapter {
   private client: Anthropic;
+  readonly model: string;
+  readonly reasoningEffort: ReasoningEffort;
+  readonly contextWindow: number;
 
   constructor(config: LLMConfig) {
-    super(config);
+    this.model = config.model;
+    this.reasoningEffort = config.reasoningEffort;
+    this.contextWindow = config.contextWindow;
     this.client = new Anthropic({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,

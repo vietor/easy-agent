@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { BaseAdapter, type LLMConfig, type AssistantMessage, type ChatOptions } from "./types.js";
+import { type BaseAdapter, type LLMConfig, type AssistantMessage, type ChatOptions, type ReasoningEffort } from "./types.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAcc {
@@ -8,11 +8,16 @@ interface ToolCallAcc {
   arguments: string;
 }
 
-export class CompletionsAdapter extends BaseAdapter {
+export class CompletionsAdapter implements BaseAdapter {
   private client: OpenAI;
+  readonly model: string;
+  readonly reasoningEffort: ReasoningEffort;
+  readonly contextWindow: number;
 
   constructor(config: LLMConfig) {
-    super(config);
+    this.model = config.model;
+    this.reasoningEffort = config.reasoningEffort;
+    this.contextWindow = config.contextWindow;
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
