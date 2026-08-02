@@ -86,6 +86,7 @@ export class RunLoop {
       this.timer = undefined;
       this.abortController = null;
       this.lastStatusValue = status;
+      if (status !== "ok") this.timeline.abortPendingTools();
       this.runState = { ...this.runState, ...this.computeTimings(), running: false };
       this.emitRunState();
       this.flushReasoning();

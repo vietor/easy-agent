@@ -84,8 +84,8 @@ test("nested sub-agent report becomes the SubAgent tool result", async () => {
   assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
   assert.match(String(calls[1].messages[0].content), /Tool-Use Guidelines/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
-  assert.deepEqual(nestedTools, ["FileRead", "Glob", "Grep", "WebFetch", "Shell"]);
-  assert.ok(!nestedTools.some((n) => ["SubAgent", "FileWrite", "FileEdit", "Skill"].includes(n)));
+  assert.deepEqual(nestedTools, ["FileRead", "Glob", "Grep", "WebFetch"]);
+  assert.ok(!nestedTools.some((n) => ["SubAgent", "Shell", "FileWrite", "FileEdit", "Skill"].includes(n)));
   assert.ok(
     calls[2].messages.some(
       (m) => m.role === "tool" && typeof m.content === "string" && m.content.includes("file contents")

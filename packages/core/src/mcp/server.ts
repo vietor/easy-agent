@@ -6,6 +6,7 @@ import { withTimeout } from "../util/async.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
 const CONNECT_TIMEOUT = 30_000;
+const CALL_TIMEOUT = 300_000;
 
 const SUMMARY_PRIORITY = ["url", "path", "file_path", "filePath", "command", "query", "pattern", "name", "text", "selector", "uid"];
 
@@ -123,7 +124,7 @@ export class MCPServers {
       parameters: tool.inputSchema,
       ...(summaryArg.length ? { summaryArg } : {}),
       async execute(args, ctx) {
-        const result = await client.callTool(tool.name, args, ctx.signal);
+        const result = await withTimeout(client.callTool(tool.name, args, ctx.signal), CALL_TIMEOUT);
         const text = extractContent(result);
         return result.isError
           ? { content: fixError(text), isError: true }

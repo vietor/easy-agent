@@ -23,14 +23,13 @@ export interface SubAgentToolDeps {
 }
 
 /** Read-only tools available inside a sub-agent loop. SubAgent itself is absent, so recursion is impossible. */
-const SUB_AGENT_TOOLS = ["FileRead", "Glob", "Grep", "WebFetch", "Shell"] as const;
+const SUB_AGENT_TOOLS = ["FileRead", "Glob", "Grep", "WebFetch"] as const;
 
 const EXPLORE_PROMPT = [
   "You are the Explore sub-agent. Your job is to investigate and answer a question by reading files, searching the codebase, and fetching web pages. You are read-only: you must not modify any files.",
   "Guidelines:",
   "- Investigate thoroughly: read the relevant files, follow imports and call sites, and search for definitions before concluding.",
   "- Trust tool results as ground truth; do not guess file contents from memory.",
-  "- Use Shell only for read-only inspection commands (e.g. ls, git log, git status); never run commands that modify files or system state.",
   "- If the task is ambiguous, state your assumptions explicitly.",
   '- Report in concise markdown: a summary of findings first, then details with file_path:line_number references, and a final "Bottom line" section with a direct answer to the task.',
 ].join("\n");
@@ -60,7 +59,7 @@ export const SUB_AGENT_DEFS: readonly SubAgentDef[] = [
 ];
 
 const TOOL_DESCRIPTION =
-  'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). The sub-agent can only read files, search, fetch URLs, and run read-only shell commands; it cannot write or edit files and cannot ask questions. Returns the sub-agent\'s final report as text. type: "explore" — investigate and answer questions about the codebase or web; "plan" — produce a step-by-step implementation plan.';
+  'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). The sub-agent can only read files, search, and fetch URLs; it cannot write or edit files, run shell commands, or ask questions. Returns the sub-agent\'s final report as text. type: "explore" — investigate and answer questions about the codebase or web; "plan" — produce a step-by-step implementation plan.';
 
 export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
   const defs = deps.subAgents ?? SUB_AGENT_DEFS;

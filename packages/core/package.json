@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --import tsx --test test/conversation.test.ts test/agent.test.ts test/subAgent.test.ts"
+    "test": "node --import tsx --test test/conversation.test.ts test/agent.test.ts test/subAgent.test.ts test/fileRead.test.ts test/subprocess.test.ts"
   },
   "description": "Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader",
   "license": "MIT",
