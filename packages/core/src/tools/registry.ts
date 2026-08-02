@@ -87,13 +87,8 @@ export class ToolRegistry {
 }
 
 export interface BuiltinToolsOptions {
-  shell?: boolean;
-  fileRead?: boolean;
-  fileWrite?: boolean;
-  fileEdit?: boolean;
-  glob?: boolean;
-  grep?: boolean;
-  webFetch?: boolean;
+  /** Tools to disable, by lowercase-camelCase name (e.g. "shell", "fileRead"). AskUser, TodoWrite and Skill are toggled by their own flags and cannot be disabled here. */
+  disabled?: string[];
   askUser?: boolean;
   todoWrite?: boolean;
   skill?: boolean;
@@ -101,13 +96,14 @@ export interface BuiltinToolsOptions {
 
 const CORE_TOOLS: Tool[] = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
 
-function optionKey(tool: Tool): keyof BuiltinToolsOptions {
-  return (tool.name[0].toLowerCase() + tool.name.slice(1)) as keyof BuiltinToolsOptions;
+function toolKey(tool: Tool): string {
+  return tool.name[0].toLowerCase() + tool.name.slice(1);
 }
 
 export function registerBuiltinTools(tools: ToolRegistry, opts?: BuiltinToolsOptions) {
+  const disabled = new Set(opts?.disabled ?? []);
   for (const tool of CORE_TOOLS) {
-    if (opts?.[optionKey(tool)] === false) continue;
+    if (disabled.has(toolKey(tool))) continue;
     tools.register(tool);
   }
 }

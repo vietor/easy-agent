@@ -48,7 +48,7 @@ const session = await createSession({
 | `commands` | `Command[]` | `undefined` | Custom slash commands. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or as slash commands. |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtinTools` | `BuiltinToolsOptions \| false` | *(all enabled)* | Toggle built-in tools individually; `false` to disable all. All tools default to `true` except `askUser` and `todoWrite` which default to `false`. |
+| `builtinTools` | `BuiltinToolsOptions \| false` | *(all enabled)* | Enable `askUser`/`todoWrite`/`skill` (all off by default); disable other built-in tools by listing their names in `disabled`. `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
@@ -472,7 +472,7 @@ Non-interactive tools (always registered):
 | **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Available skills are listed in the system prompt. |
 
-Each built-in tool can be toggled individually via `builtinTools`. All tools default to enabled except `askUser` and `todoWrite` which must be explicitly enabled. The `Skill` tool is also enabled by default (disable via `builtinTools: { skill: false }`) but is only useful when `skills` are provided.
+All tools are enabled by default except `askUser`, `todoWrite` and `skill`, which must be explicitly enabled via `builtinTools` (`askUser: true`, `todoWrite: true`, `skill: true`). Other built-in tools can be disabled by listing their names in `builtinTools.disabled`. The `Skill` tool is only useful when `skills` are provided.
 
 ```ts
 const session = await createSession({
@@ -483,7 +483,7 @@ const session = await createSession({
 // Disable all built-in tools:
 // builtinTools: false
 // Disable specific tools:
-// builtinTools: { shell: false, webFetch: false }
+// builtinTools: { disabled: ["shell", "webFetch"] }
 ```
 
 ### Custom tools example

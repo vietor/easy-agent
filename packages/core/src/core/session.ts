@@ -166,7 +166,7 @@ export class Session {
     if (deps.builtinTools?.todoWrite) {
       deps.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
     }
-    if (deps.builtinTools?.skill !== false) {
+    if (deps.builtinTools?.skill) {
       deps.tools.register(createSkillTool((name) => this.skills.get(name)));
     }
 
