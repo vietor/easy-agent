@@ -23,7 +23,8 @@
     "@vscode/ripgrep": "^1.18.0",
     "openai": "^6.49.0",
     "turndown": "^7.2.4",
-    "undici": "^7.29.0"
+    "undici": "^7.29.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
