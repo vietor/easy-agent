@@ -6,7 +6,8 @@ import type { SessionEvent } from "./types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { SKILL_TOOL_NAME } from "../tools/skill.js";
-import { toolError, TODO_STATUS_GLYPHS, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "../tools/types.js";
+import { renderIncompleteTodoNudge, renderTodoReminder } from "../tools/todoWrite.js";
+import { toolError, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "../tools/types.js";
 
 
 const COMPACT_PROMPT = [
@@ -283,23 +284,4 @@ export class Agent {
       })
     ), signal, () => null);
   }
-}
-
-function renderTodoReminder(todos: readonly Todo[]): string {
-  const items = todos.map((t) => {
-    return `${TODO_STATUS_GLYPHS[t.status]} ${t.content}`;
-  });
-  const focus = todos.find((t) => t.status === "in_progress");
-  const focusLine = focus ? ` Current focus: ${focus.content}` : "";
-  const incomplete = todos.filter(t => t.status !== "completed");
-  const warning = incomplete.length > 0
-    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response — update status via TodoWrite after each task finishes.`
-    : "";
-  return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
-}
-
-function renderIncompleteTodoNudge(todos: readonly Todo[]): string {
-  const incomplete = todos.filter(t => t.status !== "completed");
-  const names = incomplete.map(t => `"${t.content}"`).join(", ");
-  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to complete them. Call TodoWrite to mark each one completed before your final text response.</system-reminder>`;
 }
