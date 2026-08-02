@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import { AbortedError } from "../util/async.js";
+import { killProcessTree } from "../util/subprocess.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -46,19 +47,11 @@ export class MCPClient {
   }
 
   kill(): void {
-    this.connectReject?.(new Error("aborted"));
+    this.connectReject?.(new AbortedError());
     this.connectReject = undefined;
     this.client.close().catch(() => {});
     if (this.transport instanceof StdioClientTransport) {
-      const pid = this.transport.pid;
-      if (!pid) return;
-      try {
-        if (process.platform === "win32") {
-          spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
-        } else {
-          process.kill(pid, "SIGTERM");
-        }
-      } catch {}
+      killProcessTree(this.transport.pid);
     }
   }
 }

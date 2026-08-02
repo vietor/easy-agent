@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runProcess } from "../src/util/subprocess.js";
+import { killProcessTree, runProcess } from "../src/util/subprocess.js";
 
 const isWin = process.platform === "win32";
 
@@ -74,5 +74,30 @@ test("abort kills the whole process tree", async () => {
       }
     }
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("killProcessTree kills a direct process (no group)", async () => {
+  const child = isWin
+    ? spawn("cmd.exe", ["/c", "ping", "-t", "127.0.0.1"], { stdio: "ignore" })
+    : spawn("sleep", ["100"], { stdio: "ignore" });
+  child.on("error", () => {});
+  const pid = child.pid;
+  try {
+    assert.ok(pid && pid > 0);
+    assert.ok(await waitUntil(() => pidAlive(pid!), 5000), "process must be running");
+    killProcessTree(pid!);
+    assert.ok(
+      await waitUntil(() => !pidAlive(pid!), 5000),
+      "process must die after killProcessTree"
+    );
+  } finally {
+    if (pid && pidAlive(pid)) {
+      if (isWin) {
+        try { spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true }); } catch {}
+      } else {
+        try { process.kill(pid, "SIGKILL"); } catch {}
+      }
+    }
   }
 });

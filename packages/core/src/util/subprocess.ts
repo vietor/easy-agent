@@ -1,4 +1,4 @@
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const MAX_BUFFER = 10 * 1024 * 1024;
 
@@ -9,21 +9,26 @@ export interface ProcessResult {
   error?: Error;
 }
 
-/** Kill the child and its whole process tree — child.kill() alone leaves grandchildren running. */
-function killTree(child: ChildProcess): void {
-  const pid = child.pid;
-  if (pid === undefined) return;
+/** Kill a process — with group: true, the whole tree via the process group (child.kill() alone leaves grandchildren running). Never throws. */
+export function killProcessTree(pid: number | null | undefined, opts?: { group?: boolean }): void {
+  if (!pid) return;
   if (process.platform === "win32") {
     try {
       spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
     } catch {}
-  } else {
+  } else if (opts?.group) {
     // the child is spawned detached, i.e. process-group leader; -pid signals the whole group
     try {
       process.kill(-pid, "SIGTERM");
     } catch {
-      child.kill();
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {}
     }
+  } else {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {}
   }
 }
 
@@ -54,7 +59,7 @@ export function runProcess(
       resolve(result);
     }
 
-    function kill() { killTree(child); }
+    function kill() { killProcessTree(child.pid, { group: true }); }
 
     if (signal) {
       signal.addEventListener("abort", kill, { once: true });
