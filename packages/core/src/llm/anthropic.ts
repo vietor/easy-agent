@@ -100,7 +100,7 @@ function toAnthropicTool(schema: ToolSchema): Anthropic.Tool {
   };
 }
 
-function toAnthropicMessages(
+export function toAnthropicMessages(
   messages: Message[],
   includeThinking: boolean
 ): { system: string | undefined; messages: Anthropic.MessageParam[] } {
@@ -138,15 +138,26 @@ function toAnthropicMessages(
     }
   }
 
-  // an assistant reply ending with tool_use but no tool_result (e.g. a restored
-  // interrupted run) is rejected by the API — supply a placeholder result
-  const last = out[out.length - 1];
-  if (last && last.role === "assistant" && Array.isArray(last.content)) {
-    const toolUses = last.content.filter((b) => b.type === "tool_use");
-    if (toolUses.length) {
-      out.push({
+  // every assistant message with tool_use must be immediately followed by a user
+  // message with its tool_result blocks — a run that ended before results were
+  // recorded (aborted/stalled/max-turns, incl. restored sessions) violates this
+  // and is rejected by the API; insert placeholders wherever results are missing
+  for (let i = 0; i < out.length; i++) {
+    const m = out[i];
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    const toolUses = m.content.filter((b) => b.type === "tool_use");
+    if (!toolUses.length) continue;
+    const next = out[i + 1];
+    const satisfied = new Set(
+      next && next.role === "user" && Array.isArray(next.content)
+        ? next.content.filter((b) => b.type === "tool_result").map((b) => b.tool_use_id)
+        : []
+    );
+    const missing = toolUses.filter((b) => !satisfied.has(b.id));
+    if (missing.length) {
+      out.splice(i + 1, 0, {
         role: "user",
-        content: toolUses.map((b) => ({ type: "tool_result" as const, tool_use_id: b.id, content: "(interrupted)" })),
+        content: missing.map((b) => ({ type: "tool_result" as const, tool_use_id: b.id, content: "(interrupted)" })),
       });
     }
   }

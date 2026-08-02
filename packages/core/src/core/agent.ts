@@ -212,10 +212,12 @@ export class Agent {
       stall = sig === lastSig ? stall + 1 : 1;
       lastSig = sig;
       if (stall >= this.stallThreshold) {
+        this.resolvePendingToolCalls(msg.tool_calls, "stalled: repeated identical tool calls");
         onEvent?.({ type: "error", text: `agent stalled: repeated identical tool calls` });
         return "stalled";
       }
       if (++turns >= this.maxTurns) {
+        this.resolvePendingToolCalls(msg.tool_calls, `max turns reached (${this.maxTurns})`);
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
         return "maxturns";
       }
@@ -234,6 +236,13 @@ export class Agent {
         this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
         onEvent?.({ type: "skill", name: skill.name });
       }
+    }
+  }
+
+  /** Stall/maxturns end the run before tool execution; wire APIs reject a tool_calls message with no following tool result, so record placeholder results. */
+  private resolvePendingToolCalls(calls: NonNullable<AssistantMessage["tool_calls"]>, reason: string): void {
+    for (const tc of calls) {
+      this.conversation.add({ role: "tool", tool_call_id: tc.id, content: `(not executed: ${reason})`, isError: true });
     }
   }
 

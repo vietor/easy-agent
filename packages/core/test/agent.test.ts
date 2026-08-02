@@ -89,6 +89,37 @@ test("stalls on repeated identical tool calls", async () => {
   assert.equal(status, "stalled");
 });
 
+test("every assistant tool_calls is followed by its tool results, even on stall", async () => {
+  const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo"), () => toolCall("Echo")]);
+  const agent = makeAgent(llm);
+  const status = await agent.run("do it");
+  assert.equal(status, "stalled");
+  const messages = agent.export();
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role !== "assistant" || !m.tool_calls?.length) continue;
+    const following = messages.slice(i + 1, i + 1 + m.tool_calls.length);
+    assert.ok(following.every((f) => f.role === "tool"), "tool results must follow tool calls");
+    assert.deepEqual(
+      following.map((f) => (f as { tool_call_id: string }).tool_call_id),
+      m.tool_calls.map((tc) => tc.id)
+    );
+  }
+});
+
+test("maxturns run records placeholder results for the pending tool calls", async () => {
+  const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo")]);
+  const agent = makeAgent(llm, { maxTurns: 2 });
+  const status = await agent.run("go");
+  assert.equal(status, "maxturns");
+  const messages = agent.export();
+  assert.equal(messages[messages.length - 2].role, "assistant");
+  const last = messages[messages.length - 1];
+  assert.equal(last.role, "tool");
+  assert.equal((last as { isError?: boolean }).isError, true);
+  assert.match((last as { content: string }).content, /not executed/);
+});
+
 test("text-only stall with incomplete todos: nudge is sent but never stored", async () => {
   const { llm, calls } = fakeLLM([
     () => ({ role: "assistant", content: "thinking..." }),
