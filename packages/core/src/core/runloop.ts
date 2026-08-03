@@ -39,9 +39,7 @@ export class RunLoop {
   }
 
   async startPrompt(text: string): Promise<void> {
-    if (this.todos.all.length > 0 && this.todos.all.every((t) => t.status === "completed")) {
-      this.todos.set([]);
-    }
+    this.clearCompletedTodos();
     this.timeline.applyEvent({ type: "user", text });
     this.emit({ type: "user", text });
     await this.run((signal) => this.agent.run(text, this.handleEvent, signal));
@@ -90,7 +88,15 @@ export class RunLoop {
       this.runState = { ...this.runState, ...this.computeTimings(), running: false };
       this.emitRunState();
       this.flushReasoning();
+      this.clearCompletedTodos();
       this.onSettle?.();
+    }
+  }
+
+  /** A fully completed task list is dead weight: drop it at input and at run settle so it never lingers across turns. */
+  private clearCompletedTodos(): void {
+    if (this.todos.all.length > 0 && this.todos.all.every((t) => t.status === "completed")) {
+      this.todos.set([]);
     }
   }
 
