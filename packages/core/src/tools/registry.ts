@@ -1,4 +1,4 @@
-import { toolError, type Tool, type ToolContext, type ToolResult, type ToolSchema } from "./types.js";
+import { toolError, type Tool, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "./types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";
 import { fileWriteTool } from "./file-write.js";
@@ -6,6 +6,12 @@ import { fileEditTool } from "./file-edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./web-fetch.js";
+import { createAskUserTool } from "./ask-user.js";
+import { createSkillTool } from "./skill.js";
+import { createTodoWriteTool } from "./todo-write.js";
+import { createSubAgentTool } from "./sub-agent.js";
+import type { Skill } from "../skills/types.js";
+import type { LLMClient } from "../llm/types.js";
 import { MAX_PREVIEW_LEN } from "../util/constants.js";
 import { timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
 
@@ -105,16 +111,28 @@ export interface BuiltinToolsOptions {
   subAgent?: boolean;
 }
 
+/** Wiring the flag-gated factory tools need; supplied by the Session constructor. */
+export interface BuiltinToolsDeps {
+  ask: (question: string, options: string[]) => Promise<string>;
+  setTodos: (todos: Todo[]) => void;
+  resolveSkill: (name: string) => Skill | undefined;
+  subAgent: { llm: LLMClient; stallThreshold?: number; maxTurns?: number; compactThreshold?: number };
+}
+
 const CORE_TOOLS: Tool[] = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
 
 function toolKey(tool: Tool): string {
   return tool.name[0].toLowerCase() + tool.name.slice(1);
 }
 
-export function registerBuiltinTools(tools: ToolRegistry, opts?: BuiltinToolsOptions) {
+export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | undefined, deps: BuiltinToolsDeps) {
   const disabled = new Set(opts?.disabled ?? []);
   for (const tool of CORE_TOOLS) {
     if (disabled.has(toolKey(tool))) continue;
     tools.register(tool);
   }
+  if (opts?.askUser) tools.register(createAskUserTool(deps.ask));
+  if (opts?.todoWrite) tools.register(createTodoWriteTool(deps.setTodos));
+  if (opts?.skill) tools.register(createSkillTool(deps.resolveSkill));
+  if (opts?.subAgent) tools.register(createSubAgentTool({ tools, ...deps.subAgent }));
 }

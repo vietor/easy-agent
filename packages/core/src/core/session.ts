@@ -4,12 +4,8 @@ import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
-import type { ToolRegistry } from "../tools/registry.js";
+import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { createAskUserTool } from "../tools/ask-user.js";
-import { createSkillTool } from "../tools/skill.js";
-import { createTodoWriteTool } from "../tools/todo-write.js";
-import { createSubAgentTool } from "../tools/sub-agent.js";
 import { SessionBusyError, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState, type TimelineEntry } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
@@ -134,25 +130,12 @@ export class Session {
     this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
-    const builtinTools = deps.builtinTools === false ? undefined : deps.builtinTools;
-    if (builtinTools?.askUser) {
-      this.tools.register(createAskUserTool((q, o) => this.ask(q, o)));
-    }
-    if (builtinTools?.todoWrite) {
-      this.tools.register(createTodoWriteTool((t) => this.todoStore.set(t)));
-    }
-    if (builtinTools?.skill) {
-      this.tools.register(createSkillTool((name) => this.skillsMap.get(name)));
-    }
-    if (builtinTools?.subAgent) {
-      this.tools.register(createSubAgentTool({
-        llm: deps.llm,
-        tools: this.tools,
-        stallThreshold: deps.stallThreshold,
-        maxTurns: deps.maxTurns,
-        compactThreshold: deps.compactThreshold,
-      }));
-    }
+    registerBuiltinTools(this.tools, deps.builtinTools === false ? undefined : deps.builtinTools, {
+      ask: (q, o) => this.ask(q, o),
+      setTodos: (t) => this.todoStore.set(t),
+      resolveSkill: (name) => this.skillsMap.get(name),
+      subAgent: { llm: deps.llm, stallThreshold: deps.stallThreshold, maxTurns: deps.maxTurns, compactThreshold: deps.compactThreshold },
+    });
 
     this.agent = new Agent({
       llm: deps.llm,

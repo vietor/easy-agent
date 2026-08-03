@@ -1,7 +1,7 @@
 import { createLLM } from "./llm/client.js";
 import { compactThresholdFor } from "./llm/types.js";
 import { Session } from "./core/session.js";
-import { ToolRegistry, registerBuiltinTools, type BuiltinToolsOptions } from "./tools/registry.js";
+import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
 import { TOOL_USE_PROMPT } from "./tools/prompt.js";
 import type { Skill } from "./skills/types.js";
@@ -34,12 +34,6 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinToo
 export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llmConfig);
   const tools = new ToolRegistry();
-  if (opts.builtinTools !== false) {
-    registerBuiltinTools(tools, opts.builtinTools || undefined);
-  }
-  if (opts.tools) {
-    tools.registerAll(opts.tools);
-  }
   const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "easy-agent-core", version: "0.0.0" });
 
   const session = new Session({
@@ -50,6 +44,11 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     mcp,
     compactThreshold: compactThresholdFor(llm.contextWindow),
   });
+
+  // Builtins register in the Session constructor; custom tools go after so they win on name conflicts.
+  if (opts.tools) {
+    tools.registerAll(opts.tools);
+  }
 
   if (opts.mcpServers) {
     await session.connectMCP(opts.mcpServers);
