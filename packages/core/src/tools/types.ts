@@ -5,12 +5,6 @@ export interface ToolResult {
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
 
-export const TODO_STATUS_GLYPHS: Record<TodoStatus, string> = {
-  pending: "○",
-  in_progress: "◐",
-  completed: "✓",
-};
-
 export interface Todo {
   content: string;
   status: TodoStatus;

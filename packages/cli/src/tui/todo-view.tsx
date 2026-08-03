@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Box, Text } from "ink";
 import { type Todo, type TodoStatus } from "@vietor/easy-agent-core";
 
-const TODO_STATUS_GLYPHS: Record<TodoStatus, string> = {
+const GLYPHS: Record<TodoStatus, string> = {
   pending: "○",
   in_progress: "◐",
   completed: "✓",
@@ -23,7 +23,7 @@ export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo
       <Text color={headerColor}>{`Tasks [${done}/${todos.length}]`}</Text>
       {todos.map((t, i) => (
         <Text key={i} color={COLORS[t.status]} strikethrough={t.status === "completed"}>
-          {`${TODO_STATUS_GLYPHS[t.status]} ${t.content}`}
+          {`${GLYPHS[t.status]} ${t.content}`}
         </Text>
       ))}
     </Box>

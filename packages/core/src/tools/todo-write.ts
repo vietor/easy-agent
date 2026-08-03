@@ -1,6 +1,12 @@
-import { toolError, TODO_STATUS_GLYPHS, type Tool, type Todo, type TodoStatus } from "./types.js";
+import { toolError, type Tool, type Todo, type TodoStatus } from "./types.js";
 
 const STATUSES: TodoStatus[] = ["pending", "in_progress", "completed"];
+
+const STATUS_GLYPHS: Record<TodoStatus, string> = {
+  pending: "○",
+  in_progress: "◐",
+  completed: "✓",
+};
 
 const DESCRIPTION = "Manage the task list for tasks with 3+ steps. Pass the FULL list each call; it replaces the previous list. Keep one in_progress at a time. status: pending, in_progress, completed.";
 
@@ -35,7 +41,7 @@ function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: numbe
 
 export function renderTodoReminder(todos: readonly Todo[]): string {
   const items = todos.map((t) => {
-    return `${TODO_STATUS_GLYPHS[t.status]} ${t.content}`;
+    return `${STATUS_GLYPHS[t.status]} ${t.content}`;
   });
   const focus = todos.find((t) => t.status === "in_progress");
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";
