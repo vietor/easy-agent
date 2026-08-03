@@ -78,12 +78,15 @@ export class ToolRegistry {
     if (!tool) return "";
     if (tool.summarizeArgs) return tool.summarizeArgs(args);
     if (!tool.summaryArg) return "";
+    const parts: string[] = [];
     const keys = Array.isArray(tool.summaryArg) ? tool.summaryArg : [tool.summaryArg];
     for (const k of keys) {
       const v = args[k];
-      if (typeof v === "string" && v) return v;
+      if (typeof v === "string" && v) {
+        parts.push(v);
+      }
     }
-    return "";
+    return parts.join(" ");
   }
 }
 
