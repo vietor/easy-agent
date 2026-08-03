@@ -60,7 +60,6 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-/** External abort signal combined with a wall-clock timeout into one signal. */
 export function timeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
   return signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
 }

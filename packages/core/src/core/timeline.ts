@@ -50,7 +50,6 @@ export class TimelineStore {
     return this.listeners.subscribe(listener);
   }
 
-  /** The single event -> timeline translation: how every SessionEvent becomes an entry. */
   applyEvent(e: SessionEvent): void {
     switch (e.type) {
       case "user":

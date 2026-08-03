@@ -10,7 +10,6 @@ export function tryReadFileText(path: string): string | undefined {
   return undefined;
 }
 
-/** Resolve a tool-supplied path against the run's working directory. */
 export function resolvePath(ctx: ToolContext, path: string): string {
   return resolve(ctx.cwd, path);
 }
