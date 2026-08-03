@@ -24,7 +24,6 @@ const COMPACT_PROMPT = [
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 
-/** Events the Agent emits during a run (a subset of SessionEvent plus usage). */
 export type AgentEvent =
   | { type: "assistant_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
@@ -223,9 +222,10 @@ export class Agent {
       for (const r of results) {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, preview: r.preview, isError: r.isError });
       }
-      for (const tc of msg.tool_calls) {
+      for (let i = 0; i < msg.tool_calls.length; i++) {
+        const tc = msg.tool_calls[i];
         if (tc.function.name !== SKILL_TOOL_NAME || !this.resolveSkill) continue;
-        const { args } = parseToolArgs(tc.function.arguments);
+        const { args } = results[i];
         const name = args.name as string;
         if (!name) continue;
         const skill = this.resolveSkill(name);
@@ -236,7 +236,6 @@ export class Agent {
     }
   }
 
-  /** Stall/max_turns end the run before tool execution; wire APIs reject a tool_calls message with no following tool result, so record placeholder results. */
   private resolvePendingToolCalls(calls: NonNullable<AssistantMessage["tool_calls"]>, reason: string): void {
     for (const tc of calls) {
       this.conversation.add({ role: "tool", tool_call_id: tc.id, content: `(not executed: ${reason})`, isError: true });
@@ -272,7 +271,7 @@ export class Agent {
     calls: NonNullable<AssistantMessage["tool_calls"]>,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<{ id: string; content: string; preview?: string; isError?: boolean }[] | null> {
+  ): Promise<{ id: string; content: string; preview?: string; isError?: boolean; args: Record<string, unknown> }[] | null> {
     return withAbort(Promise.all(
       calls.map(async (call) => {
         const parsed = parseToolArgs(call.function.arguments);
@@ -286,7 +285,7 @@ export class Agent {
         const duration = performance.now() - start;
         const preview = this.tools.getPreview(call.function.name, result, duration);
         if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });
-        return { id: call.id, content: result.content, preview, isError: result.isError };
+        return { id: call.id, content: result.content, preview, isError: result.isError, args };
       })
     ), signal, () => null);
   }
