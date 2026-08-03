@@ -14,7 +14,7 @@ const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use Tod
 
 const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking.";
 
-const SUB_AGENT_GUIDANCE = '- For investigation or planning subtasks, consider delegating to a sub-agent via the SubAgent tool (type: "explore" to investigate the codebase or web, type: "plan" to produce an implementation plan) and continue the work yourself based on its report; perform any file edits yourself.';
+const SUB_AGENT_GUIDANCE = '- Consider delegating subtasks to a sub-agent via the SubAgent tool: type: "explore" to investigate the codebase or web, type: "plan" to produce an implementation plan, or type: "generic" to execute a task end-to-end with full tool access (shell, file read/write/edit, search, web fetch). The sub-agent runs silently and returns only its final report — verify important results yourself, especially for "generic" tasks that modify files.';
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined): string {
   const parts = [base];

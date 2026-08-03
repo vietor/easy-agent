@@ -48,6 +48,8 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   tools.register(stub("Grep", "hits"));
   tools.register(stub("WebFetch", "web"));
   tools.register(stub("Shell", "ok"));
+  tools.register(stub("FileWrite", "written"));
+  tools.register(stub("FileEdit", "edited"));
   tools.register(createSubAgentTool({ llm, tools, ...subAgentOpts }));
   const conversation = new Conversation("system prompt");
   return new Agent({
@@ -91,6 +93,34 @@ test("nested sub-agent report becomes the SubAgent tool result", async () => {
   );
 });
 
+test("generic sub-agent type runs the nested loop with the full tool set", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "generic", task: "implement X" })),
+    () => toolCall("FileWrite", JSON.stringify({ path: "x.ts", content: "..." }), "n1"),
+    () => ({ role: "assistant", content: "IMPLEMENTED X" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+
+  const toolMsg = agent.export().find((m) => m.role === "tool");
+  assert.ok(toolMsg, "tool result must be in the conversation");
+  assert.equal(toolMsg.content, "IMPLEMENTED X");
+  assert.ok(!toolMsg.isError);
+
+  assert.match(String(calls[1].messages[0].content), /You are the Generic sub-agent/);
+  assert.match(String(calls[1].messages[0].content), /Tool-Use Guidelines/);
+  const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
+  assert.deepEqual(nestedTools, ["Shell", "FileRead", "FileWrite", "FileEdit", "Glob", "Grep", "WebFetch"]);
+  assert.ok(!nestedTools.some((n) => ["SubAgent", "AskUser", "TodoWrite", "Skill"].includes(n)));
+  assert.ok(
+    calls[2].messages.some(
+      (m) => m.role === "tool" && typeof m.content === "string" && m.content.includes("written")
+    )
+  );
+});
+
 test("unknown sub-agent type returns an error without invoking a nested loop", async () => {
   const { llm, calls } = fakeLLM([
     () => toolCall("SubAgent", JSON.stringify({ type: "bogus", task: "x" })),
@@ -121,4 +151,10 @@ test("nested maxTurns is enforced", async () => {
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
   assert.ok(String(toolMsg.content).includes("max_turns"));
+});
+
+test("SubAgent tool type enum covers explore, plan and generic", () => {
+  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: new ToolRegistry() });
+  const params = tool.parameters as { properties: { type: { enum: string[] } } };
+  assert.deepEqual(params.properties.type.enum, ["explore", "plan", "generic"]);
 });
