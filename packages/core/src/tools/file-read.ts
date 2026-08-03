@@ -1,6 +1,6 @@
 import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
-import { resolvePath } from "./file-util.js";
+import { resolvePath } from "../util/file.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;

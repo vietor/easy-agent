@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import type { Tool } from "./types.js";
-import { resolvePath } from "./file-util.js";
+import { resolvePath } from "../util/file.js";
 
 const DESCRIPTION = "Replace old_string with new_string in a file. Read the file first — old_string must match exactly including whitespace/indentation. Must be unique unless replace_all is set. For full rewrites prefer FileWrite.";
 
