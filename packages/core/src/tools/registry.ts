@@ -1,11 +1,11 @@
 import { toolError, type Tool, type ToolContext, type ToolResult, type ToolSchema } from "./types.js";
 import { shellTool } from "./shell.js";
-import { fileReadTool } from "./fileRead.js";
-import { fileWriteTool } from "./fileWrite.js";
-import { fileEditTool } from "./fileEdit.js";
+import { fileReadTool } from "./file-read.js";
+import { fileWriteTool } from "./file-write.js";
+import { fileEditTool } from "./file-edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
-import { webFetchTool } from "./webFetch.js";
+import { webFetchTool } from "./web-fetch.js";
 import { MAX_PREVIEW_LEN } from "../util/constants.js";
 import { timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
 

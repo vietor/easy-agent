@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type ReasoningEffort } from "./types.js";
 import { netFetch } from "../util/net.js";
 
-interface ToolCallAcc {
+interface ToolCallAccumulator {
   id: string;
   name: string;
   arguments: string;
@@ -30,7 +30,7 @@ export class CompletionsAdapter implements BaseAdapter {
     const { messages, tools, onDelta, onReasoning, onUsage, reasoning, signal } = opts;
     let content = "";
     let refusal = "";
-    const calls = new Map<number, ToolCallAcc>();
+    const calls = new Map<number, ToolCallAccumulator>();
     const useReasoning = reasoning !== false;
     const params: Record<string, unknown> = {
       model: this.model,

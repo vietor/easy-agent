@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createTodoWriteTool } from "../src/tools/todoWrite.js";
+import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Todo, ToolResult } from "../src/tools/types.js";
 
 function makeTool() {

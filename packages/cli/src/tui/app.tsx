@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
 import { type Session, type RunState, type SessionEvent, type SessionView } from "@vietor/easy-agent-core";
-import { executeCommand, commandSchemas } from "../cmds/dispatch.js";
-import { Markdown } from "./components/Markdown.js";
-import { TimelineView } from "./TimelineView.js";
-import { TodoView } from "./TodoView.js";
-import { AppHeader } from "./AppHeader.js";
-import { PromptOrCommandInput } from "./PromptOrCommandInput.js";
-import { QuestionView } from "./QuestionView.js";
-import { Spinner } from "./Spinner.js";
-import { StatusBar } from "./StatusBar.js";
+import { executeCommand, commandSchemas } from "../commands/dispatch.js";
+import { Markdown } from "./components/markdown.js";
+import { TimelineView } from "./timeline-view.js";
+import { TodoView } from "./todo-view.js";
+import { AppHeader } from "./app-header.js";
+import { PromptOrCommandInput } from "./prompt-or-command-input.js";
+import { QuestionView } from "./question-view.js";
+import { Spinner } from "./spinner.js";
+import { StatusBar } from "./status-bar.js";
 
 const STREAM_FRAME_MS = 120;
 

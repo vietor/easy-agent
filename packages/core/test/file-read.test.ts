@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileReadTool } from "../src/tools/fileRead.js";
+import { fileReadTool } from "../src/tools/file-read.js";
 
 const LINES = Array.from({ length: 10 }, (_, i) => `line${i + 1}`).join("\n");
 
 async function withFile(content: string, fn: (path: string) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "fileRead-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "file-read-test-"));
   try {
     const path = join(dir, "f.txt");
     await writeFile(path, content, "utf-8");

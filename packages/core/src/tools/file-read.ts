@@ -4,7 +4,7 @@ import type { Tool } from "./types.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
-const MAX_FILE_BYTES = 20_000_000;
+const MAX_READ_BYTES = 20_000_000;
 const CHUNK = 64 * 1024;
 
 const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further. Files over 20MB are rejected. Binary files may return garbled output or fail.";
@@ -22,7 +22,7 @@ interface PageRead {
 async function readPage(handle: FileHandle, offset: number, limit: number): Promise<PageRead> {
   const startLine = offset - 1; // 0-based line the page begins at
   let newlines = 0;
-  let winStart = startLine === 0 ? 0 : -1; // byte index in the current chunk where the page begins
+  let windowStart = startLine === 0 ? 0 : -1; // byte index in the current chunk where the page begins
   const pieces: Buffer[] = [];
   const buf = Buffer.allocUnsafe(CHUNK);
   for (;;) {
@@ -32,16 +32,16 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
       if (buf[i] !== 0x0a) continue;
       // a newline with pre-increment count c ends line c; the page starts after
       // the newline ending line startLine-1 and ends at the newline ending line startLine+limit-1
-      if (newlines === startLine - 1) winStart = i + 1;
+      if (newlines === startLine - 1) windowStart = i + 1;
       newlines++;
       if (newlines === startLine + limit) {
-        if (winStart >= 0 && winStart < i) pieces.push(Buffer.from(buf.subarray(winStart, i)));
+        if (windowStart >= 0 && windowStart < i) pieces.push(Buffer.from(buf.subarray(windowStart, i)));
         return { text: Buffer.concat(pieces).toString("utf-8"), totalLines: -1, eof: false };
       }
     }
-    if (winStart >= 0) {
-      if (winStart < bytesRead) pieces.push(Buffer.from(buf.subarray(winStart, bytesRead)));
-      winStart = 0;
+    if (windowStart >= 0) {
+      if (windowStart < bytesRead) pieces.push(Buffer.from(buf.subarray(windowStart, bytesRead)));
+      windowStart = 0;
     }
   }
   const totalLines = newlines + 1;
@@ -68,8 +68,8 @@ export const fileReadTool: Tool = {
     const handle = await open(path, "r");
     try {
       const { size } = await handle.stat();
-      if (size > MAX_FILE_BYTES) {
-        throw new Error(`file is ${compactFormat(size)} — larger than the ${compactFormat(MAX_FILE_BYTES)} read limit`);
+      if (size > MAX_READ_BYTES) {
+        throw new Error(`file is ${compactFormat(size)} — larger than the ${compactFormat(MAX_READ_BYTES)} read limit`);
       }
       if (size === 0) return "(empty file)";
       const { text, totalLines, eof } = await readPage(handle, offset, limit);

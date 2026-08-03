@@ -1,6 +1,6 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { MAX_FETCH_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
+import { MAX_READ_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
 import { previewBytes, htmlToMarkdown } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
@@ -82,10 +82,10 @@ export const webFetchTool: Tool = {
     const mime = mimeFrom(contentType);
     if (!isTextualMime(mime)) throw new Error(`unsupported content type: ${mime} for ${url}`);
     const contentLength = Number(res.headers.get("content-length"));
-    if (Number.isFinite(contentLength) && contentLength > MAX_FETCH_BYTES) {
-      throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_FETCH_BYTES})`);
+    if (Number.isFinite(contentLength) && contentLength > MAX_READ_BYTES) {
+      throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_READ_BYTES})`);
     }
-    const body = await readTextBounded(res, MAX_FETCH_BYTES);
+    const body = await readTextBounded(res, MAX_READ_BYTES);
     if (!contentType.includes("html")) return body;
     return htmlToMarkdown(body);
   },

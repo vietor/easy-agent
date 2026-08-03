@@ -41,7 +41,7 @@ export class FileSessionPersistence implements SessionPersistence {
     const messages: ConversationMessage[] = [];
     let todos: Todo[] = [];
     for (const r of parseJsonLines<{ t?: string; m?: ConversationMessage; todos?: Todo[] }>(readFileSync(path, "utf-8"))) {
-      if (r.t === "m" && r.m) messages.push(r.m);
+      if (r.t === "message" && r.m) messages.push(r.m);
       else if (r.t === "todo" && r.todos) todos = r.todos;
     }
     this.writtenCounts.set(sessionId, messages.length);
@@ -55,7 +55,7 @@ export class FileSessionPersistence implements SessionPersistence {
     const lines = state.messages
       // on shrink (abort restore / compact) rewrite everything, not just the tail
       .slice(shrink ? 0 : written)
-      .map((m) => JSON.stringify({ t: "m", m }))
+      .map((m) => JSON.stringify({ t: "message", m }))
       .concat([JSON.stringify({ t: "todo", todos: state.todos })]);
     const path = this.file(sessionId);
     if (shrink) {
@@ -103,7 +103,7 @@ export class FileSessionPersistence implements SessionPersistence {
       } catch {
         continue; // skip malformed lines
       }
-      if (r.t === "m" && r.m && r.m.role === "user" && typeof r.m.content === "string") return r.m.content;
+      if (r.t === "message" && r.m && r.m.role === "user" && typeof r.m.content === "string") return r.m.content;
     }
     return undefined;
   }

@@ -1,12 +1,13 @@
+#!/usr/bin/env node
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { tryLoadSkills, tryReadFileText, createSession, SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
-import { startApp } from "./tui/App.js";
+import { startApp } from "./tui/app.js";
 import { getPackageInfo } from "./util/package.js";
-import { FileSessionPersistence } from "./util/sessionStore.js";
+import { FileSessionPersistence } from "./util/session-store.js";
 
 function buildSystemPromptBase(cwd: string) {
   return [
@@ -131,3 +132,8 @@ export async function main(argv: string[] = []): Promise<void> {
     console.log(["Resume this session with:", `easy-agent --resume ${sessionId}`].join("\n"));
   });
 }
+
+main(process.argv.slice(2)).catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

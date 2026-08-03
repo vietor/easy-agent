@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const CONFIG_FILE = ".easy-agent.json";
 
-const LlmConfigSchema = z.object({
+const LLMConfigSchema = z.object({
   baseUrl: z.string(),
   apiKey: z.string(),
   model: z.string(),
@@ -30,12 +30,12 @@ const MCPServerConfigSchema = z.union([
   }),
 ]);
 
-const Config = z.object({
-  llm: LlmConfigSchema,
+const ConfigSchema = z.object({
+  llm: LLMConfigSchema,
   mcpServers: z.record(z.string(), MCPServerConfigSchema).optional(),
 });
 
-export type Config = z.infer<typeof Config>;
+export type Config = z.infer<typeof ConfigSchema>;
 
 export function loadConfig(): Config {
   const path = join(homedir(), CONFIG_FILE);
@@ -51,7 +51,7 @@ export function loadConfig(): Config {
   } catch {
     throw new Error(`Invalid JSON in ~/${CONFIG_FILE}.`);
   }
-  const result = Config.safeParse(parsed);
+  const result = ConfigSchema.safeParse(parsed);
   if (!result.success) {
     const issues = result.error.issues
       .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)

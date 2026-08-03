@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
-import { Markdown } from "./components/Markdown.js";
+import { Markdown } from "./components/markdown.js";
 import type { TimelineEntry } from "@vietor/easy-agent-core";
 
 export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEntry }) {

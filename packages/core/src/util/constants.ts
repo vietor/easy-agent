@@ -1,5 +1,5 @@
 export const MAX_PROCESS_BUFFER = 10 * 1024 * 1024;
-export const MAX_FETCH_BYTES = 10 * 1024 * 1024;
+export const MAX_READ_BYTES = 10 * 1024 * 1024;
 export const CALL_TIMEOUT_MS = 300_000;
 export const REQUEST_TIMEOUT_MS = 60_000;
 export const NO_OUTPUT = "(no output)";

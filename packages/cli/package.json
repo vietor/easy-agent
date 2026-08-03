@@ -2,17 +2,17 @@
   "name": "@vietor/easy-agent",
   "version": "0.5.1",
   "type": "module",
-  "main": "dist/cli.js",
+  "main": "dist/main.js",
   "bin": {
-    "easy-agent": "dist/cli.js"
+    "easy-agent": "dist/main.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js"
+    "dev": "tsx src/main.ts",
+    "start": "node dist/main.js"
   },
   "description": "Terminal-based AI agent CLI with conversational TUI (Ink/React) powered by easy-agent-core",
   "license": "MIT",

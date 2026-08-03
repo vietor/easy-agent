@@ -261,7 +261,7 @@ interface PromptResult {
 ### `RunStatus`
 
 ```ts
-type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
+type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 ```
 
 | Status | Meaning |
@@ -270,7 +270,7 @@ type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
 | `aborted` | The run was aborted via `abort()`. |
 | `error` | The run ended due to an LLM/API error. |
 | `stalled` | The agent stalled past `stallThreshold`: repeated identical tool calls, or repeated text-only responses while todos are incomplete. |
-| `maxturns` | The agent exceeded `maxTurns`. |
+| `max_turns` | The agent exceeded `maxTurns`. |
 
 Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted, `"error"` on failure).
 

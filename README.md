@@ -58,17 +58,16 @@ easy-agent/
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
 │   │       ├── skills/              # skill loader (SKILL.md files)
 │   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…
-│   │       ├── createSession.ts     # createSession() factory
+│   │       ├── create-session.ts    # createSession() factory
 │   │       └── index.ts             # public API exports
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
 │       └── src/
-│           ├── tui/                 # terminal UI (App, TimelineView, TodoView, etc.)
+│           ├── tui/                 # terminal UI (app, timeline-view, todo-view, etc.)
 │           │   └── components/      # shared UI components (Markdown renderer…)
-│           ├── cmds/                # built-in slash commands + dispatcher
+│           ├── commands/            # built-in slash commands + dispatcher
 │           ├── util/                # package info, FileSessionPersistence
 │           ├── config.ts            # JSON config loader (~/.easy-agent.json)
-│           ├── main.ts              # parses args, wires session, starts TUI
-│           └── cli.ts               # shebang entry — calls main()
+│           └── main.ts              # bin entry (shebang) — parses args, wires session, starts TUI
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
 └── tsconfig.json      # base TypeScript config

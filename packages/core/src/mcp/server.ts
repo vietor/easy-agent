@@ -6,7 +6,7 @@ import { withTimeout } from "../util/async.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
-const CONNECT_TIMEOUT = 30_000;
+const CONNECT_TIMEOUT_MS = 30_000;
 
 const SUMMARY_PRIORITY = ["url", "path", "file_path", "filePath", "command", "query", "pattern", "name", "text", "selector", "uid"];
 
@@ -99,12 +99,12 @@ export class MCPServers {
         }
         this.pending.add(client);
         try {
-          await withTimeout(client.connect(), CONNECT_TIMEOUT);
+          await withTimeout(client.connect(), CONNECT_TIMEOUT_MS);
           if (this.disposed) {
             client.kill();
             return;
           }
-          const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT);
+          const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT_MS);
           if (this.disposed) {
             client.kill();
             return;

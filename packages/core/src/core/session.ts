@@ -6,10 +6,10 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { createAskUserTool } from "../tools/askUser.js";
+import { createAskUserTool } from "../tools/ask-user.js";
 import { createSkillTool } from "../tools/skill.js";
-import { createTodoWriteTool } from "../tools/todoWrite.js";
-import { createSubAgentTool } from "../tools/subAgent.js";
+import { createTodoWriteTool } from "../tools/todo-write.js";
+import { createSubAgentTool } from "../tools/sub-agent.js";
 import { SessionBusyError, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState, type TimelineEntry } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
@@ -56,9 +56,9 @@ export class Session {
 
   subscribe = (listener: () => void): (() => void) => {
     const on = () => { this.viewCache = null; listener(); };
-    const unsub1 = this.timelineStore.subscribe(on);
-    const unsub2 = this.todoStore.subscribe(on);
-    return () => { unsub1(); unsub2(); };
+    const unsubscribeTimeline = this.timelineStore.subscribe(on);
+    const unsubscribeTodos = this.todoStore.subscribe(on);
+    return () => { unsubscribeTimeline(); unsubscribeTodos(); };
   };
 
   getSnapshot = (): SessionView => {

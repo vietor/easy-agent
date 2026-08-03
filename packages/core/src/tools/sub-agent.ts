@@ -5,7 +5,7 @@ import { toolError, type Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { Agent } from "../core/agent.js";
 import { Conversation } from "../core/conversation.js";
-import { TOOL_USE_PROMPT } from "./prompt.js";
+import { TOOL_USE_PROMPT } from "./tool-use-prompt.js";
 
 export interface SubAgentToolDeps {
   llm: LLMClient;

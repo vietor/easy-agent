@@ -6,7 +6,7 @@ import type { SessionEvent } from "./types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { SKILL_TOOL_NAME } from "../tools/skill.js";
-import { renderIncompleteTodoNudge, renderTodoReminder } from "../tools/todoWrite.js";
+import { renderIncompleteTodoNudge, renderTodoReminder } from "../tools/todo-write.js";
 import { toolError, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "../tools/types.js";
 
 
@@ -24,7 +24,7 @@ const COMPACT_PROMPT = [
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
-export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxturns";
+export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 
 export type AgentEvent =
   | Exclude<SessionEvent, { type: "user" | "assistant" | "reasoning_clear" | "question" | "question_answered" | "state" }>
@@ -219,7 +219,7 @@ export class Agent {
       if (++turns >= this.maxTurns) {
         this.resolvePendingToolCalls(msg.tool_calls, `max turns reached (${this.maxTurns})`);
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
-        return "maxturns";
+        return "max_turns";
       }
       const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
       if (!results) return "aborted";
@@ -239,7 +239,7 @@ export class Agent {
     }
   }
 
-  /** Stall/maxturns end the run before tool execution; wire APIs reject a tool_calls message with no following tool result, so record placeholder results. */
+  /** Stall/max_turns end the run before tool execution; wire APIs reject a tool_calls message with no following tool result, so record placeholder results. */
   private resolvePendingToolCalls(calls: NonNullable<AssistantMessage["tool_calls"]>, reason: string): void {
     for (const tc of calls) {
       this.conversation.add({ role: "tool", tool_call_id: tc.id, content: `(not executed: ${reason})`, isError: true });

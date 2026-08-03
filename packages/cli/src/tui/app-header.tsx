@@ -5,12 +5,12 @@ import { getPackageInfo } from "../util/package.js";
 
 export const AppHeader = memo(function AppHeader({ cwd, model, reasoningEffort }: { cwd: string; model: string; reasoningEffort: ReasoningEffort }) {
   const { columns } = useWindowSize();
-  const pkginfo = getPackageInfo();
+  const pkg = getPackageInfo();
   const reasoning = ` · reasoning ${reasoningEffort}`;
   return (
     <Box width={columns} paddingX={1} flexDirection="column">
       <Box flexDirection="row" justifyContent="space-between">
-        <Text><Text bold>Easy Agent</Text><Text dimColor> v{pkginfo.version}</Text></Text>
+        <Text><Text bold>Easy Agent</Text><Text dimColor> v{pkg.version}</Text></Text>
         <Text dimColor>{`${model}${reasoning}`}</Text>
       </Box>
       <Text dimColor>{cwd}</Text>

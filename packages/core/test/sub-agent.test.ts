@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Agent } from "../src/core/agent.js";
 import { Conversation } from "../src/core/conversation.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import { createSubAgentTool } from "../src/tools/subAgent.js";
+import { createSubAgentTool } from "../src/tools/sub-agent.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
@@ -122,5 +122,5 @@ test("nested maxTurns is enforced", async () => {
   const toolMsg = agent.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
-  assert.ok(String(toolMsg.content).includes("maxturns"));
+  assert.ok(String(toolMsg.content).includes("max_turns"));
 });

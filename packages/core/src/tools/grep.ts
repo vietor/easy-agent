@@ -3,7 +3,7 @@ import { NO_MATCHES } from "../util/constants.js";
 import { previewCount } from "../util/text.js";
 import type { Tool } from "./types.js";
 
-const DEFAULT_HEAD_LIMIT = 200;
+const DEFAULT_LIMIT = 200;
 
 const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit.";
 
@@ -51,7 +51,7 @@ export const grepTool: Tool = {
     rgArgs.push("--", args.pattern as string, ".");
     const lines = await runRgLines(rgArgs, cwd, ctx.signal);
     if (!lines.length) return NO_MATCHES;
-    const headLimit = (args.head_limit as number) || DEFAULT_HEAD_LIMIT;
+    const headLimit = (args.head_limit as number) || DEFAULT_LIMIT;
     if (lines.length > headLimit) {
       return lines.slice(0, headLimit).join("\n") + `\n(${lines.length - headLimit} more matches, truncated)`;
     }
