@@ -66,6 +66,7 @@ export interface ChatOptions {
   signal?: AbortSignal;
 }
 
+/** The retry-decorated adapter surface used by the agent loop. */
 export interface LLMClient {
   readonly model: string;
   readonly reasoningEffort: ReasoningEffort;
@@ -73,10 +74,7 @@ export interface LLMClient {
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }
 
-export interface BaseAdapter {
-  readonly model: string;
-  readonly reasoningEffort: ReasoningEffort;
-  readonly contextWindow: number;
+export interface BaseAdapter extends Omit<LLMClient, "chat"> {
   stream(opts: ChatOptions): Promise<AssistantMessage>;
 }
 

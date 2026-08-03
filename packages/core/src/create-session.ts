@@ -4,16 +4,13 @@ import { Session } from "./core/session.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
 import { TOOL_USE_PROMPT } from "./tools/prompt.js";
+import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
+import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
+import { SUB_AGENT_GUIDANCE } from "./tools/sub-agent.js";
 import type { Skill } from "./skills/types.js";
 import type { SessionOptions } from "./core/types.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
-
-const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use TodoWrite: create the task list first, then update each task's status as you execute. Never execute a multi-step task without a TodoWrite task list.";
-
-const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking.";
-
-const SUB_AGENT_GUIDANCE = '- Consider delegating subtasks to a sub-agent via the SubAgent tool: type: "explore" to investigate the codebase or web, type: "plan" to produce an implementation plan, or type: "generic" to execute a task end-to-end with full tool access (shell, file read/write/edit, search, web fetch). The sub-agent runs silently and returns only its final report — verify important results yourself, especially for "generic" tasks that modify files.';
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined): string {
   const parts = [base];

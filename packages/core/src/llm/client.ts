@@ -1,9 +1,7 @@
-import type { BaseAdapter, ChatOptions, LLMClient, LLMConfig, ResolvedLLMConfig, ReasoningEffort, WireApi } from "./types.js";
+import type { BaseAdapter, LLMClient, LLMConfig, ResolvedLLMConfig, ReasoningEffort, WireApi } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { withRetry } from "../util/async.js";
-
-export type { LLMClient, ChatOptions };
 
 const DEFAULT_REASONING_EFFORT: ReasoningEffort = "high";
 const DEFAULT_WIRE_API: WireApi = "completions";

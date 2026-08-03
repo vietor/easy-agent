@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LLMClient } from "../llm/client.js";
+import type { LLMClient } from "../llm/types.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";

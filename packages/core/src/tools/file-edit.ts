@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { Tool } from "./types.js";
+import { resolvePath } from "./file-util.js";
 
 const DESCRIPTION = "Replace old_string with new_string in a file. Read the file first — old_string must match exactly including whitespace/indentation. Must be unique unless replace_all is set. For full rewrites prefer FileWrite.";
 
@@ -20,7 +20,7 @@ export const fileEditTool: Tool = {
   async execute(args, ctx) {
     const path = args.path as string;
     if (!path) throw new Error("path is required");
-    const resolved = resolve(ctx.cwd, path);
+    const resolved = resolvePath(ctx, path);
     const oldStr = args.old_string as string;
     const newStr = args.new_string as string;
     const all = args.replace_all === true;

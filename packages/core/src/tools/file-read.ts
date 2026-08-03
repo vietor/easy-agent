@@ -1,6 +1,6 @@
 import { open, type FileHandle } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { Tool } from "./types.js";
+import { resolvePath } from "./file-util.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
@@ -60,7 +60,7 @@ export const fileReadTool: Tool = {
     required: ["path"],
   },
   async execute(args, ctx) {
-    const path = resolve(ctx.cwd, args.path as string);
+    const path = resolvePath(ctx, args.path as string);
     const offset = (args.offset as number) || 1;
     const limit = (args.limit as number) || DEFAULT_LIMIT;
     const handle = await open(path, "r");

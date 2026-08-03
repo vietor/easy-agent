@@ -1,5 +1,7 @@
 import { toolError, type Tool } from "./types.js";
 
+export const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking.";
+
 const DESCRIPTION = "Ask the user a question and wait for the answer. Provide at least one option. Returns the answer as text.";
 
 export function createAskUserTool(ask: (question: string, options: string[]) => Promise<string>): Tool {

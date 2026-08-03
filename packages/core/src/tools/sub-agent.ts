@@ -7,6 +7,8 @@ import { Agent } from "../core/agent.js";
 import { Conversation } from "../core/conversation.js";
 import { TOOL_USE_PROMPT } from "./prompt.js";
 
+export const SUB_AGENT_GUIDANCE = '- Consider delegating subtasks to a sub-agent via the SubAgent tool: type: "explore" to investigate the codebase or web, type: "plan" to produce an implementation plan, or type: "generic" to execute a task end-to-end with full tool access (shell, file read/write/edit, search, web fetch). The sub-agent runs silently and returns only its final report — verify important results yourself, especially for "generic" tasks that modify files.';
+
 export interface SubAgentToolDeps {
   llm: LLMClient;
   tools: ToolRegistry;

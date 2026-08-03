@@ -1,5 +1,7 @@
 import { toolError, type Tool, type Todo, type TodoStatus } from "./types.js";
 
+export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use TodoWrite: create the task list first, then update each task's status as you execute. Never execute a multi-step task without a TodoWrite task list.";
+
 const STATUSES: TodoStatus[] = ["pending", "in_progress", "completed"];
 
 const STATUS_GLYPHS: Record<TodoStatus, string> = {

@@ -1,6 +1,5 @@
 import { withAbort } from "../util/async.js";
-import type { LLMClient } from "../llm/client.js";
-import { parseToolArgs, type AssistantMessage, type Message } from "../llm/types.js";
+import { parseToolArgs, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
