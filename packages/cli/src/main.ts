@@ -123,6 +123,7 @@ export async function main(argv: string[] = []): Promise<void> {
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
 
+  process.stdout.write("[2J[H");
   const app = startApp(session);
   await app.waitUntilExit().finally(async () => {
     session.dispose();

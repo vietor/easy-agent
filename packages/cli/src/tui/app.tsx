@@ -180,6 +180,5 @@ function renderReasoning(text: string, expanded: boolean): ReactNode {
 }
 
 export function startApp(session: Session): ReturnType<typeof render> {
-  process.stdout.write("[2J[H");
   return render(<App session={session} />, { exitOnCtrlC: false, incrementalRendering: true });
 }
