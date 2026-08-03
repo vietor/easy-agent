@@ -115,7 +115,7 @@ export function App({ session }: { session: Session }) {
         <>
           {reasoning.text ? renderReasoning(reasoning.text, showReasoning) : null}
           {streaming.text ? (
-            <Box marginTop={1} paddingLeft={1} paddingRight={1} borderStyle="single" borderTop={false} borderRight={false} borderBottom={false} borderColor="gray">
+            <Box marginTop={1} paddingLeft={1} paddingRight={1}>
               <Markdown>{streaming.text}</Markdown>
             </Box>
           ) : null}
