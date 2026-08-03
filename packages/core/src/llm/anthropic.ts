@@ -138,10 +138,6 @@ export function toAnthropicMessages(
     }
   }
 
-  // every assistant message with tool_use must be immediately followed by a user
-  // message with its tool_result blocks — a run that ended before results were
-  // recorded (aborted/stalled/max-turns, incl. restored sessions) violates this
-  // and is rejected by the API; insert placeholders wherever results are missing
   for (let i = 0; i < out.length; i++) {
     const m = out[i];
     if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
@@ -160,8 +156,6 @@ export function toAnthropicMessages(
       tool_use_id: b.id,
       content: "(interrupted)",
     }));
-    // append into the following result-only message (keeps its results adjacent),
-    // or insert a placeholder message right after the assistant
     const next2 = out[i + 1];
     if (next2 && next2.role === "user" && Array.isArray(next2.content) && next2.content.every((b) => b.type === "tool_result")) {
       next2.content = [...next2.content, ...placeholder];
@@ -219,10 +213,6 @@ function mergeContent(
   a: Anthropic.MessageParam["content"],
   b: Anthropic.MessageParam["content"]
 ): Anthropic.MessageParam["content"] | null {
-  // a tool_result block must be the only content of its user message — text and
-  // tool_result never share one, so keep such pairs separate; result-only
-  // messages MUST merge: the API requires every tool_use of an assistant
-  // message to have its tool_result in the immediately-following message
   if ((hasText(a) || hasText(b)) && (hasToolResult(a) || hasToolResult(b))) return null;
   if (typeof a === "string" && typeof b === "string") return a ? `${a}\n${b}` : b;
   const blocks: Anthropic.ContentBlockParam[] = [];

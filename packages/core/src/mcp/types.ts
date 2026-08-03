@@ -5,7 +5,7 @@ export interface StdioServerConfig {
   command: string;
   args?: string[];
   env?: Record<string, string>;
-  enabled?: boolean; // set false to skip this server
+  enabled?: boolean;
 }
 
 export interface RemoteServerConfig {

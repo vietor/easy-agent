@@ -198,7 +198,6 @@ export class Session {
   private persistSnapshot(): void {
     if (!this.persistence) return;
     const state: SessionState = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
-    // Catch + chain: persistence failures must never block the agent loop.
     this.saveChain = this.saveChain.catch(() => {}).then(() => this.persistence!.saveAll(this.sessionId, state));
   }
 

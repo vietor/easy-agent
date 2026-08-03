@@ -43,7 +43,6 @@ test("abort kills the whole process tree", async () => {
   const controller = new AbortController();
   let grandchild: number | null = null;
   try {
-    // the direct child spawns a grandchild, reports its pid, then stays alive
     const cmd = isWin
       ? [
           "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",

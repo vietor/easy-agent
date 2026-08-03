@@ -8,9 +8,9 @@ export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
-  reasoningEffort?: ReasoningEffort; // default "high"
-  wireApi?: WireApi;                 // default "completions"
-  contextWindow?: number;            // default 1_000_000; used to derive the compaction threshold
+  reasoningEffort?: ReasoningEffort;
+  wireApi?: WireApi;
+  contextWindow?: number;
 }
 
 /** LLMConfig with optional fields resolved to their defaults by `createLLM`. */

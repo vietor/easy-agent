@@ -16,7 +16,6 @@ export function killProcessTree(pid: number | null | undefined, opts?: { group?:
       spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
     } catch {}
   } else if (opts?.group) {
-    // the child is spawned detached, i.e. process-group leader; -pid signals the whole group
     try {
       process.kill(-pid, "SIGTERM");
     } catch {
@@ -64,8 +63,6 @@ export function runProcess(
       signal.addEventListener("abort", kill, { once: true });
       if (signal.aborted) kill();
     }
-    // pid is undefined until the child has spawned, so an abort before that
-    // point leaves kill() a no-op; re-check once the process exists
     child.on("spawn", () => {
       if (signal?.aborted) kill();
     });

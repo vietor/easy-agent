@@ -20,9 +20,9 @@ interface PageRead {
 
 /** Read up to `limit` lines starting at 1-based `offset`, without loading the whole file. */
 async function readPage(handle: FileHandle, offset: number, limit: number): Promise<PageRead> {
-  const startLine = offset - 1; // 0-based line the page begins at
+  const startLine = offset - 1;
   let newlines = 0;
-  let windowStart = startLine === 0 ? 0 : -1; // byte index in the current chunk where the page begins
+  let windowStart = startLine === 0 ? 0 : -1;
   const pieces: Buffer[] = [];
   const buf = Buffer.allocUnsafe(CHUNK);
   for (;;) {
@@ -30,8 +30,6 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
     if (bytesRead === 0) break;
     for (let i = 0; i < bytesRead; i++) {
       if (buf[i] !== 0x0a) continue;
-      // a newline with pre-increment count c ends line c; the page starts after
-      // the newline ending line startLine-1 and ends at the newline ending line startLine+limit-1
       if (newlines === startLine - 1) windowStart = i + 1;
       newlines++;
       if (newlines === startLine + limit) {

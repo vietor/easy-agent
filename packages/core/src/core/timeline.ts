@@ -80,10 +80,8 @@ export class TimelineStore {
       case "notice":
         this.append({ kind: "notice", text: e.text });
         break;
-      // question/question_answered flow through appendQuestion/setAnswer (Session.ask/submitAnswer)
       case "question":
       case "question_answered":
-      // stream-only events are never stored
       case "assistant_delta":
       case "reasoning_delta":
       case "reasoning_clear":

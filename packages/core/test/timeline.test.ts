@@ -63,7 +63,7 @@ test("setResult only mutates entries still pending", () => {
   const store = new TimelineStore();
   store.append({ kind: "tool", id: "t1", name: "FileRead", summary: "x", result: null });
   store.setResult("t1", "ok");
-  store.setResult("t1", "again"); // already resolved: must be a no-op
+  store.setResult("t1", "again");
   assert.deepEqual(store.all, [{ kind: "tool", id: "t1", name: "FileRead", summary: "x", result: "ok", isError: undefined, preview: undefined }]);
 });
 
@@ -84,7 +84,7 @@ test("resolveAllAnswers resolves every pending question and returns ids", () => 
   const ids = store.resolveAllAnswers("");
   assert.deepEqual([...ids].sort(), ["q1", "q2"]);
   assert.deepEqual(answers, ["", ""]);
-  assert.equal(store.setAnswer("q1", "x"), false); // nothing left pending
+  assert.equal(store.setAnswer("q1", "x"), false);
 });
 
 test("a throwing listener does not break other listeners", () => {
@@ -107,7 +107,6 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "interrupted" });
   store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", summary: "s" });
   store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, preview: "p" });
-  // stream-only / state events must not create entries
   store.applyEvent({ type: "assistant_delta", text: "x" });
   store.applyEvent({ type: "reasoning_delta", text: "x" });
   store.applyEvent({ type: "reasoning_clear" });
@@ -130,8 +129,6 @@ test("restored timeline from persisted messages matches the live run (golden equ
   const live = new TimelineStore();
   const loop = new RunLoop(agent, live, new TodoStore(), () => {});
   await loop.startPrompt("go");
-  // assistant replies are pure tool calls here (no streamed text), so both
-  // timelines carry user + tool entries only
   const restored = new TimelineStore();
   for (const e of messagesToSessionEvents(agent.export(), () => "")) restored.applyEvent(e);
   assert.deepEqual(restored.all, live.all);

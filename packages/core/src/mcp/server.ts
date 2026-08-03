@@ -93,7 +93,6 @@ export class MCPServers {
         try {
           client = new MCPClient(cfg, this.clientInfo);
         } catch (e) {
-          // constructor validates config (e.g. URL); a bad entry must not take down the others
           this.servers.set(name, { type, status: "failed", tools: [], error: (e as Error).message });
           return;
         }

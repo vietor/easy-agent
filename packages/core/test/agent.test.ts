@@ -69,7 +69,7 @@ test("text-only response completes with ok", async () => {
   const agent = makeAgent(llm);
   const status = await agent.run("hi");
   assert.equal(status, "ok");
-  assert.equal(agent.export().length, 2); // user + assistant
+  assert.equal(agent.export().length, 2);
 });
 
 test("tool call executes and its result is stored in the conversation", async () => {
@@ -129,7 +129,6 @@ test("text-only stall with incomplete todos: nudge is sent but never stored", as
   const agent = makeAgent(llm, { getTodos: () => [{ content: "t", status: "pending" }] });
   const status = await agent.run("work");
   assert.equal(status, "stalled");
-  // nudge must reach the next request but never the persisted conversation
   const texts = agent.export().map((m) => (typeof m.content === "string" ? m.content : ""));
   assert.ok(!texts.some((t) => t.includes("STOP!")));
   assert.ok(calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("STOP!")));
@@ -153,7 +152,6 @@ test("abort rolls the conversation back to the pre-run snapshot", async () => {
   const agent = makeAgent(llm);
   const status = await agent.run("go", undefined, controller.signal);
   assert.equal(status, "aborted");
-  // user message remains (snapshot is taken after adding it), partial reply is rolled back
   assert.equal(agent.export().length, 1);
   assert.equal(agent.export()[0].content, "go");
 });
@@ -164,7 +162,6 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
   const events: SessionEvent[] = [];
   const fakeAgent = {
     run: async (_text: string, onEvent?: (e: AgentEvent) => void) => {
-      // tool starts but no tool_end follows, as when the run is aborted mid-call
       onEvent?.({ type: "tool_start", id: "t1", name: "Echo", summary: "" });
       return "aborted";
     },
@@ -187,7 +184,7 @@ test("auto-compact fires above the threshold and the run continues", async () =>
     () => ({ role: "assistant", content: "done" }),
   ]);
   const agent = makeAgent(llm, { compactThreshold: 1000 });
-  const status = await agent.run("a".repeat(5000)); // 5000 bytes -> 1250 tokens > 1000
+  const status = await agent.run("a".repeat(5000));
   assert.equal(status, "ok");
   assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
 });

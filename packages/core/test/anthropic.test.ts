@@ -16,8 +16,6 @@ test("dangling tool_use at the end gets a placeholder tool_result", () => {
 });
 
 test("tool_use in the middle without results also gets a placeholder", () => {
-  // a follow-up user message (e.g. a todo reminder) after the dangling tool_use
-  // used to hide the problem from the last-message-only guard
   const { messages } = toAnthropicMessages(
     [
       { role: "user", content: "go" },
@@ -45,9 +43,6 @@ test("satisfied tool_use is left untouched", () => {
 });
 
 test("tool results for a multi-tool_use assistant merge into one message", () => {
-  // the exact shape that produced the 400: one assistant message with two
-  // tool_use blocks, results persisted as two separate tool messages — the API
-  // requires ALL results in the immediately-following message
   const { messages } = toAnthropicMessages(
     [
       { role: "user", content: "分步骤执行" },
@@ -85,7 +80,6 @@ test("a follow-up user text message stays separate from tool results", () => {
     ],
     true
   );
-  // results message untouched; the reminder must not be merged into it
   const idx = messages.findIndex((m) => m.role === "assistant");
   assert.deepEqual(messages[idx + 1].content, [{ type: "tool_result", tool_use_id: "call_1", content: "echoed" }]);
   assert.equal(messages[idx + 2].content, "<system-reminder>Tasks: ...");

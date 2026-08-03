@@ -74,13 +74,11 @@ test("nested sub-agent report becomes the SubAgent tool result", async () => {
   const status = await agent.run("go");
   assert.equal(status, "ok");
 
-  // parent conversation records the nested report as the tool result
   const toolMsg = agent.export().find((m) => m.role === "tool");
   assert.ok(toolMsg, "tool result must be in the conversation");
   assert.equal(toolMsg.content, "FOUND X");
   assert.ok(!toolMsg.isError);
 
-  // nested loop: system prompt, restricted tool set, tool result fed back
   assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
   assert.match(String(calls[1].messages[0].content), /Tool-Use Guidelines/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
@@ -106,7 +104,7 @@ test("unknown sub-agent type returns an error without invoking a nested loop", a
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
   assert.ok(String(toolMsg.content).includes("bogus"));
-  assert.equal(calls.length, 2); // parent only — the nested loop never ran
+  assert.equal(calls.length, 2);
 });
 
 test("nested maxTurns is enforced", async () => {

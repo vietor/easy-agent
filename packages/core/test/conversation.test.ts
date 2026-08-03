@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Conversation } from "../src/core/conversation.js";
 
-const SYS = "sys"; // 3 bytes -> 1 token
+const SYS = "sys";
 
 test("estimatedTokens tracks bytes/4 of added messages", () => {
   const c = new Conversation(SYS);
-  c.add({ role: "user", content: "hello world" }); // 11 bytes -> 3 tokens
+  c.add({ role: "user", content: "hello world" });
   assert.equal(c.getEstimatedTokens(), 1 + 3);
-  c.add({ role: "assistant", content: "hi" }); // 2 bytes -> 1 token (round(0.5))
+  c.add({ role: "assistant", content: "hi" });
   assert.equal(c.getEstimatedTokens(), 1 + 3 + 1);
 });
 
@@ -44,8 +44,7 @@ test("snapshot/restore rolls back messages and token estimate", () => {
   c.restoreFromSnapshot();
   assert.equal(c.export().length, 1);
   assert.equal(c.export()[0].content, "a");
-  assert.equal(c.getEstimatedTokens(), 1); // sys (1) + "a" (1 byte -> 0)
-  // snapshot is cleared: further adds work and appear in toLLM
+  assert.equal(c.getEstimatedTokens(), 1);
   c.add({ role: "user", content: "c" });
   assert.equal(c.export().length, 2);
   assert.equal(c.toLLM().length, 3);

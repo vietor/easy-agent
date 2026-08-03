@@ -127,7 +127,6 @@ export class RunLoop {
         this.reasoningText += e.text;
         break;
       case "retry":
-        // keep the partial reply visible before the retry replays from scratch
       case "tool_start":
       case "error":
       case "interrupted":
@@ -136,7 +135,7 @@ export class RunLoop {
       case "usage":
         this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };
         this.emitRunState();
-        return; // usage is folded into "state"; never forwarded as its own event
+        return;
     }
     this.timeline.applyEvent(e);
     this.emit(e);

@@ -47,7 +47,6 @@ export const grepTool: Tool = {
     const output_mode = (args.output_mode as string) || "content";
     if (output_mode === "files_with_matches") rgArgs.push("-l");
     else if (output_mode === "count") rgArgs.push("-c");
-    // "--" so a pattern starting with "-" (e.g. "-i", "--files") is treated as a pattern
     rgArgs.push("--", args.pattern as string, ".");
     const lines = await runRgLines(rgArgs, cwd, ctx.signal);
     if (!lines.length) return NO_MATCHES;

@@ -113,8 +113,6 @@ export async function main(argv: string[] = []): Promise<void> {
     }
   }
 
-  // Ctrl+C is handled by Ink in raw mode; these cover external kills
-  // (task manager, CI timeouts) so pending writes still get flushed
   let shuttingDown = false;
   const shutdown = () => {
     if (shuttingDown) process.exit(1);

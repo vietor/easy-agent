@@ -16,7 +16,6 @@ function isRetryableError(e: unknown, signal?: AbortSignal): boolean {
   if ((e as { name?: string }).name === "APIConnectionError") return true;
   const status = (e as { status?: number }).status;
   if (status != null) return status === 429 || status >= 500;
-  // no HTTP status: connection-level failure (DNS, refused, dropped stream)
   return true;
 }
 
