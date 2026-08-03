@@ -96,7 +96,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | Method | Description |
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
-| `restore(): Promise<void>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. |
+| `restore(): Promise<boolean>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. Returns `false` (loading nothing) when the backend has no saved state for this session. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
@@ -414,24 +414,6 @@ interface ToolContext {
   signal?: AbortSignal;  // abort signal for the current run
   cwd: string;           // resolved working directory for path-based tools
 }
-```
-
-Tools that need user interaction (`AskUser`) or task management (`TodoWrite`) receive those capabilities via factory functions rather than through `ToolContext`:
-
-```ts
-import { createAskUserTool } from "@vietor/easy-agent-core";
-const askUserTool = createAskUserTool(async (question, options) => { /* ... */ });
-```
-
-### `createSkillTool`
-
-**`createSkillTool(resolve: (name: string) => Skill | undefined): Tool`**
-
-Build a Skill tool backed by a custom skill resolver. The built-in Skill tool is registered automatically when the session has skills; use this factory to wire skills into sessions with different tooling.
-
-```ts
-import { createSkillTool } from "@vietor/easy-agent-core";
-const skillTool = createSkillTool((name) => mySkills.get(name));
 ```
 
 ### `ToolResult`

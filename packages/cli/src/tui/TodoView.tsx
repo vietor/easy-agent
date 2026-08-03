@@ -1,6 +1,12 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
-import { TODO_STATUS_GLYPHS, type Todo, type TodoStatus } from "@vietor/easy-agent-core";
+import { type Todo, type TodoStatus } from "@vietor/easy-agent-core";
+
+const TODO_STATUS_GLYPHS: Record<TodoStatus, string> = {
+  pending: "○",
+  in_progress: "◐",
+  completed: "✓",
+};
 
 const COLORS: Record<TodoStatus, string> = {
   pending: "gray",

@@ -1,21 +1,24 @@
-import { z } from "zod";
 import type { ToolSchema } from "../tools/types.js";
 
 export type ReasoningEffort = "high" | "max";
 
 export type WireApi = "completions" | "anthropic";
 
-export const llmConfigSchema = z.object({
-  baseUrl: z.string(),
-  apiKey: z.string(),
-  model: z.string(),
-  reasoningEffort: z.enum(["high", "max"]).default("high"),
-  wireApi: z.enum(["completions", "anthropic"]).default("completions"),
-  /** Context window in tokens; used to derive the compaction threshold. */
-  contextWindow: z.number().int().positive().default(1_000_000),
-});
+export interface LLMConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  reasoningEffort?: ReasoningEffort; // default "high"
+  wireApi?: WireApi;                 // default "completions"
+  contextWindow?: number;            // default 1_000_000; used to derive the compaction threshold
+}
 
-export type LLMConfig = z.infer<typeof llmConfigSchema>;
+/** LLMConfig with optional fields resolved to their defaults by `createLLM`. */
+export interface ResolvedLLMConfig extends LLMConfig {
+  reasoningEffort: ReasoningEffort;
+  wireApi: WireApi;
+  contextWindow: number;
+}
 
 export interface TextContentPart {
   type: "text";

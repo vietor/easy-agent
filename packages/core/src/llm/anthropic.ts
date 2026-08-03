@@ -5,7 +5,7 @@ import {
   textOf,
   type AssistantMessage,
   type ChatOptions,
-  type LLMConfig,
+  type ResolvedLLMConfig,
   type Message,
   type ReasoningEffort,
   type RedactedThinkingBlock,
@@ -27,7 +27,7 @@ export class AnthropicAdapter implements BaseAdapter {
   readonly reasoningEffort: ReasoningEffort;
   readonly contextWindow: number;
 
-  constructor(config: LLMConfig) {
+  constructor(config: ResolvedLLMConfig) {
     this.model = config.model;
     this.reasoningEffort = config.reasoningEffort;
     this.contextWindow = config.contextWindow;

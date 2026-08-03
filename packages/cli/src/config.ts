@@ -2,13 +2,37 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { llmConfigSchema, mcpServerConfigSchema } from "@vietor/easy-agent-core";
 
 const CONFIG_FILE = ".easy-agent.json";
 
+const LlmConfigSchema = z.object({
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  model: z.string(),
+  reasoningEffort: z.enum(["high", "max"]).default("high"),
+  wireApi: z.enum(["completions", "anthropic"]).default("completions"),
+  contextWindow: z.number().int().positive().default(1_000_000),
+});
+
+const MCPServerConfigSchema = z.union([
+  z.object({
+    type: z.literal("stdio").optional(),
+    command: z.string(),
+    args: z.array(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    enabled: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.enum(["http"]),
+    url: z.string().url(),
+    headers: z.record(z.string(), z.string()).optional(),
+    enabled: z.boolean().optional(),
+  }),
+]);
+
 const Config = z.object({
-  llm: llmConfigSchema,
-  mcpServers: z.record(z.string(), mcpServerConfigSchema).optional(),
+  llm: LlmConfigSchema,
+  mcpServers: z.record(z.string(), MCPServerConfigSchema).optional(),
 });
 
 export type Config = z.infer<typeof Config>;

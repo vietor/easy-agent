@@ -1,9 +1,13 @@
-import type { BaseAdapter, ChatOptions, LLMClient, LLMConfig } from "./types.js";
+import type { BaseAdapter, ChatOptions, LLMClient, LLMConfig, ResolvedLLMConfig, ReasoningEffort, WireApi } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { withRetry } from "../util/async.js";
 
 export type { LLMClient, ChatOptions };
+
+const DEFAULT_REASONING_EFFORT: ReasoningEffort = "high";
+const DEFAULT_WIRE_API: WireApi = "completions";
+const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 
 const MAX_RETRIES = 3;
 
@@ -28,9 +32,15 @@ function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
 }
 
 export function createLLM(config: LLMConfig): LLMClient {
-  const adapter = config.wireApi === "anthropic"
-    ? new AnthropicAdapter(config)
-    : new CompletionsAdapter(config);
+  const cfg: ResolvedLLMConfig = {
+    ...config,
+    reasoningEffort: config.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
+    wireApi: config.wireApi ?? DEFAULT_WIRE_API,
+    contextWindow: config.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
+  };
+  const adapter = cfg.wireApi === "anthropic"
+    ? new AnthropicAdapter(cfg)
+    : new CompletionsAdapter(cfg);
   return {
     model: adapter.model,
     reasoningEffort: adapter.reasoningEffort,
