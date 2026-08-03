@@ -5,19 +5,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { killProcessTree, runProcess } from "../src/util/subprocess.js";
+import { waitUntil } from "./helpers.js";
 
 const isWin = process.platform === "win32";
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function waitUntil(fn: () => Promise<boolean> | boolean, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    if (await fn()) return true;
-    if (Date.now() >= deadline) return false;
-    await sleep(100);
-  }
-}
 
 async function readPid(path: string): Promise<number | null> {
   try {
@@ -97,6 +87,34 @@ test("killProcessTree kills a direct process (no group)", async () => {
       } else {
         try { process.kill(pid, "SIGKILL"); } catch {}
       }
+    }
+  }
+});
+
+test("output overflow settles promptly with partial output flagged truncated", async () => {
+  const r = await runProcess(process.execPath, ["-e", "process.stdout.write('x'.repeat(12 * 1024 * 1024))"], {});
+  assert.equal(r.truncated, true, "overflow must be flagged truncated");
+  assert.ok(r.error, "overflow must report an error");
+  assert.match(r.error!.message, /exceeded/);
+  assert.equal(r.status, null);
+  assert.ok(r.stdout.length > 0, "partial output must be preserved");
+});
+
+test("killProcessTree escalates to SIGKILL when SIGTERM is ignored", { skip: isWin ? "POSIX only" : false }, async () => {
+  const child = spawn("/bin/sh", ["-c", "trap '' TERM; exec sleep 100"], { stdio: "ignore" });
+  child.on("error", () => {});
+  const pid = child.pid;
+  try {
+    assert.ok(pid && pid > 0);
+    assert.ok(await waitUntil(() => pidAlive(pid!), 5000), "process must be running");
+    killProcessTree(pid!);
+    assert.ok(
+      await waitUntil(() => !pidAlive(pid!), 8000),
+      "process must die via SIGKILL escalation after SIGTERM was ignored"
+    );
+  } finally {
+    if (pid && pidAlive(pid)) {
+      try { process.kill(pid, "SIGKILL"); } catch {}
     }
   }
 });

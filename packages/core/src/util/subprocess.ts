@@ -6,28 +6,43 @@ export interface ProcessResult {
   stderr: string;
   status: number | null;
   error?: Error;
+  /** true when output hit the buffer cap and was cut short (partial stdout is still returned) */
+  truncated?: boolean;
 }
 
-/** Kill a process — with group: true, the whole tree via the process group (child.kill() alone leaves grandchildren running). Never throws. */
-export function killProcessTree(pid: number | null | undefined, opts?: { group?: boolean }): void {
+const KILL_GRACE_MS = 2000;
+
+/** Pids spawned by runProcess, force-killed on process exit so detached children do not outlive us. */
+const liveProcesses = new Set<number>();
+process.on("exit", () => {
+  for (const pid of liveProcesses) killProcessTree(pid, { group: true, force: true });
+});
+
+/** Kill a process — with group: true, the whole tree via the process group (child.kill() alone leaves grandchildren running). SIGTERM first, then SIGKILL after a grace period for processes that ignore it; force: true sends SIGKILL immediately (for process exit cleanup, where timers no longer run). Never throws. */
+export function killProcessTree(pid: number | null | undefined, opts?: { group?: boolean; force?: boolean }): void {
   if (!pid) return;
   if (process.platform === "win32") {
     try {
       spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
     } catch {}
-  } else if (opts?.group) {
+    return;
+  }
+  const targets = opts?.group ? [-pid, pid] : [pid];
+  for (const target of targets) {
     try {
-      process.kill(-pid, "SIGTERM");
-    } catch {
-      try {
-        process.kill(pid, "SIGTERM");
-      } catch {}
-    }
-  } else {
-    try {
-      process.kill(pid, "SIGTERM");
+      process.kill(target, opts?.force ? "SIGKILL" : "SIGTERM");
+      if (!opts?.force) scheduleSIGKILL(target);
+      return;
     } catch {}
   }
+}
+
+function scheduleSIGKILL(pid: number): void {
+  setTimeout(() => {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {}
+  }, KILL_GRACE_MS).unref();
 }
 
 export function runProcess(
@@ -46,8 +61,14 @@ export function runProcess(
     const outChunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
     let size = 0;
-    let overflow = false;
     let settled = false;
+
+    function flushOutput(): { stdout: string; stderr: string } {
+      return {
+        stdout: Buffer.concat(outChunks).toString("utf-8"),
+        stderr: Buffer.concat(errChunks).toString("utf-8"),
+      };
+    }
 
     function settle(result: ProcessResult) {
       if (settled) return;
@@ -59,11 +80,27 @@ export function runProcess(
 
     function kill() { killProcessTree(child.pid, { group: true }); }
 
+    function onChunk(c: Buffer, chunks: Buffer[]) {
+      if (settled) return;
+      chunks.push(c);
+      size += c.length;
+      if (size > MAX_PROCESS_BUFFER) {
+        kill();
+        settle({
+          ...flushOutput(),
+          status: null,
+          error: new Error(`Command output exceeded ${MAX_PROCESS_BUFFER / 1024 / 1024}MB`),
+          truncated: true,
+        });
+      }
+    }
+
     if (signal) {
       signal.addEventListener("abort", kill, { once: true });
       if (signal.aborted) kill();
     }
     child.on("spawn", () => {
+      liveProcesses.add(child.pid!);
       if (signal?.aborted) kill();
     });
 
@@ -73,31 +110,20 @@ export function runProcess(
       timer = setTimeout(() => {
         kill();
         settle({
-          stdout: Buffer.concat(outChunks).toString("utf-8"),
-          stderr: Buffer.concat(errChunks).toString("utf-8"),
+          ...flushOutput(),
           status: null,
           error: new Error(`Command timed out (${timeout / 1000}s)`),
         });
       }, timeout);
     }
 
-    child.stdout?.on("data", (c: Buffer) => {
-      outChunks.push(c);
-      size += c.length;
-      if (size > MAX_PROCESS_BUFFER) { overflow = true; kill(); }
-    });
-    child.stderr?.on("data", (c: Buffer) => {
-      errChunks.push(c);
-      size += c.length;
-      if (size > MAX_PROCESS_BUFFER) { overflow = true; kill(); }
-    });
+    child.stdout?.on("data", (c: Buffer) => onChunk(c, outChunks));
+    child.stderr?.on("data", (c: Buffer) => onChunk(c, errChunks));
     child.on("error", (error) => settle({ stdout: "", stderr: "", status: null, error }));
     child.on("close", (status) => {
-      const stdout = Buffer.concat(outChunks).toString("utf-8");
-      const stderr = Buffer.concat(errChunks).toString("utf-8");
-      settle(overflow
-        ? { stdout, stderr, status, error: new Error(`Command output exceeded ${MAX_PROCESS_BUFFER / 1024 / 1024}MB`) }
-        : { stdout, stderr, status });
+      liveProcesses.delete(child.pid!);
+      if (settled) return;
+      settle({ ...flushOutput(), status });
     });
   });
 }
