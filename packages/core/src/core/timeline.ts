@@ -157,13 +157,26 @@ export class TimelineStore {
     this.pendingQuestions.clear();
     this.listeners.notify();
   }
+
+  /** Replace all entries wholesale (session restore); unresolved tool entries are re-registered as pending. */
+  rebuild(entries: TimelineEntry[]): void {
+    this.entries = entries;
+    this.pendingTools.clear();
+    this.pendingQuestions.clear();
+    entries.forEach((entry, i) => {
+      if (entry.kind === "tool" && entry.result === null) {
+        this.pendingTools.set(entry.id, i);
+      }
+    });
+    this.listeners.notify();
+  }
 }
 
-/** Replay persisted conversation messages as the events that produced them (for session restore). */
-export function messagesToSessionEvents(
+/** Replay persisted conversation messages as the timeline entries they represent (for session restore). */
+export function messagesToTimelineEntries(
   messages: ConversationMessage[],
   summarize: (name: string, args: Record<string, unknown>) => string
-): SessionEvent[] {
+): TimelineEntry[] {
   const toolResults = new Map<string, { content: string; preview?: string; isError?: boolean }>();
   for (const m of messages) {
     if (m.role === "tool") {
@@ -175,26 +188,35 @@ export function messagesToSessionEvents(
       toolResults.set(m.tool_call_id, result);
     }
   }
-  const events: SessionEvent[] = [];
+  const entries: TimelineEntry[] = [];
   for (const m of messages) {
     if (m.role === "user") {
-      events.push({ type: "user", text: m.content });
+      entries.push({ kind: "user", text: m.content });
     } else if (m.role === "skill") {
-      events.push({ type: "skill", name: m.name });
+      entries.push({ kind: "skill", name: m.name });
     } else if (m.role === "assistant") {
       const text = textOf(m.content);
-      if (text) events.push({ type: "assistant", text });
+      if (text) entries.push({ kind: "assistant", text });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {
           const { args } = parseToolArgs(tc.function.arguments);
-          events.push({ type: "tool_start", id: tc.id, name: tc.function.name, summary: summarize(tc.function.name, args) });
+          const entry: TimelineEntry = {
+            kind: "tool",
+            id: tc.id,
+            name: tc.function.name,
+            summary: summarize(tc.function.name, args),
+            result: null,
+          };
           const result = toolResults.get(tc.id);
           if (result) {
-            events.push({ type: "tool_end", id: tc.id, result: result.content, isError: result.isError, preview: result.preview });
+            // Same shape the live path produces on tool_end: result plus both pending fields.
+            entries.push({ ...entry, result: result.content, isError: result.isError, preview: result.preview });
+          } else {
+            entries.push(entry);
           }
         }
       }
     }
   }
-  return events;
+  return entries;
 }

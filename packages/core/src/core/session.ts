@@ -6,11 +6,10 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { SessionBusyError, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState, type TimelineEntry } from "./types.js";
-import { Agent, type RunStatus } from "./agent.js";
+import { SessionBusyError, createInitialRunState, type RunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState, type TimelineEntry } from "./types.js";
+import { Agent, type AgentEvent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { ListenerSet, TimelineStore, TodoStore, messagesToSessionEvents } from "./timeline.js";
-import { RunLoop } from "./runloop.js";
+import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries } from "./timeline.js";
 
 export interface SessionDeps extends Omit<SessionOptions, "tools"> {
   llm: LLMClient;
@@ -35,8 +34,17 @@ export class Session {
   private skillsMap = new Map<string, Skill>();
   private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
-  private loop: RunLoop;
   readonly localStore: Map<string, unknown> = new Map();
+
+  private streamingText = "";
+  private reasoningText = "";
+  private replyStart: number | null = null;
+  private lastReplyText = "";
+  private lastStatusValue: RunStatus = "ok";
+  private runState: RunState = createInitialRunState();
+  private abortController: AbortController | null = null;
+  private timer: ReturnType<typeof setInterval> | undefined;
+  private startTime = 0;
 
   private conversation: Conversation;
   private tools: ToolRegistry;
@@ -78,7 +86,7 @@ export class Session {
     this.rejectIfBusy();
     const skill = this.skillsMap.get(name);
     if (!skill) return false;
-    await this.loop.startSkill(skill);
+    await this.start({ type: "skill", name: skill.name }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
     return true;
   };
 
@@ -96,7 +104,7 @@ export class Session {
   }
 
   get running(): boolean {
-    return this.loop.running;
+    return this.abortController !== null;
   }
 
   get contextTokens(): number {
@@ -150,8 +158,116 @@ export class Session {
       resolveSkill: (name) => this.skillsMap.get(name),
     });
     this.mcp = deps.mcp;
-    this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
-    this.loop.onSettle = () => this.persistSnapshot();
+  }
+
+  private start(event: SessionEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+    this.timelineStore.applyEvent(event);
+    this.emit(event);
+    return this.run(runFn);
+  }
+
+  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+    this.streamingText = "";
+    this.reasoningText = "";
+    this.replyStart = null;
+    this.startTime = Date.now();
+    this.abortController = new AbortController();
+    this.runState = { ...createInitialRunState(), running: true };
+    this.lastStatusValue = "ok";
+    this.emitRunState();
+
+    this.timer = setInterval(() => {
+      this.runState = { ...this.runState, ...this.computeTimings() };
+      this.emitRunState();
+    }, 1000);
+
+    let status: RunStatus = "ok";
+    try {
+      status = await runFn(this.abortController.signal);
+      this.flushStreaming();
+    } catch (e) {
+      status = "error";
+      this.flushStreaming();
+      this.timelineStore.applyEvent({ type: "error", text: (e as Error).message });
+      this.emit({ type: "error", text: (e as Error).message });
+    } finally {
+      clearInterval(this.timer);
+      this.timer = undefined;
+      this.abortController = null;
+      this.lastStatusValue = status;
+      if (status !== "ok") this.timelineStore.abortPendingTools();
+      this.runState = { ...this.runState, ...this.computeTimings(), running: false };
+      this.emitRunState();
+      this.flushReasoning();
+      this.clearCompletedTodos();
+      this.persistSnapshot();
+    }
+  }
+
+  /** A fully completed task list is dead weight: drop it at input and at run settle so it never lingers across turns. */
+  private clearCompletedTodos(): void {
+    if (this.todoStore.all.length > 0 && this.todoStore.all.every((t) => t.status === "completed")) {
+      this.todoStore.set([]);
+    }
+  }
+
+  private computeTimings(): { elapsed: number; thinkingElapsed: number; replyElapsed: number } {
+    const now = Date.now();
+    const elapsed = Math.floor((now - this.startTime) / 1000);
+    if (this.replyStart === null) {
+      return { elapsed, thinkingElapsed: elapsed, replyElapsed: 0 };
+    }
+    return {
+      elapsed,
+      thinkingElapsed: Math.floor((this.replyStart - this.startTime) / 1000),
+      replyElapsed: Math.floor((now - this.replyStart) / 1000),
+    };
+  }
+
+  private emitRunState(): void {
+    this.emit({ type: "state", ...this.runState });
+  }
+
+  private handleEvent = (e: AgentEvent): void => {
+    switch (e.type) {
+      case "assistant_delta":
+        if (this.replyStart === null) this.replyStart = Date.now();
+        this.streamingText += e.text;
+        break;
+      case "reasoning_delta":
+        this.reasoningText += e.text;
+        break;
+      case "retry":
+      case "tool_start":
+      case "error":
+      case "interrupted":
+        this.flushStreaming();
+        break;
+      case "usage":
+        this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };
+        this.emitRunState();
+        return;
+    }
+    this.timelineStore.applyEvent(e);
+    this.emit(e);
+  };
+
+  private flushStreaming(): void {
+    if (this.streamingText) {
+      this.lastReplyText = this.streamingText;
+      const text = this.streamingText;
+      this.timelineStore.applyEvent({ type: "assistant", text });
+      this.streamingText = "";
+      this.emit({ type: "assistant", text });
+    }
+    this.flushReasoning();
+  }
+
+  private flushReasoning(): void {
+    if (this.reasoningText) {
+      this.reasoningText = "";
+      this.emit({ type: "reasoning_clear" });
+    }
   }
 
   async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {
@@ -168,7 +284,7 @@ export class Session {
   }
 
   private rejectIfBusy(): void {
-    if (this.loop.running) throw new SessionBusyError();
+    if (this.abortController !== null) throw new SessionBusyError();
   }
 
   clear(): void {
@@ -200,26 +316,19 @@ export class Session {
     if (!state) return false;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
-    this.timelineStore.clear();
-    this.rebuildTimeline(state.messages);
+    this.timelineStore.rebuild(messagesToTimelineEntries(state.messages, (n, a) => this.tools.summarize(n, a)));
     this.viewCache = null;
     return true;
   }
 
-  private rebuildTimeline(messages: ConversationMessage[]): void {
-    for (const e of messagesToSessionEvents(messages, (n, a) => this.tools.summarize(n, a))) {
-      this.timelineStore.applyEvent(e);
-    }
-  }
-
   async compact(): Promise<RunStatus> {
     this.rejectIfBusy();
-    await this.loop.startCompact();
-    return this.loop.lastStatus;
+    await this.run((signal) => this.agent.compact(this.handleEvent, signal));
+    return this.lastStatusValue;
   }
 
   abort(): void {
-    this.loop.abort();
+    this.abortController?.abort();
     this.resolvePendingQuestions("");
   }
 
@@ -236,8 +345,8 @@ export class Session {
 
   async startPrompt(text: string): Promise<PromptResult> {
     this.rejectIfBusy();
-    await this.loop.startPrompt(text);
-    return { status: this.loop.lastStatus, reply: this.loop.lastReply };
+    await this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
+    return { status: this.lastStatusValue, reply: this.lastReplyText };
   }
 
   private ask(text: string, options: string[]): Promise<string> {

@@ -1,10 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent } from "../src/core/agent.js";
-import { Conversation } from "../src/core/conversation.js";
-import { RunLoop } from "../src/core/runloop.js";
-import { TimelineStore, TodoStore, messagesToSessionEvents } from "../src/core/timeline.js";
+import { Session } from "../src/core/session.js";
+import { TimelineStore, TodoStore, messagesToTimelineEntries } from "../src/core/timeline.js";
 import type { TimelineEntry } from "../src/core/types.js";
+import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
 
@@ -28,29 +27,6 @@ function toolCall(name: string, id = "t1"): AssistantMessage {
     content: null,
     tool_calls: [{ id, type: "function", function: { name, arguments: "{}" } }],
   };
-}
-
-function echoAgent(llm: LLMClient): Agent {
-  const tools = new ToolRegistry();
-  tools.register({
-    name: "Echo",
-    description: "echo",
-    parameters: { type: "object", properties: {} },
-    async execute() {
-      return "echoed";
-    },
-  });
-  return new Agent({
-    llm,
-    conversation: new Conversation("system prompt"),
-    tools,
-    cwd: process.cwd(),
-    setTodos: () => {},
-    getTodos: () => [],
-    stallThreshold: 3,
-    maxTurns: 50,
-    compactThreshold: 750_000,
-  });
 }
 
 test("setAnswer returns false for an unknown question id", () => {
@@ -138,25 +114,42 @@ test("applyEvent translates every persisted event type into an entry", () => {
 
 test("restored timeline from persisted messages matches the live run (golden equivalence)", async () => {
   const llm = fakeLLM([() => toolCall("Echo"), () => ({ role: "assistant", content: null })]);
-  const agent = echoAgent(llm);
-  const live = new TimelineStore();
-  const loop = new RunLoop(agent, live, new TodoStore(), () => {});
-  await loop.startPrompt("go");
+  const tools = new ToolRegistry();
+  tools.register({
+    name: "Echo",
+    description: "echo",
+    parameters: { type: "object", properties: {} },
+    async execute() {
+      return "echoed";
+    },
+  });
+  const session = new Session({
+    systemPrompt: "test",
+    llm,
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+  });
+  session.subscribe(() => {});
+  const result = await session.startPrompt("go");
+  assert.equal(result.status, "ok");
+  const live = session.getSnapshot().timeline;
   const restored = new TimelineStore();
-  for (const e of messagesToSessionEvents(agent.export(), () => "")) restored.applyEvent(e);
-  assert.deepEqual(restored.all, live.all);
+  restored.rebuild(messagesToTimelineEntries(session.export(), () => ""));
+  assert.deepEqual(restored.all, live);
 });
 
 test("restoring a run with a hanging tool keeps result null until aborted", () => {
   const store = new TimelineStore();
-  const events = messagesToSessionEvents(
-    [
-      { role: "user", content: "go" },
-      { role: "assistant", content: null, tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "{}" } }] },
-    ],
-    () => ""
+  store.rebuild(
+    messagesToTimelineEntries(
+      [
+        { role: "user", content: "go" },
+        { role: "assistant", content: null, tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "{}" } }] },
+      ],
+      () => ""
+    )
   );
-  for (const e of events) store.applyEvent(e);
   const tool = store.all.find((e) => e.kind === "tool");
   assert.deepEqual(tool, { kind: "tool", id: "t1", name: "Echo", summary: "", result: null });
   store.abortPendingTools();

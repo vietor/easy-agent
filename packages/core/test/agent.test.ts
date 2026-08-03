@@ -1,13 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, type AgentEvent } from "../src/core/agent.js";
+import { Agent } from "../src/core/agent.js";
 import { Conversation } from "../src/core/conversation.js";
-import { RunLoop } from "../src/core/runloop.js";
-import { TimelineStore, TodoStore } from "../src/core/timeline.js";
-import type { SessionEvent } from "../src/core/types.js";
+import { Session } from "../src/core/session.js";
+import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient, Message } from "../src/llm/types.js";
 import type { Todo } from "../src/tools/types.js";
+import { waitUntil } from "./helpers.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const calls: ChatOptions[] = [];
@@ -157,18 +157,31 @@ test("abort rolls the conversation back to the pre-run snapshot", async () => {
 });
 
 test("aborted run resolves hanging tool entries in the timeline", async () => {
-  const timeline = new TimelineStore();
-  const todos = new TodoStore();
-  const events: SessionEvent[] = [];
-  const fakeAgent = {
-    run: async (_text: string, onEvent?: (e: AgentEvent) => void) => {
-      onEvent?.({ type: "tool_start", id: "t1", name: "Echo", summary: "" });
-      return "aborted";
-    },
-  } as unknown as Agent;
-  const loop = new RunLoop(fakeAgent, timeline, todos, (e) => events.push(e));
-  await loop.startPrompt("go");
-  const tool = timeline.all.find((e) => e.kind === "tool");
+  const tools = new ToolRegistry();
+  tools.register({
+    name: "Echo",
+    description: "echo",
+    parameters: { type: "object", properties: {} },
+    execute: () => new Promise<string>(() => {}),
+  });
+  const { llm } = fakeLLM([() => toolCall("Echo")]);
+  const session = new Session({
+    systemPrompt: "test",
+    llm,
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+  });
+  session.subscribe(() => {});
+  const run = session.startPrompt("go");
+  assert.ok(
+    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.kind === "tool"), 5000),
+    "tool entry must appear before the run settles"
+  );
+  session.abort();
+  const { status } = await run;
+  assert.equal(status, "aborted");
+  const tool = session.getSnapshot().timeline.find((e) => e.kind === "tool");
   assert.ok(tool && tool.kind === "tool");
   assert.equal(tool.result, "aborted");
   assert.equal(tool.isError, true);

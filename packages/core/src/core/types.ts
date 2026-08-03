@@ -77,7 +77,7 @@ export type SessionEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
-  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
+  | ({ type: "state" } & RunState);
 
 /** Timeline entries are the persisted subset of SessionEvent with pending-state fields (tool result, question answer). */
 type WithKind<T extends SessionEvent["type"], K extends string> =
