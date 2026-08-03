@@ -57,3 +57,12 @@ export function previewCount(word: "file" | "match", count: number, isError: boo
   const plural = word === "match" ? "matches" : "files";
   return `Found ${count} ${count === 1 ? word : plural}`;
 }
+
+/** Trailing marker line appended when tool output was cut short (by a head limit or the 10MB buffer cap). */
+export const TRUNCATION_MARKER = "(output truncated)";
+
+/** Line count of tool output, excluding a trailing truncation marker. */
+export function visibleLineCount(content: string): number {
+  const lines = content.split("\n").filter((l) => l);
+  return lines.length - (lines[lines.length - 1] === TRUNCATION_MARKER ? 1 : 0);
+}

@@ -8,12 +8,23 @@ export function resolveCwd(path: string, base: string): string {
   return isAbsolute(root) ? root : join(base, root);
 }
 
-export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal): Promise<string[]> {
+export interface RgLinesResult {
+  lines: string[];
+  /** true when output was cut short (10MB buffer cap or the line limit); lines hold the partial results */
+  truncated: boolean;
+}
+
+export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number): Promise<RgLinesResult> {
   const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", "-g", "!node_modules/**", ...args];
   const r = await runProcess(rgPath, rgArgs, { cwd, timeout: REQUEST_TIMEOUT_MS }, signal);
-  if (r.error) throw r.error;
-  if (r.status !== 0 && r.status !== 1) {
-    throw new Error((r.stderr || "").trim() || `ripgrep exited with ${r.status}`);
+  if (!r.truncated && (r.error || (r.status !== 0 && r.status !== 1))) {
+    throw r.error ?? new Error((r.stderr || "").trim() || `ripgrep exited with ${r.status}`);
   }
-  return r.stdout.split("\n").filter(Boolean).map((f) => f.replace(/^\.\//, ""));
+  let kept = r.stdout.split("\n").filter(Boolean);
+  let truncated = r.truncated === true;
+  if (limit !== undefined && kept.length > limit) {
+    kept = kept.slice(0, limit);
+    truncated = true;
+  }
+  return { lines: kept.map((f) => f.replace(/^\.\//, "")), truncated };
 }

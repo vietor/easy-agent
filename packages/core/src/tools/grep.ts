@@ -1,6 +1,6 @@
 import { resolveCwd, runRgLines } from "../util/ripgrep.js";
 import { NO_MATCHES } from "../util/constants.js";
-import { previewCount } from "../util/text.js";
+import { previewCount, TRUNCATION_MARKER, visibleLineCount } from "../util/text.js";
 import type { Tool } from "./types.js";
 
 const DEFAULT_LIMIT = 200;
@@ -45,25 +45,19 @@ export const grepTool: Tool = {
     if (args.glob) rgArgs.push("-g", args.glob as string);
     if (args.type) rgArgs.push("-t", args.type as string);
     const output_mode = (args.output_mode as string) || "content";
+    const headLimit = (args.head_limit as number) || DEFAULT_LIMIT;
     if (output_mode === "files_with_matches") rgArgs.push("-l");
     else if (output_mode === "count") rgArgs.push("-c");
+    else rgArgs.push("-m", String(headLimit));
     rgArgs.push("--", args.pattern as string, ".");
-    const lines = await runRgLines(rgArgs, cwd, ctx.signal);
+    const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal, headLimit);
     if (!lines.length) return NO_MATCHES;
-    const headLimit = (args.head_limit as number) || DEFAULT_LIMIT;
-    if (lines.length > headLimit) {
-      return lines.slice(0, headLimit).join("\n") + `\n(${lines.length - headLimit} more matches, truncated)`;
-    }
-    return lines.join("\n");
+    const out = lines.join("\n");
+    return truncated ? out + "\n" + TRUNCATION_MARKER : out;
   },
   getPreview(result) {
     if (result.content === NO_MATCHES) return "Found 0 matches";
-    const lines = result.content.split("\n");
-    let count = lines.filter((l) => l).length;
-    if (lines.length > 1 && /^\(\d+ more matches, truncated\)$/.test(lines[lines.length - 1])) {
-      count--;
-    }
-    return previewCount("match", count, !!result.isError, "Grep failed");
+    return previewCount("match", visibleLineCount(result.content), !!result.isError, "Grep failed");
   },
   summaryArg: ["pattern", "path"],
 };
