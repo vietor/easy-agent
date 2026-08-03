@@ -103,7 +103,6 @@ export class ToolRegistry {
 }
 
 export interface BuiltinToolsOptions {
-  /** Tools to disable, by lowercase-camelCase name (e.g. "shell", "fileRead"). AskUser, TodoWrite, Skill and SubAgent are toggled by their own flags and cannot be disabled here. */
   disabled?: string[];
   askUser?: boolean;
   todoWrite?: boolean;
@@ -111,7 +110,6 @@ export interface BuiltinToolsOptions {
   subAgent?: boolean;
 }
 
-/** Wiring the flag-gated factory tools need; supplied by the Session constructor. */
 export interface BuiltinToolsDeps {
   ask: (question: string, options: string[]) => Promise<string>;
   setTodos: (todos: Todo[]) => void;

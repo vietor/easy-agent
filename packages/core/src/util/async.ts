@@ -64,7 +64,6 @@ export function timeoutSignal(signal: AbortSignal | undefined, ms: number): Abor
   return signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
 }
 
-/** True when the combined signal aborted from its wall-clock timeout, not the caller's own signal. */
 export function isTimeout(signal: AbortSignal): boolean {
   return (signal.reason as { name?: string })?.name === "TimeoutError";
 }

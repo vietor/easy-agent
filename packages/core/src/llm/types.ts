@@ -66,7 +66,6 @@ export interface ChatOptions {
   signal?: AbortSignal;
 }
 
-/** The retry-decorated adapter surface used by the agent loop. */
 export interface LLMClient {
   readonly model: string;
   readonly reasoningEffort: ReasoningEffort;

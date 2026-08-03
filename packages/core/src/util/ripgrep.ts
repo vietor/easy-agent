@@ -10,7 +10,6 @@ export function resolveCwd(path: string, base: string): string {
 
 export interface RgLinesResult {
   lines: string[];
-  /** true when output was cut short (10MB buffer cap or the line limit); lines hold the partial results */
   truncated: boolean;
 }
 

@@ -139,7 +139,6 @@ export class MCPServers {
     for (const t of tools) this.tools.unregister(mcpToolName(name, t));
   }
 
-  /** A server's transport died: drop its tools so calls fail fast instead of hanging on a dead client. */
   private handleServerClosed(name: string, client: MCPClient, error?: string): void {
     const entry = this.servers.get(name);
     if (!entry || entry.client !== client || entry.status !== "connected") return;

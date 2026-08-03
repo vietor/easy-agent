@@ -6,19 +6,16 @@ export interface ProcessResult {
   stderr: string;
   status: number | null;
   error?: Error;
-  /** true when output hit the buffer cap and was cut short (partial stdout is still returned) */
   truncated?: boolean;
 }
 
 const KILL_GRACE_MS = 2000;
 
-/** Pids spawned by runProcess, force-killed on process exit so detached children do not outlive us. */
 const liveProcesses = new Set<number>();
 process.on("exit", () => {
   for (const pid of liveProcesses) killProcessTree(pid, { group: true, force: true });
 });
 
-/** Kill a process — with group: true, the whole tree via the process group (child.kill() alone leaves grandchildren running). SIGTERM first, then SIGKILL after a grace period for processes that ignore it; force: true sends SIGKILL immediately (for process exit cleanup, where timers no longer run). Never throws. */
 export function killProcessTree(pid: number | null | undefined, opts?: { group?: boolean; force?: boolean }): void {
   if (!pid) return;
   if (process.platform === "win32") {

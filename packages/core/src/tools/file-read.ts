@@ -4,21 +4,17 @@ import { resolvePath } from "../util/file.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
-const MAX_READ_BYTES = 20_000_000;
+const MAX_FILE_READ_BYTES = 20_000_000;
 const CHUNK = 64 * 1024;
 
 const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further. Files over 20MB are rejected. Binary files may return garbled output or fail.";
 
 interface PageRead {
-  /** null when offset is past the end of the file */
   text: string | null;
-  /** exact line count; only meaningful when text !== null && eof */
   totalLines: number;
-  /** whether the read reached EOF, so no more lines follow the page */
   eof: boolean;
 }
 
-/** Read up to `limit` lines starting at 1-based `offset`, without loading the whole file. */
 async function readPage(handle: FileHandle, offset: number, limit: number): Promise<PageRead> {
   const startLine = offset - 1;
   let newlines = 0;
@@ -28,14 +24,16 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
   for (;;) {
     const { bytesRead } = await handle.read(buf, 0, CHUNK, null);
     if (bytesRead === 0) break;
-    for (let i = 0; i < bytesRead; i++) {
-      if (buf[i] !== 0x0a) continue;
+    for (let from = 0; ; ) {
+      const i = buf.indexOf(0x0a, from);
+      if (i === -1 || i >= bytesRead) break;
       if (newlines === startLine - 1) windowStart = i + 1;
       newlines++;
       if (newlines === startLine + limit) {
         if (windowStart >= 0 && windowStart < i) pieces.push(Buffer.from(buf.subarray(windowStart, i)));
         return { text: Buffer.concat(pieces).toString("utf-8"), totalLines: -1, eof: false };
       }
+      from = i + 1;
     }
     if (windowStart >= 0) {
       if (windowStart < bytesRead) pieces.push(Buffer.from(buf.subarray(windowStart, bytesRead)));
@@ -66,8 +64,8 @@ export const fileReadTool: Tool = {
     const handle = await open(path, "r");
     try {
       const { size } = await handle.stat();
-      if (size > MAX_READ_BYTES) {
-        throw new Error(`file is ${compactFormat(size)} — larger than the ${compactFormat(MAX_READ_BYTES)} read limit`);
+      if (size > MAX_FILE_READ_BYTES) {
+        throw new Error(`file is ${compactFormat(size)} — larger than the ${compactFormat(MAX_FILE_READ_BYTES)} read limit`);
       }
       if (size === 0) return "(empty file)";
       const { text, totalLines, eof } = await readPage(handle, offset, limit);
