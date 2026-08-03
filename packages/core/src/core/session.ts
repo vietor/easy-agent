@@ -177,8 +177,13 @@ export class Session {
     await this.mcp.connect(servers);
   }
 
+  async reconnectMCP(name: string): Promise<void> {
+    await this.mcp.reconnect(name);
+  }
+
   dispose(): void {
     this.loop.abort();
+    this.resolvePendingQuestions("");
     this.mcp.kill();
   }
 
@@ -237,9 +242,13 @@ export class Session {
 
   abort(): void {
     this.loop.abort();
-    const ids = this.timelineStore.resolveAllAnswers("");
+    this.resolvePendingQuestions("");
+  }
+
+  private resolvePendingQuestions(answer: string): void {
+    const ids = this.timelineStore.resolveAllAnswers(answer);
     for (const id of ids) {
-      this.emit({ type: "question_answered", id, answer: "" });
+      this.emit({ type: "question_answered", id, answer });
     }
     this.latestUnansweredQuestion = undefined;
   }

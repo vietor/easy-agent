@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Session } from "../src/core/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServers } from "../src/mcp/server.js";
+import { waitUntil } from "./helpers.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
@@ -77,4 +78,28 @@ test("a completed list re-created mid-run is cleared when the run settles", asyn
   await session.startPrompt("plan it");
   await session.startPrompt("continue");
   assert.equal(session.getSnapshot().todos.length, 0);
+});
+
+test("dispose resolves a pending question", async () => {
+  const tools = new ToolRegistry();
+  const session = new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([
+      () => ({
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "q1", type: "function", function: { name: "AskUser", arguments: JSON.stringify({ question: "which?", options: ["a", "b"] }) } }],
+      }),
+    ]),
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+    builtinTools: { askUser: true },
+  });
+  const run = session.startPrompt("go");
+  assert.ok(await waitUntil(() => session.getPendingQuestion() !== undefined, 5000), "question must become pending");
+  session.dispose();
+  const { status } = await run;
+  assert.equal(status, "aborted");
+  assert.equal(session.getPendingQuestion(), undefined);
 });
