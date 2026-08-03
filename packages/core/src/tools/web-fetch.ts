@@ -1,5 +1,6 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
+import { isTimeout, timeoutSignal } from "../util/async.js";
 import { MAX_READ_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
 import { previewBytes, htmlToMarkdown } from "../util/text.js";
 
@@ -56,9 +57,7 @@ export const webFetchTool: Tool = {
   },
   async execute(args, ctx) {
     const url = args.url as string;
-    const signal = ctx.signal
-      ? AbortSignal.any([ctx.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])
-      : AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    const signal = timeoutSignal(ctx.signal, REQUEST_TIMEOUT_MS);
     let res: Response;
     try {
       res = await netFetch(url, {
@@ -72,7 +71,7 @@ export const webFetchTool: Tool = {
         signal,
       });
     } catch (e) {
-      if (signal.aborted && !ctx.signal?.aborted) {
+      if (isTimeout(signal)) {
         throw new Error(`fetch ${url} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
       }
       throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);

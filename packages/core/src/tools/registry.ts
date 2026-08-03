@@ -52,6 +52,12 @@ export class ToolRegistry {
     return this.schemasCache;
   }
 
+  unregister(name: string): void {
+    if (this.tools.delete(name)) {
+      this.schemasCache = null;
+    }
+  }
+
   async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) return toolError(`unknown tool ${name}`);
@@ -59,7 +65,7 @@ export class ToolRegistry {
       const r = await tool.execute(args, ctx);
       return typeof r === "string" ? { content: r } : r;
     } catch (e) {
-      return toolError((e as Error).message);
+      return toolError(e instanceof Error ? e.message : String(e));
     }
   }
 

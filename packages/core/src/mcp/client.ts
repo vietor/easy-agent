@@ -11,6 +11,9 @@ export class MCPClient {
   private client: Client;
   private transport: Transport;
   private connectReject?: (e: Error) => void;
+  private closing = false;
+  /** Called when the transport closes or errors unexpectedly (not via kill()). */
+  onClosed?: (error?: string) => void;
 
   constructor(
     config: MCPServerConfig,
@@ -24,6 +27,8 @@ export class MCPClient {
       const url = new URL(config.url);
       this.transport = new StreamableHTTPClientTransport(url, opts);
     }
+    this.transport.onerror = (e) => { if (!this.closing) this.onClosed?.(e.message); };
+    this.transport.onclose = () => { if (!this.closing) this.onClosed?.(); };
   }
 
   async connect(): Promise<void> {
@@ -47,6 +52,7 @@ export class MCPClient {
   }
 
   kill(): void {
+    this.closing = true;
     this.connectReject?.(new AbortedError());
     this.connectReject = undefined;
     this.client.close().catch(() => {});

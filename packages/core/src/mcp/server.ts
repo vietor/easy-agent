@@ -2,7 +2,7 @@ import type { Tool } from "../tools/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
-import { withTimeout } from "../util/async.js";
+import { isTimeout, timeoutSignal, withTimeout } from "../util/async.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
@@ -69,8 +69,21 @@ function extractContent(result: CallToolResult): string {
   return parts.join("\n");
 }
 
+function mcpToolName(server: string, tool: string): string {
+  return `MCP__${server}__${tool}`;
+}
+
+interface ServerEntry {
+  type: ServerType;
+  status: MCPServerInfo["status"];
+  client?: MCPClient;
+  tools: string[];
+  error?: string;
+}
+
 export class MCPServers {
-  private servers = new Map<string, { type: ServerType; status: MCPServerInfo["status"]; client?: MCPClient; tools: string[]; error?: string }>();
+  private servers = new Map<string, ServerEntry>();
+  private configs = new Map<string, MCPServerConfig>();
   private pending = new Set<MCPClient>();
   private disposed = false;
 
@@ -81,60 +94,97 @@ export class MCPServers {
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {
     await Promise.all(
-      Object.entries(mcpServers).map(async ([name, cfg]) => {
-        if (this.disposed) return;
-        const type = serverType(cfg);
-        if (cfg.enabled === false) {
-          this.servers.set(name, { type, status: "disabled", tools: [] });
-          return;
-        }
-        this.servers.set(name, { type, status: "pending", tools: [] });
-        let client: MCPClient;
-        try {
-          client = new MCPClient(cfg, this.clientInfo);
-        } catch (e) {
-          this.servers.set(name, { type, status: "failed", tools: [], error: (e as Error).message });
-          return;
-        }
-        this.pending.add(client);
-        try {
-          await withTimeout(client.connect(), CONNECT_TIMEOUT_MS);
-          if (this.disposed) {
-            client.kill();
-            return;
-          }
-          const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT_MS);
-          if (this.disposed) {
-            client.kill();
-            return;
-          }
-          this.servers.set(name, { type, status: "connected", client, tools: mcpTools.map((t) => t.name) });
-          this.tools.registerAll(mcpTools.map((t) => this.adapt(name, client, t)));
-        } catch (e) {
-          client.kill();
-          if (!this.disposed) {
-            this.servers.set(name, { type, status: "failed", tools: [], error: (e as Error).message });
-          }
-        } finally {
-          this.pending.delete(client);
-        }
+      Object.entries(mcpServers).map(([name, cfg]) => {
+        this.configs.set(name, cfg);
+        return this.connectServer(name, cfg);
       }),
     );
+  }
+
+  /** Reconnect a previously configured server (e.g. after its process died). */
+  async reconnect(name: string): Promise<void> {
+    if (this.disposed) return;
+    const cfg = this.configs.get(name);
+    if (!cfg) return;
+    const existing = this.servers.get(name);
+    if (existing?.client) {
+      this.unregisterServerTools(name, existing.tools);
+      existing.client.kill();
+    }
+    await this.connectServer(name, cfg);
+  }
+
+  private async connectServer(name: string, cfg: MCPServerConfig): Promise<void> {
+    if (this.disposed) return;
+    const type = serverType(cfg);
+    if (cfg.enabled === false) {
+      this.servers.set(name, { type, status: "disabled", tools: [] });
+      return;
+    }
+    this.servers.set(name, { type, status: "pending", tools: [] });
+    let client: MCPClient;
+    try {
+      client = new MCPClient(cfg, this.clientInfo);
+    } catch (e) {
+      this.markFailed(name, type, (e as Error).message);
+      return;
+    }
+    this.pending.add(client);
+    try {
+      await withTimeout(client.connect(), CONNECT_TIMEOUT_MS);
+      if (this.disposed) return;
+      const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT_MS);
+      if (this.disposed) return;
+      this.servers.set(name, { type, status: "connected", client, tools: mcpTools.map((t) => t.name) });
+      this.tools.registerAll(mcpTools.map((t) => this.adapt(name, client, t)));
+      client.onClosed = (error) => this.handleServerClosed(name, client, error);
+    } catch (e) {
+      client.kill();
+      if (!this.disposed) {
+        this.markFailed(name, type, (e as Error).message);
+      }
+    } finally {
+      this.pending.delete(client);
+    }
+  }
+
+  private markFailed(name: string, type: ServerType, error: string): void {
+    this.servers.set(name, { type, status: "failed", tools: [], error });
+  }
+
+  private unregisterServerTools(name: string, tools: string[]): void {
+    for (const t of tools) this.tools.unregister(mcpToolName(name, t));
+  }
+
+  /** A server's transport died: drop its tools so calls fail fast instead of hanging on a dead client. */
+  private handleServerClosed(name: string, client: MCPClient, error?: string): void {
+    const entry = this.servers.get(name);
+    if (!entry || entry.client !== client || entry.status !== "connected") return;
+    this.unregisterServerTools(name, entry.tools);
+    this.markFailed(name, entry.type, error ?? "MCP server connection closed");
   }
 
   private adapt(server: string, client: MCPClient, tool: MCPTool): Tool {
     const summaryArg = summaryCandidates(tool.inputSchema);
     return {
-      name: `MCP__${server}__${tool.name}`,
+      name: mcpToolName(server, tool.name),
       description: tool.description ?? `${server} ${tool.name}`,
       parameters: tool.inputSchema,
       ...(summaryArg.length ? { summaryArg } : {}),
       async execute(args, ctx) {
-        const result = await withTimeout(client.callTool(tool.name, args, ctx.signal), CALL_TIMEOUT_MS);
-        const text = extractContent(result);
-        return result.isError
-          ? { content: fixError(text), isError: true }
-          : { content: text || NO_OUTPUT };
+        const signal = timeoutSignal(ctx.signal, CALL_TIMEOUT_MS);
+        try {
+          const result = await client.callTool(tool.name, args, signal);
+          const text = extractContent(result);
+          return result.isError
+            ? { content: fixError(text), isError: true }
+            : { content: text || NO_OUTPUT };
+        } catch (e) {
+          if (isTimeout(signal)) {
+            throw new Error(`MCP tool call timed out (${CALL_TIMEOUT_MS / 1000}s)`);
+          }
+          throw e;
+        }
       },
     };
   }
@@ -149,5 +199,6 @@ export class MCPServers {
     for (const client of this.pending) client.kill();
     this.servers.clear();
     this.pending.clear();
+    this.configs.clear();
   }
 }

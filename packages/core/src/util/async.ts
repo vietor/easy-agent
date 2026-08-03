@@ -29,8 +29,9 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Pr
 }
 
 function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
   return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
+    if (signal.aborted) {
       reject(new AbortedError());
       return;
     }
@@ -39,10 +40,10 @@ function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
       reject(new AbortedError());
     };
     const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
+      signal.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -57,6 +58,16 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     }),
     timed,
   ]);
+}
+
+/** External abort signal combined with a wall-clock timeout into one signal. */
+export function timeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
+  return signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
+}
+
+/** True when the combined signal aborted from its wall-clock timeout, not the caller's own signal. */
+export function isTimeout(signal: AbortSignal): boolean {
+  return (signal.reason as { name?: string })?.name === "TimeoutError";
 }
 
 export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?: () => T): Promise<T> {
