@@ -4,4 +4,5 @@ export const TOOL_USE_PROMPT = [
   "",
   "- When several tool calls have no dependencies on each other's results, emit them together in one turn so they run concurrently; do not batch calls that depend on a prior result or that modify the same file or resource.",
   "- For file operations (read/write/edit/glob/grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.",
+  "- If a tool call fails, read the error, adjust the arguments or approach, and continue; do not repeat the identical call and do not abandon the task over a single failure.",
 ].join("\n");

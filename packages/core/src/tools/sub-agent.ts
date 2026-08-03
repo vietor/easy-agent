@@ -5,7 +5,7 @@ import { toolError, type Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { Agent } from "../core/agent.js";
 import { Conversation } from "../core/conversation.js";
-import { TOOL_USE_PROMPT } from "./tool-use-prompt.js";
+import { TOOL_USE_PROMPT } from "./prompt.js";
 
 export interface SubAgentToolDeps {
   llm: LLMClient;
@@ -25,6 +25,7 @@ const EXPLORE_PROMPT = [
   "- Trust tool results as ground truth; do not guess file contents from memory.",
   "- If the task is ambiguous, state your assumptions explicitly.",
   '- Report in concise markdown: a summary of findings first, then details with file_path:line_number references, and a final "Bottom line" section with a direct answer to the task.',
+  "- Keep the report proportionate to the question — typically 10-40 lines; extract key facts rather than pasting file contents.",
 ].join("\n");
 
 const PLAN_PROMPT = [
@@ -33,6 +34,8 @@ const PLAN_PROMPT = [
   "- First locate the relevant code: read the files the task mentions and confirm real function signatures, module structure, and existing conventions before planning.",
   "- Output a numbered step-by-step plan in markdown. For each step give the file paths to create or modify, the function or type signatures involved, and a one-line rationale. Order steps by dependency.",
   '- End with a short "Risks & open questions" section listing anything to verify during implementation.',
+  '- End with a short "Verification" section: the commands, tests, or manual checks to run to confirm each step works.',
+  "- Keep the plan concise — typically 20-50 lines.",
   "- Be specific and actionable; do not speculate beyond what you read.",
 ].join("\n");
 

@@ -20,7 +20,7 @@ const COMPACT_PROMPT = [
   "6. Current progress: what is done, verified, and in-progress state.\n",
   "7. Pending tasks, open questions, concrete next step.\n",
   "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. Keep only what the next turn needs to continue without re-reading history.\n",
-  "Concise but thorough; keep technical specifics; use the conversation language. ",
+  "Concise but thorough; keep technical specifics; use the conversation language. Target roughly 10% of the original length (a few hundred tokens) — technical specifics over prose. ",
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
