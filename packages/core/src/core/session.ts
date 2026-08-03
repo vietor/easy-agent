@@ -274,10 +274,6 @@ export class Session {
     await this.mcp.connect(servers);
   }
 
-  async reconnectMCP(name: string): Promise<void> {
-    await this.mcp.reconnect(name);
-  }
-
   dispose(): void {
     this.abort();
     this.mcp.kill();

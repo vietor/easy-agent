@@ -12,4 +12,4 @@ export { tryReadFileText } from "./util/file.js";
 export { timeFormat, compactFormat, getTextBytes, ellipsisText, htmlToMarkdown } from "./util/text.js";
 export { netFetch } from "./util/net.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";
-export { SessionBusyError, type SessionPersistence, type SessionState, type SessionMeta, type SessionOptions, type SessionEvent, type RunState } from "./core/types.js";
+export { SessionBusyError, createInitialRunState, type SessionPersistence, type SessionState, type SessionMeta, type SessionOptions, type SessionEvent, type RunState } from "./core/types.js";

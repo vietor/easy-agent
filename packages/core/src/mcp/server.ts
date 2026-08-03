@@ -83,7 +83,6 @@ interface ServerEntry {
 
 export class MCPServers {
   private servers = new Map<string, ServerEntry>();
-  private configs = new Map<string, MCPServerConfig>();
   private pending = new Set<MCPClient>();
   private disposed = false;
 
@@ -94,24 +93,8 @@ export class MCPServers {
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {
     await Promise.all(
-      Object.entries(mcpServers).map(([name, cfg]) => {
-        this.configs.set(name, cfg);
-        return this.connectServer(name, cfg);
-      }),
+      Object.entries(mcpServers).map(([name, cfg]) => this.connectServer(name, cfg)),
     );
-  }
-
-  /** Reconnect a previously configured server (e.g. after its process died). */
-  async reconnect(name: string): Promise<void> {
-    if (this.disposed) return;
-    const cfg = this.configs.get(name);
-    if (!cfg) return;
-    const existing = this.servers.get(name);
-    if (existing?.client) {
-      this.unregisterServerTools(name, existing.tools);
-      existing.client.kill();
-    }
-    await this.connectServer(name, cfg);
   }
 
   private async connectServer(name: string, cfg: MCPServerConfig): Promise<void> {
@@ -199,6 +182,5 @@ export class MCPServers {
     for (const client of this.pending) client.kill();
     this.servers.clear();
     this.pending.clear();
-    this.configs.clear();
   }
 }

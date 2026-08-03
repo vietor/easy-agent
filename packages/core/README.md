@@ -165,6 +165,8 @@ interface RunState {
 }
 ```
 
+`createInitialRunState(): RunState` returns the all-zero, not-running initial value.
+
 ### Skills & messages
 
 The command system lives in host code. Core exposes the primitives hosts build on:
