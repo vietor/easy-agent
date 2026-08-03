@@ -39,20 +39,21 @@ export class RunLoop {
   }
 
   async startPrompt(text: string): Promise<void> {
-    this.clearCompletedTodos();
-    this.timeline.applyEvent({ type: "user", text });
-    this.emit({ type: "user", text });
-    await this.run((signal) => this.agent.run(text, this.handleEvent, signal));
+    await this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   async startSkill(skill: Skill): Promise<void> {
-    this.timeline.applyEvent({ type: "skill", name: skill.name });
-    this.emit({ type: "skill", name: skill.name });
-    await this.run((signal) => this.agent.runSkill(skill, this.handleEvent, signal));
+    await this.start({ type: "skill", name: skill.name }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
   }
 
   async startCompact(): Promise<void> {
     await this.run((signal) => this.agent.compact(this.handleEvent, signal));
+  }
+
+  private async start(event: SessionEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+    this.timeline.applyEvent(event);
+    this.emit(event);
+    await this.run(runFn);
   }
 
   private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {

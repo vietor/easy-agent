@@ -2,7 +2,6 @@ import { withAbort } from "../util/async.js";
 import type { LLMClient } from "../llm/client.js";
 import { parseToolArgs, type AssistantMessage, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
-import type { SessionEvent } from "./types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { SKILL_TOOL_NAME } from "../tools/skill.js";
@@ -26,8 +25,17 @@ const COMPACT_PROMPT = [
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 
+/** Events the Agent emits during a run (a subset of SessionEvent plus usage). */
 export type AgentEvent =
-  | Exclude<SessionEvent, { type: "user" | "assistant" | "reasoning_clear" | "question" | "question_answered" | "state" }>
+  | { type: "assistant_delta"; text: string }
+  | { type: "reasoning_delta"; text: string }
+  | { type: "retry"; attempt: number; max: number }
+  | { type: "tool_start"; id: string; name: string; summary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
+  | { type: "error"; text: string }
+  | { type: "interrupted" }
+  | { type: "notice"; text: string }
+  | { type: "skill"; name: string }
   | { type: "usage"; inputTokens: number; outputTokens: number };
 
 export interface AgentOptions {
@@ -44,29 +52,20 @@ export interface AgentOptions {
 }
 
 export class Agent {
-  private llm: LLMClient;
-  private conversation: Conversation;
-  private tools: ToolRegistry;
-  private cwd: string;
-  private setTodos: (todos: Todo[]) => void;
-  private getTodos: () => readonly Todo[];
-  private stallThreshold: number;
-  private maxTurns: number;
-  readonly compactThreshold: number;
+  private llm!: LLMClient;
+  private conversation!: Conversation;
+  private tools!: ToolRegistry;
+  private cwd!: string;
+  private setTodos!: (todos: Todo[]) => void;
+  private getTodos!: () => readonly Todo[];
+  private stallThreshold!: number;
+  private maxTurns!: number;
+  readonly compactThreshold!: number;
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
 
   constructor(opts: AgentOptions) {
-    this.llm = opts.llm;
-    this.conversation = opts.conversation;
-    this.tools = opts.tools;
-    this.cwd = opts.cwd;
-    this.setTodos = opts.setTodos;
-    this.getTodos = opts.getTodos;
-    this.stallThreshold = opts.stallThreshold;
-    this.maxTurns = opts.maxTurns;
-    this.compactThreshold = opts.compactThreshold;
-    this.resolveSkill = opts.resolveSkill;
+    Object.assign(this, opts);
   }
 
   get contextTokens(): number {
@@ -194,7 +193,6 @@ export class Agent {
       if (typeof msg === "string") return msg;
       this.conversation.add(msg);
       if (!msg.tool_calls?.length) {
-        const todos = this.getTodos();
         if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
           if (++textOnlyStreak >= this.stallThreshold) {
             onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks` });

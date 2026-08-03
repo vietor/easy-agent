@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { createLLM } from "./llm/client.js";
 import { compactThresholdFor } from "./llm/types.js";
 import { Session } from "./core/session.js";
@@ -46,8 +45,6 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const session = new Session({
     ...opts,
     systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtinTools),
-    cwd: opts.cwd ?? process.cwd(),
-    sessionId: opts.sessionId ?? randomUUID(),
     llm,
     tools,
     mcp,

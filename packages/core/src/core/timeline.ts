@@ -105,49 +105,38 @@ export class TimelineStore {
   }
 
   setResult(id: string, result: string, isError?: boolean, preview?: string): void {
-    this.updatePending(
-      this.pendingTools.get(id),
-      () => this.pendingTools.delete(id),
-      (e): e is Extract<TimelineEntry, { kind: "tool" }> => e.kind === "tool" && e.result === null,
-      (e) => ({ ...e, result, isError, preview })
-    );
+    const idx = this.pendingTools.get(id);
+    if (idx === undefined) return;
+    this.pendingTools.delete(id);
+    const entry = this.entries[idx];
+    if (entry.kind !== "tool" || entry.result !== null) return;
+    this.entries[idx] = { ...entry, result, isError, preview };
+    this.listeners.notify();
   }
 
   setAnswer(id: string, answer: string): boolean {
     const pending = this.pendingQuestions.get(id);
-    const found = this.updatePending(
-      pending?.index,
-      () => this.pendingQuestions.delete(id),
-      (e): e is Extract<TimelineEntry, { kind: "question" }> => e.kind === "question" && e.answer === null,
-      (e) => ({ ...e, answer })
-    );
-    if (found) pending!.resolve(answer);
-    return found;
+    if (!pending) return false;
+    this.pendingQuestions.delete(id);
+    const entry = this.entries[pending.index];
+    if (entry.kind !== "question" || entry.answer !== null) return false;
+    this.entries[pending.index] = { ...entry, answer };
+    pending.resolve(answer);
+    this.listeners.notify();
+    return true;
   }
 
   pendingQuestionIds(): string[] {
     return [...this.pendingQuestions.keys()];
   }
 
-  resolveAllAnswers(answer: string): string[] {
-    const ids = this.pendingQuestionIds();
-    for (const id of ids) this.setAnswer(id, answer);
-    return ids;
-  }
-
-  private updatePending<T extends Extract<TimelineEntry, { kind: "tool" } | { kind: "question" }>>(
-    idx: number | undefined,
-    remove: () => void,
-    isMatch: (e: TimelineEntry) => e is T,
-    update: (e: T) => T
-  ): boolean {
-    if (idx === undefined) return false;
-    remove();
-    const entry = this.entries[idx];
-    if (!isMatch(entry)) return false;
-    this.entries[idx] = update(entry);
-    this.listeners.notify();
-    return true;
+  /** The most recent question entry still awaiting an answer. */
+  get latestUnansweredQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const e = this.entries[i];
+      if (e.kind === "question" && e.answer === null) return e;
+    }
+    return undefined;
   }
 
   /** Resolve any tool entries still marked as running (e.g. the run was aborted before tool_end). */

@@ -85,7 +85,7 @@ export const webFetchTool: Tool = {
       throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_READ_BYTES})`);
     }
     const body = await readTextBounded(res, MAX_READ_BYTES);
-    if (!contentType.includes("html")) return body;
+    if (!mime.includes("html")) return body;
     return htmlToMarkdown(body);
   },
   getPreview(result) {

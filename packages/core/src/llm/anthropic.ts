@@ -156,9 +156,8 @@ export function toAnthropicMessages(
       tool_use_id: b.id,
       content: "(interrupted)",
     }));
-    const next2 = out[i + 1];
-    if (next2 && next2.role === "user" && Array.isArray(next2.content) && next2.content.every((b) => b.type === "tool_result")) {
-      next2.content = [...next2.content, ...placeholder];
+    if (next && next.role === "user" && Array.isArray(next.content) && next.content.every((b) => b.type === "tool_result")) {
+      next.content = [...next.content, ...placeholder];
     } else {
       out.splice(i + 1, 0, { role: "user", content: placeholder });
     }
@@ -213,7 +212,9 @@ function mergeContent(
   a: Anthropic.MessageParam["content"],
   b: Anthropic.MessageParam["content"]
 ): Anthropic.MessageParam["content"] | null {
-  if ((hasText(a) || hasText(b)) && (hasToolResult(a) || hasToolResult(b))) return null;
+  const aText = hasText(a);
+  const bText = hasText(b);
+  if ((aText || bText) && (hasToolResult(a) || hasToolResult(b))) return null;
   if (typeof a === "string" && typeof b === "string") return a ? `${a}\n${b}` : b;
   const blocks: Anthropic.ContentBlockParam[] = [];
   if (typeof a === "string") {

@@ -43,9 +43,7 @@ export class Conversation {
   private messages: ConversationMessage[] = [];
   private estimatedTokens = 0;
   private collapsedCount = 0;
-  private messagesSnapshot?: ConversationMessage[];
-  private estimatedTokensSnapshot = 0;
-  private collapsedCountSnapshot = 0;
+  private snapshot?: { messages: ConversationMessage[]; estimatedTokens: number; collapsedCount: number };
   private llmCache: Message[] | null = null;
 
   constructor(private system: string) {
@@ -121,25 +119,25 @@ export class Conversation {
   }
 
   createSnapshot(): void {
-    this.messagesSnapshot = this.messages.slice();
-    this.estimatedTokensSnapshot = this.estimatedTokens;
-    this.collapsedCountSnapshot = this.collapsedCount;
+    this.snapshot = {
+      messages: this.messages.slice(),
+      estimatedTokens: this.estimatedTokens,
+      collapsedCount: this.collapsedCount,
+    };
   }
 
   restoreFromSnapshot(): void {
-    const snap = this.messagesSnapshot;
+    const snap = this.snapshot;
     if (snap) {
-      this.messages = snap.slice();
-      this.estimatedTokens = this.estimatedTokensSnapshot;
-      this.collapsedCount = this.collapsedCountSnapshot;
+      this.messages = snap.messages.slice();
+      this.estimatedTokens = snap.estimatedTokens;
+      this.collapsedCount = snap.collapsedCount;
       this.clearSnapshot();
       this.llmCache = null;
     }
   }
 
   clearSnapshot(): void {
-    this.messagesSnapshot = undefined;
-    this.estimatedTokensSnapshot = 0;
-    this.collapsedCountSnapshot = 0;
+    this.snapshot = undefined;
   }
 }

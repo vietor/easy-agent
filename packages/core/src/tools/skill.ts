@@ -30,7 +30,7 @@ export function createSkillTool(
       return { content: `Skill "${name}" loaded. Follow its instructions above.` };
     },
     getPreview(_result) {
-      return 'Successfully loaded skill';
+      return "Successfully loaded skill";
     }
   };
 }

@@ -78,7 +78,6 @@ const TOOL_DESCRIPTION =
   'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). type: "explore" — investigate the codebase or web (read-only); "plan" — produce a step-by-step implementation plan (read-only); "generic" — execute a task end-to-end with full tool access (shell, file read/write/edit, search, web fetch; may modify files). Returns the sub-agent\'s final report as text. The sub-agent cannot ask questions, use skills, or spawn further sub-agents.';
 
 export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
-  const defs = SUB_AGENT_DEFS;
   return {
     name: "SubAgent",
     description: TOOL_DESCRIPTION,
@@ -87,7 +86,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       properties: {
         type: {
           type: "string",
-          enum: defs.map((d) => d.type),
+          enum: SUB_AGENT_DEFS.map((d) => d.type),
           description: 'Which sub-agent to invoke: "explore" (investigate), "plan" (design an implementation plan), or "generic" (execute a task end-to-end).',
         },
         task: { type: "string", description: "The task or question for the sub-agent, as a self-contained description." },
@@ -98,9 +97,9 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
     async execute(args, ctx) {
       const type = args.type as string;
       const task = ((args.task as string) ?? "").trim();
-      const def = defs.find((d) => d.type === type);
+      const def = SUB_AGENT_DEFS.find((d) => d.type === type);
       if (!def) {
-        return toolError(`unknown sub-agent type "${type}". Valid types: ${defs.map((d) => d.type).join(", ")}`);
+        return toolError(`unknown sub-agent type "${type}". Valid types: ${SUB_AGENT_DEFS.map((d) => d.type).join(", ")}`);
       }
       if (!task) {
         return toolError("task is required");

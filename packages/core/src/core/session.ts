@@ -52,7 +52,6 @@ export class Session {
   private viewCache: SessionView | null = null;
   private eventListeners = new ListenerSet<(e: SessionEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
-  private latestUnansweredQuestion: Extract<TimelineEntry, { kind: "question" }> | undefined;
 
   subscribe = (listener: () => void): (() => void) => {
     const on = () => { this.viewCache = null; listener(); };
@@ -97,7 +96,7 @@ export class Session {
   };
 
   getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
-    return this.latestUnansweredQuestion;
+    return this.timelineStore.latestUnansweredQuestion;
   }
 
   get running(): boolean {
@@ -170,7 +169,6 @@ export class Session {
     this.mcp = deps.mcp;
     this.loop = new RunLoop(this.agent, this.timelineStore, this.todoStore, this.emit);
     this.loop.onSettle = () => this.persistSnapshot();
-    this.latestUnansweredQuestion = undefined;
   }
 
   async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {
@@ -182,8 +180,7 @@ export class Session {
   }
 
   dispose(): void {
-    this.loop.abort();
-    this.resolvePendingQuestions("");
+    this.abort();
     this.mcp.kill();
   }
 
@@ -196,7 +193,6 @@ export class Session {
     this.agent.clear();
     this.timelineStore.clear();
     this.todoStore.set([]);
-    this.latestUnansweredQuestion = undefined;
     this.persistSnapshot();
   }
 
@@ -224,7 +220,6 @@ export class Session {
     this.timelineStore.clear();
     this.rebuildTimeline(state.messages);
     this.viewCache = null;
-    this.latestUnansweredQuestion = undefined;
     return true;
   }
 
@@ -246,11 +241,9 @@ export class Session {
   }
 
   private resolvePendingQuestions(answer: string): void {
-    const ids = this.timelineStore.resolveAllAnswers(answer);
-    for (const id of ids) {
-      this.emit({ type: "question_answered", id, answer });
+    for (const id of this.timelineStore.pendingQuestionIds()) {
+      this.submitAnswer(id, answer);
     }
-    this.latestUnansweredQuestion = undefined;
   }
 
   submitAnswer(id: string, answer: string): void {
@@ -266,15 +259,9 @@ export class Session {
 
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
-    this.latestUnansweredQuestion = { kind: "question", id, text, options, answer: null };
     this.emit({ type: "question", id, text, options });
     return new Promise<string>((resolve) => {
-      this.timelineStore.appendQuestion({ id, text, options }, (answer) => {
-        if (this.latestUnansweredQuestion?.id === id) {
-          this.latestUnansweredQuestion = undefined;
-        }
-        resolve(answer);
-      });
+      this.timelineStore.appendQuestion({ id, text, options }, resolve);
     });
   }
 }
