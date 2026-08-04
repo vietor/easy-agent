@@ -1,5 +1,5 @@
-export { Session, SessionBusyError, createInitialRunState, type SessionDeps, type SessionSnapshot, type PromptResult } from "./core/session.js";
-export type { RunStatus } from "./core/agent.js";
+export { Session, SessionBusyError, createSessionRunState, type SessionDeps, type SessionSnapshot, type SessionPromptResult } from "./core/session.js";
+export type { AgentRunStatus } from "./core/agent.js";
 export type { TimelineEntry } from "./core/timeline.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";

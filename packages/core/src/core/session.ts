@@ -8,7 +8,7 @@ import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
 import { type SessionRunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
-import { Agent, type AgentEvent, type RunStatus } from "./agent.js";
+import { Agent, type AgentEvent, type AgentRunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries, type TimelineEntry } from "./timeline.js";
 
@@ -24,8 +24,8 @@ export interface SessionSnapshot {
   todos: readonly Todo[];
 }
 
-export interface PromptResult {
-  status: RunStatus;
+export interface SessionPromptResult {
+  status: AgentRunStatus;
   reply: string;
 }
 
@@ -38,7 +38,7 @@ export class SessionBusyError extends Error {
   }
 }
 
-export function createInitialRunState(): SessionRunState {
+export function createSessionRunState(): SessionRunState {
   return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
 }
 
@@ -54,8 +54,8 @@ export class Session {
   private reasoningText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
-  private lastStatusValue: RunStatus = "ok";
-  private runState: SessionRunState = createInitialRunState();
+  private lastStatusValue: AgentRunStatus = "ok";
+  private runState: SessionRunState = createSessionRunState();
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -174,19 +174,19 @@ export class Session {
     this.mcp = deps.mcp;
   }
 
-  private start(event: SessionEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+  private start(event: SessionEvent, runFn: (signal: AbortSignal) => Promise<AgentRunStatus>): Promise<void> {
     this.timelineStore.applyEvent(event);
     this.emit(event);
     return this.run(runFn);
   }
 
-  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+  private async run(runFn: (signal: AbortSignal) => Promise<AgentRunStatus>): Promise<void> {
     this.streamingText = "";
     this.reasoningText = "";
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { ...createInitialRunState(), running: true };
+    this.runState = { ...createSessionRunState(), running: true };
     this.lastStatusValue = "ok";
     this.emitRunState();
 
@@ -195,7 +195,7 @@ export class Session {
       this.emitRunState();
     }, 1000);
 
-    let status: RunStatus = "ok";
+    let status: AgentRunStatus = "ok";
     try {
       status = await runFn(this.abortController.signal);
       this.flushStreaming();
@@ -331,7 +331,7 @@ export class Session {
     return true;
   }
 
-  async compact(): Promise<RunStatus> {
+  async compact(): Promise<AgentRunStatus> {
     this.rejectIfBusy();
     await this.run((signal) => this.agent.compact(this.handleEvent, signal));
     return this.lastStatusValue;
@@ -353,7 +353,7 @@ export class Session {
     this.emit({ type: "question_answered", id, answer });
   }
 
-  async startPrompt(text: string): Promise<PromptResult> {
+  async startPrompt(text: string): Promise<SessionPromptResult> {
     this.rejectIfBusy();
     await this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
     return { status: this.lastStatusValue, reply: this.lastReplyText };

@@ -22,7 +22,7 @@ const COMPACT_PROMPT = [
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
-export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
+export type AgentRunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 
 export type AgentEvent =
   | { type: "assistant_delta"; text: string }
@@ -95,7 +95,7 @@ export class Agent {
     return this.conversation.export();
   }
 
-  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
+  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<AgentRunStatus> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return "ok";
     const request: Message[] = [...history];
@@ -122,7 +122,7 @@ export class Agent {
     userInput: string,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<RunStatus> {
+  ): Promise<AgentRunStatus> {
     return this.runTurn({ role: "user", content: userInput }, onEvent, signal);
   }
 
@@ -130,7 +130,7 @@ export class Agent {
     skill: Skill,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<RunStatus> {
+  ): Promise<AgentRunStatus> {
     return this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
   }
 
@@ -138,7 +138,7 @@ export class Agent {
     msg: ConversationMessage,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<RunStatus> {
+  ): Promise<AgentRunStatus> {
     this.conversation.add(msg);
     this.conversation.createSnapshot();
     this.todoSnapshot = this.getTodos();
@@ -149,7 +149,7 @@ export class Agent {
       onEvent?.({ type: "interrupted" });
     };
 
-    let status: RunStatus;
+    let status: AgentRunStatus;
     try {
       status = await withAbort(this.loop(onEvent, signal), signal);
       if (status === "aborted") {
@@ -172,7 +172,7 @@ export class Agent {
   private async loop(
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<RunStatus> {
+  ): Promise<AgentRunStatus> {
     let lastSig = "";
     let stall = 0;
     let turns = 0;
@@ -254,7 +254,7 @@ export class Agent {
   private async chatOnce(
     opts: { messages: Message[]; tools: ToolSchema[]; reasoning?: boolean; onEvent?: (e: AgentEvent) => void; signal?: AbortSignal },
     onAbort: () => void
-  ): Promise<AssistantMessage | RunStatus> {
+  ): Promise<AssistantMessage | AgentRunStatus> {
     try {
       return await withAbort(this.llm.chat({
         messages: opts.messages,

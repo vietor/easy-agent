@@ -89,7 +89,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 
 | Method | Description |
 |---|---|
-| `startPrompt(text: string): Promise<PromptResult>` | Submit a user message and run the agent loop (LLM → tool calls → LLM) until a final answer or error. Returns a `PromptResult` with the run `status` and the final assistant `reply`. |
+| `startPrompt(text: string): Promise<SessionPromptResult>` | Submit a user message and run the agent loop (LLM → tool calls → LLM) until a final answer or error. Returns a `SessionPromptResult` with the run `status` and the final assistant `reply`. |
 
 ### Managing conversation
 
@@ -98,7 +98,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | `clear(): void` | Reset the conversation and log. |
 | `restore(): Promise<boolean>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. Returns `false` (loading nothing) when the backend has no saved state for this session. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
-| `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
+| `compact(): Promise<AgentRunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
 | `getPendingQuestion(): TimelineEntry & { kind: "question" } \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
@@ -165,7 +165,7 @@ interface SessionRunState {
 }
 ```
 
-`createInitialRunState(): SessionRunState` returns the all-zero, not-running initial value.
+`createSessionRunState(): SessionRunState` returns the all-zero, not-running initial value.
 
 ### Skills & messages
 
@@ -247,23 +247,23 @@ interface SessionSnapshot {
 }
 ```
 
-### `PromptResult`
+### `SessionPromptResult`
 
 Returned by `session.startPrompt()`.
 
 ```ts
-interface PromptResult {
-  status: RunStatus;
+interface SessionPromptResult {
+  status: AgentRunStatus;
   reply: string;
 }
 ```
 
 `status` indicates how the run ended; `reply` is the final assistant text (may be partial or empty when `status !== "ok"`). Error details are delivered via the `error` event; subscribe to `subscribeEvents` for the full picture.
 
-### `RunStatus`
+### `AgentRunStatus`
 
 ```ts
-type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
+type AgentRunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 ```
 
 | Status | Meaning |
