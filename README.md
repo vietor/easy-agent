@@ -13,7 +13,7 @@ An autonomous coding agent in the terminal — monorepo workspace.
 - **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) to control reasoning depth; displayed live in the TUI header.
 - **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
 - **Session persistence** — save/resume conversations with async `SessionPersistence` and `flush()` write-completion guarantees; CLI supports `--continue` / `--resume`.
-- **Built-in tool system** — Shell, FileRead/Write/Edit, Glob, Grep, WebFetch, AskUser, TodoWrite, SubAgent (nested read-only explore/plan agents) — plus a simple `Tool` interface for custom tools.
+- **Built-in tool system** — Shell, FileRead/Write/Edit, Glob, Grep, WebFetch, AskUser, TodoWrite, SubAgent (nested read-only explore/plan sub-agents, plus a `generic` type with full tool access) — plus a simple `Tool` interface for custom tools.
 - **Skill system** — `SKILL.md` files in `~/.easy-agent/skills/` register as slash commands automatically.
 - **Context compaction** — auto-triggered LLM summarization when the conversation nears the token limit; also available as `/compact`.
 - **Stall & turn limits** — detects repeated identical tool calls (`stallThreshold`) and caps agent loop iterations (`maxTurns`), configurable per session.
@@ -52,7 +52,7 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/easy-agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── core/                # Agent, Session, RunLoop, Conversation, Timeline
+│   │       ├── core/                # Agent, Session, Conversation, Timeline
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
