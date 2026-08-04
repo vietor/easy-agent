@@ -1,11 +1,23 @@
-import { isAbsolute, join } from "node:path";
 import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
-import { REQUEST_TIMEOUT_MS } from "./constants.js";
+import { NO_MATCHES, REQUEST_TIMEOUT_MS } from "./constants.js";
+import { TRUNCATION_MARKER, previewCount, visibleLineCount } from "./text.js";
 
-export function resolveCwd(path: string, base: string): string {
-  const root = path || ".";
-  return isAbsolute(root) ? root : join(base, root);
+export interface RgOutput {
+  content: string;
+  isError?: boolean;
+}
+
+export function formatRgOutput(lines: string[], truncated: boolean, emptyText: string): string {
+  if (!lines.length) return emptyText;
+  const out = lines.join("\n");
+  return truncated ? out + "\n" + TRUNCATION_MARKER : out;
+}
+
+export function rgResultPreview(word: "file" | "match", result: RgOutput, failText: string, noMatchesText: string): string {
+  if (result.isError) return failText;
+  if (result.content === NO_MATCHES) return noMatchesText;
+  return previewCount(word, visibleLineCount(result.content), false, failText);
 }
 
 export interface RgLinesResult {

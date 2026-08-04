@@ -1,21 +1,3 @@
-import type { ToolResult } from "../tools/types.js";
-import TurndownService from "turndown";
-
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  hr: "---",
-  bulletListMarker: "-",
-  codeBlockStyle: "fenced",
-  emDelimiter: "*",
-  strongDelimiter: "**",
-  linkStyle: "inlined",
-});
-turndown.remove(["script", "style", "title", "meta", "head", "noscript", "template", "link", "base"]);
-
-export function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html);
-}
-
 const timeFormatter = new Intl.NumberFormat("en-US", {
   style: "unit",
   unit: "second",
@@ -47,7 +29,12 @@ export function ellipsisText(content: string, length: number) {
   return text.length > length ? text.slice(0, length) + "…" : text;
 }
 
-export function previewBytes(prefix: string, result: ToolResult, failText: string): string {
+export interface PreviewResult {
+  content: string;
+  isError?: boolean;
+}
+
+export function previewBytes(prefix: string, result: PreviewResult, failText: string): string {
   if (result.isError) return failText;
   return `${prefix} ${compactFormat(getTextBytes(result.content))} bytes`;
 }
@@ -65,4 +52,8 @@ export const TRUNCATION_MARKER = "(output truncated)";
 export function visibleLineCount(content: string): number {
   const lines = content.split("\n").filter((l) => l);
   return lines.length - (lines[lines.length - 1] === TRUNCATION_MARKER ? 1 : 0);
+}
+
+export function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }

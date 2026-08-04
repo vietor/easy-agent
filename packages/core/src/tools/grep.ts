@@ -1,6 +1,6 @@
-import { resolveCwd, runRgLines } from "../util/ripgrep.js";
+import { resolve } from "node:path";
+import { formatRgOutput, rgResultPreview, runRgLines } from "../util/ripgrep.js";
 import { NO_MATCHES } from "../util/constants.js";
-import { previewCount, TRUNCATION_MARKER, visibleLineCount } from "../util/text.js";
 import type { Tool } from "./types.js";
 
 const DEFAULT_LIMIT = 200;
@@ -29,7 +29,7 @@ export const grepTool: Tool = {
     required: ["pattern"],
   },
   async execute(args, ctx) {
-    const cwd = resolveCwd(args.path as string | "", ctx.cwd);
+    const cwd = resolve(ctx.cwd, (args.path as string) || "");
     const rgArgs = ["--line-number", "--with-filename", "--no-heading"];
     if (args.ignore_case) rgArgs.push("-i");
     if (args.only_matching) rgArgs.push("-o");
@@ -51,13 +51,10 @@ export const grepTool: Tool = {
     else rgArgs.push("-m", String(headLimit));
     rgArgs.push("--", args.pattern as string, ".");
     const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal, headLimit);
-    if (!lines.length) return NO_MATCHES;
-    const out = lines.join("\n");
-    return truncated ? out + "\n" + TRUNCATION_MARKER : out;
+    return formatRgOutput(lines, truncated, NO_MATCHES);
   },
   getPreview(result) {
-    if (result.content === NO_MATCHES) return "Found 0 matches";
-    return previewCount("match", visibleLineCount(result.content), !!result.isError, "Grep failed");
+    return rgResultPreview("match", result, "Grep failed", "Found 0 matches");
   },
   summaryArg: ["pattern", "path"],
 };

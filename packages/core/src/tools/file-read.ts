@@ -1,10 +1,10 @@
 import { open, type FileHandle } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { Tool } from "./types.js";
-import { resolvePath } from "../util/file.js";
+import { MAX_FILE_READ_BYTES } from "../util/constants.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
-const MAX_FILE_READ_BYTES = 20_000_000;
 const CHUNK = 64 * 1024;
 
 const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further. Files over 20MB are rejected. Binary files may return garbled output or fail.";
@@ -58,10 +58,14 @@ export const fileReadTool: Tool = {
     required: ["path"],
   },
   async execute(args, ctx) {
-    const path = resolvePath(ctx, args.path as string);
-    const offset = (args.offset as number) || 1;
-    const limit = (args.limit as number) || DEFAULT_LIMIT;
-    const handle = await open(path, "r");
+    const path = args.path;
+    if (typeof path !== "string" || !path) throw new Error("path is required");
+    const offset = args.offset === undefined ? 1 : args.offset;
+    const limit = args.limit === undefined ? DEFAULT_LIMIT : args.limit;
+    if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 1) throw new Error("offset must be a positive integer");
+    if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) throw new Error("limit must be a positive integer");
+    const resolved = resolve(ctx.cwd, path);
+    const handle = await open(resolved, "r");
     try {
       const { size } = await handle.stat();
       if (size > MAX_FILE_READ_BYTES) {

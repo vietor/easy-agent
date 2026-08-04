@@ -4,7 +4,12 @@ import { Session } from "../src/core/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { waitUntil } from "./helpers.js";
+import type { SessionPersistence, SessionState } from "../src/core/types.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
+
+function memoryPersistence(state: SessionState): SessionPersistence {
+  return { load: async () => state, saveAll: async () => {}, listSessions: async () => [] };
+}
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const llm: LLMClient = {
@@ -78,6 +83,96 @@ test("a completed list re-created mid-run is cleared when the run settles", asyn
   await session.startPrompt("plan it");
   await session.startPrompt("continue");
   assert.equal(session.getSnapshot().todos.length, 0);
+});
+
+test("restore replays persisted messages into the timeline", async () => {
+  const tools = new ToolRegistry();
+  tools.register({
+    name: "Echo",
+    description: "echo",
+    parameters: { type: "object", properties: { path: { type: "string" } } },
+    async execute() { return "echoed"; },
+    summaryArg: "path",
+  });
+  const state: SessionState = {
+    messages: [
+      { role: "user", content: "read x" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
+      },
+      { role: "tool", tool_call_id: "t1", content: "echoed", isError: false, preview: "Echo 4 bytes" },
+    ],
+    todos: [],
+  };
+  const session = new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([]),
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+    sessionId: "s1",
+    persistence: memoryPersistence(state),
+  });
+  assert.equal(await session.restore(), true);
+  assert.equal(session.export().length, 3);
+  const timeline = session.getSnapshot().timeline;
+  assert.equal(timeline.filter((e) => e.kind === "user").length, 1);
+  const tool = timeline.find((e) => e.kind === "tool");
+  assert.ok(tool && tool.kind === "tool");
+  assert.equal(tool.name, "Echo");
+  assert.equal(tool.summary, "a/b");
+  assert.equal(tool.result, "echoed");
+});
+
+test("restore tolerates malformed persisted tool arguments", async () => {
+  const tools = new ToolRegistry();
+  tools.register({
+    name: "Echo",
+    description: "echo",
+    parameters: { type: "object", properties: { path: { type: "string" } } },
+    async execute() { return "echoed"; },
+    summaryArg: "path",
+  });
+  const state: SessionState = {
+    messages: [
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "null" } }],
+      },
+    ],
+    todos: [],
+  };
+  const session = new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([]),
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+    sessionId: "s1",
+    persistence: memoryPersistence(state),
+  });
+  assert.equal(await session.restore(), true);
+  const tool = session.getSnapshot().timeline.find((e) => e.kind === "tool");
+  assert.ok(tool && tool.kind === "tool");
+  assert.equal(tool.summary, "");
+  assert.equal(tool.result, null);
+});
+
+test("builtinTools: false registers no built-in tools", async () => {
+  const tools = new ToolRegistry();
+  new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([]),
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+    builtinTools: false,
+  });
+  assert.equal(tools.schemas().length, 0);
 });
 
 test("dispose resolves a pending question", async () => {

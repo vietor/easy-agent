@@ -1,11 +1,11 @@
 import { withAbort } from "../util/async.js";
+import { SKILL_TOOL_NAME } from "../util/constants.js";
+import { errorMessage } from "../util/text.js";
 import { parseToolArgs, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import { SKILL_TOOL_NAME } from "../tools/skill.js";
-import { renderIncompleteTodoNudge, renderTodoReminder } from "../tools/todo-write.js";
-import { toolError, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "../tools/types.js";
+import { toolError, type ToolContext, type ToolResult, type ToolSchema, type Todo, type TodoStatus } from "../tools/types.js";
 
 
 const COMPACT_PROMPT = [
@@ -50,20 +50,29 @@ export interface AgentOptions {
 }
 
 export class Agent {
-  private llm!: LLMClient;
-  private conversation!: Conversation;
-  private tools!: ToolRegistry;
-  private cwd!: string;
-  private setTodos!: (todos: Todo[]) => void;
-  private getTodos!: () => readonly Todo[];
-  private stallThreshold!: number;
-  private maxTurns!: number;
-  readonly compactThreshold!: number;
+  private llm: LLMClient;
+  private conversation: Conversation;
+  private tools: ToolRegistry;
+  private cwd: string;
+  private setTodos: (todos: Todo[]) => void;
+  private getTodos: () => readonly Todo[];
+  private stallThreshold: number;
+  private maxTurns: number;
+  readonly compactThreshold: number;
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
 
   constructor(opts: AgentOptions) {
-    Object.assign(this, opts);
+    this.llm = opts.llm;
+    this.conversation = opts.conversation;
+    this.tools = opts.tools;
+    this.cwd = opts.cwd;
+    this.setTodos = opts.setTodos;
+    this.getTodos = opts.getTodos;
+    this.stallThreshold = opts.stallThreshold;
+    this.maxTurns = opts.maxTurns;
+    this.compactThreshold = opts.compactThreshold;
+    this.resolveSkill = opts.resolveSkill;
   }
 
   get contextTokens(): number {
@@ -262,7 +271,7 @@ export class Agent {
         onAbort();
         return "aborted";
       }
-      opts.onEvent?.({ type: "error", text: (e as Error).message });
+      opts.onEvent?.({ type: "error", text: errorMessage(e) });
       return "error";
     }
   }
@@ -289,4 +298,29 @@ export class Agent {
       })
     ), signal, () => null);
   }
+}
+
+const STATUS_GLYPHS: Record<TodoStatus, string> = {
+  pending: "○",
+  in_progress: "◐",
+  completed: "✓",
+};
+
+function renderTodoReminder(todos: readonly Todo[]): string {
+  const items = todos.map((t) => {
+    return `${STATUS_GLYPHS[t.status]} ${t.content}`;
+  });
+  const focus = todos.find((t) => t.status === "in_progress");
+  const focusLine = focus ? ` Current focus: ${focus.content}` : "";
+  const incomplete = todos.filter(t => t.status !== "completed");
+  const warning = incomplete.length > 0
+    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response — update status via TodoWrite after each task finishes.`
+    : "";
+  return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
+}
+
+function renderIncompleteTodoNudge(todos: readonly Todo[]): string {
+  const incomplete = todos.filter(t => t.status !== "completed");
+  const names = incomplete.map(t => `"${t.content}"`).join(", ");
+  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to complete them. Call TodoWrite to mark each one completed before your final text response.</system-reminder>`;
 }

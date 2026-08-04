@@ -4,6 +4,7 @@ import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
 import { isTimeout, timeoutSignal, withTimeout } from "../util/async.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
+import { errorMessage } from "../util/text.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
 const CONNECT_TIMEOUT_MS = 30_000;
@@ -109,7 +110,7 @@ export class MCPServers {
     try {
       client = new MCPClient(cfg, this.clientInfo);
     } catch (e) {
-      this.markFailed(name, type, (e as Error).message);
+      this.markFailed(name, type, errorMessage(e));
       return;
     }
     this.pending.add(client);
@@ -124,7 +125,7 @@ export class MCPServers {
     } catch (e) {
       client.kill();
       if (!this.disposed) {
-        this.markFailed(name, type, (e as Error).message);
+        this.markFailed(name, type, errorMessage(e));
       }
     } finally {
       this.pending.delete(client);

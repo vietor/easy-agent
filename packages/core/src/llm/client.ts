@@ -9,7 +9,7 @@ const DEFAULT_CONTEXT_WINDOW = 1_000_000;
 
 const MAX_RETRIES = 3;
 
-function isRetryableError(e: unknown, signal?: AbortSignal): boolean {
+export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
   if (signal?.aborted) return false;
   const name = (e as { name?: string }).name;
   if (name === "APIConnectionError" || name === "APIConnectionTimeoutError" || name === "APITimeoutError") return true;

@@ -1,8 +1,8 @@
 import type { Tool } from "./types.js";
-import { netFetch } from "../util/net.js";
+import { htmlToMarkdown, netFetch } from "../util/net.js";
 import { isTimeout, timeoutSignal } from "../util/async.js";
 import { MAX_READ_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
-import { previewBytes, htmlToMarkdown } from "../util/text.js";
+import { errorMessage, previewBytes } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();
@@ -74,7 +74,7 @@ export const webFetchTool: Tool = {
       if (isTimeout(signal)) {
         throw new Error(`fetch ${url} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
       }
-      throw new Error(`failed to fetch ${url}: ${(e as Error).message}`);
+      throw new Error(`failed to fetch ${url}: ${errorMessage(e)}`);
     }
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
     const contentType = res.headers.get("content-type") || "";

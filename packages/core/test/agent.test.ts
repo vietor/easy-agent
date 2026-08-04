@@ -5,6 +5,7 @@ import { Conversation } from "../src/core/conversation.js";
 import { Session } from "../src/core/session.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
+import type { Skill } from "../src/skills/types.js";
 import type { AssistantMessage, ChatOptions, LLMClient, Message } from "../src/llm/types.js";
 import type { Todo } from "../src/tools/types.js";
 import { waitUntil } from "./helpers.js";
@@ -35,7 +36,7 @@ function toolCall(name: string, args = "{}", id = "t1"): AssistantMessage {
 
 function makeAgent(
   llm: LLMClient,
-  opts: { maxTurns?: number; compactThreshold?: number; getTodos?: () => readonly Todo[] } = {}
+  opts: { maxTurns?: number; compactThreshold?: number; getTodos?: () => readonly Todo[]; resolveSkill?: (name: string) => Skill | undefined } = {}
 ): Agent {
   const tools = new ToolRegistry();
   tools.register({
@@ -57,6 +58,7 @@ function makeAgent(
     stallThreshold: 3,
     maxTurns: opts.maxTurns ?? 50,
     compactThreshold: opts.compactThreshold ?? 750_000,
+    resolveSkill: opts.resolveSkill,
   });
 }
 
@@ -200,4 +202,41 @@ test("auto-compact fires above the threshold and the run continues", async () =>
   const status = await agent.run("a".repeat(5000));
   assert.equal(status, "ok");
   assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
+});
+
+test("a Skill tool call injects the skill prompt and emits a skill event", async () => {
+  const skill: Skill = { name: "x", description: "d", prompt: "SKILL PROMPT X" };
+  const { llm, calls } = fakeLLM([
+    () => toolCall("Skill", JSON.stringify({ name: "x" })),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const events: string[] = [];
+  const agent = makeAgent(llm, {
+    resolveSkill: (n) => (n === "x" ? skill : undefined),
+  });
+  const status = await agent.run("go", (e) => events.push(e.type));
+  assert.equal(status, "ok");
+  const skillMsg = agent.export().find((m) => m.role === "skill");
+  assert.ok(skillMsg, "skill message must be in the conversation");
+  assert.equal((skillMsg as { name?: string }).name, "x");
+  assert.equal(skillMsg.content, '<skill "x" invoked - its instructions were followed above>');
+  assert.deepEqual(events.filter((t) => t === "skill"), ["skill"]);
+  assert.ok(calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT X")));
+});
+
+test("malformed Skill arguments are tolerated as a tool error", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("Skill", "null"),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const events: string[] = [];
+  const agent = makeAgent(llm, { resolveSkill: () => undefined });
+  const status = await agent.run("go", (e) => events.push(e.type));
+  assert.equal(status, "ok");
+  assert.equal(agent.export().find((m) => m.role === "skill"), undefined);
+  const toolMsg = agent.export().find((m) => m.role === "tool");
+  assert.ok(toolMsg, "tool result must be present");
+  assert.equal((toolMsg as { isError?: boolean }).isError, true);
+  assert.ok(!events.includes("skill"));
+  assert.ok(!calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT")));
 });

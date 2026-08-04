@@ -13,7 +13,7 @@ import { createSubAgentTool } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import type { LLMClient } from "../llm/types.js";
 import { MAX_PREVIEW_LEN } from "../util/constants.js";
-import { timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
+import { errorMessage, timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
@@ -71,7 +71,7 @@ export class ToolRegistry {
       const r = await tool.execute(args, ctx);
       return typeof r === "string" ? { content: r } : r;
     } catch (e) {
-      return toolError(e instanceof Error ? e.message : String(e));
+      return toolError(errorMessage(e));
     }
   }
 
@@ -123,7 +123,8 @@ function toolKey(tool: Tool): string {
   return tool.name[0].toLowerCase() + tool.name.slice(1);
 }
 
-export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | undefined, deps: BuiltinToolsDeps) {
+export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
+  if (opts === false) return;
   const disabled = new Set(opts?.disabled ?? []);
   for (const tool of CORE_TOOLS) {
     if (disabled.has(toolKey(tool))) continue;

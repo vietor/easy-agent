@@ -15,8 +15,8 @@ export function toolError(msg: string): ToolResult {
 }
 
 export interface ToolContext {
-  signal?: AbortSignal;
   cwd: string;
+  signal?: AbortSignal;
 }
 
 export interface ToolSchema {

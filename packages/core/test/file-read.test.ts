@@ -71,3 +71,38 @@ test("rejects files over the size limit", async () => {
     await assert.rejects(() => read(p), /larger than the 20M read limit/);
   });
 });
+
+test("pages across the 64KB chunk boundary", async () => {
+  // ~100 bytes per line → 700 lines ≈ 70KB, crossing the 65536-byte read chunk.
+  const LINE = "x".repeat(99);
+  const content = Array.from({ length: 700 }, (_, i) => `${i + 1}: ${LINE}`).join("\n");
+  await withFile(content, async (p) => {
+    const page1 = await read(p, { offset: 1, limit: 500 });
+    assert.equal(page1, numbered(content.split("\n").slice(0, 500), 1) + "\n(more lines; use offset=501 to continue)");
+    const page2 = await read(p, { offset: 501, limit: 500 });
+    assert.equal(page2, numbered(content.split("\n").slice(500), 501));
+  });
+});
+
+test("a page spanning the 64KB chunk boundary concatenates correctly", async () => {
+  const LINE = "x".repeat(99);
+  const content = Array.from({ length: 700 }, (_, i) => `${i + 1}: ${LINE}`).join("\n");
+  await withFile(content, async (p) => {
+    const out = await read(p, { offset: 600, limit: 100 });
+    assert.equal(out, numbered(content.split("\n").slice(599, 699), 600) + "\n(more lines; use offset=700 to continue)");
+  });
+});
+
+test("rejects a non-string path", async () => {
+  await withFile("x", async (p) => {
+    await assert.rejects(() => read(p, { path: undefined }), /path is required/);
+  });
+});
+
+test("rejects non-positive offset and limit", async () => {
+  await withFile("x", async (p) => {
+    await assert.rejects(() => read(p, { offset: 0 }), /offset must be a positive integer/);
+    await assert.rejects(() => read(p, { offset: 2.5 }), /offset must be a positive integer/);
+    await assert.rejects(() => read(p, { limit: 0 }), /limit must be a positive integer/);
+  });
+});

@@ -1,6 +1,6 @@
 import { compactThresholdFor, textOf, type LLMClient } from "../llm/types.js";
 import type { ConversationMessage } from "../core/conversation.js";
-import { DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import { toolError, type Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { Agent } from "../core/agent.js";
@@ -122,7 +122,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         setTodos: () => {},
         getTodos: () => [],
         stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
-        maxTurns: deps.maxTurns ?? 20,
+        maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
         compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.contextWindow),
       });
 

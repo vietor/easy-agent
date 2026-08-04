@@ -4,12 +4,6 @@ export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST 
 
 const STATUSES: TodoStatus[] = ["pending", "in_progress", "completed"];
 
-const STATUS_GLYPHS: Record<TodoStatus, string> = {
-  pending: "○",
-  in_progress: "◐",
-  completed: "✓",
-};
-
 const DESCRIPTION = "Manage the task list for tasks with 3+ steps. Pass the FULL list each call; it replaces the previous list. Keep one in_progress at a time. status: pending, in_progress, completed.";
 
 function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: number; normalized: number; error?: string } {
@@ -39,25 +33,6 @@ function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: numbe
     todos.push({ content, status });
   }
   return { todos, done, normalized };
-}
-
-export function renderTodoReminder(todos: readonly Todo[]): string {
-  const items = todos.map((t) => {
-    return `${STATUS_GLYPHS[t.status]} ${t.content}`;
-  });
-  const focus = todos.find((t) => t.status === "in_progress");
-  const focusLine = focus ? ` Current focus: ${focus.content}` : "";
-  const incomplete = todos.filter(t => t.status !== "completed");
-  const warning = incomplete.length > 0
-    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response — update status via TodoWrite after each task finishes.`
-    : "";
-  return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
-}
-
-export function renderIncompleteTodoNudge(todos: readonly Todo[]): string {
-  const incomplete = todos.filter(t => t.status !== "completed");
-  const names = incomplete.map(t => `"${t.content}"`).join(", ");
-  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to complete them. Call TodoWrite to mark each one completed before your final text response.</system-reminder>`;
 }
 
 export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {

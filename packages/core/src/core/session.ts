@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient } from "../llm/types.js";
+import { errorMessage } from "../util/text.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
@@ -138,7 +139,7 @@ export class Session {
     this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
-    registerBuiltinTools(this.tools, deps.builtinTools === false ? undefined : deps.builtinTools, {
+    registerBuiltinTools(this.tools, deps.builtinTools, {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       resolveSkill: (name) => this.skillsMap.get(name),
@@ -188,8 +189,8 @@ export class Session {
     } catch (e) {
       status = "error";
       this.flushStreaming();
-      this.timelineStore.applyEvent({ type: "error", text: (e as Error).message });
-      this.emit({ type: "error", text: (e as Error).message });
+      this.timelineStore.applyEvent({ type: "error", text: errorMessage(e) });
+      this.emit({ type: "error", text: errorMessage(e) });
     } finally {
       clearInterval(this.timer);
       this.timer = undefined;
