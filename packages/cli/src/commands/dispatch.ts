@@ -1,4 +1,4 @@
-import type { Session } from "@vietor/easy-agent-core";
+import { errorMessage, type Session } from "@vietor/easy-agent-core";
 import { builtinCommands } from "./builtin.js";
 import type { CommandContext, CommandSchema } from "./types.js";
 
@@ -11,14 +11,14 @@ export async function executeCommand(name: string, session: Session): Promise<vo
     try {
       await cmd.execute(ctx);
     } catch (e) {
-      ctx.error((e as Error).message);
+      ctx.error(errorMessage(e));
     }
     return;
   }
   try {
     if (await session.runSkill(name)) return;
   } catch (e) {
-    session.timelineError((e as Error).message);
+    session.timelineError(errorMessage(e));
     return;
   }
   session.timelineError(`unknown command: /${name}`);

@@ -1,6 +1,6 @@
 import { open, type FileHandle } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { Tool } from "./types.js";
+import { requirePath } from "../util/file.js";
 import { MAX_FILE_READ_BYTES } from "../util/constants.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
@@ -58,13 +58,11 @@ export const fileReadTool: Tool = {
     required: ["path"],
   },
   async execute(args, ctx) {
-    const path = args.path;
-    if (typeof path !== "string" || !path) throw new Error("path is required");
+    const resolved = requirePath(args, ctx.cwd);
     const offset = args.offset === undefined ? 1 : args.offset;
     const limit = args.limit === undefined ? DEFAULT_LIMIT : args.limit;
     if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 1) throw new Error("offset must be a positive integer");
     if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) throw new Error("limit must be a positive integer");
-    const resolved = resolve(ctx.cwd, path);
     const handle = await open(resolved, "r");
     try {
       const { size } = await handle.stat();

@@ -13,14 +13,14 @@ import { createSubAgentTool } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import type { LLMClient } from "../llm/types.js";
 import { MAX_PREVIEW_LEN } from "../util/constants.js";
-import { errorMessage, timeFormat, compactFormat, getTextBytes, ellipsisText } from "../util/text.js";
+import { errorMessage, timeFormat, compactFormat, getTextBytes, ellipsisText, lineCount } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
     return ellipsisText(result.content, MAX_PREVIEW_LEN);
   }
   const bytes = getTextBytes(result.content);
-  const lines = result.content === "" ? 0 : (result.content.match(/\n/g) || []).length + 1;
+  const lines = lineCount(result.content);
   return `Retrieved ${compactFormat(bytes)} bytes, ${compactFormat(lines)} lines`;
 }
 

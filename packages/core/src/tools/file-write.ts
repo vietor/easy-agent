@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import type { Tool } from "./types.js";
+import { requirePath } from "../util/file.js";
 
 const DESCRIPTION = "Write content to a file, overwriting if it exists and creating parent directories. For targeted changes prefer FileEdit.";
 
@@ -13,12 +14,10 @@ export const fileWriteTool: Tool = {
     required: ["path", "content"],
   },
   async execute(args, ctx) {
-    const path = args.path;
-    if (typeof path !== "string" || !path) throw new Error("path is required");
-    const resolved = resolve(ctx.cwd, path);
+    const resolved = requirePath(args, ctx.cwd);
     await mkdir(dirname(resolved), { recursive: true });
     await writeFile(resolved, args.content as string, "utf-8");
-    return `Wrote ${path}`;
+    return `Wrote ${args.path}`;
   },
   getPreview(result) {
     if (result.isError) return "Write failed";

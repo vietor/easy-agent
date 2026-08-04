@@ -1,7 +1,7 @@
 import { withAbort } from "../util/async.js";
 import { SKILL_TOOL_NAME } from "../util/constants.js";
 import { errorMessage } from "../util/text.js";
-import { parseToolArgs, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
+import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
@@ -109,7 +109,7 @@ export class Agent {
       () => onEvent?.({ type: "interrupted" })
     );
     if (typeof msg === "string") return msg;
-    const compactText = (typeof msg.content === "string" ? msg.content : "") || "";
+    const compactText = textOf(msg.content);
     if (!compactText) {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
       return "error";

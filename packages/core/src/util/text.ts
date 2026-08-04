@@ -48,6 +48,10 @@ export function previewCount(word: "file" | "match", count: number, isError: boo
 /** Trailing marker line appended when tool output was cut short (by a head limit or the 10MB buffer cap). */
 export const TRUNCATION_MARKER = "(output truncated)";
 
+export function lineCount(content: string): number {
+  return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
+}
+
 /** Line count of tool output, excluding a trailing truncation marker. */
 export function visibleLineCount(content: string): number {
   const lines = content.split("\n").filter((l) => l);

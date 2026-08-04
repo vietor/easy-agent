@@ -1,6 +1,6 @@
 import type { Tool } from "./types.js";
 import { htmlToMarkdown, netFetch } from "../util/net.js";
-import { isTimeout, timeoutSignal } from "../util/async.js";
+import { withTimeoutError } from "../util/async.js";
 import { MAX_READ_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
 import { errorMessage, previewBytes } from "../util/text.js";
 
@@ -57,10 +57,8 @@ export const webFetchTool: Tool = {
   },
   async execute(args, ctx) {
     const url = args.url as string;
-    const signal = timeoutSignal(ctx.signal, REQUEST_TIMEOUT_MS);
-    let res: Response;
-    try {
-      res = await netFetch(url, {
+    const res = await withTimeoutError(
+      (signal) => netFetch(url, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
           "Accept": "text/markdown,text/html,text/plain,application/xhtml+xml,application/xml,application/json;q=0.9,image/webp,*/*;q=0.8",
@@ -69,13 +67,12 @@ export const webFetchTool: Tool = {
         },
         redirect: "follow",
         signal,
-      });
-    } catch (e) {
-      if (isTimeout(signal)) {
-        throw new Error(`fetch ${url} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
-      }
-      throw new Error(`failed to fetch ${url}: ${errorMessage(e)}`);
-    }
+      }),
+      REQUEST_TIMEOUT_MS,
+      ctx.signal,
+      `fetch ${url} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
+      (e) => new Error(`failed to fetch ${url}: ${errorMessage(e)}`)
+    );
     if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
     const contentType = res.headers.get("content-type") || "";
     const mime = mimeFrom(contentType);

@@ -77,3 +77,19 @@ export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?
     promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", handleAbort));
   });
 }
+
+export async function withTimeoutError<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms: number,
+  signal: AbortSignal | undefined,
+  timeoutMessage: string,
+  otherError?: (e: unknown) => unknown
+): Promise<T> {
+  const timed = timeoutSignal(signal, ms);
+  try {
+    return await fn(timed);
+  } catch (e) {
+    if (isTimeout(timed)) throw new Error(timeoutMessage);
+    throw otherError ? otherError(e) : e;
+  }
+}

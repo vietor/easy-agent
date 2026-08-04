@@ -2,9 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { ellipsisText, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionState, type Todo } from "@vietor/easy-agent-core";
-
-const MAX_PREVIEW_LEN = 75;
+import { ellipsisText, MAX_PREVIEW_LEN, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionState, type Todo } from "@vietor/easy-agent-core";
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
@@ -93,16 +91,8 @@ export class FileSessionPersistence implements SessionPersistence {
   }
 
   private readFirstUser(path: string): string | undefined {
-    for (const line of readFileSync(path, "utf-8").split("\n")) {
-      if (!line.trim()) continue;
-      let r: { t?: string; m?: ConversationMessage };
-      try {
-        r = JSON.parse(line) as { t?: string; m?: ConversationMessage };
-      } catch {
-        continue;
-      }
-      if (r.t === "message" && r.m && r.m.role === "user" && typeof r.m.content === "string") return r.m.content;
-    }
-    return undefined;
+    const first = parseJsonLines<{ t?: string; m?: ConversationMessage }>(readFileSync(path, "utf-8"))
+      .find((r) => r.t === "message" && r.m && r.m.role === "user" && typeof r.m.content === "string");
+    return first?.m?.content as string | undefined;
   }
 }

@@ -11,7 +11,8 @@ export interface Todo {
 }
 
 export function toolError(msg: string): ToolResult {
-  return { content: `Error: ${msg}`, isError: true };
+  const content = msg.startsWith("Error: ") ? msg : `Error: ${msg}`;
+  return { content: content, isError: true };
 }
 
 export interface ToolContext {

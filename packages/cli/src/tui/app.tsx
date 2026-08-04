@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { createInitialRunState, type Session, type SessionRunState, type SessionEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
+import { createInitialRunState, errorMessage, type Session, type SessionRunState, type SessionEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -96,7 +96,7 @@ export function App({ session }: { session: Session }) {
     try {
       await session.startPrompt(text);
     } catch (e) {
-      session.timelineError((e as Error).message);
+      session.timelineError(errorMessage(e));
     }
   }
 

@@ -1,8 +1,8 @@
-import type { Tool } from "../tools/types.js";
+import { toolError, type Tool } from "../tools/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
-import { isTimeout, timeoutSignal, withTimeout } from "../util/async.js";
+import { withTimeout, withTimeoutError } from "../util/async.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import { errorMessage } from "../util/text.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
@@ -36,10 +36,6 @@ type ServerType = "stdio" | "http";
 
 function serverType(cfg: MCPServerConfig): ServerType {
   return "command" in cfg ? "stdio" : cfg.type;
-}
-
-function fixError(text: string): string {
-  return text.startsWith("Error: ") ? text : `Error: ${text}`;
 }
 
 function extractContent(result: CallToolResult): string {
@@ -155,19 +151,16 @@ export class MCPServers {
       parameters: tool.inputSchema,
       ...(summaryArg.length ? { summaryArg } : {}),
       async execute(args, ctx) {
-        const signal = timeoutSignal(ctx.signal, CALL_TIMEOUT_MS);
-        try {
-          const result = await client.callTool(tool.name, args, signal);
-          const text = extractContent(result);
-          return result.isError
-            ? { content: fixError(text), isError: true }
-            : { content: text || NO_OUTPUT };
-        } catch (e) {
-          if (isTimeout(signal)) {
-            throw new Error(`MCP tool call timed out (${CALL_TIMEOUT_MS / 1000}s)`);
-          }
-          throw e;
-        }
+        const result = await withTimeoutError(
+          (signal) => client.callTool(tool.name, args, signal),
+          CALL_TIMEOUT_MS,
+          ctx.signal,
+          `MCP tool call timed out (${CALL_TIMEOUT_MS / 1000}s)`
+        );
+        const text = extractContent(result);
+        return result.isError
+          ? toolError(text)
+          : { content: text || NO_OUTPUT };
       },
     };
   }
