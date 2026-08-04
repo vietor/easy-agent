@@ -189,6 +189,38 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
   assert.equal(tool.isError, true);
 });
 
+test("auto-compact failure surfaces an error event", async () => {
+  const { llm } = fakeLLM([
+    () => {
+      throw new Error("compact boom");
+    },
+  ]);
+  const events: string[] = [];
+  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const status = await agent.run("a".repeat(5000), (e) => events.push(e.type));
+  assert.equal(status, "error");
+  assert.ok(events.includes("error"), "compact failure must emit an error event");
+});
+
+test("abort after auto-compact still rolls the conversation back", async () => {
+  const controller = new AbortController();
+  const { llm } = fakeLLM([
+    (opts) => {
+      const hasPrompt = opts.messages.some((m) => textContent(m).includes("Summarize the conversation above"));
+      assert.ok(hasPrompt, "first call must be the compaction request");
+      return { role: "assistant", content: "SUMMARY" };
+    },
+    () => {
+      controller.abort();
+      return { role: "assistant", content: "partial" };
+    },
+  ]);
+  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const status = await agent.run("a".repeat(5000), undefined, controller.signal);
+  assert.equal(status, "aborted");
+  assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
+});
+
 test("auto-compact fires above the threshold and the run continues", async () => {
   const { llm, calls } = fakeLLM([
     (opts) => {

@@ -181,7 +181,10 @@ export class Agent {
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
         onEvent?.({ type: "notice", text: "auto-compacting context" });
-        const compactStatus = await this.compact(undefined, signal);
+        const compactStatus = await this.compact(
+          (e) => { if (e.type === "error") onEvent?.(e); },
+          signal
+        );
         if (compactStatus !== "ok") return compactStatus;
       }
       const messages = this.conversation.toLLM();

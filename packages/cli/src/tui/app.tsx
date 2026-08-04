@@ -60,6 +60,7 @@ export function App({ session }: { session: Session }) {
           streaming.reset();
           break;
         case "retry":
+        case "interrupted":
           streaming.reset();
           break;
         case "state":

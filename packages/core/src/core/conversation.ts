@@ -92,14 +92,14 @@ export class Conversation {
   }
 
   compact(summary: string): void {
-    this.resetMessages([{ role: "assistant", content: summary }], estimateTokens(summary));
+    this.resetMessages([{ role: "assistant", content: summary }], estimateTokens(summary), true);
   }
 
-  private resetMessages(messages: ConversationMessage[], extraTokens: number): void {
+  private resetMessages(messages: ConversationMessage[], extraTokens: number, keepSnapshot = false): void {
     this.messages = messages;
     this.estimatedTokens = this.systemEstimateTokens + extraTokens;
     this.collapsedCount = 0;
-    this.clearSnapshot();
+    if (!keepSnapshot) this.clearSnapshot();
     this.llmCache = null;
   }
 

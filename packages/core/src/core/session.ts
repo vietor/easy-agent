@@ -182,6 +182,7 @@ export class Session {
 
   private async run(runFn: (signal: AbortSignal) => Promise<AgentRunStatus>): Promise<void> {
     this.streamingText = "";
+    this.lastReplyText = "";
     this.reasoningText = "";
     this.replyStart = null;
     this.startTime = Date.now();
@@ -254,8 +255,12 @@ export class Session {
       case "retry":
       case "tool_start":
       case "error":
-      case "interrupted":
         this.flushStreaming();
+        break;
+      case "interrupted":
+        this.lastReplyText = this.streamingText;
+        this.streamingText = "";
+        this.flushReasoning();
         break;
       case "usage":
         this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };

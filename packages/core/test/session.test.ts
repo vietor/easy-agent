@@ -175,6 +175,43 @@ test("builtinTools: false registers no built-in tools", async () => {
   assert.equal(tools.schemas().length, 0);
 });
 
+test("a run that settles without streaming text returns an empty reply, not the previous run's", async () => {
+  const session = makeSession([
+    (opts) => {
+      opts.onDelta?.("done");
+      return { role: "assistant", content: "done" };
+    },
+    () => {
+      throw new Error("boom");
+    },
+  ]);
+  session.subscribe(() => {});
+  const first = await session.startPrompt("one");
+  assert.equal(first.reply, "done");
+  const second = await session.startPrompt("two");
+  assert.equal(second.status, "error");
+  assert.equal(second.reply, "");
+});
+
+test("abort keeps the partial reply but leaves it out of the timeline", async () => {
+  const session = makeSession([
+    (opts) => {
+      opts.onDelta?.("partial reply");
+      return new Promise<AssistantMessage>(() => {});
+    },
+  ]);
+  session.subscribe(() => {});
+  const run = session.startPrompt("go");
+  assert.ok(await waitUntil(() => session.running, 5000), "run must start");
+  session.abort();
+  const { status, reply } = await run;
+  assert.equal(status, "aborted");
+  assert.equal(reply, "partial reply");
+  const timeline = session.getSnapshot().timeline;
+  assert.equal(timeline.filter((e) => e.kind === "assistant").length, 0);
+  assert.ok(timeline.some((e) => e.kind === "interrupted"));
+});
+
 test("dispose resolves a pending question", async () => {
   const tools = new ToolRegistry();
   const session = new Session({
