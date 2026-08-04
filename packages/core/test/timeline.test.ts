@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Session } from "../src/core/session.js";
 import { TimelineStore, TodoStore, messagesToTimelineEntries } from "../src/core/timeline.js";
-import type { TimelineEntry } from "../src/core/types.js";
+import type { TimelineEntry } from "../src/core/timeline.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";

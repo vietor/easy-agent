@@ -7,10 +7,10 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { SessionBusyError, createInitialRunState, type RunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState, type TimelineEntry } from "./types.js";
+import { type RunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
 import { Agent, type AgentEvent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries } from "./timeline.js";
+import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries, type TimelineEntry } from "./timeline.js";
 
 export interface SessionDeps extends Omit<SessionOptions, "tools"> {
   llm: LLMClient;
@@ -27,6 +27,19 @@ export interface SessionView {
 export interface PromptResult {
   status: RunStatus;
   reply: string;
+}
+
+export class SessionBusyError extends Error {
+  readonly code = "SESSION_BUSY" as const;
+
+  constructor() {
+    super("session is busy; another run is in progress");
+    this.name = "SessionBusyError";
+  }
+}
+
+export function createInitialRunState(): RunState {
+  return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
 }
 
 export class Session {

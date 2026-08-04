@@ -25,15 +25,6 @@ export interface SessionPersistence {
   delete?(sessionId: string): Promise<void>;
 }
 
-export class SessionBusyError extends Error {
-  readonly code = "SESSION_BUSY" as const;
-
-  constructor() {
-    super("session is busy; another run is in progress");
-    this.name = "SessionBusyError";
-  }
-}
-
 export interface SessionOptions {
   systemPrompt: string;
   llmConfig: LLMConfig;
@@ -58,10 +49,6 @@ export interface RunState {
   outputTokens: number;
 }
 
-export function createInitialRunState(): RunState {
-  return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
-}
-
 export type SessionEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
@@ -78,18 +65,3 @@ export type SessionEvent =
   | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
   | ({ type: "state" } & RunState);
-
-/** Timeline entries are the persisted subset of SessionEvent with pending-state fields (tool result, question answer). */
-type WithKind<T extends SessionEvent["type"], K extends string> =
-  Omit<Extract<SessionEvent, { type: T }>, "type"> & { kind: K };
-
-export type TimelineEntry =
-  | WithKind<"user", "user">
-  | WithKind<"skill", "skill">
-  | WithKind<"assistant", "assistant">
-  | (WithKind<"tool_start", "tool"> & { result: string | null; isError?: boolean; preview?: string })
-  | WithKind<"retry", "retry">
-  | WithKind<"error", "error">
-  | WithKind<"interrupted", "interrupted">
-  | (WithKind<"question", "question"> & { answer: string | null })
-  | WithKind<"notice", "notice">;

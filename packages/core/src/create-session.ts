@@ -1,5 +1,4 @@
-import { createLLM } from "./llm/client.js";
-import { compactThresholdFor } from "./llm/types.js";
+import { compactThresholdFor, createLLM } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";

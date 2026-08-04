@@ -96,7 +96,3 @@ export function parseToolArgs(args: string | undefined): { args: Record<string, 
     return { args: {}, error: errorMessage(e) };
   }
 }
-
-export function compactThresholdFor(contextWindow: number): number {
-  return Math.floor(contextWindow * 0.75);
-}

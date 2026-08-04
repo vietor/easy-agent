@@ -1,4 +1,5 @@
-import { compactThresholdFor, textOf, type LLMClient } from "../llm/types.js";
+import { compactThresholdFor } from "../llm/client.js";
+import { textOf, type LLMClient } from "../llm/types.js";
 import type { ConversationMessage } from "../core/conversation.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import { toolError, type Tool } from "./types.js";

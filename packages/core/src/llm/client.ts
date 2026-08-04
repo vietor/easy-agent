@@ -46,3 +46,7 @@ export function createLLM(config: LLMConfig): LLMClient {
     chat: withRetryChat(adapter),
   };
 }
+
+export function compactThresholdFor(contextWindow: number): number {
+  return Math.floor(contextWindow * 0.75);
+}

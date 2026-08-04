@@ -1,7 +1,22 @@
 import type { Todo } from "../tools/types.js";
 import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
-import type { SessionEvent, TimelineEntry } from "./types.js";
+import type { SessionEvent } from "./types.js";
+
+/** Timeline entries are the persisted subset of SessionEvent with pending-state fields (tool result, question answer). */
+type WithKind<T extends SessionEvent["type"], K extends string> =
+  Omit<Extract<SessionEvent, { type: T }>, "type"> & { kind: K };
+
+export type TimelineEntry =
+  | WithKind<"user", "user">
+  | WithKind<"skill", "skill">
+  | WithKind<"assistant", "assistant">
+  | (WithKind<"tool_start", "tool"> & { result: string | null; isError?: boolean; preview?: string })
+  | WithKind<"retry", "retry">
+  | WithKind<"error", "error">
+  | WithKind<"interrupted", "interrupted">
+  | (WithKind<"question", "question"> & { answer: string | null })
+  | WithKind<"notice", "notice">;
 
 export class ListenerSet<T extends (...args: any[]) => void = () => void> {
   private listeners = new Set<T>();
