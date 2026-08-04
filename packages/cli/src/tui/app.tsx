@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { createInitialRunState, type Session, type RunState, type SessionEvent, type SessionView } from "@vietor/easy-agent-core";
+import { createInitialRunState, type Session, type SessionRunState, type SessionEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -36,8 +36,8 @@ function useThrottledText(frameMs: number) {
 export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
-  const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
-  const [runState, setRunState] = useState<RunState>(createInitialRunState);
+  const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionSnapshot;
+  const [runState, setRunState] = useState<SessionRunState>(createInitialRunState);
   const streaming = useThrottledText(STREAM_FRAME_MS);
   const reasoning = useThrottledText(STREAM_FRAME_MS);
   const [showReasoning, setShowReasoning] = useState(false);

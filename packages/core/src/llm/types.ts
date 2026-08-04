@@ -1,23 +1,23 @@
 import type { ToolSchema } from "../tools/types.js";
 import { errorMessage } from "../util/text.js";
 
-export type ReasoningEffort = "high" | "max";
+export type LLMReasoningEffort = "high" | "max";
 
-export type WireApi = "completions" | "anthropic";
+export type LLMWireApi = "completions" | "anthropic";
 
 export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
-  reasoningEffort?: ReasoningEffort;
-  wireApi?: WireApi;
+  reasoningEffort?: LLMReasoningEffort;
+  wireApi?: LLMWireApi;
   contextWindow?: number;
 }
 
 /** LLMConfig with optional fields resolved to their defaults by `createLLM`. */
 export interface ResolvedLLMConfig extends LLMConfig {
-  reasoningEffort: ReasoningEffort;
-  wireApi: WireApi;
+  reasoningEffort: LLMReasoningEffort;
+  wireApi: LLMWireApi;
   contextWindow: number;
 }
 
@@ -69,7 +69,7 @@ export interface ChatOptions {
 
 export interface LLMClient {
   readonly model: string;
-  readonly reasoningEffort: ReasoningEffort;
+  readonly reasoningEffort: LLMReasoningEffort;
   readonly contextWindow: number;
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }

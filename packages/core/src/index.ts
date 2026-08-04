@@ -1,4 +1,4 @@
-export { Session, SessionBusyError, createInitialRunState, type SessionDeps, type SessionView, type PromptResult } from "./core/session.js";
+export { Session, SessionBusyError, createInitialRunState, type SessionDeps, type SessionSnapshot, type PromptResult } from "./core/session.js";
 export type { RunStatus } from "./core/agent.js";
 export type { TimelineEntry } from "./core/timeline.js";
 export type { ConversationMessage } from "./core/conversation.js";
@@ -6,10 +6,10 @@ export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from
 export type { BuiltinToolsOptions } from "./tools/registry.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
-export type { LLMConfig, ReasoningEffort, WireApi } from "./llm/types.js";
+export type { LLMConfig, LLMReasoningEffort, LLMWireApi } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { timeFormat, compactFormat, getTextBytes, ellipsisText } from "./util/text.js";
 export { htmlToMarkdown, netFetch } from "./util/net.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";
-export type { SessionPersistence, SessionState, SessionMeta, SessionOptions, SessionEvent, RunState } from "./core/types.js";
+export type { SessionPersistence, SessionState, SessionMeta, SessionOptions, SessionEvent, SessionRunState } from "./core/types.js";

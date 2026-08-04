@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type ReasoningEffort } from "./types.js";
+import { type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type LLMReasoningEffort } from "./types.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAccumulator {
@@ -11,7 +11,7 @@ interface ToolCallAccumulator {
 export class CompletionsAdapter implements BaseAdapter {
   private client: OpenAI;
   readonly model: string;
-  readonly reasoningEffort: ReasoningEffort;
+  readonly reasoningEffort: LLMReasoningEffort;
   readonly contextWindow: number;
 
   constructor(config: ResolvedLLMConfig) {

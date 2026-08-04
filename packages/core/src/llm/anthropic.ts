@@ -7,14 +7,14 @@ import {
   type ChatOptions,
   type ResolvedLLMConfig,
   type Message,
-  type ReasoningEffort,
+  type LLMReasoningEffort,
   type RedactedThinkingBlock,
   type ThinkingBlock,
 } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 
-const THINKING_BUDGET: Record<ReasoningEffort, number> = {
+const THINKING_BUDGET: Record<LLMReasoningEffort, number> = {
   high: 16000,
   max: 32000,
 };
@@ -24,7 +24,7 @@ const CONTINUE_CUE = "Continue the work, using the prior conversation as context
 export class AnthropicAdapter implements BaseAdapter {
   private client: Anthropic;
   readonly model: string;
-  readonly reasoningEffort: ReasoningEffort;
+  readonly reasoningEffort: LLMReasoningEffort;
   readonly contextWindow: number;
 
   constructor(config: ResolvedLLMConfig) {

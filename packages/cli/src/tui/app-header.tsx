@@ -1,9 +1,9 @@
 import { memo } from "react";
 import { Box, Text, useWindowSize } from "ink";
-import type { ReasoningEffort } from "@vietor/easy-agent-core";
+import type { LLMReasoningEffort } from "@vietor/easy-agent-core";
 import { getPackageInfo } from "../util/package.js";
 
-export const AppHeader = memo(function AppHeader({ cwd, model, reasoningEffort }: { cwd: string; model: string; reasoningEffort: ReasoningEffort }) {
+export const AppHeader = memo(function AppHeader({ cwd, model, reasoningEffort }: { cwd: string; model: string; reasoningEffort: LLMReasoningEffort }) {
   const { columns } = useWindowSize();
   const pkg = getPackageInfo();
   const reasoning = ` · reasoning ${reasoningEffort}`;

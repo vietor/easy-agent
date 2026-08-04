@@ -40,7 +40,7 @@ export interface SessionOptions {
   stallThreshold?: number;
 }
 
-export interface RunState {
+export interface SessionRunState {
   running: boolean;
   elapsed: number;
   thinkingElapsed: number;
@@ -64,4 +64,4 @@ export type SessionEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
-  | ({ type: "state" } & RunState);
+  | ({ type: "state" } & SessionRunState);

@@ -7,7 +7,7 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { type RunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
+import { type SessionRunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
 import { Agent, type AgentEvent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries, type TimelineEntry } from "./timeline.js";
@@ -19,7 +19,7 @@ export interface SessionDeps extends Omit<SessionOptions, "tools"> {
   compactThreshold: number;
 }
 
-export interface SessionView {
+export interface SessionSnapshot {
   timeline: readonly TimelineEntry[];
   todos: readonly Todo[];
 }
@@ -38,7 +38,7 @@ export class SessionBusyError extends Error {
   }
 }
 
-export function createInitialRunState(): RunState {
+export function createInitialRunState(): SessionRunState {
   return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
 }
 
@@ -55,7 +55,7 @@ export class Session {
   private replyStart: number | null = null;
   private lastReplyText = "";
   private lastStatusValue: RunStatus = "ok";
-  private runState: RunState = createInitialRunState();
+  private runState: SessionRunState = createInitialRunState();
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -67,7 +67,7 @@ export class Session {
   private persistence?: SessionPersistence;
 
   private questionSeq = 0;
-  private viewCache: SessionView | null = null;
+  private viewCache: SessionSnapshot | null = null;
   private eventListeners = new ListenerSet<(e: SessionEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
 
@@ -78,7 +78,7 @@ export class Session {
     return () => { unsubscribeTimeline(); unsubscribeTodos(); };
   };
 
-  getSnapshot = (): SessionView => {
+  getSnapshot = (): SessionSnapshot => {
     if (!this.viewCache) {
       this.viewCache = { timeline: this.timelineStore.all, todos: this.todoStore.all };
     }

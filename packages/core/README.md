@@ -152,10 +152,10 @@ type SessionEvent =
 
 Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
-#### `RunState`
+#### `SessionRunState`
 
 ```ts
-interface RunState {
+interface SessionRunState {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
   thinkingElapsed: number; // seconds before the first assistant text token (incl. reasoning/tools)
@@ -165,7 +165,7 @@ interface RunState {
 }
 ```
 
-`createInitialRunState(): RunState` returns the all-zero, not-running initial value.
+`createInitialRunState(): SessionRunState` returns the all-zero, not-running initial value.
 
 ### Skills & messages
 
@@ -224,7 +224,7 @@ The `state` event (`running: boolean`) also signals run start/end for stream con
 | Method | Description |
 |---|---|
 | `subscribe(listener: () => void): () => void` | Subscribe to timeline or todo changes; returns an unsubscribe function. |
-| `getSnapshot(): SessionView` | Current session view (`{ timeline, todos }`); the reference stays stable until the next change. Designed for `useSyncExternalStore`. |
+| `getSnapshot(): SessionSnapshot` | Current session snapshot (`{ timeline, todos }`); the reference stays stable until the next change. Designed for `useSyncExternalStore`. |
 
 ### Cleanup
 
@@ -236,12 +236,12 @@ The `state` event (`running: boolean`) also signals run start/end for stream con
 
 ## Types
 
-### `SessionView`
+### `SessionSnapshot`
 
 The snapshot returned by `session.getSnapshot()`.
 
 ```ts
-interface SessionView {
+interface SessionSnapshot {
   timeline: readonly TimelineEntry[];
   todos: readonly Todo[];
 }
