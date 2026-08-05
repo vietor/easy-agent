@@ -23,7 +23,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 - `core/src/mcp/` — client/server for stdio + Streamable HTTP
 - `core/src/skills/`, `core/src/util/` — loader; shared helpers (`async.ts`, `file.ts`, `text.ts`, `constants.ts`)
 - `core/src/create-session.ts`, `core/src/index.ts` — factory; public API re-exports
-- `cli/src/` — `main.ts`, `config.ts`, `commands/`, `tui/`
+- `cli/src/` — `index.ts`, `main.ts`, `config.ts`, `commands/`, `tui/`
 
 ## Code Style (no linter/prettier config — conventions only)
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -131,8 +130,3 @@ export async function main(argv: string[] = []): Promise<void> {
     console.log(["Resume this session with:", `easy-agent --resume ${sessionId}`].join("\n"));
   });
 }
-
-main(process.argv.slice(2)).catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
