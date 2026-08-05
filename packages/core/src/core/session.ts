@@ -155,7 +155,7 @@ export class Session {
     registerBuiltinTools(this.tools, deps.builtinTools, {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
-      resolveSkill: (name) => this.skillsMap.get(name),
+      resolveSkill: deps.skills?.length ? (name) => this.skillsMap.get(name) : undefined,
       subAgent: { llm: deps.llm, stallThreshold: deps.stallThreshold, maxTurns: deps.maxTurns, compactThreshold: deps.compactThreshold },
     });
 

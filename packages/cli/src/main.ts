@@ -96,7 +96,6 @@ export async function main(argv: string[] = []): Promise<void> {
     builtinTools: {
       askUser: true,
       todoWrite: true,
-      skill: true,
       subAgent: true,
     },
     cwd: cwd,

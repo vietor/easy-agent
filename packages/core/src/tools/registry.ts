@@ -103,35 +103,29 @@ export class ToolRegistry {
 }
 
 export interface BuiltinToolsOptions {
-  disabled?: string[];
+  readOnly?: boolean;
   askUser?: boolean;
   todoWrite?: boolean;
-  skill?: boolean;
   subAgent?: boolean;
 }
 
 export interface BuiltinToolsDeps {
   ask: (question: string, options: string[]) => Promise<string>;
   setTodos: (todos: Todo[]) => void;
-  resolveSkill: (name: string) => Skill | undefined;
+  resolveSkill?: (name: string) => Skill | undefined;
   subAgent: { llm: LLMClient; stallThreshold?: number; maxTurns?: number; compactThreshold?: number };
 }
 
-const CORE_TOOLS: Tool[] = [shellTool, fileReadTool, fileWriteTool, fileEditTool, globTool, grepTool, webFetchTool];
-
-function toolKey(tool: Tool): string {
-  return tool.name[0].toLowerCase() + tool.name.slice(1);
-}
+const READONLY_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool];
+const BUILTIN_TOOLS: Tool[] = [...READONLY_TOOLS, shellTool, fileWriteTool, fileEditTool];
 
 export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
   if (opts === false) return;
-  const disabled = new Set(opts?.disabled ?? []);
-  for (const tool of CORE_TOOLS) {
-    if (disabled.has(toolKey(tool))) continue;
+  for (const tool of opts?.readOnly? READONLY_TOOLS: BUILTIN_TOOLS) {
     tools.register(tool);
   }
   if (opts?.askUser) tools.register(createAskUserTool(deps.ask));
   if (opts?.todoWrite) tools.register(createTodoWriteTool(deps.setTodos));
-  if (opts?.skill) tools.register(createSkillTool(deps.resolveSkill));
+  if (deps.resolveSkill) tools.register(createSkillTool(deps.resolveSkill));
   if (opts?.subAgent) tools.register(createSubAgentTool({ tools, ...deps.subAgent }));
 }

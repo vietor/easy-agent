@@ -49,7 +49,7 @@ const session = await createSession({
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtinTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | Enable `askUser`/`todoWrite`/`skill`/`subAgent` (all off by default); disable core tools by listing their names in `disabled`. `false` to disable all built-in tools. |
+| `builtinTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
@@ -444,7 +444,7 @@ The format sent to the LLM's `tools` parameter. Generated automatically from reg
 
 ### Built-in tools
 
-Core tools (registered by default; disable by listing their names in `builtinTools.disabled`):
+Core tools (registered by default; `builtinTools: { readOnly: true }` registers only the read-only subset):
 
 | Tool | Description |
 |---|---|
@@ -454,15 +454,15 @@ Core tools (registered by default; disable by listing their names in `builtinToo
 | **FileEdit** | Surgical text replacement. |
 | **Glob** | File listing by glob pattern. |
 | **Grep** | Content search with regex. |
-| **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. |
+| **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 
-Interactive/optional tools are **off by default** and registered only when explicitly enabled via `builtinTools` (`askUser: true`, `todoWrite: true`, `skill: true`, `subAgent: true`):
+Interactive tools are **off by default** and registered only when explicitly enabled via `builtinTools` (`askUser: true`, `todoWrite: true`, `subAgent: true`):
 
 | Tool | Description |
 |---|---|
 | **AskUser** | Ask the user a question and wait for the answer. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
-| **Skill** | Invoke a skill by name; loads its instructions into context. Only useful when `skills` are provided. |
+| **Skill** | Invoke a skill by name; loads its instructions into context. Registered automatically whenever `skills` are provided. |
 | **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning (file read, search, web fetch). |
 
 `builtinTools: false` disables all built-in tools.
@@ -475,8 +475,8 @@ const session = await createSession({
 });
 // Disable all built-in tools:
 // builtinTools: false
-// Disable specific tools:
-// builtinTools: { disabled: ["shell", "webFetch"] }
+// Read-only session (no Shell / FileWrite / FileEdit):
+// builtinTools: { readOnly: true }
 ```
 
 ### Custom tools example
@@ -671,6 +671,19 @@ Collapse whitespace and truncate text to `length` characters with a trailing `�
 import { ellipsisText } from "@vietor/easy-agent-core";
 
 ellipsisText("a\nvery   long line", 8);   // "a very l…"
+```
+
+### `errorMessage`
+
+**`errorMessage(e: unknown): string`**
+
+Stringify an unknown error for display (`e instanceof Error ? e.message : String(e)`). Used across core for error events.
+
+```ts
+import { errorMessage } from "@vietor/easy-agent-core";
+
+errorMessage(new Error("boom"));   // "boom"
+errorMessage("oops");              // "oops"
 ```
 
 ### `netFetch`
