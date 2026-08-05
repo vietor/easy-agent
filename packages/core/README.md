@@ -463,7 +463,7 @@ Interactive/optional tools are **off by default** and registered only when expli
 | **AskUser** | Ask the user a question and wait for the answer. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Only useful when `skills` are provided. |
-| **SubAgent** | Run a nested sub-agent: read-only "explore"/"plan" investigation and planning, or "generic" execution with full tool access (shell, file edit, search, web fetch). |
+| **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning (file read, search, web fetch). |
 
 `builtinTools: false` disables all built-in tools.
 

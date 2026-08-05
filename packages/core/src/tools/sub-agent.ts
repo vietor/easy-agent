@@ -8,7 +8,8 @@ import { Agent } from "../core/agent.js";
 import { Conversation } from "../core/conversation.js";
 import { TOOL_USE_PROMPT } from "./prompt.js";
 
-export const SUB_AGENT_GUIDANCE = '- Consider delegating subtasks to a sub-agent via the SubAgent tool: type: "explore" to investigate the codebase or web, type: "plan" to produce an implementation plan, or type: "generic" to execute a task end-to-end with full tool access (shell, file read/write/edit, search, web fetch). The sub-agent runs silently and returns only its final report — verify important results yourself, especially for "generic" tasks that modify files.';
+export const SUB_AGENT_GUIDANCE =
+  '- Consider delegating to a sub-agent via the SubAgent tool when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. type: "explore" — read-only search agent for broad fan-out searches (state the search breadth in the task); type: "plan" — software architect producing implementation plans. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result. Independent subtasks can be delegated in the same turn so they run concurrently. Sub-agents are read-only, run silently, and return only their final report — verify important results yourself.';
 
 export interface SubAgentToolDeps {
   llm: LLMClient;
@@ -19,12 +20,13 @@ export interface SubAgentToolDeps {
 }
 
 const READ_ONLY_SUB_AGENT_TOOLS = ["FileRead", "Glob", "Grep", "WebFetch"] as const;
-const FULL_SUB_AGENT_TOOLS = ["Shell", "FileRead", "FileWrite", "FileEdit", "Glob", "Grep", "WebFetch"] as const;
 
 const EXPLORE_PROMPT = [
-  "You are the Explore sub-agent. Your job is to investigate and answer a question by reading files, searching the codebase, and fetching web pages. You are read-only: you must not modify any files.",
+  "You are the Explore sub-agent — a read-only search agent for broad fan-out searches. Use it when answering means sweeping many files, directories, or naming conventions and the parent needs only the conclusion, not the file dumps. You read excerpts rather than whole files, so you locate code — you do not review or audit it. You are read-only: you must not modify any files.",
   "Guidelines:",
-  "- Investigate thoroughly: read the relevant files, follow imports and call sites, and search for definitions before concluding.",
+  '- If the parent stated a search breadth, match your effort to it: "medium" for moderate exploration, "very thorough" for multiple locations and naming conventions.',
+  "- Use Grep and Glob to locate matches first, then read only the excerpts needed to extract the facts — not whole files.",
+  "- Follow imports and call sites to trace definitions when the answer depends on how code connects.",
   "- Trust tool results as ground truth; do not guess file contents from memory.",
   "- If the task is ambiguous, state your assumptions explicitly.",
   '- Report in concise markdown: a summary of findings first, then details with file_path:line_number references, and a final "Bottom line" section with a direct answer to the task.',
@@ -32,53 +34,37 @@ const EXPLORE_PROMPT = [
 ].join("\n");
 
 const PLAN_PROMPT = [
-  "You are the Plan sub-agent — a software architect. Produce a concrete, step-by-step implementation plan for the given task. You may read files and search the codebase to ground the plan in the actual code; you must not modify any files.",
+  "You are the Plan sub-agent — a software architect. Produce a step-by-step implementation plan for the given task. Read the relevant code first to ground the plan in the actual code, then design the plan. You are read-only: you must not modify any files or implement anything.",
   "Guidelines:",
   "- First locate the relevant code: read the files the task mentions and confirm real function signatures, module structure, and existing conventions before planning.",
+  "- Consider architectural trade-offs: note the alternative approaches and why the recommended one was chosen.",
   "- Output a numbered step-by-step plan in markdown. For each step give the file paths to create or modify, the function or type signatures involved, and a one-line rationale. Order steps by dependency.",
+  "- Identify the critical files for implementation — the files the implementer must read first.",
   '- End with a short "Risks & open questions" section listing anything to verify during implementation.',
   '- End with a short "Verification" section: the commands, tests, or manual checks to run to confirm each step works.',
   "- Keep the plan concise — typically 20-50 lines.",
   "- Be specific and actionable; do not speculate beyond what you read.",
 ].join("\n");
 
-const GENERIC_PROMPT = [
-  "You are the Generic sub-agent. Execute the given task end-to-end using the available tools: read and search files, create or edit files, run shell commands, and fetch web pages as needed. You are not read-only; modifying files and running commands is expected when the task requires it.",
-  "Guidelines:",
-  "- Break the task into concrete steps and work through them in order; check the result of each step before moving on.",
-  "- Prefer the dedicated file tools (FileRead, FileWrite, FileEdit, Glob, Grep) over Shell for file operations; use Shell for commands (install, build, test, run) that no dedicated tool covers.",
-  "- Trust tool output over memory. After writes or commands, verify the outcome when it matters — read the file back, run the tests, or check the command's output.",
-  "- Respect every constraint the parent agent stated in the task: paths to touch, files to leave alone, formats, and any other instructions.",
-  "- Do not ask questions or request user input; if something is genuinely ambiguous, state your assumption and proceed with the most reasonable choice.",
-  '- Report in concise markdown: a summary of what you did, each file created or modified with a file_path:line reference, the commands you ran and their outcomes, verification results, and a final "Done" section that states the task is complete or lists exactly what remains unfinished.',
-].join("\n");
-
 const SUB_AGENT_DEFS = [
   {
     type: "explore",
     name: "Explore",
-    description: "Investigate and answer questions about the codebase or the web.",
+    description: "Read-only search agent for broad fan-out searches across the codebase or web; locate code via excerpts, does not review or audit.",
     systemPrompt: EXPLORE_PROMPT,
     tools: READ_ONLY_SUB_AGENT_TOOLS,
   },
   {
     type: "plan",
     name: "Plan",
-    description: "Produce a step-by-step implementation plan for a task.",
+    description: "Software architect that produces a step-by-step implementation plan grounded in the actual code.",
     systemPrompt: PLAN_PROMPT,
     tools: READ_ONLY_SUB_AGENT_TOOLS,
-  },
-  {
-    type: "generic",
-    name: "Generic",
-    description: "Execute a task end-to-end with full tool access (shell, file edit, search, web fetch).",
-    systemPrompt: GENERIC_PROMPT,
-    tools: FULL_SUB_AGENT_TOOLS,
   },
 ] as const;
 
 const TOOL_DESCRIPTION =
-  'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). type: "explore" — investigate the codebase or web (read-only); "plan" — produce a step-by-step implementation plan (read-only); "generic" — execute a task end-to-end with full tool access (shell, file read/write/edit, search, web fetch; may modify files). Returns the sub-agent\'s final report as text. The sub-agent cannot ask questions, use skills, or spawn further sub-agents.';
+  'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). type: "explore" — a read-only search agent for broad fan-out searches of the codebase or web; specify a search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions). type: "plan" — a software architect that reads the relevant code first, then returns a step-by-step implementation plan identifying critical files and architectural trade-offs. Returns the sub-agent\'s final report as text. For independent subtasks, issue multiple SubAgent calls in a single turn so they run concurrently. The sub-agent cannot ask questions, use skills, or spawn further sub-agents.';
 
 export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
   return {
@@ -90,7 +76,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         type: {
           type: "string",
           enum: SUB_AGENT_DEFS.map((d) => d.type),
-          description: 'Which sub-agent to invoke: "explore" (investigate), "plan" (design an implementation plan), or "generic" (execute a task end-to-end).',
+          description: 'Which sub-agent to invoke: "explore" — read-only broad fan-out search (state a search breadth like "medium" or "very thorough" in the task); "plan" — software architect producing a step-by-step implementation plan.',
         },
         task: { type: "string", description: "The task or question for the sub-agent, as a self-contained description." },
       },
