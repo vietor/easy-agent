@@ -394,6 +394,7 @@ type TodoStatus = "pending" | "in_progress" | "completed";
 ```ts
 interface Tool {
   name: string;
+  readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;   // JSON Schema object
   summaryArg?: string | string[];        // parameter key(s) used for display summary
@@ -403,6 +404,7 @@ interface Tool {
 }
 ```
 
+- `readOnly` (optional) marks the tool as read-only. Read-only tools are what `builtinTools: { readOnly: true }` registers, and what the SubAgent tool equips sub-agents with.
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
 - Return a plain string (equivalent to `{ content: string }`) or a `ToolResult` with an optional `isError` flag.
@@ -448,13 +450,13 @@ Core tools (registered by default; `builtinTools: { readOnly: true }` registers 
 
 | Tool | Description |
 |---|---|
+| **FileRead** *(read-only)* | Read files with line numbers. |
+| **Glob** *(read-only)* | File listing by glob pattern. |
+| **Grep** *(read-only)* | Content search with regex. |
+| **WebFetch** *(read-only)* | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 | **Shell** | Run shell commands. |
-| **FileRead** | Read files with line numbers. |
 | **FileWrite** | Create or overwrite files. |
 | **FileEdit** | Surgical text replacement. |
-| **Glob** | File listing by glob pattern. |
-| **Grep** | Content search with regex. |
-| **WebFetch** | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 
 Interactive tools are **off by default** and registered only when explicitly enabled via `builtinTools` (`askUser: true`, `todoWrite: true`, `subAgent: true`):
 
@@ -463,7 +465,7 @@ Interactive tools are **off by default** and registered only when explicitly ena
 | **AskUser** | Ask the user a question and wait for the answer. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Registered automatically whenever `skills` are provided. |
-| **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning (file read, search, web fetch). |
+| **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning. Sub-agents are equipped with the session's read-only tools (FileRead/Glob/Grep/WebFetch, plus any custom tools marked `readOnly`). |
 
 `builtinTools: false` disables all built-in tools.
 

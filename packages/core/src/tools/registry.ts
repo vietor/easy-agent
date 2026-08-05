@@ -131,5 +131,5 @@ export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOpti
   if (opts?.askUser) tools.register(createAskUserTool(deps.ask));
   if (opts?.todoWrite) tools.register(createTodoWriteTool(deps.setTodos));
   if (deps.resolveSkill) tools.register(createSkillTool(deps.resolveSkill));
-  if (opts?.subAgent) tools.register(createSubAgentTool({ registry: tools, ...deps.subAgent }));
+  if (opts?.subAgent) tools.register(createSubAgentTool({ tools, ...deps.subAgent }));
 }

@@ -13,7 +13,7 @@ export const SUB_AGENT_GUIDANCE =
 
 export interface SubAgentToolDeps {
   llm: LLMClient;
-  registry: ToolRegistry;
+  tools: ToolRegistry;
   stallThreshold?: number;
   maxTurns?: number;
   compactThreshold?: number;
@@ -91,7 +91,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       }
 
       const subTools = new ToolRegistry();
-      subTools.registerAll(deps.registry.filter((t) => t.readOnly === true));
+      subTools.registerAll(deps.tools.filter((t) => t.readOnly === true));
 
       const conversation = new Conversation([def.systemPrompt, TOOL_USE_PROMPT].join("\n\n"));
       const subAgent = new Agent({

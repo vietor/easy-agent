@@ -48,7 +48,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   const tools = new ToolRegistry();
   tools.registerAll(SUB_TOOLS);
   tools.register(stub("Shell", "ok"));
-  tools.register(createSubAgentTool({ llm, registry: tools, ...subAgentOpts }));
+  tools.register(createSubAgentTool({ llm, tools, ...subAgentOpts }));
   const conversation = new Conversation("system prompt");
   return new Agent({
     llm,
@@ -144,7 +144,7 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
 });
 
 test("SubAgent tool type enum covers explore and plan", () => {
-  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, registry: new ToolRegistry() });
+  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: new ToolRegistry() });
   const params = tool.parameters as { properties: { type: { enum: string[] } } };
   assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
 });
