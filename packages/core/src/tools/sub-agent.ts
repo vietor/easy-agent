@@ -13,13 +13,11 @@ export const SUB_AGENT_GUIDANCE =
 
 export interface SubAgentToolDeps {
   llm: LLMClient;
-  tools: ToolRegistry;
+  tools: Tool[];
   stallThreshold?: number;
   maxTurns?: number;
   compactThreshold?: number;
 }
-
-const READ_ONLY_SUB_AGENT_TOOLS = ["FileRead", "Glob", "Grep", "WebFetch"] as const;
 
 const EXPLORE_PROMPT = [
   "You are the Explore sub-agent — a read-only search agent for broad fan-out searches. Use it when answering means sweeping many files, directories, or naming conventions and the parent needs only the conclusion, not the file dumps. You read excerpts rather than whole files, so you locate code — you do not review or audit it. You are read-only: you must not modify any files.",
@@ -52,14 +50,12 @@ const SUB_AGENT_DEFS = [
     name: "Explore",
     description: "Read-only search agent for broad fan-out searches across the codebase or web; locate code via excerpts, does not review or audit.",
     systemPrompt: EXPLORE_PROMPT,
-    tools: READ_ONLY_SUB_AGENT_TOOLS,
   },
   {
     type: "plan",
     name: "Plan",
     description: "Software architect that produces a step-by-step implementation plan grounded in the actual code.",
     systemPrompt: PLAN_PROMPT,
-    tools: READ_ONLY_SUB_AGENT_TOOLS,
   },
 ] as const;
 
@@ -95,10 +91,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       }
 
       const subTools = new ToolRegistry();
-      for (const name of def.tools) {
-        const tool = deps.tools.get(name);
-        if (tool) subTools.register(tool);
-      }
+      subTools.registerAll(deps.tools);
 
       const conversation = new Conversation([def.systemPrompt, TOOL_USE_PROMPT].join("\n\n"));
       const subAgent = new Agent({

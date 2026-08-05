@@ -41,16 +41,11 @@ function stub(name: string, content: string) {
   };
 }
 
+const SUB_TOOLS = [stub("FileRead", "file contents"), stub("Glob", "matches"), stub("Grep", "hits"), stub("WebFetch", "web")];
+
 function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {}): Agent {
   const tools = new ToolRegistry();
-  tools.register(stub("FileRead", "file contents"));
-  tools.register(stub("Glob", "matches"));
-  tools.register(stub("Grep", "hits"));
-  tools.register(stub("WebFetch", "web"));
-  tools.register(stub("Shell", "ok"));
-  tools.register(stub("FileWrite", "written"));
-  tools.register(stub("FileEdit", "edited"));
-  tools.register(createSubAgentTool({ llm, tools, ...subAgentOpts }));
+  tools.register(createSubAgentTool({ llm, tools: SUB_TOOLS, ...subAgentOpts }));
   const conversation = new Conversation("system prompt");
   return new Agent({
     llm,
@@ -146,7 +141,7 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
 });
 
 test("SubAgent tool type enum covers explore and plan", () => {
-  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: new ToolRegistry() });
+  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: SUB_TOOLS });
   const params = tool.parameters as { properties: { type: { enum: string[] } } };
   assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
 });
