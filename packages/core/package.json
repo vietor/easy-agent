@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --import tsx --test test/anthropic.test.ts test/conversation.test.ts test/agent.test.ts test/sub-agent.test.ts test/file-read.test.ts test/subprocess.test.ts test/timeline.test.ts test/todo-write.test.ts test/session.test.ts test/llm-client.test.ts test/llm-types.test.ts"
+    "test": "node --import tsx --test test/anthropic.test.ts test/conversation.test.ts test/agent.test.ts test/sub-agent.test.ts test/file-read.test.ts test/subprocess.test.ts test/timeline.test.ts test/todo-write.test.ts test/session.test.ts test/llm-client.test.ts test/llm-types.test.ts test/map-with-concurrency.test.ts test/web-fetch.test.ts"
   },
   "description": "Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader",
   "license": "MIT",

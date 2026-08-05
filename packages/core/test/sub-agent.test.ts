@@ -125,6 +125,26 @@ test("nested maxTurns is enforced", async () => {
   assert.ok(String(toolMsg.content).includes("max_turns"));
 });
 
+test("stalled sub-agent reports the repeated tool call in its result", async () => {
+  const { llm } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "find X" })),
+    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1"),
+    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n2"),
+    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n3"),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+
+  const toolMsg = agent.export().find((m) => m.role === "tool");
+  assert.ok(toolMsg);
+  assert.equal(toolMsg.isError, true);
+  assert.ok(String(toolMsg.content).includes("status stalled"));
+  assert.ok(String(toolMsg.content).includes("repeated identical tool calls"));
+  assert.ok(String(toolMsg.content).includes("FileRead"));
+});
+
 test("SubAgent tool type enum covers explore and plan", () => {
   const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: new ToolRegistry() });
   const params = tool.parameters as { properties: { type: { enum: string[] } } };

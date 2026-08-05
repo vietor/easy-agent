@@ -89,6 +89,8 @@ test("stalls on repeated identical tool calls", async () => {
   const agent = makeAgent(llm);
   const status = await agent.run("do it");
   assert.equal(status, "stalled");
+  const last = agent.export().pop() as { content: string };
+  assert.match(last.content, /repeated identical tool calls: Echo/);
 });
 
 test("every assistant tool_calls is followed by its tool results, even on stall", async () => {

@@ -3,6 +3,7 @@ import { Session } from "./core/session.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
 import { TOOL_USE_PROMPT } from "./tools/prompt.js";
+import { DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { SUB_AGENT_GUIDANCE } from "./tools/sub-agent.js";
@@ -11,9 +12,9 @@ import type { SessionOptions } from "./core/types.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
 
-function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined): string {
+function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined, maxTurns: number): string {
   const parts = [base];
-  const toolUseLines = [TOOL_USE_PROMPT];
+  const toolUseLines = [TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run. Tasks needing more must delegate chunks via SubAgent or narrow scope.`];
   if (typeof builtinTools === "object") {
     if (builtinTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtinTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
@@ -34,7 +35,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
 
   const session = new Session({
     ...opts,
-    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtinTools),
+    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtinTools, opts.maxTurns ?? DEFAULT_MAX_TURNS),
     llm,
     tools,
     mcp,

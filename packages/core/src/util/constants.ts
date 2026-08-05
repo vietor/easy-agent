@@ -10,4 +10,5 @@ export const NO_MATCHES = "(no matches)";
 export const MAX_PREVIEW_LEN = 75;
 export const DEFAULT_STALL_THRESHOLD = 3;
 export const DEFAULT_MAX_TURNS = 50;
+export const MAX_PARALLEL_TOOL_CALLS = 8;
 export const SKILL_TOOL_NAME = "Skill" as const;

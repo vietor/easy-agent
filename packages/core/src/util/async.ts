@@ -78,6 +78,21 @@ export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?
   });
 }
 
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+  signal?: AbortSignal
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += limit) {
+    if (signal?.aborted) break;
+    const chunk = items.slice(i, i + limit);
+    results.push(...(await Promise.all(chunk.map((item) => fn(item)))));
+  }
+  return results;
+}
+
 export async function withTimeoutError<T>(
   fn: (signal: AbortSignal) => Promise<T>,
   ms: number,

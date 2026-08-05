@@ -1,6 +1,6 @@
-import { withAbort } from "../util/async.js";
-import { SKILL_TOOL_NAME } from "../util/constants.js";
-import { errorMessage } from "../util/text.js";
+import { mapWithConcurrency, withAbort } from "../util/async.js";
+import { MAX_PARALLEL_TOOL_CALLS, SKILL_TOOL_NAME } from "../util/constants.js";
+import { ellipsisText, errorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
@@ -48,6 +48,8 @@ export interface AgentOptions {
   compactThreshold: number;
   resolveSkill?: (name: string) => Skill | undefined;
 }
+
+type ToolCallResult = { id: string; content: string; preview?: string; isError?: boolean; args: Record<string, unknown> };
 
 export class Agent {
   private llm: LLMClient;
@@ -220,8 +222,9 @@ export class Agent {
       stall = sig === lastSig ? stall + 1 : 1;
       lastSig = sig;
       if (stall >= this.stallThreshold) {
-        this.resolvePendingToolCalls(msg.tool_calls, "stalled: repeated identical tool calls");
-        onEvent?.({ type: "error", text: `agent stalled: repeated identical tool calls` });
+        const reason = `stalled: repeated identical tool calls: ${ellipsisText(sig, 200)}`;
+        this.resolvePendingToolCalls(msg.tool_calls, reason);
+        onEvent?.({ type: "error", text: `agent stalled: ${reason}` });
         return "stalled";
       }
       if (++turns >= this.maxTurns) {
@@ -283,23 +286,33 @@ export class Agent {
     calls: NonNullable<AssistantMessage["tool_calls"]>,
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
-  ): Promise<{ id: string; content: string; preview?: string; isError?: boolean; args: Record<string, unknown> }[] | null> {
-    return withAbort(Promise.all(
-      calls.map(async (call) => {
-        const parsed = parseToolArgs(call.function.arguments);
-        const args = parsed.args;
-        const argsError = parsed.error ? toolError(`invalid arguments: ${parsed.error}`) : undefined;
-        const summary = this.tools.summarize(call.function.name, args);
-        onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
-        const ctx: ToolContext = { signal, cwd: this.cwd };
-        const start = performance.now();
-        const result: ToolResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
-        const duration = performance.now() - start;
-        const preview = this.tools.getPreview(call.function.name, result, duration);
-        if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });
-        return { id: call.id, content: result.content, preview, isError: result.isError, args };
-      })
-    ), signal, () => null);
+  ): Promise<ToolCallResult[] | null> {
+    const results = await mapWithConcurrency(
+      calls,
+      MAX_PARALLEL_TOOL_CALLS,
+      (call) => this.executeToolCall(call, onEvent, signal),
+      signal
+    );
+    return signal?.aborted ? null : results;
+  }
+
+  private async executeToolCall(
+    call: NonNullable<AssistantMessage["tool_calls"]>[number],
+    onEvent?: (e: AgentEvent) => void,
+    signal?: AbortSignal
+  ): Promise<ToolCallResult> {
+    const parsed = parseToolArgs(call.function.arguments);
+    const args = parsed.args;
+    const argsError = parsed.error ? toolError(`invalid arguments: ${parsed.error}`) : undefined;
+    const summary = this.tools.summarize(call.function.name, args);
+    onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
+    const ctx: ToolContext = { signal, cwd: this.cwd };
+    const start = performance.now();
+    const result: ToolResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
+    const duration = performance.now() - start;
+    const preview = this.tools.getPreview(call.function.name, result, duration);
+    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });
+    return { id: call.id, content: result.content, preview, isError: result.isError, args };
   }
 }
 
