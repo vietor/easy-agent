@@ -15,10 +15,11 @@ const PRIVILEGED_RE = /(^|[;&|()`\n])\s*(?:(?:env|command|xargs)\s+)?(sudo|su|do
 const DESCRIPTION_POWERSHELL = `
 Windows PowerShell 5.1 (powershell.exe — NOT pwsh/bash).
 
-WARNING — three common mistakes:
+WARNING — four common mistakes:
 • Use ; not &&/|| to chain commands
 • Use \` (backtick) to escape, not \\
 • Use $env:NAME, not $NAME
+• Quote -key=value arguments whose value contains dots — PS 5.1 splits them at the last dot (or use --%)
 
 QUOTING: '...' literal. "..." expands $var, $env:NAME, $(...).
 SYNTAX: Conditional: if ($?) { }. No heredocs (<<) or background (&).
