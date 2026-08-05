@@ -9,7 +9,7 @@ export interface RetryOptions {
   retries: number;
   retryable: (e: unknown) => boolean;
   backoff: (attempt: number) => number;
-  onRetry?: (attempt: number, max: number) => void;
+  onRetry?: (attempt: number, max: number, error: unknown) => void;
   signal?: AbortSignal;
 }
 
@@ -19,7 +19,7 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Pr
       return await fn();
     } catch (e) {
       if (attempt < opts.retries && opts.retryable(e)) {
-        opts.onRetry?.(attempt + 1, opts.retries);
+        opts.onRetry?.(attempt + 1, opts.retries, e);
         await trySleep(opts.backoff(attempt), opts.signal);
         continue;
       }

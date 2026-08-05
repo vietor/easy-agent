@@ -37,7 +37,7 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
         <Box>
           <Text>
             <Text color="yellow">↻ </Text>
-            <Text dimColor>retry {entry.attempt}/{entry.max}</Text>
+            <Text dimColor>retry {entry.attempt}/{entry.max} · {entry.reason}</Text>
           </Text>
         </Box>
       );

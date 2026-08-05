@@ -58,7 +58,7 @@ export type SessionEvent =
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
-  | { type: "retry"; attempt: number; max: number }
+  | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }

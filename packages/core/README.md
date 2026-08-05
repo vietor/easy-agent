@@ -124,7 +124,7 @@ type SessionEvent =
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
-  | { type: "retry"; attempt: number; max: number }
+  | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
@@ -286,7 +286,7 @@ type TimelineEntry =
   | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
   | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean; preview?: string }
-  | { kind: "retry"; attempt: number; max: number }
+  | { kind: "retry"; attempt: number; max: number; reason: string }
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
   | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }

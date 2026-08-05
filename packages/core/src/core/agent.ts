@@ -27,7 +27,7 @@ export type AgentRunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns
 export type AgentEvent =
   | { type: "assistant_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
-  | { type: "retry"; attempt: number; max: number }
+  | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "tool_start"; id: string; name: string; summary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
   | { type: "error"; text: string }
@@ -268,7 +268,7 @@ export class Agent {
         reasoning: opts.reasoning,
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onReasoning: (text) => opts.onEvent?.({ type: "reasoning_delta", text }),
-        onRetry: (attempt, max) => opts.onEvent?.({ type: "retry", attempt, max }),
+        onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: errorMessage(error) }),
         onUsage: (inputTokens, outputTokens) => opts.onEvent?.({ type: "usage", inputTokens, outputTokens }),
         signal: opts.signal,
       }), opts.signal);

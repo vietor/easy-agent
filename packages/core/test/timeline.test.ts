@@ -90,7 +90,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "user", text: "hi" });
   store.applyEvent({ type: "skill", name: "s" });
   store.applyEvent({ type: "assistant", text: "hello" });
-  store.applyEvent({ type: "retry", attempt: 2, max: 3 });
+  store.applyEvent({ type: "retry", attempt: 2, max: 3, reason: "429 rate limited" });
   store.applyEvent({ type: "notice", text: "n" });
   store.applyEvent({ type: "error", text: "e" });
   store.applyEvent({ type: "interrupted" });
@@ -104,7 +104,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
     { kind: "user", text: "hi" },
     { kind: "skill", name: "s" },
     { kind: "assistant", text: "hello" },
-    { kind: "retry", attempt: 2, max: 3 },
+    { kind: "retry", attempt: 2, max: 3, reason: "429 rate limited" },
     { kind: "notice", text: "n" },
     { kind: "error", text: "e" },
     { kind: "interrupted" },

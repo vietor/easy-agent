@@ -61,7 +61,7 @@ export interface ChatOptions {
   tools: ToolSchema[];
   onDelta?: (text: string) => void;
   onReasoning?: (text: string) => void;
-  onRetry?: (attempt: number, max: number) => void;
+  onRetry?: (attempt: number, max: number, error: unknown) => void;
   onUsage?: (inputTokens: number, outputTokens: number) => void;
   reasoning?: boolean;
   signal?: AbortSignal;

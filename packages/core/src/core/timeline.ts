@@ -83,7 +83,7 @@ export class TimelineStore {
         this.setResult(e.id, e.result, e.isError, e.preview);
         break;
       case "retry":
-        this.append({ kind: "retry", attempt: e.attempt, max: e.max });
+        this.append({ kind: "retry", attempt: e.attempt, max: e.max, reason: e.reason });
         break;
       case "error":
         this.append({ kind: "error", text: e.text });
