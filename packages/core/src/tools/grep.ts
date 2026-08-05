@@ -9,6 +9,7 @@ const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 s
 
 export const grepTool: Tool = {
   name: "Grep",
+  readOnly: true,
   description: DESCRIPTION,
   parameters: {
     type: "object",

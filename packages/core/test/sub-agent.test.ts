@@ -30,9 +30,10 @@ function toolCall(name: string, args = "{}", id = "t1"): AssistantMessage {
   };
 }
 
-function stub(name: string, content: string) {
+function stub(name: string, content: string, readOnly = false) {
   return {
     name,
+    readOnly,
     description: name,
     parameters: { type: "object", properties: {} },
     async execute() {
@@ -41,11 +42,13 @@ function stub(name: string, content: string) {
   };
 }
 
-const SUB_TOOLS = [stub("FileRead", "file contents"), stub("Glob", "matches"), stub("Grep", "hits"), stub("WebFetch", "web")];
+const SUB_TOOLS = [stub("FileRead", "file contents", true), stub("Glob", "matches", true), stub("Grep", "hits", true), stub("WebFetch", "web", true)];
 
 function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {}): Agent {
   const tools = new ToolRegistry();
-  tools.register(createSubAgentTool({ llm, tools: SUB_TOOLS, ...subAgentOpts }));
+  tools.registerAll(SUB_TOOLS);
+  tools.register(stub("Shell", "ok"));
+  tools.register(createSubAgentTool({ llm, registry: tools, ...subAgentOpts }));
   const conversation = new Conversation("system prompt");
   return new Agent({
     llm,
@@ -141,7 +144,7 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
 });
 
 test("SubAgent tool type enum covers explore and plan", () => {
-  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: SUB_TOOLS });
+  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, registry: new ToolRegistry() });
   const params = tool.parameters as { properties: { type: { enum: string[] } } };
   assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
 });

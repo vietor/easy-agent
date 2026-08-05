@@ -31,6 +31,7 @@ export interface ToolSchema {
 
 export interface Tool {
   name: string;
+  readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;
   summaryArg?: string | string[];

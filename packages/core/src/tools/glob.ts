@@ -7,6 +7,7 @@ const DESCRIPTION = "List files under a directory, optionally filtered by a glob
 
 export const globTool: Tool = {
   name: "Glob",
+  readOnly: true,
   description: DESCRIPTION,
   parameters: {
     type: "object",

@@ -44,6 +44,10 @@ export class ToolRegistry {
     return this.tools.get(name);
   }
 
+  filter(predicate: (t: Tool) => boolean): Tool[] {
+    return [...this.tools.values()].filter(predicate);
+  }
+
   schemas(): ToolSchema[] {
     if (!this.schemasCache) {
       this.schemasCache = [...this.tools.values()].map((t) => ({
@@ -116,16 +120,16 @@ export interface BuiltinToolsDeps {
   subAgent: { llm: LLMClient; stallThreshold?: number; maxTurns?: number; compactThreshold?: number };
 }
 
-const READONLY_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool];
-const BUILTIN_TOOLS: Tool[] = [...READONLY_TOOLS, shellTool, fileWriteTool, fileEditTool];
+const BUILTIN_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, shellTool, fileWriteTool, fileEditTool];
 
 export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
   if (opts === false) return;
-  for (const tool of opts?.readOnly? READONLY_TOOLS: BUILTIN_TOOLS) {
+  const builtins = opts?.readOnly ? BUILTIN_TOOLS.filter((t) => t.readOnly) : BUILTIN_TOOLS;
+  for (const tool of builtins) {
     tools.register(tool);
   }
   if (opts?.askUser) tools.register(createAskUserTool(deps.ask));
   if (opts?.todoWrite) tools.register(createTodoWriteTool(deps.setTodos));
   if (deps.resolveSkill) tools.register(createSkillTool(deps.resolveSkill));
-  if (opts?.subAgent) tools.register(createSubAgentTool({ tools: READONLY_TOOLS, ...deps.subAgent }));
+  if (opts?.subAgent) tools.register(createSubAgentTool({ registry: tools, ...deps.subAgent }));
 }

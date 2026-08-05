@@ -47,6 +47,7 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
 
 export const fileReadTool: Tool = {
   name: "FileRead",
+  readOnly: true,
   description: DESCRIPTION,
   parameters: {
     type: "object",
