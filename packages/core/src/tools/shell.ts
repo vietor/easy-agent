@@ -16,10 +16,12 @@ const DESCRIPTION_POWERSHELL = `
 Windows PowerShell 5.1 (powershell.exe — NOT pwsh/bash).
 
 WARNING — four common mistakes:
+• QUOTE unquoted args starting with a single - that contain a dot — splits them at the last dot (or use --%).
+  Example: -DoutputFile=dep.txt → "-DoutputFile=dep" + ".txt" → fails; use "-DoutputFile=dep.txt"
+  Safe unquoted: --key=value, plain paths, dotless values.
 • Use ; not &&/|| to chain commands
 • Use \` (backtick) to escape, not \\
 • Use $env:NAME, not $NAME
-• Quote -key=value arguments whose value contains dots — PS 5.1 splits them at the last dot (or use --%)
 
 QUOTING: '...' literal. "..." expands $var, $env:NAME, $(...).
 SYNTAX: Conditional: if ($?) { }. No heredocs (<<) or background (&).
