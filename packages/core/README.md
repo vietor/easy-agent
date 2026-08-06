@@ -27,7 +27,7 @@ const session = await createSession({
     model: "deepseek-v4-flash",
     reasoningEffort: "high",
     wireApi: "completions",
-    contextWindow: 1_000_000,
+    maxInputTokens: 1_000_000,
   },
   tools: [myCustomTool],
   skills: tryLoadSkills("./skills") ?? [],
@@ -44,7 +44,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). Only `baseUrl`, `apiKey`, and `model` are required; `reasoningEffort`, `wireApi`, and `contextWindow` default to `"high"`, `"completions"`, and `1_000_000`. |
+| `llmConfig` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `wireApi`). Only `baseUrl`, `apiKey`, and `model` are required; `reasoningEffort`, `wireApi`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -56,7 +56,7 @@ const session = await createSession({
 | `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 
-The auto-compaction threshold is not configurable — it's derived internally as 75% of `llmConfig.contextWindow` and exposed via `session.compactThreshold`.
+The auto-compaction threshold is not configurable — it's derived internally as 75% of `llmConfig.maxInputTokens` and exposed via `session.compactThreshold`.
 
 ---
 
@@ -329,7 +329,8 @@ interface LLMConfig {
   model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
   reasoningEffort?: "high" | "max";  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks (default: "high")
   wireApi?: "completions" | "anthropic";  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK) (default: "completions")
-  contextWindow?: number;     // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
+  maxInputTokens?: number;    // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
+  maxOutputTokens?: number;   // Max output tokens per request, capped by the model's output limit (default: 128,000)
 }
 ```
 
@@ -721,7 +722,7 @@ const session = await createSession({
     model: "deepseek-v4-flash",
     reasoningEffort: "high",
     wireApi: "completions",
-    contextWindow: 1_000_000,
+    maxInputTokens: 1_000_000,
   },
   mcpServers: {
     filesystem: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },

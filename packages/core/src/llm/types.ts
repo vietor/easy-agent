@@ -11,14 +11,16 @@ export interface LLMConfig {
   model: string;
   reasoningEffort?: LLMReasoningEffort;
   wireApi?: LLMWireApi;
-  contextWindow?: number;
+  maxInputTokens?: number;
+  maxOutputTokens?: number;
 }
 
 /** LLMConfig with optional fields resolved to their defaults by `createLLM`. */
 export interface ResolvedLLMConfig extends LLMConfig {
   reasoningEffort: LLMReasoningEffort;
   wireApi: LLMWireApi;
-  contextWindow: number;
+  maxInputTokens: number;
+  maxOutputTokens: number;
 }
 
 export interface TextContentPart {
@@ -70,7 +72,8 @@ export interface ChatOptions {
 export interface LLMClient {
   readonly model: string;
   readonly reasoningEffort: LLMReasoningEffort;
-  readonly contextWindow: number;
+  readonly maxInputTokens: number;
+  readonly maxOutputTokens: number;
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }
 

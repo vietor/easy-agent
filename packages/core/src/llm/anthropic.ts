@@ -25,12 +25,14 @@ export class AnthropicAdapter implements BaseAdapter {
   private client: Anthropic;
   readonly model: string;
   readonly reasoningEffort: LLMReasoningEffort;
-  readonly contextWindow: number;
+  readonly maxInputTokens: number;
+  readonly maxOutputTokens: number;
 
   constructor(config: ResolvedLLMConfig) {
     this.model = config.model;
     this.reasoningEffort = config.reasoningEffort;
-    this.contextWindow = config.contextWindow;
+    this.maxInputTokens = config.maxInputTokens;
+    this.maxOutputTokens = config.maxOutputTokens;
     this.client = new Anthropic({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
@@ -46,11 +48,11 @@ export class AnthropicAdapter implements BaseAdapter {
 
     const params: Anthropic.MessageStreamParams = {
       model: this.model,
-      max_tokens: useThinking ? budget + 16384 : 16384,
+      max_tokens: this.maxOutputTokens,
       messages,
       ...(system && { system }),
       ...(useThinking && {
-        thinking: { type: "enabled" as const, budget_tokens: budget },
+        thinking: { type: "enabled" as const, budget_tokens: Math.min(budget, this.maxOutputTokens - 1) },
         output_config: { effort: this.reasoningEffort },
       }),
       ...(opts.tools.length > 0 && { tools: opts.tools.map(toAnthropicTool) }),
@@ -88,6 +90,9 @@ export class AnthropicAdapter implements BaseAdapter {
     };
     if (thinking.length) message.thinking = thinking;
     if (toolCalls.length) message.tool_calls = toolCalls;
+    if (!text && !thinking.length && !toolCalls.length) {
+      throw new Error("empty model response: no content, refusal, or tool calls");
+    }
     return message;
   }
 }

@@ -11,7 +11,8 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const llm: LLMClient = {
     model: "fake",
     reasoningEffort: "high",
-    contextWindow: 200000,
+    maxInputTokens: 200000,
+    maxOutputTokens: 128000,
     chat: async (opts) => {
       const fn = script.shift();
       if (!fn) throw new Error("no scripted response");

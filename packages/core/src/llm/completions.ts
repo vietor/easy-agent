@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type LLMReasoningEffort } from "./types.js";
+import type { BaseAdapter, ResolvedLLMConfig, AssistantMessage, ChatOptions, LLMReasoningEffort } from "./types.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAccumulator {
@@ -12,12 +12,14 @@ export class CompletionsAdapter implements BaseAdapter {
   private client: OpenAI;
   readonly model: string;
   readonly reasoningEffort: LLMReasoningEffort;
-  readonly contextWindow: number;
+  readonly maxInputTokens: number;
+  readonly maxOutputTokens: number;
 
   constructor(config: ResolvedLLMConfig) {
     this.model = config.model;
     this.reasoningEffort = config.reasoningEffort;
-    this.contextWindow = config.contextWindow;
+    this.maxInputTokens = config.maxInputTokens;
+    this.maxOutputTokens = config.maxOutputTokens;
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
@@ -31,14 +33,15 @@ export class CompletionsAdapter implements BaseAdapter {
     let content = "";
     let refusal = "";
     const calls = new Map<number, ToolCallAccumulator>();
-    const useReasoning = reasoning !== false;
+    const useThinking = reasoning !== false;
     const params: Record<string, unknown> = {
       model: this.model,
+      max_tokens: this.maxOutputTokens,
       messages,
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
-      ...(useReasoning && { reasoning_effort: this.reasoningEffort === "max" ? "xhigh" : this.reasoningEffort })
+      ...(useThinking && { reasoning_effort: this.reasoningEffort })
     };
     const stream = await this.client.chat.completions.create(
       params as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
@@ -91,6 +94,9 @@ export class CompletionsAdapter implements BaseAdapter {
           type: "function" as const,
           function: { name: acc.name, arguments: acc.arguments },
         }));
+    }
+    if (!content && !refusal && !calls.size) {
+      throw new Error("empty model response: no content, refusal, or tool calls");
     }
     return message;
   }

@@ -5,7 +5,8 @@ import { withRetry } from "../util/async.js";
 
 const DEFAULT_REASONING_EFFORT: LLMReasoningEffort = "high";
 const DEFAULT_WIRE_API: LLMWireApi = "completions";
-const DEFAULT_CONTEXT_WINDOW = 1_000_000;
+const DEFAULT_MAX_INPUT_TOKENS = 1_000_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 128_000;
 
 const MAX_RETRIES = 3;
 
@@ -34,7 +35,8 @@ export function createLLM(config: LLMConfig): LLMClient {
     ...config,
     reasoningEffort: config.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
     wireApi: config.wireApi ?? DEFAULT_WIRE_API,
-    contextWindow: config.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
+    maxInputTokens: config.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
+    maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   };
   const adapter = cfg.wireApi === "anthropic"
     ? new AnthropicAdapter(cfg)
@@ -42,11 +44,12 @@ export function createLLM(config: LLMConfig): LLMClient {
   return {
     model: adapter.model,
     reasoningEffort: adapter.reasoningEffort,
-    contextWindow: adapter.contextWindow,
+    maxInputTokens: adapter.maxInputTokens,
+    maxOutputTokens: adapter.maxOutputTokens,
     chat: withRetryChat(adapter),
   };
 }
 
-export function compactThresholdFor(contextWindow: number): number {
-  return Math.floor(contextWindow * 0.75);
+export function compactThresholdFor(maxInputTokens: number): number {
+  return Math.floor(maxInputTokens * 0.75);
 }

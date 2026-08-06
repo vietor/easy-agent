@@ -11,7 +11,8 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const llm: LLMClient = {
     model: "fake",
     reasoningEffort: "high",
-    contextWindow: 200000,
+    maxInputTokens: 200000,
+    maxOutputTokens: 128000,
     chat: async (opts) => {
       calls.push(opts);
       const fn = script.shift();
@@ -173,7 +174,8 @@ test("multiple SubAgent calls in one turn run concurrently", async () => {
   const llm: LLMClient = {
     model: "fake",
     reasoningEffort: "high",
-    contextWindow: 200000,
+    maxInputTokens: 200000,
+    maxOutputTokens: 128000,
     chat: async (opts) => {
       calls.push(opts);
       if (calls.length >= 2) {

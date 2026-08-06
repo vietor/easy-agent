@@ -103,7 +103,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         getTodos: () => [],
         stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
         maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
-        compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.contextWindow),
+        compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.maxInputTokens),
       });
 
       const status = await subAgent.run(task, undefined, ctx.signal);
