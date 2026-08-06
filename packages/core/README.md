@@ -336,8 +336,8 @@ interface LLMConfig {
 
 `wireApi` selects the request/response protocol the client speaks:
 
-- `"completions"` - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`.
-- `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k); thinking blocks are preserved across tool-use turns as required by the API.
+- `"completions"` - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`; `maxOutputTokens` is sent as `max_tokens`.
+- `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
 
 ### `SessionPersistence`
 
