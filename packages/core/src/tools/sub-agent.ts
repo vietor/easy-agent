@@ -1,7 +1,7 @@
 import { compactThresholdFor } from "../llm/client.js";
 import { textOf, type LLMClient } from "../llm/types.js";
 import type { ConversationMessage } from "../core/conversation.js";
-import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD, NOT_EXECUTED_PREFIX } from "../util/constants.js";
 import { toolError, type Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
 import { Agent } from "../core/agent.js";
@@ -93,7 +93,10 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       const subTools = new ToolRegistry();
       subTools.registerAll(deps.tools.filter((t) => t.readOnly === true));
 
-      const conversation = new Conversation([def.systemPrompt, TOOL_USE_PROMPT].join("\n\n"));
+      const maxTurns = deps.maxTurns ?? DEFAULT_MAX_TURNS;
+      const conversation = new Conversation(
+        [def.systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`].join("\n\n")
+      );
       const subAgent = new Agent({
         llm: deps.llm,
         conversation,
@@ -102,7 +105,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         setTodos: () => {},
         getTodos: () => [],
         stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
-        maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
+        maxTurns,
         compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.maxInputTokens),
       });
 
@@ -111,9 +114,11 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       const messages = conversation.export();
       const report = lastAssistantText(messages) || `(sub-agent produced no final text; status ${status})`;
       if (status === "ok") return { content: report };
-      const stallReason = [...messages].reverse()
-        .map((m) => m.content)
-        .find((c): c is string => typeof c === "string" && c.startsWith("(not executed: stalled"));
+      const stallReason = status === "stalled"
+        ? [...messages].reverse()
+          .map((m) => m.content)
+          .find((c): c is string => typeof c === "string" && c.startsWith(NOT_EXECUTED_PREFIX))
+        : undefined;
       const suffix = stallReason ? ` ${stallReason}` : "";
       return { content: `Sub-agent "${type}" ended with status ${status}.${suffix}\n\n${report}`, isError: true };
     },

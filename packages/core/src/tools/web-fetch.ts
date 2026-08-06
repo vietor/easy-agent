@@ -21,10 +21,10 @@ function isTextualMime(mime: string): boolean {
   );
 }
 
-const DESCRIPTION = "Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over 10MB. Retries transient failures (network, timeouts, 429/5xx) up to 3 attempts. GET only; no custom headers or request body. Follows redirects.";
-
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const WEB_FETCH_RETRIES = 2;
+
+const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over ${MAX_READ_BYTES / (1024 * 1024)}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
 
 class WebFetchError extends Error {}
 

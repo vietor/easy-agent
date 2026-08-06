@@ -7,6 +7,7 @@ export const CALL_TIMEOUT_MS = 300_000;
 export const REQUEST_TIMEOUT_MS = 60_000;
 export const NO_OUTPUT = "(no output)";
 export const NO_MATCHES = "(no matches)";
+export const NOT_EXECUTED_PREFIX = "(not executed: ";
 export const MAX_PREVIEW_LEN = 75;
 export const DEFAULT_STALL_THRESHOLD = 3;
 export const DEFAULT_MAX_TURNS = 50;

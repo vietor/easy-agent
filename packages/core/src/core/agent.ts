@@ -1,5 +1,5 @@
 import { mapWithConcurrency, withAbort } from "../util/async.js";
-import { MAX_PARALLEL_TOOL_CALLS, SKILL_TOOL_NAME } from "../util/constants.js";
+import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { ellipsisText, errorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
@@ -18,7 +18,7 @@ const COMPACT_PROMPT = [
   "6. Current progress: what is done, verified, and in-progress state.\n",
   "7. Pending tasks, open questions, concrete next step.\n",
   "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. Keep only what the next turn needs to continue without re-reading history.\n",
-  "Concise but thorough; keep technical specifics; use the conversation language. Target roughly 10% of the original length (a few hundred tokens) — technical specifics over prose. ",
+  "Concise but thorough; keep technical specifics; use the conversation language. Target roughly 10% of the original length, capped at a few hundred tokens — technical specifics over prose. ",
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
@@ -253,7 +253,7 @@ export class Agent {
 
   private resolvePendingToolCalls(calls: NonNullable<AssistantMessage["tool_calls"]>, reason: string): void {
     for (const tc of calls) {
-      this.conversation.add({ role: "tool", tool_call_id: tc.id, content: `(not executed: ${reason})`, isError: true });
+      this.conversation.add({ role: "tool", tool_call_id: tc.id, content: `${NOT_EXECUTED_PREFIX}${reason})`, isError: true });
     }
   }
 

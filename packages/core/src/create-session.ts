@@ -14,7 +14,7 @@ export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtinTools: BuiltinToolsOptions | false | undefined, maxTurns: number): string {
   const parts = [base];
-  const toolUseLines = [TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run. Tasks needing more must delegate chunks via SubAgent or narrow scope.`];
+  const toolUseLines = [TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`];
   if (typeof builtinTools === "object") {
     if (builtinTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtinTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);

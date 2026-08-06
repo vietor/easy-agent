@@ -7,7 +7,7 @@ import { compactFormat, previewBytes } from "../util/text.js";
 const DEFAULT_LIMIT = 2000;
 const CHUNK = 64 * 1024;
 
-const DESCRIPTION = "Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to 2000 lines; use offset and limit to page further. Files over 20MB are rejected. Binary files may return garbled output or fail.";
+const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_BYTES / 1_000_000}MB are rejected. Binary files may return garbled output or fail.`;
 
 interface PageRead {
   text: string | null;
@@ -54,7 +54,7 @@ export const fileReadTool: Tool = {
     properties: {
       path: { type: "string" },
       offset: { type: "number", description: "line number to start reading from (1-indexed)" },
-      limit: { type: "number", description: "number of lines to read (default 2000)" },
+      limit: { type: "number", description: `number of lines to read (default ${DEFAULT_LIMIT})` },
     },
     required: ["path"],
   },

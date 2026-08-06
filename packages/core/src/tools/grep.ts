@@ -5,7 +5,7 @@ import type { Tool } from "./types.js";
 
 const DEFAULT_LIMIT = 200;
 
-const DESCRIPTION = "Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at 200 lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit.";
+const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at ${DEFAULT_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit.`;
 
 export const grepTool: Tool = {
   name: "Grep",
@@ -25,7 +25,7 @@ export const grepTool: Tool = {
       context: { type: "number", description: "lines before and after each match" },
       only_matching: { type: "boolean", description: "only the matched parts" },
       multiline: { type: "boolean", description: "patterns may span newlines" },
-      head_limit: { type: "number", description: "max output lines, default 200" },
+      head_limit: { type: "number", description: `max output lines, default ${DEFAULT_LIMIT}` },
     },
     required: ["pattern"],
   },
@@ -57,5 +57,5 @@ export const grepTool: Tool = {
   getPreview(result) {
     return rgResultPreview("match", result, "Grep failed", "Found 0 matches");
   },
-  summaryArg: ["pattern", "path"],
+  summaryArg: ["pattern", "path", "glob"],
 };
