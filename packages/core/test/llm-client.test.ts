@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isRetryableError } from "../src/llm/client.js";
+import { EmptyAssistantMessageError } from "../src/llm/types.js";
 
 test("connection and timeout errors are retryable", () => {
   for (const name of ["APIConnectionError", "APIConnectionTimeoutError", "APITimeoutError"]) {
@@ -20,6 +21,10 @@ test("429 and 5xx statuses are retryable, other 4xx are not", () => {
 test("ordinary errors and non-error throws are not retryable", () => {
   assert.equal(isRetryableError(new Error("boom")), false);
   assert.equal(isRetryableError("boom"), false);
+});
+
+test("empty model response errors are retryable", () => {
+  assert.equal(isRetryableError(new EmptyAssistantMessageError()), true);
 });
 
 test("an already-aborted signal is never retryable", () => {

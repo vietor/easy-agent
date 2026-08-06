@@ -87,6 +87,13 @@ export function textOf(content: string | TextContentPart[] | null | undefined): 
   return content.map((p) => p.text).join("");
 }
 
+export class EmptyAssistantMessageError extends Error {
+  constructor() {
+    super("empty assistant message: no content, refusal, thinking, or tool calls");
+    this.name = "EmptyAssistantMessageError";
+  }
+}
+
 export function parseToolArgs(args: string | undefined): { args: Record<string, unknown>; error?: string } {
   if (!args) return { args: {} };
   try {

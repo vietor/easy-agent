@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { BaseAdapter, ResolvedLLMConfig, AssistantMessage, ChatOptions, LLMReasoningEffort } from "./types.js";
+import { EmptyAssistantMessageError, type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type LLMReasoningEffort } from "./types.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAccumulator {
@@ -96,7 +96,7 @@ export class CompletionsAdapter implements BaseAdapter {
         }));
     }
     if (!content && !refusal && !calls.size) {
-      throw new Error("empty model response: no content, refusal, or tool calls");
+      throw new EmptyAssistantMessageError();
     }
     return message;
   }

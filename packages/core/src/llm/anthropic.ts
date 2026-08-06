@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
+  EmptyAssistantMessageError,
   type BaseAdapter,
   parseToolArgs,
   textOf,
@@ -91,7 +92,7 @@ export class AnthropicAdapter implements BaseAdapter {
     if (thinking.length) message.thinking = thinking;
     if (toolCalls.length) message.tool_calls = toolCalls;
     if (!text && !thinking.length && !toolCalls.length) {
-      throw new Error("empty model response: no content, refusal, or tool calls");
+      throw new EmptyAssistantMessageError();
     }
     return message;
   }

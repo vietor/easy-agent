@@ -1,4 +1,4 @@
-import type { BaseAdapter, LLMClient, LLMConfig, ResolvedLLMConfig, LLMReasoningEffort, LLMWireApi } from "./types.js";
+import { EmptyAssistantMessageError, type BaseAdapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig, type LLMReasoningEffort, type LLMWireApi } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { withRetry } from "../util/async.js";
@@ -12,6 +12,7 @@ const MAX_RETRIES = 3;
 
 export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
   if (signal?.aborted) return false;
+  if (e instanceof EmptyAssistantMessageError) return true;
   const name = (e as { name?: string }).name;
   if (name === "APIConnectionError" || name === "APIConnectionTimeoutError" || name === "APITimeoutError") return true;
   const status = (e as { status?: number }).status;
