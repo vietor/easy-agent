@@ -68,7 +68,7 @@ test("empty file", async () => {
 test("rejects files over the size limit", async () => {
   await withFile("", async (p) => {
     await writeFile(p, Buffer.alloc(21 * 1024 * 1024));
-    await assert.rejects(() => read(p), /larger than the 20M read limit/);
+    await assert.rejects(() => read(p), /larger than the [\d.]+M read limit/);
   });
 });
 

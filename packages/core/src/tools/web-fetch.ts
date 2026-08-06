@@ -1,7 +1,7 @@
 import type { Tool } from "./types.js";
 import { htmlToMarkdown, netFetch } from "../util/net.js";
 import { withRetry, withTimeoutError } from "../util/async.js";
-import { MAX_READ_BYTES, REQUEST_TIMEOUT_MS } from "../util/constants.js";
+import { MAX_WEB_FETCH_MB, REQUEST_TIMEOUT_MS } from "../util/constants.js";
 import { errorMessage, previewBytes } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
@@ -23,8 +23,9 @@ function isTextualMime(mime: string): boolean {
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const WEB_FETCH_RETRIES = 2;
+const MAX_WEB_FETCH_BYTES = MAX_WEB_FETCH_MB * 1024 * 1024;
 
-const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over ${MAX_READ_BYTES / (1024 * 1024)}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
+const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over ${MAX_WEB_FETCH_MB}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
 
 class WebFetchError extends Error {}
 
@@ -73,10 +74,10 @@ async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<s
   const mime = mimeFrom(contentType);
   if (!isTextualMime(mime)) throw new Error(`unsupported content type: ${mime} for ${url}`);
   const contentLength = Number(res.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_READ_BYTES) {
-    throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_READ_BYTES})`);
+  if (Number.isFinite(contentLength) && contentLength > MAX_WEB_FETCH_BYTES) {
+    throw new Error(`content too large: ${contentLength} bytes for ${url} (limit ${MAX_WEB_FETCH_BYTES})`);
   }
-  const body = await readTextBounded(res, MAX_READ_BYTES);
+  const body = await readTextBounded(res, MAX_WEB_FETCH_BYTES);
   if (!mime.includes("html")) return body;
   return htmlToMarkdown(body);
 }

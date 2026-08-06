@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { MAX_PROCESS_BUFFER } from "./constants.js";
+import { MAX_PROCESS_BUFFER_MB } from "./constants.js";
 
 export interface ProcessResult {
   stdout: string;
@@ -10,6 +10,7 @@ export interface ProcessResult {
 }
 
 const KILL_GRACE_MS = 2000;
+const MAX_PROCESS_BUFFER = MAX_PROCESS_BUFFER_MB * 1024 * 1024;
 
 const liveProcesses = new Set<number>();
 process.on("exit", () => {
@@ -86,7 +87,7 @@ export function runProcess(
         settle({
           ...flushOutput(),
           status: null,
-          error: new Error(`Command output exceeded ${MAX_PROCESS_BUFFER / 1024 / 1024}MB`),
+          error: new Error(`Command output exceeded ${MAX_PROCESS_BUFFER_MB}MB`),
           truncated: true,
         });
       }

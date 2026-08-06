@@ -1,13 +1,14 @@
 import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
 import { requirePath } from "../util/file.js";
-import { MAX_FILE_READ_BYTES } from "../util/constants.js";
+import { MAX_FILE_READ_MB } from "../util/constants.js";
 import { compactFormat, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
 const CHUNK = 64 * 1024;
+const MAX_FILE_READ_BYTES = MAX_FILE_READ_MB * 1024 * 1024;
 
-const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_BYTES / 1_000_000}MB are rejected. Binary files may return garbled output or fail.`;
+const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB are rejected. Binary files may return garbled output or fail.`;
 
 interface PageRead {
   text: string | null;
