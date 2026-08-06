@@ -9,7 +9,7 @@ import { Conversation } from "../core/conversation.js";
 import { TOOL_USE_PROMPT } from "./prompt.js";
 
 export const SUB_AGENT_GUIDANCE =
-  '- Consider delegating to a sub-agent via the SubAgent tool when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. type: "explore" — read-only search agent for broad fan-out searches (state the search breadth in the task); type: "plan" — software architect producing implementation plans. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result. Independent subtasks can be delegated in the same turn so they run concurrently, but issue at most 2 SubAgent calls per turn. Sub-agents are read-only, run silently, and return only their final report — verify important results yourself. Bulk workloads: when a task has dozens to hundreds of independent items that would exceed the turn budget, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, and delegate one SubAgent per chunk — at most 2 SubAgent calls per turn, so run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.';
+  '- Consider delegating to the SubAgent tool when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. type: "explore" — read-only search agent for broad fan-out searches (state the search breadth in the task); type: "plan" — software architect producing implementation plans. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result. Issue at most 2 SubAgent calls per turn; multiple calls in the same turn run concurrently. Sub-agents are read-only and return only their final report, not intermediate steps — verify important results yourself. For large workloads with many independent items that would exceed the turn budget, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.';
 
 export interface SubAgentToolDeps {
   llm: LLMClient;
@@ -60,7 +60,7 @@ const SUB_AGENT_DEFS = [
 ] as const;
 
 const TOOL_DESCRIPTION =
-  'Run a dedicated sub-agent in its own nested loop (silent — no events streamed to the UI). type: "explore" — a read-only search agent for broad fan-out searches of the codebase or web; specify a search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions). type: "plan" — a software architect that reads the relevant code first, then returns a step-by-step implementation plan identifying critical files and architectural trade-offs. Returns the sub-agent\'s final report as text. For workloads with many independent items (dozens to hundreds), split them into chunks and delegate one SubAgent per chunk — at most 3 SubAgent calls per turn, so run the remaining chunks in the following turns as results return. Each sub-agent runs its own loop and does not consume your turn budget. For a few independent subtasks, issue multiple SubAgent calls in a single turn (at most 2) so they run concurrently. The sub-agent cannot ask questions, use skills, or spawn further sub-agents.';
+  'Run a dedicated sub-agent in its own nested loop — the only result you receive is its final report as text, not intermediate steps. type: "explore" — a read-only search agent for broad fan-out searches of the codebase or web; specify a search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions). type: "plan" — a software architect that reads the relevant code first, then returns a step-by-step implementation plan identifying critical files and architectural trade-offs. Sub-agents are read-only and cannot ask questions, use skills, or spawn further sub-agents.';
 
 export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
   return {
@@ -72,7 +72,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         type: {
           type: "string",
           enum: SUB_AGENT_DEFS.map((d) => d.type),
-          description: 'Which sub-agent to invoke: "explore" — read-only broad fan-out search (state a search breadth like "medium" or "very thorough" in the task); "plan" — software architect producing a step-by-step implementation plan.',
+          description: 'The sub-agent type to invoke: "explore" (read-only fan-out search) or "plan" (implementation plan).',
         },
         task: { type: "string", description: "The task or question for the sub-agent, as a self-contained description." },
       },
