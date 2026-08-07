@@ -24,9 +24,11 @@ export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 
-export function ellipsisText(content: string, length: number) {
+export function ellipsisText(content: string, length: number, showChars?: boolean) {
   const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-  return text.length > length ? text.slice(0, length) + "…" : text;
+  if (text.length <= length) return text;
+  const truncated = text.slice(0, length) + "…";
+  return showChars ? `${truncated} (${text.length})` : truncated;
 }
 
 export interface PreviewResult {

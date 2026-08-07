@@ -672,14 +672,15 @@ formatCompactNumber(1234);   // "1.23K"
 
 ### `ellipsisText`
 
-**`ellipsisText(content: string, length: number): string`**
+**`ellipsisText(content: string, length: number, showChars?: boolean): string`**
 
-Collapse whitespace and truncate text to `length` characters with a trailing `…`.
+Collapse whitespace and truncate text to `length` characters with a trailing `…`. With `showChars`, append the total character count when truncated — useful for text that changes size over time.
 
 ```ts
 import { ellipsisText } from "@vietor/easy-agent-core";
 
-ellipsisText("a\nvery   long line", 8);   // "a very l…"
+ellipsisText("a\nvery   long line", 8);              // "a very l…"
+ellipsisText("a very long line here", 8, true);      // "a very l… (21)"
 ```
 
 ### `errorMessage`
