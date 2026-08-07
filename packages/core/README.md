@@ -327,12 +327,18 @@ interface LLMConfig {
   baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com") — required
   apiKey: string;             // API key — required
   model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
-  reasoningEffort?: "high" | "max";  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks (default: "high")
-  wireApi?: "completions" | "anthropic";  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK) (default: "completions")
+  reasoningEffort?: LLMReasoningEffort;  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks (default: "high")
+  wireApi?: LLMWireApi;  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK) (default: "completions")
   maxInputTokens?: number;    // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
   maxOutputTokens?: number;   // Max output tokens per request, capped by the model's output limit (default: 128,000)
 }
+
+type LLMReasoningEffort = "high" | "max";
+
+type LLMWireApi = "completions" | "anthropic";
 ```
+
+Both aliases are exported so hosts can reference them in their own config types.
 
 `wireApi` selects the request/response protocol the client speaks:
 
@@ -705,6 +711,46 @@ import { netFetch } from "@vietor/easy-agent-core";
 // Same signature as fetch — automatically uses proxy if env vars are set
 const res = await netFetch("https://api.example.com/data");
 const data = await res.json();
+```
+
+### `runProcess`
+
+**`runProcess(cmd: string, args: string[], opts?: { cwd?: string; timeout?: number }, signal?: AbortSignal): Promise<ProcessResult>`**
+
+Run a subprocess, capturing stdout and stderr (used by the built-in Shell tool). The promise never rejects — spawn failures, timeouts, and output over the 10MB cap are reported via `ProcessResult.error`. Pass a `timeout` (ms) or an `AbortSignal` to kill the process tree.
+
+```ts
+import { runProcess } from "@vietor/easy-agent-core";
+
+const result = await runProcess("ls", ["-la"], { cwd: "./src" });
+if (result.error) console.error(result.error.message);
+else console.log(result.stdout, result.status);
+```
+
+### `ProcessResult`
+
+Returned by `runProcess`.
+
+```ts
+interface ProcessResult {
+  stdout: string;
+  stderr: string;
+  status: number | null;  // exit code; null when killed (signal, abort, timeout, buffer overflow)
+  error?: Error;          // spawn failure, timeout, or output exceeded the 10MB cap
+  truncated?: boolean;    // true when output was cut off at the 10MB cap
+}
+```
+
+### `MAX_PREVIEW_LENGTH`
+
+**`MAX_PREVIEW_LENGTH: number`** (`75`)
+
+The character cap the tool registry applies when truncating tool results into timeline previews.
+
+```ts
+import { MAX_PREVIEW_LENGTH } from "@vietor/easy-agent-core";
+
+const preview = result.length > MAX_PREVIEW_LENGTH ? `${result.slice(0, MAX_PREVIEW_LENGTH)}…` : result;
 ```
 
 ---
