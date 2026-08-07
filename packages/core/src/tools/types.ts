@@ -1,7 +1,4 @@
-export interface ToolResult {
-  content: string;
-  isError?: boolean;
-}
+import type { ContentResult } from "../util/types.js";
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
 
@@ -10,7 +7,7 @@ export interface Todo {
   status: TodoStatus;
 }
 
-export function toolError(msg: string): ToolResult {
+export function toolError(msg: string): ContentResult {
   const content = msg.startsWith("Error: ") ? msg : `Error: ${msg}`;
   return { content: content, isError: true };
 }
@@ -36,6 +33,6 @@ export interface Tool {
   parameters: Record<string, unknown>;
   summaryArg?: string | string[];
   summarizeArgs?: (args: Record<string, unknown>) => string;
-  getPreview?(result: ToolResult): string;
-  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ToolResult>;
+  getPreview?(result: ContentResult): string;
+  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ContentResult>;
 }

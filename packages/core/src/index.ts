@@ -2,7 +2,8 @@ export { Session, SessionBusyError, createSessionRunState, type SessionDeps, typ
 export type { AgentRunStatus } from "./core/agent.js";
 export type { TimelineEntry } from "./core/timeline.js";
 export type { ConversationMessage } from "./core/conversation.js";
-export type { Tool, ToolContext, ToolResult, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
+export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
+export type { ContentResult } from "./util/types.js";
 export type { BuiltInToolsOptions } from "./tools/registry.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";

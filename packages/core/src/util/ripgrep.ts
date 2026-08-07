@@ -1,11 +1,14 @@
 import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
 import { NO_MATCHES, REQUEST_TIMEOUT_MS } from "./constants.js";
-import { TRUNCATION_MARKER, previewCount, visibleLineCount } from "./text.js";
+import { previewCount } from "./text.js";
+import type { ContentResult } from "./types.js";
 
-export interface RgOutput {
-  content: string;
-  isError?: boolean;
+const TRUNCATION_MARKER = "(output truncated)";
+
+function visibleLineCount(content: string): number {
+  const lines = content.split("\n").filter((l) => l);
+  return lines.length - (lines[lines.length - 1] === TRUNCATION_MARKER ? 1 : 0);
 }
 
 export function formatRgOutput(lines: string[], truncated: boolean, emptyText: string): string {
@@ -14,7 +17,7 @@ export function formatRgOutput(lines: string[], truncated: boolean, emptyText: s
   return truncated ? out + "\n" + TRUNCATION_MARKER : out;
 }
 
-export function rgResultPreview(word: "file" | "match", result: RgOutput, failText: string, noMatchesText: string): string {
+export function rgResultPreview(word: "file" | "match", result: ContentResult, failText: string, noMatchesText: string): string {
   if (result.isError) return failText;
   if (result.content === NO_MATCHES) return noMatchesText;
   return previewCount(word, visibleLineCount(result.content), false, failText);

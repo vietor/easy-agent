@@ -5,7 +5,8 @@ import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Mess
 import type { Conversation, ConversationMessage } from "./conversation.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import { toolError, type ToolContext, type ToolResult, type ToolSchema, type Todo, type TodoStatus } from "../tools/types.js";
+import { toolError, type ToolContext, type ToolSchema, type Todo, type TodoStatus } from "../tools/types.js";
+import type { ContentResult } from "../util/types.js";
 
 
 const COMPACT_PROMPT = [
@@ -308,7 +309,7 @@ export class Agent {
     onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
     const ctx: ToolContext = { signal, cwd: this.cwd };
     const start = performance.now();
-    const result: ToolResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
+    const result: ContentResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
     const preview = this.tools.getPreview(call.function.name, result, duration);
     if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });

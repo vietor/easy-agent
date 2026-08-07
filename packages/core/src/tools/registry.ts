@@ -1,4 +1,4 @@
-import { toolError, type Tool, type ToolContext, type ToolResult, type ToolSchema, type Todo } from "./types.js";
+import { toolError, type Tool, type ToolContext, type ToolSchema, type Todo } from "./types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";
 import { fileWriteTool } from "./file-write.js";
@@ -13,9 +13,14 @@ import { createSubAgentTool } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import type { LLMClient } from "../llm/types.js";
 import { MAX_PREVIEW_LENGTH } from "../util/constants.js";
-import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText, lineCount } from "../util/text.js";
+import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText } from "../util/text.js";
+import type { ContentResult } from "../util/types.js";
 
-function defaultPreview(result: ToolResult): string {
+function lineCount(content: string): number {
+  return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
+}
+
+function defaultPreview(result: ContentResult): string {
   if (result.isError) {
     return ellipsisText(result.content, MAX_PREVIEW_LENGTH);
   }
@@ -68,7 +73,7 @@ export class ToolRegistry {
     }
   }
 
-  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ContentResult> {
     const tool = this.tools.get(name);
     if (!tool) return toolError(`unknown tool ${name}`);
     try {
@@ -79,7 +84,7 @@ export class ToolRegistry {
     }
   }
 
-  getPreview(name: string, result: ToolResult, durationMs?: number): string {
+  getPreview(name: string, result: ContentResult, durationMs?: number): string {
     const tool = this.tools.get(name);
     const preview = tool?.getPreview
       ? tool.getPreview(result)

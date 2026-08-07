@@ -1,4 +1,5 @@
 import TurndownService from "turndown";
+import type { ContentResult } from "./types.js";
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -48,12 +49,7 @@ export function ellipsisText(content: string, length: number, showChars?: boolea
   return showChars ? `${truncated} (${text.length})` : truncated;
 }
 
-export interface PreviewResult {
-  content: string;
-  isError?: boolean;
-}
-
-export function previewBytes(prefix: string, result: PreviewResult, failText: string): string {
+export function previewBytes(prefix: string, result: ContentResult, failText: string): string {
   if (result.isError) return failText;
   return `${prefix} ${formatCompactNumber(getTextBytes(result.content))} bytes`;
 }
@@ -62,19 +58,6 @@ export function previewCount(word: "file" | "match", count: number, isError: boo
   if (isError) return failText;
   const plural = word === "match" ? "matches" : "files";
   return `Found ${count} ${count === 1 ? word : plural}`;
-}
-
-/** Trailing marker line appended when tool output was cut short (by a head limit or the 10MB buffer cap). */
-export const TRUNCATION_MARKER = "(output truncated)";
-
-export function lineCount(content: string): number {
-  return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
-}
-
-/** Line count of tool output, excluding a trailing truncation marker. */
-export function visibleLineCount(content: string): number {
-  const lines = content.split("\n").filter((l) => l);
-  return lines.length - (lines[lines.length - 1] === TRUNCATION_MARKER ? 1 : 0);
 }
 
 export function errorMessage(e: unknown): string {

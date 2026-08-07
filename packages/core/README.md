@@ -406,15 +406,15 @@ interface Tool {
   parameters: Record<string, unknown>;   // JSON Schema object
   summaryArg?: string | string[];        // parameter key(s) used for display summary
   summarizeArgs?: (args: Record<string, unknown>) => string; // custom summary function
-  getPreview?(result: ToolResult): string; // result preview for timeline display
-  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ToolResult>;
+  getPreview?(result: ContentResult): string; // result preview for timeline display
+  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ContentResult>;
 }
 ```
 
 - `readOnly` (optional) marks the tool as read-only. Read-only tools are what `builtinTools: { readOnly: true }` registers, and what the SubAgent tool equips sub-agents with.
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
-- Return a plain string (equivalent to `{ content: string }`) or a `ToolResult` with an optional `isError` flag.
+- Return a plain string (equivalent to `{ content: string }`) or a `ContentResult` with an optional `isError` flag.
 - `summaryArg` / `summarizeArgs` control what appears in the tool log entry's `summary` field.
 - `getPreview` (optional) returns a short result preview for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default preview (byte/line count) when not defined.
 
@@ -427,10 +427,10 @@ interface ToolContext {
 }
 ```
 
-### `ToolResult`
+### `ContentResult`
 
 ```ts
-interface ToolResult {
+interface ContentResult {
   content: string;
   isError?: boolean;
 }
