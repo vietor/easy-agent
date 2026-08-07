@@ -6,7 +6,7 @@ import { loadConfig } from "./config.js";
 import { tryLoadSkills, tryReadFileText, createSession, SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
 import { startApp } from "./tui/app.js";
 import { getPackageInfo } from "./util/package.js";
-import { FileSessionPersistence } from "./util/session-store.js";
+import { FileSessionPersistence } from "./session-store.js";
 
 function buildSystemPromptBase(cwd: string) {
   return [
