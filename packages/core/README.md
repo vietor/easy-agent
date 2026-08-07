@@ -49,7 +49,7 @@ const session = await createSession({
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtinTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
+| `builtinTools` | `BuiltInToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
@@ -640,28 +640,28 @@ import { getTextBytes } from "@vietor/easy-agent-core";
 const bytes = getTextBytes("Hello");   // 5
 ```
 
-### `timeFormat`
+### `formatSeconds`
 
-**`timeFormat(value: number): string`**
+**`formatSeconds(value: number): string`**
 
 Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result previews.
 
 ```ts
-import { timeFormat } from "@vietor/easy-agent-core";
+import { formatSeconds } from "@vietor/easy-agent-core";
 
-timeFormat(3.24);   // "3.24s"
+formatSeconds(3.24);   // "3.24s"
 ```
 
-### `compactFormat`
+### `formatCompactNumber`
 
-**`compactFormat(value: number): string`**
+**`formatCompactNumber(value: number): string`**
 
 Format a number compactly (e.g. `1.2K`). Used for byte/line counts in previews.
 
 ```ts
-import { compactFormat } from "@vietor/easy-agent-core";
+import { formatCompactNumber } from "@vietor/easy-agent-core";
 
-compactFormat(1234);   // "1.23K"
+formatCompactNumber(1234);   // "1.23K"
 ```
 
 ### `ellipsisText`

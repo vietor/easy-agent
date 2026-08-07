@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Box, Text, useWindowSize } from "ink";
-import { compactFormat } from "@vietor/easy-agent-core";
+import { formatCompactNumber } from "@vietor/easy-agent-core";
 
 interface StatusBarProps {
   contextTokens: number;
@@ -23,7 +23,7 @@ export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, 
   return (
     <Box width={columns} paddingX={1} flexDirection="row" justifyContent="space-between" borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray">
       <Text>
-        <Text dimColor>{`context ${compactFormat(contextTokens)} `}</Text>
+        <Text dimColor>{`context ${formatCompactNumber(contextTokens)} `}</Text>
         <Text color={ctxColor}>{`▕${bar}▏ ${pct}%`}</Text>
       </Text>
       <Text dimColor>{hints}</Text>

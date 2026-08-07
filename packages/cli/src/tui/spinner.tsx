@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Text } from "ink";
-import { timeFormat, compactFormat } from "@vietor/easy-agent-core";
+import { formatSeconds, formatCompactNumber } from "@vietor/easy-agent-core";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -26,7 +26,7 @@ export function Spinner({
     <Text>
       <Text color="cyan">{SPINNER_FRAMES[frame]}</Text>
       <Text> {label}</Text>
-      <Text dimColor> · work {timeFormat(thinkingElapsed)} · reply {timeFormat(replyElapsed)} · ↑{compactFormat(inputTokens)} · ↓{compactFormat(outputTokens)}</Text>
+      <Text dimColor> · work {formatSeconds(thinkingElapsed)} · reply {formatSeconds(replyElapsed)} · ↑{formatCompactNumber(inputTokens)} · ↓{formatCompactNumber(outputTokens)}</Text>
     </Text>
   );
 }

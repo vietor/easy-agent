@@ -1,23 +1,23 @@
-const timeFormatter = new Intl.NumberFormat("en-US", {
+const secondsFormatter = new Intl.NumberFormat("en-US", {
   style: "unit",
   unit: "second",
   unitDisplay: "narrow",
   maximumFractionDigits: 2,
 });
 
-const compactFormatter = new Intl.NumberFormat("en-US", {
+const compactNumberFormatter = new Intl.NumberFormat("en-US", {
   notation: "compact",
   maximumFractionDigits: 2,
 });
 
-export function timeFormat(value: number) {
+export function formatSeconds(value: number) {
   if (!value) return "0s";
-  return timeFormatter.format(value);
+  return secondsFormatter.format(value);
 }
 
-export function compactFormat(value: number) {
+export function formatCompactNumber(value: number) {
   if (!value) return "0";
-  return compactFormatter.format(value);
+  return compactNumberFormatter.format(value);
 }
 
 export function getTextBytes(content: string): number {
@@ -36,7 +36,7 @@ export interface PreviewResult {
 
 export function previewBytes(prefix: string, result: PreviewResult, failText: string): string {
   if (result.isError) return failText;
-  return `${prefix} ${compactFormat(getTextBytes(result.content))} bytes`;
+  return `${prefix} ${formatCompactNumber(getTextBytes(result.content))} bytes`;
 }
 
 export function previewCount(word: "file" | "match", count: number, isError: boolean, failText: string): string {

@@ -1,6 +1,6 @@
 import type { ConversationMessage } from "./conversation.js";
 import type { Tool, Todo } from "../tools/types.js";
-import type { BuiltinToolsOptions } from "../tools/registry.js";
+import type { BuiltInToolsOptions } from "../tools/registry.js";
 import type { Skill } from "../skills/types.js";
 import type { MCPServerConfig } from "../mcp/types.js";
 import type { LLMConfig } from "../llm/types.js";
@@ -32,7 +32,7 @@ export interface SessionOptions {
   tools?: Tool[];
   skills?: Skill[];
   mcpServers?: Record<string, MCPServerConfig>;
-  builtinTools?: BuiltinToolsOptions | false;
+  builtinTools?: BuiltInToolsOptions | false;
   clientInfo?: { name: string; version: string };
   sessionId?: string;
   persistence?: SessionPersistence;

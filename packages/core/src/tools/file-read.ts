@@ -2,7 +2,7 @@ import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
 import { requirePath } from "../util/file.js";
 import { MAX_FILE_READ_MB } from "../util/constants.js";
-import { compactFormat, previewBytes } from "../util/text.js";
+import { formatCompactNumber, previewBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
 const CHUNK = 64 * 1024;
@@ -69,7 +69,7 @@ export const fileReadTool: Tool = {
     try {
       const { size } = await handle.stat();
       if (size > MAX_FILE_READ_BYTES) {
-        throw new Error(`file is ${compactFormat(size)} — larger than the ${compactFormat(MAX_FILE_READ_BYTES)} read limit`);
+        throw new Error(`file is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_FILE_READ_BYTES)} read limit`);
       }
       if (size === 0) return "(empty file)";
       const { text, totalLines, eof } = await readPage(handle, offset, limit);

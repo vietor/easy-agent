@@ -12,16 +12,16 @@ import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import type { LLMClient } from "../llm/types.js";
-import { MAX_PREVIEW_LEN } from "../util/constants.js";
-import { errorMessage, timeFormat, compactFormat, getTextBytes, ellipsisText, lineCount } from "../util/text.js";
+import { MAX_PREVIEW_LENGTH } from "../util/constants.js";
+import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText, lineCount } from "../util/text.js";
 
 function defaultPreview(result: ToolResult): string {
   if (result.isError) {
-    return ellipsisText(result.content, MAX_PREVIEW_LEN);
+    return ellipsisText(result.content, MAX_PREVIEW_LENGTH);
   }
   const bytes = getTextBytes(result.content);
   const lines = lineCount(result.content);
-  return `Retrieved ${compactFormat(bytes)} bytes, ${compactFormat(lines)} lines`;
+  return `Retrieved ${formatCompactNumber(bytes)} bytes, ${formatCompactNumber(lines)} lines`;
 }
 
 export class ToolRegistry {
@@ -85,7 +85,7 @@ export class ToolRegistry {
       ? tool.getPreview(result)
       : defaultPreview(result);
     return durationMs !== undefined
-      ? `[${timeFormat(durationMs / 1000)}] ${preview}`
+      ? `[${formatSeconds(durationMs / 1000)}] ${preview}`
       : preview;
   }
 
@@ -106,7 +106,7 @@ export class ToolRegistry {
   }
 }
 
-export interface BuiltinToolsOptions {
+export interface BuiltInToolsOptions {
   readOnly?: boolean;
   askUser?: boolean;
   todoWrite?: boolean;
@@ -122,7 +122,7 @@ export interface BuiltinToolsDeps {
 
 const BUILTIN_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, shellTool, fileWriteTool, fileEditTool];
 
-export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
+export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltInToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
   if (opts === false) return;
   const builtins = opts?.readOnly ? BUILTIN_TOOLS.filter((t) => t.readOnly) : BUILTIN_TOOLS;
   for (const tool of builtins) {
