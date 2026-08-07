@@ -24,6 +24,12 @@ function isTextualMime(mime: string): boolean {
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const WEB_FETCH_RETRIES = 2;
 const MAX_WEB_FETCH_BYTES = MAX_WEB_FETCH_MB * 1024 * 1024;
+const REQUEST_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+  "Accept": "text/markdown,text/html,text/plain,application/xhtml+xml,application/xml,application/json;q=0.9,image/webp,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+  "Cache-Control": "no-cache",
+};
 
 const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over ${MAX_WEB_FETCH_MB}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
 
@@ -50,21 +56,13 @@ async function readTextBounded(res: Response, maxBytes: number): Promise<string>
 
 async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<string> {
   const res = await withTimeoutError(
-    (s) => netFetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-        "Accept": "text/markdown,text/html,text/plain,application/xhtml+xml,application/xml,application/json;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        "Cache-Control": "no-cache",
-      },
-      redirect: "follow",
-      signal: s,
-    }),
+    (s) => netFetch(url, { headers: REQUEST_HEADERS, redirect: "follow", signal: s }),
     REQUEST_TIMEOUT_MS,
     signal,
-    `fetch ${url} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
-    (e) => new WebFetchError(`failed to fetch ${url}: ${errorMessage(e)}`)
-  );
+    `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
+  ).catch((e) => {
+    throw new WebFetchError(`failed to fetch ${url}: ${errorMessage(e)}`);
+  });
   if (!res.ok) {
     const message = `${res.status} ${res.statusText} for ${url}`;
     if (RETRYABLE_STATUS.has(res.status)) throw new WebFetchError(message);
