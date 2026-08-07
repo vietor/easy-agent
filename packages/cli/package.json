@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@vietor/easy-agent-core": "workspace:*",
-    "commander": "^13.1.0",
+    "commander": "^15.0.0",
     "ink": "^7.1.1",
     "ink-text-input": "^6.0.0",
     "marked": "^18.0.7",

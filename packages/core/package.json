@@ -24,12 +24,12 @@
     "url": "https://github.com/vietor/easy-agent.git"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.112.5",
+    "@anthropic-ai/sdk": "^0.115.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@vscode/ripgrep": "^1.18.0",
-    "openai": "^6.49.0",
+    "openai": "^7.4.0",
     "turndown": "^7.2.4",
-    "undici": "^7.29.0"
+    "undici": "^8.10.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
