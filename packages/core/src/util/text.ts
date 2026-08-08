@@ -49,12 +49,12 @@ export function ellipsisText(content: string, length: number, showChars?: boolea
   return showChars ? `${truncated} (${text.length})` : truncated;
 }
 
-export function previewBytes(prefix: string, result: ContentResult, failText: string): string {
+export function summaryBytes(prefix: string, result: ContentResult, failText: string): string {
   if (result.isError) return failText;
   return `${prefix} ${formatCompactNumber(getTextBytes(result.content))} bytes`;
 }
 
-export function previewCount(word: "file" | "match", count: number, isError: boolean, failText: string): string {
+export function summaryCount(word: "file" | "match", count: number, isError: boolean, failText: string): string {
   if (isError) return failText;
   const plural = word === "match" ? "matches" : "files";
   return `Found ${count} ${count === 1 ? word : plural}`;

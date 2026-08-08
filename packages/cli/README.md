@@ -138,7 +138,7 @@ easy-agent --resume <id>  # resume a specific session by ID
 easy-agent --resume      # list all saved sessions for this directory
 ```
 
-Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line preview of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
+Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line summary of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
 
 The TUI header shows the model name, version, and configured reasoning effort (e.g. `deepseek-v4-flash · reasoning high`). While the agent is running, a spinner displays the thinking and reply elapsed time alongside token counts (e.g. `⠋ thinking · think 2s · reply 0s · ↑1.2k · ↓0.4k`). If the LLM emits extended thinking blocks, a collapsible reasoning panel appears — press <kbd>t</kbd> to expand/collapse it.
 

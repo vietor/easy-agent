@@ -31,8 +31,8 @@ export interface Tool {
   readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;
-  summaryArg?: string | string[];
+  summaryArgs?: string[];
   summarizeArgs?: (args: Record<string, unknown>) => string;
-  getPreview?(result: ContentResult): string;
+  summarizeResult?(result: ContentResult): string;
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ContentResult>;
 }

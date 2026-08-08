@@ -11,7 +11,7 @@ export type TimelineEntry =
   | WithKind<"user", "user">
   | WithKind<"skill", "skill">
   | WithKind<"assistant", "assistant">
-  | (WithKind<"tool_start", "tool"> & { result: string | null; isError?: boolean; preview?: string })
+  | (WithKind<"tool_start", "tool"> & { result: string | null; isError?: boolean; resultSummary?: string })
   | WithKind<"retry", "retry">
   | WithKind<"error", "error">
   | WithKind<"interrupted", "interrupted">
@@ -77,10 +77,10 @@ export class TimelineStore {
         this.append({ kind: "assistant", text: e.text });
         break;
       case "tool_start":
-        this.append({ kind: "tool", id: e.id, name: e.name, summary: e.summary, result: null });
+        this.append({ kind: "tool", id: e.id, name: e.name, argsSummary: e.argsSummary, result: null });
         break;
       case "tool_end":
-        this.setResult(e.id, e.result, e.isError, e.preview);
+        this.setResult(e.id, e.result, e.isError, e.resultSummary);
         break;
       case "retry":
         this.append({ kind: "retry", attempt: e.attempt, max: e.max, reason: e.reason });
@@ -118,13 +118,13 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  setResult(id: string, result: string, isError?: boolean, preview?: string): void {
+  setResult(id: string, result: string, isError?: boolean, resultSummary?: string): void {
     const idx = this.pendingTools.get(id);
     if (idx === undefined) return;
     this.pendingTools.delete(id);
     const entry = this.entries[idx];
     if (entry.kind !== "tool" || entry.result !== null) return;
-    this.entries[idx] = { ...entry, result, isError, preview };
+    this.entries[idx] = { ...entry, result, isError, resultSummary };
     this.listeners.notify();
   }
 
@@ -158,7 +158,7 @@ export class TimelineStore {
     for (const [, idx] of this.pendingTools) {
       const entry = this.entries[idx];
       if (entry.kind === "tool" && entry.result === null) {
-        this.entries[idx] = { ...entry, result: "aborted", isError: true, preview: "aborted" };
+        this.entries[idx] = { ...entry, result: "aborted", isError: true, resultSummary: "aborted" };
       }
     }
     this.pendingTools.clear();
@@ -189,14 +189,14 @@ export class TimelineStore {
 /** Replay persisted conversation messages as the timeline entries they represent (for session restore). */
 export function messagesToTimelineEntries(
   messages: ConversationMessage[],
-  summarize: (name: string, args: Record<string, unknown>) => string
+  summarizeArgs: (name: string, args: Record<string, unknown>) => string
 ): TimelineEntry[] {
-  const toolResults = new Map<string, { content: string; preview?: string; isError?: boolean }>();
+  const toolResults = new Map<string, { content: string; resultSummary?: string; isError?: boolean }>();
   for (const m of messages) {
     if (m.role === "tool") {
-      const result: { content: string; preview?: string; isError?: boolean } = { content: m.content };
-      if (m.preview !== undefined || m.isError !== undefined) {
-        result.preview = m.preview;
+      const result: { content: string; resultSummary?: string; isError?: boolean } = { content: m.content };
+      if (m.resultSummary !== undefined || m.isError !== undefined) {
+        result.resultSummary = m.resultSummary;
         result.isError = m.isError;
       }
       toolResults.set(m.tool_call_id, result);
@@ -218,13 +218,13 @@ export function messagesToTimelineEntries(
             kind: "tool",
             id: tc.id,
             name: tc.function.name,
-            summary: summarize(tc.function.name, args),
+            argsSummary: summarizeArgs(tc.function.name, args),
             result: null,
           };
           const result = toolResults.get(tc.id);
           if (result) {
             // Same shape the live path produces on tool_end: result plus both pending fields.
-            entries.push({ ...entry, result: result.content, isError: result.isError, preview: result.preview });
+            entries.push({ ...entry, result: result.content, isError: result.isError, resultSummary: result.resultSummary });
           } else {
             entries.push(entry);
           }

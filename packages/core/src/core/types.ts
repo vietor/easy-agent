@@ -56,8 +56,8 @@ export type SessionEvent =
   | { type: "reasoning_delta"; text: string }
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }

@@ -2,7 +2,7 @@ import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
 import { requirePath } from "../util/file.js";
 import { MAX_FILE_READ_MB } from "../util/constants.js";
-import { formatCompactNumber, previewBytes } from "../util/text.js";
+import { formatCompactNumber, summaryBytes } from "../util/text.js";
 
 const DEFAULT_LIMIT = 2000;
 const CHUNK = 64 * 1024;
@@ -88,8 +88,8 @@ export const fileReadTool: Tool = {
       await handle.close();
     }
   },
-  getPreview(result) {
-    return previewBytes("Read", result, "Read failed");
+  summarizeResult(result) {
+    return summaryBytes("Read", result, "Read failed");
   },
-  summaryArg: "path",
+  summaryArgs: ["path"],
 };

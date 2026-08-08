@@ -94,10 +94,10 @@ function ToolEntry({ entry }: { entry: Extract<TimelineEntry, { kind: "tool" }> 
       <Text>
         <Text color={iconColor}>{`${icon} `}</Text>
         <Text bold color={nameColor}>{entry.name}</Text>
-        {entry.summary ? <Text dimColor>{`(${entry.summary})`}</Text> : null}
+        {entry.argsSummary ? <Text dimColor>{`(${entry.argsSummary})`}</Text> : null}
       </Text>
       {entry.result !== null ? (
-        <Text color={entry.isError ? "red" : "gray"}>{`  ⎿  ${entry.preview}`}</Text>
+        <Text color={entry.isError ? "red" : "gray"}>{`  ⎿  ${entry.resultSummary}`}</Text>
       ) : null}
     </Box>
   );

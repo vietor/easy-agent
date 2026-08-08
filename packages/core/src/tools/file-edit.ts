@@ -34,9 +34,9 @@ export const fileEditTool: Tool = {
     await writeFile(resolved, content.replace(oldStr, newStr), "utf-8");
     return `Edited ${args.path}`;
   },
-  getPreview(result) {
+  summarizeResult(result) {
     if (result.isError) return "Edit failed";
     return "Edit completed";
   },
-  summaryArg: "path",
+  summaryArgs: ["path"],
 };

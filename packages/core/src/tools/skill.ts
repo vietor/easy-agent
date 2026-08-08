@@ -17,7 +17,7 @@ export function createSkillTool(
       },
       required: ["name"],
     },
-    summaryArg: "name",
+    summaryArgs: ["name"],
     async execute(args, _ctx) {
       const name = (args.name as string || "").trim();
       if (!name) {
@@ -28,7 +28,7 @@ export function createSkillTool(
       }
       return { content: `Skill "${name}" loaded. Follow its instructions above.` };
     },
-    getPreview(_result) {
+    summarizeResult(_result) {
       return "Successfully loaded skill";
     }
   };

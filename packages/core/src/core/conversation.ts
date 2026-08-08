@@ -5,7 +5,7 @@ export type ConversationMessage =
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
   | AssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string; preview?: string; isError?: boolean };
+  | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
 
 function estimateTokens(text: string): number {
   if (!text) return 0;

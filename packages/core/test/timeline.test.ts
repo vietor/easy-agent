@@ -38,10 +38,10 @@ test("setAnswer returns false for an unknown question id", () => {
 
 test("setResult only mutates entries still pending", () => {
   const store = new TimelineStore();
-  store.append({ kind: "tool", id: "t1", name: "FileRead", summary: "x", result: null });
+  store.append({ kind: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: null });
   store.setResult("t1", "ok");
   store.setResult("t1", "again");
-  assert.deepEqual(store.all, [{ kind: "tool", id: "t1", name: "FileRead", summary: "x", result: "ok", isError: undefined, preview: undefined }]);
+  assert.deepEqual(store.all, [{ kind: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
 test("appendQuestion registers a resolver that setAnswer resolves", () => {
@@ -95,8 +95,8 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "notice", text: "n" });
   store.applyEvent({ type: "error", text: "e" });
   store.applyEvent({ type: "interrupted" });
-  store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", summary: "s" });
-  store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, preview: "p" });
+  store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", argsSummary: "s" });
+  store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, resultSummary: "p" });
   store.applyEvent({ type: "assistant_delta", text: "x" });
   store.applyEvent({ type: "reasoning_delta", text: "x" });
   store.applyEvent({ type: "reasoning_clear" });
@@ -109,7 +109,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
     { kind: "notice", text: "n" },
     { kind: "error", text: "e" },
     { kind: "interrupted" },
-    { kind: "tool", id: "t1", name: "Echo", summary: "s", result: "out", isError: true, preview: "p" },
+    { kind: "tool", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p" },
   ]);
 });
 
@@ -152,7 +152,7 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
     )
   );
   const tool = store.all.find((e) => e.kind === "tool");
-  assert.deepEqual(tool, { kind: "tool", id: "t1", name: "Echo", summary: "", result: null });
+  assert.deepEqual(tool, { kind: "tool", id: "t1", name: "Echo", argsSummary: "", result: null });
   store.abortPendingTools();
   assert.equal((store.all.find((e) => e.kind === "tool") as Extract<TimelineEntry, { kind: "tool" }>).result, "aborted");
 });

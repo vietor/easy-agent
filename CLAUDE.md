@@ -18,7 +18,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 ## Layout
 
 - `core/src/core/` — `Session` (orchestration), `Agent` (run loop), `Conversation`, `Timeline`, `types.ts`
-- `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registration, schemas, previews)
+- `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registration, schemas, summaries)
 - `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `client.ts`, `anthropic.ts` / `completions.ts` (wire backends)
 - `core/src/mcp/` — client/server for stdio + Streamable HTTP
 - `core/src/skills/`, `core/src/util/` — loader; shared helpers (`async.ts`, `file.ts`, `text.ts`, `constants.ts`)
@@ -34,7 +34,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 - **No validation libraries** (zod was deliberately removed) — plain TS types, hand-written checks where needed.
 - **Never add comments.** New or edited code ships without comments — do not introduce or re-add them when touching existing code. Keep only the rare existing JSDoc `/** */` on non-obvious exports and inline *why*-rationale comments; don't extend them, don't restate what the code does, no section banners, no `// TODO`, no credits.
 - Errors: stringify unknown errors via the shared error helper in `util/text.ts` — never `e instanceof Error ? e.message : String(e)` inline.
-- **Prefer reusing `util/*.ts` helpers** — check `async.ts` (abort/retry/timeout), `file.ts` (path resolution, file IO), `text.ts` (formatting, previews, truncation marker), `constants.ts` (byte caps, tool names) before writing new code; add a new util helper only when none of the existing ones fits.
+- **Prefer reusing `util/*.ts` helpers** — check `async.ts` (abort/retry/timeout), `file.ts` (path resolution, file IO), `text.ts` (formatting, summaries, truncation marker), `constants.ts` (byte caps, tool names) before writing new code; add a new util helper only when none of the existing ones fits.
 - Callbacks invoked with optional chaining.
 - Naming: kebab-case files, PascalCase classes/types, camelCase functions, SCREAMING_SNAKE constants.
 

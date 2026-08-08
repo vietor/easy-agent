@@ -2,7 +2,7 @@ import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
 import { withRetry, withTimeoutError } from "../util/async.js";
 import { MAX_WEB_FETCH_MB, REQUEST_TIMEOUT_MS } from "../util/constants.js";
-import { errorMessage, htmlToMarkdown, previewBytes } from "../util/text.js";
+import { errorMessage, htmlToMarkdown, summaryBytes } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();
@@ -106,8 +106,8 @@ export const webFetchTool: Tool = {
       }
     );
   },
-  getPreview(result) {
-    return previewBytes("Fetched", result, "Fetch failed");
+  summarizeResult(result) {
+    return summaryBytes("Fetched", result, "Fetch failed");
   },
-  summaryArg: "url",
+  summaryArgs: ["url"],
 };

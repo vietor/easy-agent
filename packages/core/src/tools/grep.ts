@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { formatRgOutput, rgResultPreview, runRgLines } from "../util/ripgrep.js";
+import { formatRgOutput, rgResultSummary, runRgLines } from "../util/ripgrep.js";
 import { NO_MATCHES } from "../util/constants.js";
 import type { Tool } from "./types.js";
 
@@ -54,8 +54,8 @@ export const grepTool: Tool = {
     const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal, headLimit);
     return formatRgOutput(lines, truncated, NO_MATCHES);
   },
-  getPreview(result) {
-    return rgResultPreview("match", result, "Grep failed", "Found 0 matches");
+  summarizeResult(result) {
+    return rgResultSummary("match", result, "Grep failed", "Found 0 matches");
   },
-  summaryArg: ["pattern", "path", "glob"],
+  summaryArgs: ["pattern", "path", "glob"],
 };

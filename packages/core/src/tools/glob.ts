@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { formatRgOutput, rgResultPreview, runRgLines } from "../util/ripgrep.js";
+import { formatRgOutput, rgResultSummary, runRgLines } from "../util/ripgrep.js";
 import { NO_MATCHES } from "../util/constants.js";
 import type { Tool } from "./types.js";
 
@@ -26,8 +26,8 @@ export const globTool: Tool = {
     const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal);
     return formatRgOutput(lines, truncated, NO_MATCHES);
   },
-  getPreview(result) {
-    return rgResultPreview("file", result, "Glob failed", "Found 0 files");
+  summarizeResult(result) {
+    return rgResultSummary("file", result, "Glob failed", "Found 0 files");
   },
-  summaryArg: ["pattern", "path"],
+  summaryArgs: ["pattern", "path"],
 };

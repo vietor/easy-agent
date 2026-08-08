@@ -11,7 +11,7 @@ export type { LLMConfig, LLMReasoningEffort, LLMWireApi } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { formatSeconds, formatCompactNumber, getTextBytes, ellipsisText, errorMessage, htmlToMarkdown } from "./util/text.js";
-export { MAX_PREVIEW_LENGTH } from "./util/constants.js";
+export { MAX_SUMMARY_LENGTH } from "./util/constants.js";
 export { netFetch } from "./util/net.js";
 export { type ProcessResult, runProcess } from "./util/subprocess.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";

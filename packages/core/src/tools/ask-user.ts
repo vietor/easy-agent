@@ -24,6 +24,6 @@ export function createAskUserTool(ask: (question: string, options: string[]) => 
       }
       return ask(question, options);
     },
-    summaryArg: "question",
+    summaryArgs: ["question"],
   };
 }

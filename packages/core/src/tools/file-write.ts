@@ -19,9 +19,9 @@ export const fileWriteTool: Tool = {
     await writeFile(resolved, args.content as string, "utf-8");
     return `Wrote ${args.path}`;
   },
-  getPreview(result) {
+  summarizeResult(result) {
     if (result.isError) return "Write failed";
     return "Write completed";
   },
-  summaryArg: "path",
+  summaryArgs: ["path"],
 };

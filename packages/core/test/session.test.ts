@@ -93,7 +93,7 @@ test("restore replays persisted messages into the timeline", async () => {
     description: "echo",
     parameters: { type: "object", properties: { path: { type: "string" } } },
     async execute() { return "echoed"; },
-    summaryArg: "path",
+    summaryArgs: ["path"],
   });
   const state: SessionState = {
     messages: [
@@ -103,7 +103,7 @@ test("restore replays persisted messages into the timeline", async () => {
         content: null,
         tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
       },
-      { role: "tool", tool_call_id: "t1", content: "echoed", isError: false, preview: "Echo 4 bytes" },
+      { role: "tool", tool_call_id: "t1", content: "echoed", isError: false, resultSummary: "Echo 4 bytes" },
     ],
     todos: [],
   };
@@ -123,7 +123,7 @@ test("restore replays persisted messages into the timeline", async () => {
   const tool = timeline.find((e) => e.kind === "tool");
   assert.ok(tool && tool.kind === "tool");
   assert.equal(tool.name, "Echo");
-  assert.equal(tool.summary, "a/b");
+  assert.equal(tool.argsSummary, "a/b");
   assert.equal(tool.result, "echoed");
 });
 
@@ -134,7 +134,7 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     description: "echo",
     parameters: { type: "object", properties: { path: { type: "string" } } },
     async execute() { return "echoed"; },
-    summaryArg: "path",
+    summaryArgs: ["path"],
   });
   const state: SessionState = {
     messages: [
@@ -159,7 +159,7 @@ test("restore tolerates malformed persisted tool arguments", async () => {
   assert.equal(await session.restore(), true);
   const tool = session.getSnapshot().timeline.find((e) => e.kind === "tool");
   assert.ok(tool && tool.kind === "tool");
-  assert.equal(tool.summary, "");
+  assert.equal(tool.argsSummary, "");
   assert.equal(tool.result, null);
 });
 

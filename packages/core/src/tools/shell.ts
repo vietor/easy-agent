@@ -1,7 +1,7 @@
 import { runProcess } from "../util/subprocess.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import { toolError, type Tool } from "./types.js";
-import { previewBytes } from "../util/text.js";
+import { summaryBytes } from "../util/text.js";
 
 const isWindows = process.platform === "win32";
 const shell = isWindows ? "powershell.exe" : (process.env.SHELL || "/bin/bash");
@@ -55,8 +55,8 @@ export const shellTool: Tool = {
     const parts = [r.stdout, r.stderr, r.error?.message].filter(Boolean);
     return toolError(parts.join("\n") || NO_OUTPUT);
   },
-  getPreview(result) {
-    return previewBytes("Command executed", result, "Command failed");
+  summarizeResult(result) {
+    return summaryBytes("Command executed", result, "Command failed");
   },
-  summaryArg: "command",
+  summaryArgs: ["command"],
 };

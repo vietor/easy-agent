@@ -29,8 +29,8 @@ export type AgentEvent =
   | { type: "assistant_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
   | { type: "retry"; attempt: number; max: number; reason: string }
-  | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "notice"; text: string }
@@ -50,7 +50,7 @@ export interface AgentOptions {
   resolveSkill?: (name: string) => Skill | undefined;
 }
 
-type ToolCallResult = { id: string; content: string; preview?: string; isError?: boolean; args: Record<string, unknown> };
+type ToolCallResult = { id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> };
 
 export class Agent {
   private llm: LLMClient;
@@ -236,7 +236,7 @@ export class Agent {
       const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
       if (!results) return "aborted";
       for (const r of results) {
-        this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, preview: r.preview, isError: r.isError });
+        this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, resultSummary: r.resultSummary, isError: r.isError });
       }
       for (let i = 0; i < msg.tool_calls.length; i++) {
         const tc = msg.tool_calls[i];
@@ -305,15 +305,15 @@ export class Agent {
     const parsed = parseToolArgs(call.function.arguments);
     const args = parsed.args;
     const argsError = parsed.error ? toolError(`invalid arguments: ${parsed.error}`) : undefined;
-    const summary = this.tools.summarize(call.function.name, args);
-    onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, summary });
+    const argsSummary = this.tools.summarizeArgs(call.function.name, args);
+    onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, argsSummary });
     const ctx: ToolContext = { signal, cwd: this.cwd };
     const start = performance.now();
     const result: ContentResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
-    const preview = this.tools.getPreview(call.function.name, result, duration);
-    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, preview });
-    return { id: call.id, content: result.content, preview, isError: result.isError, args };
+    const resultSummary = this.tools.summarizeResult(call.function.name, result, duration);
+    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, resultSummary });
+    return { id: call.id, content: result.content, resultSummary, isError: result.isError, args };
   }
 }
 

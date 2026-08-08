@@ -122,8 +122,8 @@ type SessionEvent =
   | { type: "reasoning_delta"; text: string }
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; summary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; preview?: string }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
@@ -285,7 +285,7 @@ type TimelineEntry =
   | { kind: "user"; text: string }
   | { kind: "skill"; name: string }
   | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; summary: string; result: string | null; isError?: boolean; preview?: string }
+  | { kind: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string }
   | { kind: "retry"; attempt: number; max: number; reason: string }
   | { kind: "error"; text: string }
   | { kind: "interrupted" }
@@ -315,7 +315,7 @@ type ConversationMessage =
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
   | AssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string; preview?: string; isError?: boolean };
+  | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
 
 // AssistantMessage includes optional tool_calls[] for function-calling
 ```
@@ -404,9 +404,9 @@ interface Tool {
   readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;   // JSON Schema object
-  summaryArg?: string | string[];        // parameter key(s) used for display summary
+  summaryArgs?: string[];                // parameter keys used for display summary
   summarizeArgs?: (args: Record<string, unknown>) => string; // custom summary function
-  getPreview?(result: ContentResult): string; // result preview for timeline display
+  summarizeResult?(result: ContentResult): string; // result summary for timeline display
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | ContentResult>;
 }
 ```
@@ -415,8 +415,8 @@ interface Tool {
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
 - Return a plain string (equivalent to `{ content: string }`) or a `ContentResult` with an optional `isError` flag.
-- `summaryArg` / `summarizeArgs` control what appears in the tool log entry's `summary` field.
-- `getPreview` (optional) returns a short result preview for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default preview (byte/line count) when not defined.
+- `summaryArgs` / `summarizeArgs` control what appears in the tool log entry's `argsSummary` field.
+- `summarizeResult` (optional) returns a short result summary for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default summary (byte/line count) when not defined.
 
 ### `ToolContext`
 
@@ -650,7 +650,7 @@ const bytes = getTextBytes("Hello");   // 5
 
 **`formatSeconds(value: number): string`**
 
-Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result previews.
+Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result summaries.
 
 ```ts
 import { formatSeconds } from "@vietor/easy-agent-core";
@@ -662,7 +662,7 @@ formatSeconds(3.24);   // "3.24s"
 
 **`formatCompactNumber(value: number): string`**
 
-Format a number compactly (e.g. `1.2K`). Used for byte/line counts in previews.
+Format a number compactly (e.g. `1.2K`). Used for byte/line counts in summaries.
 
 ```ts
 import { formatCompactNumber } from "@vietor/easy-agent-core";
@@ -742,16 +742,16 @@ interface ProcessResult {
 }
 ```
 
-### `MAX_PREVIEW_LENGTH`
+### `MAX_SUMMARY_LENGTH`
 
-**`MAX_PREVIEW_LENGTH: number`** (`75`)
+**`MAX_SUMMARY_LENGTH: number`** (`75`)
 
-The character cap the tool registry applies when truncating tool results into timeline previews.
+The character cap the tool registry applies when truncating tool results into timeline summaries.
 
 ```ts
-import { MAX_PREVIEW_LENGTH } from "@vietor/easy-agent-core";
+import { MAX_SUMMARY_LENGTH } from "@vietor/easy-agent-core";
 
-const preview = result.length > MAX_PREVIEW_LENGTH ? `${result.slice(0, MAX_PREVIEW_LENGTH)}…` : result;
+const summary = result.length > MAX_SUMMARY_LENGTH ? `${result.slice(0, MAX_SUMMARY_LENGTH)}…` : result;
 ```
 
 ---

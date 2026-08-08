@@ -78,7 +78,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       },
       required: ["type", "task"],
     },
-    summaryArg: "type",
+    summaryArgs: ["type"],
     async execute(args, ctx) {
       const type = args.type as string;
       const task = ((args.task as string) ?? "").trim();

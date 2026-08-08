@@ -331,7 +331,7 @@ export class Session {
     if (!state) return false;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
-    this.timelineStore.rebuild(messagesToTimelineEntries(state.messages, (n, a) => this.tools.summarize(n, a)));
+    this.timelineStore.rebuild(messagesToTimelineEntries(state.messages, (n, a) => this.tools.summarizeArgs(n, a)));
     this.viewCache = null;
     return true;
   }

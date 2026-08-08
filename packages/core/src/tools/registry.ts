@@ -12,7 +12,7 @@ import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import type { LLMClient } from "../llm/types.js";
-import { MAX_PREVIEW_LENGTH } from "../util/constants.js";
+import { MAX_SUMMARY_LENGTH } from "../util/constants.js";
 import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText } from "../util/text.js";
 import type { ContentResult } from "../util/types.js";
 
@@ -20,9 +20,9 @@ function lineCount(content: string): number {
   return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
 }
 
-function defaultPreview(result: ContentResult): string {
+function defaultResultSummary(result: ContentResult): string {
   if (result.isError) {
-    return ellipsisText(result.content, MAX_PREVIEW_LENGTH);
+    return ellipsisText(result.content, MAX_SUMMARY_LENGTH);
   }
   const bytes = getTextBytes(result.content);
   const lines = lineCount(result.content);
@@ -84,24 +84,23 @@ export class ToolRegistry {
     }
   }
 
-  getPreview(name: string, result: ContentResult, durationMs?: number): string {
+  summarizeResult(name: string, result: ContentResult, durationMs?: number): string {
     const tool = this.tools.get(name);
-    const preview = tool?.getPreview
-      ? tool.getPreview(result)
-      : defaultPreview(result);
+    const resultSummary = tool?.summarizeResult
+      ? tool.summarizeResult(result)
+      : defaultResultSummary(result);
     return durationMs !== undefined
-      ? `[${formatSeconds(durationMs / 1000)}] ${preview}`
-      : preview;
+      ? `[${formatSeconds(durationMs / 1000)}] ${resultSummary}`
+      : resultSummary;
   }
 
-  summarize(name: string, args: Record<string, unknown>): string {
+  summarizeArgs(name: string, args: Record<string, unknown>): string {
     const tool = this.tools.get(name);
     if (!tool) return "";
     if (tool.summarizeArgs) return tool.summarizeArgs(args);
-    if (!tool.summaryArg) return "";
+    if (!tool.summaryArgs) return "";
     const parts: string[] = [];
-    const keys = Array.isArray(tool.summaryArg) ? tool.summaryArg : [tool.summaryArg];
-    for (const k of keys) {
+    for (const k of tool.summaryArgs) {
       const v = args[k];
       if (typeof v === "string" && v) {
         parts.push(v);
