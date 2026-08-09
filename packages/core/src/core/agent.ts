@@ -1,4 +1,4 @@
-import { mapWithConcurrency, withAbort } from "../util/async.js";
+import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { ellipsisText, errorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
@@ -112,6 +112,7 @@ export class Agent {
       () => onEvent?.({ type: "interrupted" })
     );
     if (typeof msg === "string") return msg;
+    if (signal?.aborted) return "aborted";
     const compactText = textOf(msg.content);
     if (!compactText) {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
@@ -146,7 +147,10 @@ export class Agent {
     this.conversation.createSnapshot();
     this.todoSnapshot = this.getTodos();
 
+    let aborted = false;
     const onAbort = () => {
+      if (aborted) return;
+      aborted = true;
       this.conversation.restoreFromSnapshot();
       this.setTodos([...this.todoSnapshot]);
       onEvent?.({ type: "interrupted" });
@@ -160,7 +164,7 @@ export class Agent {
       }
       return status;
     } catch (e) {
-      if (signal?.aborted) {
+      if (signal?.aborted || isAbortError(e)) {
         onAbort();
         return "aborted";
       }
@@ -204,6 +208,7 @@ export class Agent {
         () => {}
       );
       if (typeof msg === "string") return msg;
+      if (signal?.aborted) return "aborted";
       this.conversation.add(msg);
       if (!msg.tool_calls?.length) {
         if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
@@ -274,7 +279,7 @@ export class Agent {
         signal: opts.signal,
       }), opts.signal);
     } catch (e) {
-      if (opts.signal?.aborted) {
+      if (opts.signal?.aborted || isAbortError(e)) {
         onAbort();
         return "aborted";
       }

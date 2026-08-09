@@ -8,7 +8,7 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import type { Skill } from "../src/skills/types.js";
 import type { AssistantMessage, ChatOptions, LLMClient, Message } from "../src/llm/types.js";
 import type { Todo } from "../src/tools/types.js";
-import { waitUntil } from "./helpers.js";
+import { sleep, waitUntil } from "./helpers.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const calls: ChatOptions[] = [];
@@ -274,4 +274,74 @@ test("malformed Skill arguments are tolerated as a tool error", async () => {
   assert.equal((toolMsg as { isError?: boolean }).isError, true);
   assert.ok(!events.includes("skill"));
   assert.ok(!calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT")));
+});
+
+test("a tool resolving after the run settles cannot mutate the conversation", async () => {
+  const tools = new ToolRegistry();
+  let release!: (content: string) => void;
+  const gate = new Promise<string>((r) => { release = r; });
+  tools.register({
+    name: "Slow",
+    description: "slow",
+    parameters: { type: "object", properties: {} },
+    execute: () => gate,
+  });
+  const { llm } = fakeLLM([() => toolCall("Slow")]);
+  const session = new Session({
+    systemPrompt: "test",
+    llm,
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+  });
+  session.subscribe(() => {});
+  const run = session.startPrompt("go");
+  assert.ok(
+    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.kind === "tool"), 5000),
+    "tool entry must appear before the run settles"
+  );
+  session.abort();
+  const { status } = await run;
+  assert.equal(status, "aborted");
+  const before = session.export();
+  release("late result");
+  await sleep(50);
+  assert.deepEqual(session.export(), before);
+  assert.ok(!session.export().some((m) => m.role === "tool"));
+});
+
+test("aborting during chat emits exactly one interrupted event", async () => {
+  const tools = new ToolRegistry();
+  const { llm } = fakeLLM([() => new Promise<AssistantMessage>(() => {})]);
+  const session = new Session({
+    systemPrompt: "test",
+    llm,
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+  });
+  session.subscribe(() => {});
+  const events: string[] = [];
+  session.subscribeEvents((e) => events.push(e.type));
+  const run = session.startPrompt("go");
+  assert.ok(await waitUntil(() => session.running, 5000), "run must start");
+  session.abort();
+  const { status } = await run;
+  assert.equal(status, "aborted");
+  assert.equal(events.filter((t) => t === "interrupted").length, 1);
+  assert.ok(!events.includes("error"));
+});
+
+test("aborting during auto-compact emits exactly one interrupted event", async () => {
+  const controller = new AbortController();
+  const { llm, calls } = fakeLLM([() => new Promise<AssistantMessage>(() => {})]);
+  const events: string[] = [];
+  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const run = agent.run("a".repeat(5000), (e) => events.push(e.type), controller.signal);
+  assert.ok(await waitUntil(() => calls.length === 1, 5000), "compact call must start");
+  controller.abort();
+  const status = await run;
+  assert.equal(status, "aborted");
+  assert.equal(events.filter((t) => t === "interrupted").length, 1);
+  assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
 });

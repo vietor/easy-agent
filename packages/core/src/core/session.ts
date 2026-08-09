@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient } from "../llm/types.js";
+import { isAbortError } from "../util/async.js";
 import { errorMessage } from "../util/text.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServers } from "../mcp/server.js";
@@ -201,10 +202,12 @@ export class Session {
       status = await runFn(this.abortController.signal);
       this.flushStreaming();
     } catch (e) {
-      status = "error";
+      status = isAbortError(e) ? "aborted" : "error";
       this.flushStreaming();
-      this.timelineStore.applyEvent({ type: "error", text: errorMessage(e) });
-      this.emit({ type: "error", text: errorMessage(e) });
+      if (status !== "aborted") {
+        this.timelineStore.applyEvent({ type: "error", text: errorMessage(e) });
+        this.emit({ type: "error", text: errorMessage(e) });
+      }
     } finally {
       clearInterval(this.timer);
       this.timer = undefined;

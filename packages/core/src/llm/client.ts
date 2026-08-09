@@ -1,7 +1,7 @@
 import { EmptyAssistantMessageError, type BaseAdapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig, type LLMReasoningEffort, type LLMWireApi } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
-import { withRetry } from "../util/async.js";
+import { isAbortError, withRetry } from "../util/async.js";
 
 const DEFAULT_REASONING_EFFORT: LLMReasoningEffort = "high";
 const DEFAULT_WIRE_API: LLMWireApi = "completions";
@@ -11,7 +11,7 @@ const DEFAULT_MAX_OUTPUT_TOKENS = 128_000;
 const MAX_RETRIES = 3;
 
 export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
-  if (signal?.aborted) return false;
+  if (signal?.aborted || isAbortError(e)) return false;
   if (e instanceof EmptyAssistantMessageError) return true;
   const name = (e as { name?: string }).name;
   if (name === "APIConnectionError" || name === "APIConnectionTimeoutError" || name === "APITimeoutError") return true;

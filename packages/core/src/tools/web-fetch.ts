@@ -1,6 +1,6 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { withRetry, withTimeoutError } from "../util/async.js";
+import { isAbortError, withRetry, withTimeoutError } from "../util/async.js";
 import { MAX_WEB_FETCH_MB, REQUEST_TIMEOUT_MS } from "../util/constants.js";
 import { errorMessage, htmlToMarkdown, summaryBytes } from "../util/text.js";
 
@@ -61,6 +61,7 @@ async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<s
     signal,
     `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
   ).catch((e) => {
+    if (isAbortError(e)) throw e;
     throw new WebFetchError(`failed to fetch ${url}: ${errorMessage(e)}`);
   });
   if (!res.ok) {
