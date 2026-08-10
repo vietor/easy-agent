@@ -1,8 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Conversation } from "../src/core/conversation.js";
+import type { AssistantMessage } from "../src/llm/types.js";
+import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 
 const SYS = "sys";
+
+function assistantToolCall(id: string): AssistantMessage {
+  return { role: "assistant", content: null, tool_calls: [{ id, type: "function", function: { name: "Echo", arguments: "{}" } }] };
+}
 
 test("estimatedTokens tracks bytes/4 of added messages", () => {
   const c = new Conversation(SYS);
@@ -88,4 +94,82 @@ test("import restores messages and token estimate", () => {
   assert.equal(c2.export().length, 2);
   assert.equal(c2.getEstimatedTokens(), tokens);
   assert.equal(c2.toLLM().length, 3);
+});
+
+test("normalizeInterruptedToolCalls appends a placeholder for a dangling tool call", () => {
+  const c = new Conversation(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add(assistantToolCall("t1"));
+  c.normalizeInterruptedToolCalls();
+  assert.deepEqual(c.export(), [
+    { role: "user", content: "go" },
+    assistantToolCall("t1"),
+    { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT },
+  ]);
+});
+
+test("normalizeInterruptedToolCalls inserts the placeholder before the next non-tool message", () => {
+  const c = new Conversation(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add(assistantToolCall("t1"));
+  c.add({ role: "user", content: "next" });
+  c.normalizeInterruptedToolCalls();
+  const msgs = c.export();
+  assert.equal(msgs[2].role, "tool");
+  assert.equal((msgs[2] as { tool_call_id: string }).tool_call_id, "t1");
+  assert.equal(msgs[3].content, "next");
+});
+
+test("normalizeInterruptedToolCalls leaves satisfied tool calls untouched", () => {
+  const c = new Conversation(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add(assistantToolCall("t1"));
+  c.add({ role: "tool", tool_call_id: "t1", content: "echoed" });
+  c.normalizeInterruptedToolCalls();
+  assert.equal(c.export().length, 3);
+});
+
+test("normalizeInterruptedToolCalls appends only the missing placeholder after real results", () => {
+  const c = new Conversation(SYS);
+  c.add({
+    role: "assistant",
+    content: null,
+    tool_calls: [
+      { id: "t1", type: "function", function: { name: "Echo", arguments: "{}" } },
+      { id: "t2", type: "function", function: { name: "Echo", arguments: "{}" } },
+    ],
+  });
+  c.add({ role: "tool", tool_call_id: "t1", content: "echoed" });
+  c.normalizeInterruptedToolCalls();
+  const msgs = c.export();
+  assert.deepEqual(msgs.map((m) => m.role), ["assistant", "tool", "tool"]);
+  assert.deepEqual(msgs[msgs.length - 1], { role: "tool", tool_call_id: "t2", content: INTERRUPTED_TOOL_CONTENT });
+});
+
+test("normalizeInterruptedToolCalls handles consecutive dangling assistant messages", () => {
+  const c = new Conversation(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add(assistantToolCall("t1"));
+  c.add(assistantToolCall("t2"));
+  c.normalizeInterruptedToolCalls();
+  const msgs = c.export();
+  assert.deepEqual(msgs[2], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
+  assert.deepEqual(msgs[4], { role: "tool", tool_call_id: "t2", content: INTERRUPTED_TOOL_CONTENT });
+});
+
+test("normalizeInterruptedToolCalls updates tokens and invalidates the LLM cache", () => {
+  const c = new Conversation(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add(assistantToolCall("t1"));
+  const before = c.getEstimatedTokens();
+  c.toLLM();
+  c.normalizeInterruptedToolCalls();
+  assert.equal(c.getEstimatedTokens(), before + Math.round(INTERRUPTED_TOOL_CONTENT.length / 4));
+  assert.deepEqual(c.toLLM()[c.toLLM().length - 1], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
+});
+
+test("import normalizes dangling tool calls", () => {
+  const c = new Conversation(SYS);
+  c.import([{ role: "user", content: "go" }, assistantToolCall("t1")]);
+  assert.deepEqual(c.export()[2], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
 });

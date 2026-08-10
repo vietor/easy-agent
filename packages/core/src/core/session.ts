@@ -213,7 +213,7 @@ export class Session {
       this.timer = undefined;
       this.abortController = null;
       this.lastStatusValue = status;
-      this.timelineStore.abortPendingTools();
+      this.timelineStore.markPendingToolsAborted();
       this.runState = { ...this.runState, ...this.computeTimings(), running: false };
       this.emitRunState();
       this.flushReasoning();
@@ -337,7 +337,7 @@ export class Session {
     if (!state) return false;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
-    this.timelineStore.rebuild(messagesToTimelineEntries(state.messages, (n, a) => this.tools.summarizeArgs(n, a)));
+    this.timelineStore.rebuild(messagesToTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
     this.viewCache = null;
     return true;
   }

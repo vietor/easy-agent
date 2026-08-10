@@ -144,31 +144,6 @@ export function toAnthropicMessages(
     }
   }
 
-  for (let i = 0; i < out.length; i++) {
-    const m = out[i];
-    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
-    const toolUses = m.content.filter((b) => b.type === "tool_use");
-    if (!toolUses.length) continue;
-    const next = out[i + 1];
-    const satisfied = new Set(
-      next && next.role === "user" && Array.isArray(next.content)
-        ? next.content.filter((b) => b.type === "tool_result").map((b) => b.tool_use_id)
-        : []
-    );
-    const missing = toolUses.filter((b) => !satisfied.has(b.id));
-    if (!missing.length) continue;
-    const placeholder: Anthropic.ContentBlockParam[] = missing.map((b) => ({
-      type: "tool_result" as const,
-      tool_use_id: b.id,
-      content: "(interrupted)",
-    }));
-    if (next && next.role === "user" && Array.isArray(next.content) && next.content.every((b) => b.type === "tool_result")) {
-      next.content = [...next.content, ...placeholder];
-    } else {
-      out.splice(i + 1, 0, { role: "user", content: placeholder });
-    }
-  }
-
   if (out.length === 0 || out[0].role === "assistant") {
     out.unshift({ role: "user", content: CONTINUE_CUE });
   }

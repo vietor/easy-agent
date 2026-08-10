@@ -4,6 +4,7 @@ export const MAX_FILE_READ_MB = 20;
 export const CALL_TIMEOUT_MS = 300_000;
 export const REQUEST_TIMEOUT_MS = 60_000;
 export const NO_OUTPUT = "(no output)";
+export const INTERRUPTED_TOOL_CONTENT = "(interrupted)";
 export const NO_MATCHES = "(no matches)";
 export const NOT_EXECUTED_PREFIX = "(not executed: ";
 export const MAX_SUMMARY_LENGTH = 75;

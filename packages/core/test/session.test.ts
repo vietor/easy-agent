@@ -160,7 +160,48 @@ test("restore tolerates malformed persisted tool arguments", async () => {
   const tool = session.getSnapshot().timeline.find((e) => e.kind === "tool");
   assert.ok(tool && tool.kind === "tool");
   assert.equal(tool.argsSummary, "");
-  assert.equal(tool.result, null);
+  assert.equal(tool.result, "(interrupted)");
+});
+
+test("a restored session with dangling tool calls is healed before the next run", async () => {
+  const tools = new ToolRegistry();
+  tools.register({
+    name: "Echo",
+    description: "echo",
+    parameters: { type: "object", properties: {} },
+    async execute() { return "echoed"; },
+  });
+  const state: SessionState = {
+    messages: [
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "{}" } }],
+      },
+    ],
+    todos: [],
+  };
+  const session = new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([
+      (opts) => {
+        assert.deepEqual(
+          opts.messages.find((m) => m.role === "tool"),
+          { role: "tool", tool_call_id: "t1", content: "(interrupted)" }
+        );
+        return { role: "assistant", content: "done" };
+      },
+    ]),
+    tools,
+    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    compactThreshold: 750_000,
+    sessionId: "s1",
+    persistence: memoryPersistence(state),
+  });
+  assert.equal(await session.restore(), true);
+  const { status } = await session.startPrompt("continue");
+  assert.equal(status, "ok");
 });
 
 test("builtinTools: false registers no built-in tools", async () => {

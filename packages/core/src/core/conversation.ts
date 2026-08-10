@@ -1,4 +1,5 @@
 import { textOf, type AssistantMessage, type Message } from "../llm/types.js";
+import { INTERRUPTED_TOOL_CONTENT } from "../util/constants.js";
 
 export type ConversationMessage =
   | { role: "system"; content: string }
@@ -88,6 +89,37 @@ export class Conversation {
       messages.slice(),
       messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0)
     );
+    this.normalizeInterruptedToolCalls();
+  }
+
+  normalizeInterruptedToolCalls(): void {
+    const out: ConversationMessage[] = [];
+    let changed = false;
+    let addedTokens = 0;
+    for (let i = 0; i < this.messages.length; i++) {
+      const m = this.messages[i];
+      out.push(m);
+      if (m.role !== "assistant" || !m.tool_calls?.length) continue;
+      const satisfied = new Set<string>();
+      while (i + 1 < this.messages.length) {
+        const next = this.messages[i + 1];
+        if (next.role !== "tool") break;
+        i++;
+        out.push(next);
+        satisfied.add(next.tool_call_id);
+      }
+      for (const tc of m.tool_calls) {
+        if (satisfied.has(tc.id)) continue;
+        out.push({ role: "tool", tool_call_id: tc.id, content: INTERRUPTED_TOOL_CONTENT });
+        changed = true;
+        addedTokens += estimateTokens(INTERRUPTED_TOOL_CONTENT);
+      }
+    }
+    if (changed) {
+      this.messages = out;
+      this.estimatedTokens += addedTokens;
+      this.llmCache = null;
+    }
   }
 
   clear(): void {

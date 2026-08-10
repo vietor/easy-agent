@@ -153,6 +153,6 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
   );
   const tool = store.all.find((e) => e.kind === "tool");
   assert.deepEqual(tool, { kind: "tool", id: "t1", name: "Echo", argsSummary: "", result: null });
-  store.abortPendingTools();
+  store.markPendingToolsAborted();
   assert.equal((store.all.find((e) => e.kind === "tool") as Extract<TimelineEntry, { kind: "tool" }>).result, "aborted");
 });

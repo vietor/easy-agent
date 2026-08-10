@@ -154,7 +154,7 @@ export class TimelineStore {
   }
 
   /** Resolve any tool entries still marked as running (e.g. the run was aborted before tool_end). */
-  abortPendingTools(): void {
+  markPendingToolsAborted(): void {
     for (const [, idx] of this.pendingTools) {
       const entry = this.entries[idx];
       if (entry.kind === "tool" && entry.result === null) {

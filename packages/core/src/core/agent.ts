@@ -172,6 +172,7 @@ export class Agent {
     } finally {
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
+      this.conversation.normalizeInterruptedToolCalls();
       this.conversation.collapseSkills();
     }
   }

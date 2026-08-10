@@ -345,3 +345,33 @@ test("aborting during auto-compact emits exactly one interrupted event", async (
   assert.equal(events.filter((t) => t === "interrupted").length, 1);
   assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
 });
+
+test("a failing tool summary leaves the conversation well-formed for the next turn", async () => {
+  const tools = new ToolRegistry();
+  tools.register({
+    name: "Boom",
+    description: "throws",
+    parameters: { type: "object", properties: {} },
+    async execute() {
+      return "result";
+    },
+    summarizeResult() {
+      throw new Error("summary boom");
+    },
+  });
+  const { llm } = fakeLLM([() => toolCall("Boom")]);
+  const conversation = new Conversation("system prompt");
+  const agent = new Agent({
+    llm,
+    conversation,
+    tools,
+    cwd: process.cwd(),
+    setTodos: () => {},
+    getTodos: () => [],
+    stallThreshold: 3,
+    maxTurns: 50,
+    compactThreshold: 750_000,
+  });
+  await assert.rejects(() => agent.run("go"), /summary boom/);
+  assert.deepEqual(agent.export()[agent.export().length - 1], { role: "tool", tool_call_id: "t1", content: "(interrupted)" });
+});
