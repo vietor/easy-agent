@@ -1,5 +1,5 @@
 export { Session, SessionBusyError, createSessionRunState, type SessionDeps, type SessionSnapshot, type SessionPromptResult } from "./core/session.js";
-export type { AgentRunStatus } from "./core/agent.js";
+export type { RunStatus } from "./core/agent.js";
 export type { TimelineEntry } from "./core/timeline.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
@@ -15,4 +15,4 @@ export { MAX_SUMMARY_LENGTH } from "./util/constants.js";
 export { netFetch } from "./util/net.js";
 export { type ProcessResult, runProcess } from "./util/subprocess.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";
-export type { SessionPersistence, SessionState, SessionMeta, SessionOptions, SessionEvent, SessionRunState } from "./core/types.js";
+export type { SessionPersistence, SessionState, SessionMeta, SessionOptions, StreamEvent, SessionRunState } from "./core/types.js";

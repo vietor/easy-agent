@@ -49,7 +49,7 @@ export interface SessionRunState {
   outputTokens: number;
 }
 
-export type SessionEvent =
+export type StreamEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
   | { type: "assistant_delta"; text: string }

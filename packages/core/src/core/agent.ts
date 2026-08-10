@@ -3,6 +3,7 @@ import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from ".
 import { ellipsisText, errorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import type { Conversation, ConversationMessage } from "./conversation.js";
+import type { StreamEvent } from "./types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { toolError, type ToolContext, type ToolSchema, type Todo, type TodoStatus } from "../tools/types.js";
@@ -23,19 +24,7 @@ const COMPACT_PROMPT = [
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
-export type AgentRunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
-
-export type AgentEvent =
-  | { type: "assistant_delta"; text: string }
-  | { type: "reasoning_delta"; text: string }
-  | { type: "retry"; attempt: number; max: number; reason: string }
-  | { type: "tool_start"; id: string; name: string; argsSummary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
-  | { type: "error"; text: string }
-  | { type: "interrupted" }
-  | { type: "notice"; text: string }
-  | { type: "skill"; name: string }
-  | { type: "usage"; inputTokens: number; outputTokens: number };
+export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 
 export interface AgentOptions {
   llm: LLMClient;
@@ -64,6 +53,8 @@ export class Agent {
   readonly compactThreshold: number;
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
+  private inputTokens = 0;
+  private outputTokens = 0;
 
   constructor(opts: AgentOptions) {
     this.llm = opts.llm;
@@ -82,6 +73,15 @@ export class Agent {
     return this.conversation.getEstimatedTokens();
   }
 
+  get usage(): { inputTokens: number; outputTokens: number } {
+    return { inputTokens: this.inputTokens, outputTokens: this.outputTokens };
+  }
+
+  resetUsage(): void {
+    this.inputTokens = 0;
+    this.outputTokens = 0;
+  }
+
   get model() {
     return this.llm.model;
   }
@@ -98,7 +98,7 @@ export class Agent {
     return this.conversation.export();
   }
 
-  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<AgentRunStatus> {
+  async compact(onEvent?: (e: StreamEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return "ok";
     const request: Message[] = [...history];
@@ -124,25 +124,25 @@ export class Agent {
 
   async run(
     userInput: string,
-    onEvent?: (e: AgentEvent) => void,
+    onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
-  ): Promise<AgentRunStatus> {
+  ): Promise<RunStatus> {
     return this.runTurn({ role: "user", content: userInput }, onEvent, signal);
   }
 
   async runSkill(
     skill: Skill,
-    onEvent?: (e: AgentEvent) => void,
+    onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
-  ): Promise<AgentRunStatus> {
+  ): Promise<RunStatus> {
     return this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
   }
 
   private async runTurn(
     msg: ConversationMessage,
-    onEvent?: (e: AgentEvent) => void,
+    onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
-  ): Promise<AgentRunStatus> {
+  ): Promise<RunStatus> {
     this.conversation.add(msg);
     this.conversation.createSnapshot();
     this.todoSnapshot = this.getTodos();
@@ -156,7 +156,7 @@ export class Agent {
       onEvent?.({ type: "interrupted" });
     };
 
-    let status: AgentRunStatus;
+    let status: RunStatus;
     try {
       status = await withAbort(this.loop(onEvent, signal), signal);
       if (status === "aborted") {
@@ -178,9 +178,9 @@ export class Agent {
   }
 
   private async loop(
-    onEvent?: (e: AgentEvent) => void,
+    onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
-  ): Promise<AgentRunStatus> {
+  ): Promise<RunStatus> {
     let lastSig = "";
     let stall = 0;
     let turns = 0;
@@ -265,9 +265,9 @@ export class Agent {
   }
 
   private async chatOnce(
-    opts: { messages: Message[]; tools: ToolSchema[]; reasoning?: boolean; onEvent?: (e: AgentEvent) => void; signal?: AbortSignal },
+    opts: { messages: Message[]; tools: ToolSchema[]; reasoning?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
     onAbort: () => void
-  ): Promise<AssistantMessage | AgentRunStatus> {
+  ): Promise<AssistantMessage | RunStatus> {
     try {
       return await withAbort(this.llm.chat({
         messages: opts.messages,
@@ -276,7 +276,10 @@ export class Agent {
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onReasoning: (text) => opts.onEvent?.({ type: "reasoning_delta", text }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: errorMessage(error) }),
-        onUsage: (inputTokens, outputTokens) => opts.onEvent?.({ type: "usage", inputTokens, outputTokens }),
+        onUsage: (inputTokens, outputTokens) => {
+          this.inputTokens = inputTokens;
+          this.outputTokens = outputTokens;
+        },
         signal: opts.signal,
       }), opts.signal);
     } catch (e) {
@@ -291,7 +294,7 @@ export class Agent {
 
   private async runToolCalls(
     calls: NonNullable<AssistantMessage["tool_calls"]>,
-    onEvent?: (e: AgentEvent) => void,
+    onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallResult[] | null> {
     const results = await mapWithConcurrency(
@@ -305,7 +308,7 @@ export class Agent {
 
   private async executeToolCall(
     call: NonNullable<AssistantMessage["tool_calls"]>[number],
-    onEvent?: (e: AgentEvent) => void,
+    onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallResult> {
     const parsed = parseToolArgs(call.function.arguments);

@@ -8,8 +8,8 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { type SessionRunState, type SessionEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
-import { Agent, type AgentEvent, type AgentRunStatus } from "./agent.js";
+import { type SessionRunState, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
+import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries, type TimelineEntry } from "./timeline.js";
 
@@ -26,7 +26,7 @@ export interface SessionSnapshot {
 }
 
 export interface SessionPromptResult {
-  status: AgentRunStatus;
+  status: RunStatus;
   reply: string;
 }
 
@@ -55,7 +55,7 @@ export class Session {
   private reasoningText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
-  private lastStatusValue: AgentRunStatus = "ok";
+  private lastStatusValue: RunStatus = "ok";
   private runState: SessionRunState = createSessionRunState();
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -69,7 +69,7 @@ export class Session {
 
   private questionSeq = 0;
   private viewCache: SessionSnapshot | null = null;
-  private eventListeners = new ListenerSet<(e: SessionEvent) => void>();
+  private eventListeners = new ListenerSet<(e: StreamEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
 
   subscribe = (listener: () => void): (() => void) => {
@@ -86,7 +86,7 @@ export class Session {
     return this.viewCache;
   };
 
-  subscribeEvents = (listener: (e: SessionEvent) => void): (() => void) =>
+  subscribeEvents = (listener: (e: StreamEvent) => void): (() => void) =>
     this.eventListeners.subscribe(listener);
 
   timelineNotice = (text: string): void => {
@@ -110,7 +110,7 @@ export class Session {
     this.emit({ type: kind, text });
   }
 
-  private emit = (e: SessionEvent): void => {
+  private emit = (e: StreamEvent): void => {
     this.eventListeners.notify(e);
   };
 
@@ -175,13 +175,13 @@ export class Session {
     this.mcp = deps.mcp;
   }
 
-  private start(event: SessionEvent, runFn: (signal: AbortSignal) => Promise<AgentRunStatus>): Promise<void> {
+  private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
     this.timelineStore.applyEvent(event);
     this.emit(event);
     return this.run(runFn);
   }
 
-  private async run(runFn: (signal: AbortSignal) => Promise<AgentRunStatus>): Promise<void> {
+  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
     this.streamingText = "";
     this.lastReplyText = "";
     this.reasoningText = "";
@@ -189,15 +189,16 @@ export class Session {
     this.startTime = Date.now();
     this.abortController = new AbortController();
     this.runState = { ...createSessionRunState(), running: true };
+    this.agent.resetUsage();
     this.lastStatusValue = "ok";
     this.emitRunState();
 
     this.timer = setInterval(() => {
-      this.runState = { ...this.runState, ...this.computeTimings() };
+      this.runState = { ...this.runState, ...this.computeTimings(), ...this.agent.usage };
       this.emitRunState();
     }, 1000);
 
-    let status: AgentRunStatus = "ok";
+    let status: RunStatus = "ok";
     try {
       status = await runFn(this.abortController.signal);
       this.flushStreaming();
@@ -214,7 +215,7 @@ export class Session {
       this.abortController = null;
       this.lastStatusValue = status;
       this.timelineStore.markPendingToolsAborted();
-      this.runState = { ...this.runState, ...this.computeTimings(), running: false };
+      this.runState = { ...this.runState, ...this.computeTimings(), running: false, ...this.agent.usage };
       this.emitRunState();
       this.flushReasoning();
       this.clearCompletedTodos();
@@ -246,7 +247,7 @@ export class Session {
     this.emit({ type: "state", ...this.runState });
   }
 
-  private handleEvent = (e: AgentEvent): void => {
+  private handleEvent = (e: StreamEvent): void => {
     switch (e.type) {
       case "assistant_delta":
         if (this.replyStart === null) this.replyStart = Date.now();
@@ -268,10 +269,6 @@ export class Session {
         this.streamingText = "";
         this.flushReasoning();
         break;
-      case "usage":
-        this.runState = { ...this.runState, inputTokens: e.inputTokens, outputTokens: e.outputTokens };
-        this.emitRunState();
-        return;
     }
     this.timelineStore.applyEvent(e);
     this.emit(e);
@@ -342,7 +339,7 @@ export class Session {
     return true;
   }
 
-  async compact(): Promise<AgentRunStatus> {
+  async compact(): Promise<RunStatus> {
     this.rejectIfBusy();
     await this.run((signal) => this.agent.compact(this.handleEvent, signal));
     return this.lastStatusValue;

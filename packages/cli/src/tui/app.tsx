@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { createSessionRunState, errorMessage, type Session, type SessionRunState, type SessionEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
+import { createSessionRunState, errorMessage, type Session, type SessionRunState, type StreamEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -45,7 +45,7 @@ export function App({ session }: { session: Session }) {
   const pendingQuestion = session.getPendingQuestion();
 
   useEffect(() => {
-    const unsub = session.subscribeEvents((e: SessionEvent) => {
+    const unsub = session.subscribeEvents((e: StreamEvent) => {
       switch (e.type) {
         case "assistant_delta":
           streaming.append(e.text);

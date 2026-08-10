@@ -98,7 +98,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | `clear(): void` | Reset the conversation and log. |
 | `restore(): Promise<boolean>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. Returns `false` (loading nothing) when the backend has no saved state for this session. |
 | `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
-| `compact(): Promise<AgentRunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
+| `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
 | `getPendingQuestion(): TimelineEntry & { kind: "question" } \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
@@ -107,15 +107,15 @@ const session = await createSession({ systemPrompt, llmConfig });
 
 | Method | Description |
 |---|---|
-| `subscribeEvents(listener: (e: SessionEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
+| `subscribeEvents(listener: (e: StreamEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
 | `flush(): Promise<void>` | Resolve once all pending persistence writes for this session have settled. |
 
-#### `SessionEvent`
+#### `StreamEvent`
 
 A discriminated union emitted as the session runs.
 
 ```ts
-type SessionEvent =
+type StreamEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
   | { type: "assistant_delta"; text: string }
@@ -148,7 +148,7 @@ type SessionEvent =
 | `question` | The AskUser tool poses a question. |
 | `question_answered` | The question is answered (via `submitAnswer` or `abort`). |
 | `notice` | `session.timelineNotice()` is called, or the run auto-compacts context. |
-| `state` | Run state changes: at run start, every second, on usage, and at run end (`running: false`). |
+| `state` | Run state changes: at run start, every second, and at run end (`running: false`). |
 
 Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
@@ -253,17 +253,17 @@ Returned by `session.startPrompt()`.
 
 ```ts
 interface SessionPromptResult {
-  status: AgentRunStatus;
+  status: RunStatus;
   reply: string;
 }
 ```
 
 `status` indicates how the run ended; `reply` is the final assistant text (may be partial or empty when `status !== "ok"`). Error details are delivered via the `error` event; subscribe to `subscribeEvents` for the full picture.
 
-### `AgentRunStatus`
+### `RunStatus`
 
 ```ts
-type AgentRunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
+type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 ```
 
 | Status | Meaning |

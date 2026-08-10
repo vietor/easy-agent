@@ -9,9 +9,8 @@ import { webFetchTool } from "./web-fetch.js";
 import { createAskUserTool } from "./ask-user.js";
 import { createSkillTool } from "./skill.js";
 import { createTodoWriteTool } from "./todo-write.js";
-import { createSubAgentTool } from "./sub-agent.js";
+import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
-import type { LLMClient } from "../llm/types.js";
 import { MAX_SUMMARY_LENGTH } from "../util/constants.js";
 import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText } from "../util/text.js";
 import type { ContentResult } from "../util/types.js";
@@ -119,16 +118,16 @@ export interface BuiltInToolsOptions {
   subAgent?: boolean;
 }
 
-export interface BuiltinToolsDeps {
+export interface BuiltInToolsDeps {
   ask: (question: string, options: string[]) => Promise<string>;
   setTodos: (todos: Todo[]) => void;
   resolveSkill?: (name: string) => Skill | undefined;
-  subAgent: { llm: LLMClient; stallThreshold?: number; maxTurns?: number; compactThreshold?: number };
+  subAgent: Omit<SubAgentToolDeps, "tools">;
 }
 
 const BUILTIN_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, shellTool, fileWriteTool, fileEditTool];
 
-export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltInToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
+export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltInToolsOptions | false | undefined, deps: BuiltInToolsDeps) {
   if (opts === false) return;
   const builtins = opts?.readOnly ? BUILTIN_TOOLS.filter((t) => t.readOnly) : BUILTIN_TOOLS;
   for (const tool of builtins) {

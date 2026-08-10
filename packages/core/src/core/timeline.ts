@@ -1,11 +1,11 @@
 import type { Todo } from "../tools/types.js";
 import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
-import type { SessionEvent } from "./types.js";
+import type { StreamEvent } from "./types.js";
 
-/** Timeline entries are the persisted subset of SessionEvent with pending-state fields (tool result, question answer). */
-type WithKind<T extends SessionEvent["type"], K extends string> =
-  Omit<Extract<SessionEvent, { type: T }>, "type"> & { kind: K };
+/** Timeline entries are the persisted subset of StreamEvent with pending-state fields (tool result, question answer). */
+type WithKind<T extends StreamEvent["type"], K extends string> =
+  Omit<Extract<StreamEvent, { type: T }>, "type"> & { kind: K };
 
 export type TimelineEntry =
   | WithKind<"user", "user">
@@ -65,7 +65,7 @@ export class TimelineStore {
     return this.listeners.subscribe(listener);
   }
 
-  applyEvent(e: SessionEvent): void {
+  applyEvent(e: StreamEvent): void {
     switch (e.type) {
       case "user":
         this.append({ kind: "user", text: e.text });
