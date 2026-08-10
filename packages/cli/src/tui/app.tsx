@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { createSessionRunState, errorMessage, type Session, type SessionRunState, type StreamEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
+import { createRunState, errorMessage, type Session, type RunState, type StreamEvent, type SessionSnapshot } from "@vietor/easy-agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -37,7 +37,7 @@ export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionSnapshot;
-  const [runState, setRunState] = useState<SessionRunState>(createSessionRunState);
+  const [runState, setRunState] = useState<RunState>(createRunState);
   const streaming = useThrottledText(STREAM_FRAME_MS);
   const reasoning = useThrottledText(STREAM_FRAME_MS);
   const [showReasoning, setShowReasoning] = useState(false);
@@ -63,7 +63,7 @@ export function App({ session }: { session: Session }) {
         case "interrupted":
           streaming.reset();
           break;
-        case "state":
+        case "run_state":
           setRunState(e);
           break;
       }

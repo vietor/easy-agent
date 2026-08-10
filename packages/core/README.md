@@ -130,7 +130,7 @@ type StreamEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
-  | { type: "state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
+  | { type: "run_state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
 
 | Type | Emitted when |
@@ -148,14 +148,14 @@ type StreamEvent =
 | `question` | The AskUser tool poses a question. |
 | `question_answered` | The question is answered (via `submitAnswer` or `abort`). |
 | `notice` | `session.timelineNotice()` is called, or the run auto-compacts context. |
-| `state` | Run state changes: at run start, every second, and at run end (`running: false`). |
+| `run_state` | Run state changes: at run start, every second, and at run end (`running: false`). |
 
 Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
-#### `SessionRunState`
+#### `RunState`
 
 ```ts
-interface SessionRunState {
+interface RunState {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
   thinkingElapsed: number; // seconds before the first assistant text token (incl. reasoning/tools)
@@ -165,7 +165,7 @@ interface SessionRunState {
 }
 ```
 
-`createSessionRunState(): SessionRunState` returns the all-zero, not-running initial value.
+`createRunState(): RunState` returns the all-zero, not-running initial value.
 
 ### Skills & messages
 
@@ -217,7 +217,7 @@ if (!session.running) {
 }
 ```
 
-The `state` event (`running: boolean`) also signals run start/end for stream consumers.
+The `run_state` event (`running: boolean`) also signals run start/end for stream consumers.
 
 ### Snapshot subscription
 
@@ -351,17 +351,17 @@ Async interface for save/resume. Implement to persist session state between runs
 
 ```ts
 interface SessionPersistence {
-  load(sessionId: string): Promise<SessionState | null>;
-  saveAll(sessionId: string, state: SessionState): Promise<void>;
+  load(sessionId: string): Promise<SessionData | null>;
+  saveAll(sessionId: string, state: SessionData): Promise<void>;
   listSessions(): Promise<SessionMeta[]>;
   delete?(sessionId: string): Promise<void>;
 }
 ```
 
-`SessionState` is the data persisted per session:
+`SessionData` is what `load`/`saveAll` persist per session:
 
 ```ts
-interface SessionState {
+interface SessionData {
   messages: ConversationMessage[];
   todos: Todo[];
 }
@@ -778,7 +778,7 @@ const session = await createSession({
 
 session.subscribeEvents((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "state")
+  else if (e.type === "run_state")
     console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
 });
 

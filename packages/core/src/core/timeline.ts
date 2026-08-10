@@ -99,7 +99,7 @@ export class TimelineStore {
       case "assistant_delta":
       case "reasoning_delta":
       case "reasoning_clear":
-      case "state":
+      case "run_state":
         break;
     }
   }

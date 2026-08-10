@@ -8,7 +8,7 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { type SessionRunState, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionState } from "./types.js";
+import { type RunState, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionData } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries, type TimelineEntry } from "./timeline.js";
@@ -39,7 +39,7 @@ export class SessionBusyError extends Error {
   }
 }
 
-export function createSessionRunState(): SessionRunState {
+export function createRunState(): RunState {
   return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
 }
 
@@ -56,7 +56,7 @@ export class Session {
   private replyStart: number | null = null;
   private lastReplyText = "";
   private lastStatusValue: RunStatus = "ok";
-  private runState: SessionRunState = createSessionRunState();
+  private runState: RunState = createRunState();
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -188,7 +188,7 @@ export class Session {
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { ...createSessionRunState(), running: true };
+    this.runState = { ...createRunState(), running: true };
     this.agent.resetUsage();
     this.lastStatusValue = "ok";
     this.emitRunState();
@@ -244,7 +244,7 @@ export class Session {
   }
 
   private emitRunState(): void {
-    this.emit({ type: "state", ...this.runState });
+    this.emit({ type: "run_state", ...this.runState });
   }
 
   private handleEvent = (e: StreamEvent): void => {
@@ -315,7 +315,7 @@ export class Session {
 
   private persistSnapshot(): void {
     if (!this.persistence) return;
-    const state: SessionState = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
+    const state: SessionData = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
     this.saveChain = this.saveChain.catch(() => {}).then(() => this.persistence!.saveAll(this.sessionId, state));
   }
 

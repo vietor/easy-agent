@@ -5,7 +5,7 @@ import type { Skill } from "../skills/types.js";
 import type { MCPServerConfig } from "../mcp/types.js";
 import type { LLMConfig } from "../llm/types.js";
 
-export interface SessionState {
+export interface SessionData {
   messages: ConversationMessage[];
   todos: Todo[];
 }
@@ -19,8 +19,8 @@ export interface SessionMeta {
 }
 
 export interface SessionPersistence {
-  load(sessionId: string): Promise<SessionState | null>;
-  saveAll(sessionId: string, state: SessionState): Promise<void>;
+  load(sessionId: string): Promise<SessionData | null>;
+  saveAll(sessionId: string, state: SessionData): Promise<void>;
   listSessions(): Promise<SessionMeta[]>;
   delete?(sessionId: string): Promise<void>;
 }
@@ -40,7 +40,7 @@ export interface SessionOptions {
   stallThreshold?: number;
 }
 
-export interface SessionRunState {
+export interface RunState {
   running: boolean;
   elapsed: number;
   thinkingElapsed: number;
@@ -64,4 +64,4 @@ export type StreamEvent =
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
-  | ({ type: "state" } & SessionRunState);
+  | ({ type: "run_state" } & RunState);

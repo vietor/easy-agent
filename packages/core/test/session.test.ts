@@ -4,10 +4,10 @@ import { Session } from "../src/core/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { waitUntil } from "./helpers.js";
-import type { SessionPersistence, SessionState } from "../src/core/types.js";
+import type { SessionPersistence, SessionData } from "../src/core/types.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
 
-function memoryPersistence(state: SessionState): SessionPersistence {
+function memoryPersistence(state: SessionData): SessionPersistence {
   return { load: async () => state, saveAll: async () => {}, listSessions: async () => [] };
 }
 
@@ -95,7 +95,7 @@ test("restore replays persisted messages into the timeline", async () => {
     async execute() { return "echoed"; },
     summaryArgs: ["path"],
   });
-  const state: SessionState = {
+  const state: SessionData = {
     messages: [
       { role: "user", content: "read x" },
       {
@@ -136,7 +136,7 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     async execute() { return "echoed"; },
     summaryArgs: ["path"],
   });
-  const state: SessionState = {
+  const state: SessionData = {
     messages: [
       { role: "user", content: "go" },
       {
@@ -171,7 +171,7 @@ test("a restored session with dangling tool calls is healed before the next run"
     parameters: { type: "object", properties: {} },
     async execute() { return "echoed"; },
   });
-  const state: SessionState = {
+  const state: SessionData = {
     messages: [
       { role: "user", content: "go" },
       {

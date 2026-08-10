@@ -100,7 +100,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "assistant_delta", text: "x" });
   store.applyEvent({ type: "reasoning_delta", text: "x" });
   store.applyEvent({ type: "reasoning_clear" });
-  store.applyEvent({ type: "state", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
+  store.applyEvent({ type: "run_state", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
     { kind: "user", text: "hi" },
     { kind: "skill", name: "s" },

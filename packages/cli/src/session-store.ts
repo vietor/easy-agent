@@ -2,7 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { ellipsisText, MAX_SUMMARY_LENGTH, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionState, type Todo } from "@vietor/easy-agent-core";
+import { ellipsisText, MAX_SUMMARY_LENGTH, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/easy-agent-core";
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
@@ -33,7 +33,7 @@ export class FileSessionPersistence implements SessionPersistence {
     if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true });
   }
 
-  async load(sessionId: string): Promise<SessionState | null> {
+  async load(sessionId: string): Promise<SessionData | null> {
     const path = this.file(sessionId);
     if (!existsSync(path)) return null;
     const messages: ConversationMessage[] = [];
@@ -46,7 +46,7 @@ export class FileSessionPersistence implements SessionPersistence {
     return { messages, todos };
   }
 
-  async saveAll(sessionId: string, state: SessionState): Promise<void> {
+  async saveAll(sessionId: string, state: SessionData): Promise<void> {
     this.ensureDir();
     const written = this.writtenCounts.get(sessionId) ?? 0;
     const shrink = state.messages.length < written;
