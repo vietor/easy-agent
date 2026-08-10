@@ -31,7 +31,6 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 - **Named exports only** — never `export default`.
 - ESM with NodeNext: relative imports end in `.js`; `import type { ... }` for type-only imports.
 - Classes only for stateful objects; plain functions for stateless logic.
-- **No validation libraries** (zod was deliberately removed) — plain TS types, hand-written checks where needed.
 - **Never add comments.** New or edited code ships without comments — do not introduce or re-add them when touching existing code. Keep only the rare existing JSDoc `/** */` on non-obvious exports and inline *why*-rationale comments; don't extend them, don't restate what the code does, no section banners, no `// TODO`, no credits.
 - Errors: stringify unknown errors via the shared error helper in `util/text.ts` — never `e instanceof Error ? e.message : String(e)` inline.
 - **Prefer reusing `util/*.ts` helpers** — check `async.ts` (abort/retry/timeout), `file.ts` (path resolution, file IO), `text.ts` (formatting, summaries, truncation marker), `constants.ts` (byte caps, tool names) before writing new code; add a new util helper only when none of the existing ones fits.
