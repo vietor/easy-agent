@@ -20,6 +20,8 @@ function lineCount(content: string): number {
   return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
 }
 
+const MAX_ARGS_SUMMARY_LENGTH = 300;
+
 function defaultResultSummary(result: ContentResult): string {
   if (result.isError) {
     return ellipsisText(result.content, MAX_SUMMARY_LENGTH);
@@ -106,7 +108,7 @@ export class ToolRegistry {
         parts.push(v);
       }
     }
-    return parts.join(" ");
+    return ellipsisText(parts.join(" "), MAX_ARGS_SUMMARY_LENGTH, true);
   }
 }
 
