@@ -213,7 +213,7 @@ export class Session {
       this.timer = undefined;
       this.abortController = null;
       this.lastStatusValue = status;
-      if (status !== "ok") this.timelineStore.abortPendingTools();
+      this.timelineStore.abortPendingTools();
       this.runState = { ...this.runState, ...this.computeTimings(), running: false };
       this.emitRunState();
       this.flushReasoning();
@@ -256,6 +256,9 @@ export class Session {
         this.reasoningText += e.text;
         break;
       case "retry":
+        this.streamingText = "";
+        this.flushReasoning();
+        break;
       case "tool_start":
       case "error":
         this.flushStreaming();

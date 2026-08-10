@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { EmptyAssistantMessageError, type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type LLMReasoningEffort } from "./types.js";
+import { EmptyAssistantMessageError, type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type LLMReasoningEffort, type Message } from "./types.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAccumulator {
@@ -29,7 +29,8 @@ export class CompletionsAdapter implements BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const { messages, tools, onDelta, onReasoning, onUsage, reasoning, signal } = opts;
+    const { tools, onDelta, onReasoning, onUsage, reasoning, signal } = opts;
+    const messages = fixupInterruptedToolCalls(opts.messages);
     let content = "";
     let refusal = "";
     const calls = new Map<number, ToolCallAccumulator>();
@@ -100,4 +101,23 @@ export class CompletionsAdapter implements BaseAdapter {
     }
     return message;
   }
+}
+
+function fixupInterruptedToolCalls(messages: Message[]): Message[] {
+  const out: Message[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    out.push(m);
+    if (m.role !== "assistant" || !m.tool_calls?.length) continue;
+    const satisfied = new Set<string>();
+    for (let j = i + 1; j < messages.length && messages[j].role === "tool"; j++) {
+      satisfied.add((messages[j] as { tool_call_id: string }).tool_call_id);
+    }
+    for (const tc of m.tool_calls) {
+      if (!satisfied.has(tc.id)) {
+        out.push({ role: "tool", tool_call_id: tc.id, content: "(interrupted)" });
+      }
+    }
+  }
+  return out;
 }

@@ -32,8 +32,7 @@ export function QuestionView({ question, onAnswer }: QuestionViewProps) {
         setMode("input");
       }
     } else if (key.escape) {
-      if (hasOptions) setMode("select");
-      else onAnswer("");
+      onAnswer("");
     }
   });
 
