@@ -13,7 +13,7 @@ import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import { MAX_SUMMARY_LENGTH } from "../util/constants.js";
 import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText } from "../util/text.js";
-import type { ContentResult } from "../util/types.js";
+import type { TextResult } from "../util/types.js";
 
 function lineCount(content: string): number {
   return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
@@ -21,7 +21,7 @@ function lineCount(content: string): number {
 
 const MAX_ARGS_SUMMARY_LENGTH = 300;
 
-function defaultResultSummary(result: ContentResult): string {
+function defaultResultSummary(result: TextResult): string {
   if (result.isError) {
     return ellipsisText(result.content, MAX_SUMMARY_LENGTH);
   }
@@ -74,7 +74,7 @@ export class ToolRegistry {
     }
   }
 
-  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ContentResult> {
+  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult> {
     const tool = this.tools.get(name);
     if (!tool) return toolError(`unknown tool ${name}`);
     try {
@@ -85,7 +85,7 @@ export class ToolRegistry {
     }
   }
 
-  summarizeResult(name: string, result: ContentResult, durationMs?: number): string {
+  summarizeResult(name: string, result: TextResult, durationMs?: number): string {
     const tool = this.tools.get(name);
     const resultSummary = tool?.summarizeResult
       ? tool.summarizeResult(result)

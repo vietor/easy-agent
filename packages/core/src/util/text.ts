@@ -1,5 +1,5 @@
 import TurndownService from "turndown";
-import type { ContentResult } from "./types.js";
+import type { TextResult } from "./types.js";
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -49,7 +49,7 @@ export function ellipsisText(content: string, length: number, showChars?: boolea
   return showChars ? `${truncated} (${text.length})` : truncated;
 }
 
-export function summaryBytes(prefix: string, result: ContentResult, failText: string): string {
+export function summaryBytes(prefix: string, result: TextResult, failText: string): string {
   if (result.isError) return failText;
   return `${prefix} ${formatCompactNumber(getTextBytes(result.content))} bytes`;
 }

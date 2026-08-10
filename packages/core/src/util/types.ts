@@ -1,4 +1,4 @@
-export interface ContentResult {
+export interface TextResult {
   content: string;
   isError?: boolean;
 }

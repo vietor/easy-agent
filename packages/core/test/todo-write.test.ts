@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Todo } from "../src/tools/types.js";
-import type { ContentResult } from "../src/util/types.js";
+import type { TextResult } from "../src/util/types.js";
 
 function makeTool() {
   let current: Todo[] | null = null;
@@ -31,7 +31,7 @@ test("valid list replaces the store and reports counts", async () => {
 test("non-array todos is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
-  const result = await tool.execute({ todos: "oops" }, { cwd: process.cwd() }) as ContentResult;
+  const result = await tool.execute({ todos: "oops" }, { cwd: process.cwd() }) as TextResult;
   assert.equal(result.isError, true);
   assert.match(result.content, /must be an array/);
   assert.equal(getTodos()?.length, 1);
@@ -40,7 +40,7 @@ test("non-array todos is an error and leaves the list untouched", async () => {
 test("missing todos is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
-  const result = await tool.execute({}, { cwd: process.cwd() }) as ContentResult;
+  const result = await tool.execute({}, { cwd: process.cwd() }) as TextResult;
   assert.equal(result.isError, true);
   assert.equal(getTodos()?.length, 1);
 });
