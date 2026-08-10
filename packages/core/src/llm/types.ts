@@ -65,6 +65,7 @@ export interface ChatOptions {
   onReasoning?: (text: string) => void;
   onRetry?: (attempt: number, max: number, error: unknown) => void;
   onUsage?: (inputTokens: number, outputTokens: number) => void;
+  onToolCall?: () => void;
   reasoning?: boolean;
   signal?: AbortSignal;
 }

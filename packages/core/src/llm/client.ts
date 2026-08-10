@@ -20,15 +20,23 @@ export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { //
   return false;
 }
 
-function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
-  return (opts) =>
-    withRetry(() => adapter.stream(opts), {
-      retries: MAX_RETRIES,
-      retryable: (e) => isRetryableError(e, opts.signal),
-      backoff: (attempt) => 1000 * 2 ** attempt,
-      onRetry: opts.onRetry,
-      signal: opts.signal,
-    });
+export function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
+  return (opts) => {
+    let sawToolCall = false;
+    return withRetry(
+      () => {
+        sawToolCall = false;
+        return adapter.stream({ ...opts, onToolCall: () => { sawToolCall = true; } });
+      },
+      {
+        retries: MAX_RETRIES,
+        retryable: (e) => !sawToolCall && isRetryableError(e, opts.signal),
+        backoff: (attempt) => 1000 * 2 ** attempt,
+        onRetry: opts.onRetry,
+        signal: opts.signal,
+      }
+    );
+  };
 }
 
 export function createLLM(config: LLMConfig): LLMClient {

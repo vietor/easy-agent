@@ -29,7 +29,7 @@ export class CompletionsAdapter implements BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const { messages, tools, onDelta, onReasoning, onUsage, reasoning, signal } = opts;
+    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, reasoning, signal } = opts;
     let content = "";
     let refusal = "";
     const calls = new Map<number, ToolCallAccumulator>();
@@ -69,6 +69,7 @@ export class CompletionsAdapter implements BaseAdapter {
         onDelta?.(refusalDelta.refusal);
       }
       if (delta.tool_calls) {
+        onToolCall?.();
         for (const tc of delta.tool_calls) {
           let acc = calls.get(tc.index);
           if (!acc) {

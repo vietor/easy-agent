@@ -62,6 +62,7 @@ export class AnthropicAdapter implements BaseAdapter {
     const stream = this.client.messages.stream(params, { signal: opts.signal });
     if (opts.onDelta) stream.on("text", (delta) => opts.onDelta!(delta));
     if (opts.onReasoning) stream.on("thinking", (delta) => opts.onReasoning!(delta));
+    if (opts.onToolCall) stream.on("contentBlock", (block) => { if (block.type === "tool_use") opts.onToolCall!(); });
 
     const final = await stream.finalMessage();
     opts.onUsage?.(final.usage.input_tokens, final.usage.output_tokens);
