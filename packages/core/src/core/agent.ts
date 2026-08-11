@@ -247,11 +247,10 @@ export class Agent {
       }
       for (let i = 0; i < msg.tool_calls.length; i++) {
         const tc = msg.tool_calls[i];
-        if (tc.function.name !== SKILL_TOOL_NAME || !this.resolveSkill) continue;
-        const { args } = results[i];
-        const name = args.name as string;
-        if (!name) continue;
-        const skill = this.resolveSkill(name);
+        if (tc.function.name !== SKILL_TOOL_NAME) continue;
+        const name = results[i].args.name;
+        if (typeof name !== "string" || !name) continue;
+        const skill = this.resolveSkill?.(name);
         if (!skill) continue;
         this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
         onEvent?.({ type: "skill", name: skill.name });
