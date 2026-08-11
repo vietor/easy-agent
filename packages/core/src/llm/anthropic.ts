@@ -46,17 +46,27 @@ export class AnthropicAdapter implements BaseAdapter {
     const useThinking = opts.reasoning !== false;
     const budget = THINKING_BUDGET[this.reasoningEffort];
     const { system, messages } = toAnthropicMessages(opts.messages, useThinking);
+    const tools = opts.tools.map(toAnthropicTool);
+
+    const cacheControl = { type: "ephemeral" as const };
+    const systemCached = system
+      ? [{ type: "text" as const, text: system, cache_control: cacheControl }]
+      : undefined;
+    const toolsCached =
+      tools.length > 0 && !system
+        ? [...tools.slice(0, -1), { ...tools[tools.length - 1], cache_control: cacheControl }]
+        : undefined;
 
     const params: Anthropic.MessageStreamParams = {
       model: this.model,
       max_tokens: this.maxOutputTokens,
       messages,
-      ...(system && { system }),
+      ...(systemCached && { system: systemCached }),
       ...(useThinking && {
         thinking: { type: "enabled" as const, budget_tokens: Math.min(budget, this.maxOutputTokens - 1) },
         output_config: { effort: this.reasoningEffort },
       }),
-      ...(opts.tools.length > 0 && { tools: opts.tools.map(toAnthropicTool) }),
+      ...(tools.length > 0 && { tools: toolsCached ?? tools }),
     };
 
     const stream = this.client.messages.stream(params, { signal: opts.signal });
