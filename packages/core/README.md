@@ -344,7 +344,7 @@ Both aliases are exported so hosts can reference them in their own config types.
 
 - `"completions"` - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`; `maxOutputTokens` is sent as `max_tokens`.
 - `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
-- `"responses"` - OpenAI Responses API (via `openai` SDK). Tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `reasoningEffort` is sent as `reasoning.effort` with `"max"` mapped to `"high"`, and reasoning summaries are streamed via `reasoning.summary_text`.
+- `"responses"` - OpenAI Responses API (via `openai` SDK). Tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `reasoningEffort` is sent as `reasoning.effort`, and reasoning summaries are streamed via `reasoning.summary_text`.
 
 ### `SessionPersistence`
 

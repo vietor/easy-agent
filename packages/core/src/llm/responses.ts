@@ -44,7 +44,7 @@ export class ResponsesAdapter implements BaseAdapter {
       stream: true,
       ...(tools.length > 0 && { tools: tools.map(toResponsesTool) }),
       ...(useThinking && {
-        reasoning: { effort: this.reasoningEffort === "max" ? "high" : this.reasoningEffort },
+        reasoning: { effort: this.reasoningEffort },
         include: ["reasoning.summary_text"],
       }),
     };
