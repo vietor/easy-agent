@@ -47,6 +47,7 @@ export class Session {
   private agent: Agent;
   private mcp: MCPServers;
   private skillsMap = new Map<string, Skill>();
+  private resolveSkill = (name: string) => this.skillsMap.get(name);
   private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
   readonly localStore: Map<string, unknown> = new Map();
@@ -156,7 +157,7 @@ export class Session {
     registerBuiltinTools(this.tools, deps.builtinTools, {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
-      resolveSkill: deps.skills?.length ? (name) => this.skillsMap.get(name) : undefined,
+      resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: { llm: deps.llm, stallThreshold: deps.stallThreshold, maxTurns: deps.maxTurns, compactThreshold: deps.compactThreshold },
     });
 
@@ -170,7 +171,7 @@ export class Session {
       stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
       maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
       compactThreshold: deps.compactThreshold,
-      resolveSkill: (name) => this.skillsMap.get(name),
+      resolveSkill: this.resolveSkill,
     });
     this.mcp = deps.mcp;
   }
