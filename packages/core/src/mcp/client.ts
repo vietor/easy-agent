@@ -12,7 +12,6 @@ export class MCPClient {
   private transport: Transport;
   private connectReject?: (e: Error) => void;
   private closing = false;
-  /** Called when the transport closes or errors unexpectedly (not via kill()). */
   onClosed?: (error?: string) => void;
 
   constructor(

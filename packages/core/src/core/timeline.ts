@@ -3,7 +3,6 @@ import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
 import type { StreamEvent } from "./types.js";
 
-/** Timeline entries are the persisted subset of StreamEvent with pending-state fields (tool result, question answer). */
 export class ListenerSet<T extends (...args: any[]) => void = () => void> {
   private listeners = new Set<T>();
 
@@ -117,7 +116,6 @@ export class TimelineStore {
     return [...this.pendingQuestions.keys()];
   }
 
-  /** The most recent question entry still awaiting an answer. */
   get latestUnansweredQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
     for (let i = this.entries.length - 1; i >= 0; i--) {
       const e = this.entries[i];
@@ -126,7 +124,6 @@ export class TimelineStore {
     return undefined;
   }
 
-  /** Resolve any tool entries still marked as running (e.g. the run was aborted before tool_end). */
   markPendingToolsAborted(): void {
     for (const [, idx] of this.pendingTools) {
       const entry = this.entries[idx];
@@ -145,7 +142,6 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  /** Replace all entries wholesale (session restore); unresolved tool entries are re-registered as pending. */
   rebuild(entries: StreamEvent[]): void {
     this.entries = entries;
     this.pendingTools.clear();
@@ -159,7 +155,6 @@ export class TimelineStore {
   }
 }
 
-/** Replay persisted conversation messages as the timeline entries they represent (for session restore). */
 export function messagesToTimelineEntries(
   messages: ConversationMessage[],
   summarizeArgs: (name: string, args: Record<string, unknown>) => string

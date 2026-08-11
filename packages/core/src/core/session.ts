@@ -218,7 +218,6 @@ export class Session {
     }
   }
 
-  /** A fully completed task list is dead weight: drop it at input and at run settle so it never lingers across turns. */
   private clearCompletedTodos(): void {
     if (this.todoStore.all.length > 0 && this.todoStore.all.every((t) => t.status === "completed")) {
       this.todoStore.set([]);

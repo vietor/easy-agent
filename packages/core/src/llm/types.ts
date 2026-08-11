@@ -15,7 +15,6 @@ export interface LLMConfig {
   maxOutputTokens?: number;
 }
 
-/** LLMConfig with optional fields resolved to their defaults by `createLLM`. */
 export interface ResolvedLLMConfig extends LLMConfig {
   reasoningEffort: LLMReasoningEffort;
   wireApi: LLMWireApi;

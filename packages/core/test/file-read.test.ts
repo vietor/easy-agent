@@ -73,7 +73,6 @@ test("rejects files over the size limit", async () => {
 });
 
 test("pages across the 64KB chunk boundary", async () => {
-  // ~100 bytes per line → 700 lines ≈ 70KB, crossing the 65536-byte read chunk.
   const LINE = "x".repeat(99);
   const content = Array.from({ length: 700 }, (_, i) => `${i + 1}: ${LINE}`).join("\n");
   await withFile(content, async (p) => {

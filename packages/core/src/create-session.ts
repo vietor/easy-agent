@@ -42,7 +42,6 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     compactThreshold: compactThresholdFor(llm.maxInputTokens),
   });
 
-  // Builtins register in the Session constructor; custom tools go after so they win on name conflicts.
   if (opts.tools) {
     tools.registerAll(opts.tools);
   }
