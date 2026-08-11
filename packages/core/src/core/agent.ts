@@ -211,6 +211,7 @@ export class Agent {
       if (typeof msg === "string") return msg;
       if (signal?.aborted) return "aborted";
       this.conversation.add(msg);
+      this.conversation.collapseSkills();
       if (!msg.tool_calls?.length) {
         if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
           if (++textOnlyStreak >= this.stallThreshold) {

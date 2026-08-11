@@ -141,15 +141,16 @@ export class Conversation {
   collapseSkills(): void {
     for (let i = this.collapsedCount; i < this.messages.length; i++) {
       const m = this.messages[i];
-      if (m.role === "skill") this.collapseOne(m);
+      if (m.role === "skill") this.collapseOne(i, m);
     }
     this.collapsedCount = this.messages.length;
   }
 
-  private collapseOne(m: Extract<ConversationMessage, { role: "skill" }>): void {
+  private collapseOne(index: number, m: Extract<ConversationMessage, { role: "skill" }>): void {
     const before = estimateTokens(messageText(m));
-    m.content = `<skill "${m.name}" invoked - its instructions were followed above>`;
-    this.estimatedTokens += estimateTokens(messageText(m)) - before;
+    const collapsed = `<skill "${m.name}" invoked - its instructions were followed above>`;
+    this.messages[index] = { ...m, content: collapsed };
+    this.estimatedTokens += estimateTokens(collapsed) - before;
     this.llmCache = null;
   }
 
