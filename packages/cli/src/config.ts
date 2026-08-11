@@ -10,7 +10,7 @@ const LLMConfigSchema = z.object({
   apiKey: z.string(),
   model: z.string(),
   reasoningEffort: z.enum(["high", "max"]).default("high"),
-  wireApi: z.enum(["completions", "anthropic"]).default("completions"),
+  wireApi: z.enum(["completions", "anthropic", "responses"]).default("completions"),
   maxInputTokens: z.number().int().positive().default(1_000_000),
   maxOutputTokens: z.number().int().positive().default(128_000),
 });

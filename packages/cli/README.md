@@ -39,10 +39,11 @@ Create `~/.easy-agent.json` in your home directory:
 
 #### `wireApi` (optional)
 
-Selects the wire protocol the client speaks. Valid values: `"completions"` | `"anthropic"`. Defaults to `"completions"`.
+Selects the wire protocol the client speaks. Valid values: `"completions"` | `"anthropic"` | `"responses"`. Defaults to `"completions"`.
 
 - `"completions"` - OpenAI Chat Completions compatible endpoint (the default). `reasoningEffort` is sent as `reasoning_effort`.
 - `"anthropic"` - Anthropic Messages API via the official SDK. Point `baseUrl` at an Anthropic-compatible endpoint (e.g. `https://api.anthropic.com`) and `model` at a Claude model. `reasoningEffort` enables extended thinking (`"high"` = 16k budget, `"max"` = 32k).
+- `"responses"` - OpenAI Responses API via the official SDK. Stateless (`store: false`); `reasoningEffort` maps to `reasoning.effort` (`"max"` → `"high"`), with reasoning summaries streamed to the UI.
 
 ```json
 {

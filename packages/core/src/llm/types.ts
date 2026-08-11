@@ -3,7 +3,7 @@ import { errorMessage } from "../util/text.js";
 
 export type LLMReasoningEffort = "high" | "max";
 
-export type LLMWireApi = "completions" | "anthropic";
+export type LLMWireApi = "completions" | "anthropic" | "responses";
 
 export interface LLMConfig {
   baseUrl: string;

@@ -9,7 +9,7 @@ An autonomous coding agent in the terminal — monorepo workspace.
 
 ## Features
 
-- **Multi-backend LLM client** — pluggable wire protocol that supports both OpenAI Chat Completions (`"completions"`) and Anthropic Messages API (`"anthropic"`) backends.
+- **Multi-backend LLM client** — pluggable wire protocol that supports OpenAI Chat Completions (`"completions"`), Anthropic Messages API (`"anthropic"`), and OpenAI Responses API (`"responses"`) backends.
 - **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) to control reasoning depth; displayed live in the TUI header.
 - **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
 - **Session persistence** — save/resume conversations with async `SessionPersistence` and `flush()` write-completion guarantees; CLI supports `--continue` / `--resume`.
@@ -55,7 +55,7 @@ easy-agent/
 │   │   └── src/
 │   │       ├── core/                # Agent, Session, Conversation, Timeline
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
-│   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Anthropic Messages API)
+│   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
 │   │       ├── skills/              # skill loader (SKILL.md files)
 │   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…

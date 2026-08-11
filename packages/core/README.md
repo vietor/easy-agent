@@ -328,14 +328,14 @@ interface LLMConfig {
   apiKey: string;             // API key — required
   model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
   reasoningEffort?: LLMReasoningEffort;  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks (default: "high")
-  wireApi?: LLMWireApi;  // Wire protocol; "completions" (OpenAI Chat Completions) or "anthropic" (Anthropic Messages API via the official SDK) (default: "completions")
+  wireApi?: LLMWireApi;  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK) (default: "completions")
   maxInputTokens?: number;    // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
   maxOutputTokens?: number;   // Max output tokens per request, capped by the model's output limit (default: 128,000)
 }
 
 type LLMReasoningEffort = "high" | "max";
 
-type LLMWireApi = "completions" | "anthropic";
+type LLMWireApi = "completions" | "anthropic" | "responses";
 ```
 
 Both aliases are exported so hosts can reference them in their own config types.
@@ -344,6 +344,7 @@ Both aliases are exported so hosts can reference them in their own config types.
 
 - `"completions"` - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`; `maxOutputTokens` is sent as `max_tokens`.
 - `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
+- `"responses"` - OpenAI Responses API (via `openai` SDK). Stateless (`store: false`); tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `reasoningEffort` is sent as `reasoning.effort` with `"max"` mapped to `"high"`, and reasoning summaries are streamed via `reasoning.summary_text`.
 
 ### `SessionPersistence`
 

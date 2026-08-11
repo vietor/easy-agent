@@ -1,6 +1,7 @@
 import { EmptyAssistantMessageError, type BaseAdapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig, type LLMReasoningEffort, type LLMWireApi } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
+import { ResponsesAdapter } from "./responses.js";
 import { isAbortError, withRetry } from "../util/async.js";
 
 const DEFAULT_REASONING_EFFORT: LLMReasoningEffort = "high";
@@ -47,9 +48,17 @@ export function createLLM(config: LLMConfig): LLMClient {
     maxInputTokens: config.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
     maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   };
-  const adapter = cfg.wireApi === "anthropic"
-    ? new AnthropicAdapter(cfg)
-    : new CompletionsAdapter(cfg);
+  let adapter: BaseAdapter;
+  switch (cfg.wireApi) {
+    case "responses":
+      adapter = new ResponsesAdapter(cfg);
+      break;
+    case "anthropic":
+      adapter = new AnthropicAdapter(cfg);
+      break;
+    default:
+      adapter = new CompletionsAdapter(cfg);
+  }
   return {
     model: adapter.model,
     reasoningEffort: adapter.reasoningEffort,
