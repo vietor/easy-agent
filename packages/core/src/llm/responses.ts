@@ -42,10 +42,9 @@ export class ResponsesAdapter implements BaseAdapter {
       input: toResponsesInput(messages),
       max_output_tokens: this.maxOutputTokens,
       stream: true,
-      store: false,
       ...(tools.length > 0 && { tools: tools.map(toResponsesTool) }),
       ...(useThinking && {
-        reasoning: { effort: this.reasoningEffort === "max" ? "high" : this.reasoningEffort, summary: "auto" },
+        reasoning: { effort: this.reasoningEffort === "max" ? "high" : this.reasoningEffort },
         include: ["reasoning.summary_text"],
       }),
     };
