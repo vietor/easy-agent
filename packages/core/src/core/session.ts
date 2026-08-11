@@ -11,7 +11,7 @@ import type { Todo } from "../tools/types.js";
 import { type RunState, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionData } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries, type TimelineEntry } from "./timeline.js";
+import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries } from "./timeline.js";
 
 export interface SessionDeps extends Omit<SessionOptions, "tools"> {
   llm: LLMClient;
@@ -21,7 +21,7 @@ export interface SessionDeps extends Omit<SessionOptions, "tools"> {
 }
 
 export interface SessionSnapshot {
-  timeline: readonly TimelineEntry[];
+  timeline: readonly StreamEvent[];
   todos: readonly Todo[];
 }
 
@@ -111,7 +111,7 @@ export class Session {
     this.eventListeners.notify(e);
   };
 
-  getPendingQuestion(): Extract<TimelineEntry, { kind: "question" }> | undefined {
+  getPendingQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
     return this.timelineStore.latestUnansweredQuestion;
   }
 

@@ -180,14 +180,14 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
   session.subscribe(() => {});
   const run = session.startPrompt("go");
   assert.ok(
-    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.kind === "tool"), 5000),
+    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool_start"), 5000),
     "tool entry must appear before the run settles"
   );
   session.abort();
   const { status } = await run;
   assert.equal(status, "aborted");
-  const tool = session.getSnapshot().timeline.find((e) => e.kind === "tool");
-  assert.ok(tool && tool.kind === "tool");
+  const tool = session.getSnapshot().timeline.find((e) => e.type === "tool_start");
+  assert.ok(tool && tool.type === "tool_start");
   assert.equal(tool.result, "aborted");
   assert.equal(tool.isError, true);
 });
@@ -297,7 +297,7 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
   session.subscribe(() => {});
   const run = session.startPrompt("go");
   assert.ok(
-    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.kind === "tool"), 5000),
+    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool_start"), 5000),
     "tool entry must appear before the run settles"
   );
   session.abort();

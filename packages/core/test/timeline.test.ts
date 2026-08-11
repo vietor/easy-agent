@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Session } from "../src/core/session.js";
 import { TimelineStore, TodoStore, messagesToTimelineEntries } from "../src/core/timeline.js";
-import type { TimelineEntry } from "../src/core/timeline.js";
+import type { StreamEvent } from "../src/core/types.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -38,10 +38,10 @@ test("setAnswer returns false for an unknown question id", () => {
 
 test("setResult only mutates entries still pending", () => {
   const store = new TimelineStore();
-  store.append({ kind: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: null });
+  store.append({ type: "tool_start", id: "t1", name: "FileRead", argsSummary: "x", result: null });
   store.setResult("t1", "ok");
   store.setResult("t1", "again");
-  assert.deepEqual(store.all, [{ kind: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
+  assert.deepEqual(store.all, [{ type: "tool_start", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
 test("appendQuestion registers a resolver that setAnswer resolves", () => {
@@ -50,7 +50,7 @@ test("appendQuestion registers a resolver that setAnswer resolves", () => {
   store.appendQuestion({ id: "q1", text: "pick", options: ["a", "b"] }, (a) => { resolved = a; });
   assert.equal(store.setAnswer("q1", "b"), true);
   assert.equal(resolved, "b");
-  assert.deepEqual(store.all, [{ kind: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b" }]);
+  assert.deepEqual(store.all, [{ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b" }]);
 });
 
 test("pendingQuestionIds lists unanswered questions until answered", () => {
@@ -102,14 +102,14 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "reasoning_clear" });
   store.applyEvent({ type: "run_state", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
-    { kind: "user", text: "hi" },
-    { kind: "skill", name: "s" },
-    { kind: "assistant", text: "hello" },
-    { kind: "retry", attempt: 2, max: 3, reason: "429 rate limited" },
-    { kind: "notice", text: "n" },
-    { kind: "error", text: "e" },
-    { kind: "interrupted" },
-    { kind: "tool", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p" },
+    { type: "user", text: "hi" },
+    { type: "skill", name: "s" },
+    { type: "assistant", text: "hello" },
+    { type: "retry", attempt: 2, max: 3, reason: "429 rate limited" },
+    { type: "notice", text: "n" },
+    { type: "error", text: "e" },
+    { type: "interrupted" },
+    { type: "tool_start", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p" },
   ]);
 });
 
@@ -151,8 +151,8 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
       () => ""
     )
   );
-  const tool = store.all.find((e) => e.kind === "tool");
-  assert.deepEqual(tool, { kind: "tool", id: "t1", name: "Echo", argsSummary: "", result: null });
+  const tool = store.all.find((e) => e.type === "tool_start");
+  assert.deepEqual(tool, { type: "tool_start", id: "t1", name: "Echo", argsSummary: "", result: null });
   store.markPendingToolsAborted();
-  assert.equal((store.all.find((e) => e.kind === "tool") as Extract<TimelineEntry, { kind: "tool" }>).result, "aborted");
+  assert.equal((store.all.find((e) => e.type === "tool_start") as Extract<StreamEvent, { type: "tool_start" }>).result, "aborted");
 });

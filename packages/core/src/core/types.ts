@@ -56,11 +56,11 @@ export type StreamEvent =
   | { type: "reasoning_delta"; text: string }
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; argsSummary: string }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string; result?: string | null; isError?: boolean; resultSummary?: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[] }
+  | { type: "question"; id: string; text: string; options: string[]; answer?: string | null }
   | { type: "notice"; text: string }
   | ({ type: "run_state" } & RunState);

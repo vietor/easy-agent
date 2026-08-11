@@ -119,9 +119,9 @@ test("restore replays persisted messages into the timeline", async () => {
   assert.equal(await session.restore(), true);
   assert.equal(session.export().length, 3);
   const timeline = session.getSnapshot().timeline;
-  assert.equal(timeline.filter((e) => e.kind === "user").length, 1);
-  const tool = timeline.find((e) => e.kind === "tool");
-  assert.ok(tool && tool.kind === "tool");
+  assert.equal(timeline.filter((e) => e.type === "user").length, 1);
+  const tool = timeline.find((e) => e.type === "tool_start");
+  assert.ok(tool && tool.type === "tool_start");
   assert.equal(tool.name, "Echo");
   assert.equal(tool.argsSummary, "a/b");
   assert.equal(tool.result, "echoed");
@@ -157,8 +157,8 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     persistence: memoryPersistence(state),
   });
   assert.equal(await session.restore(), true);
-  const tool = session.getSnapshot().timeline.find((e) => e.kind === "tool");
-  assert.ok(tool && tool.kind === "tool");
+  const tool = session.getSnapshot().timeline.find((e) => e.type === "tool_start");
+  assert.ok(tool && tool.type === "tool_start");
   assert.equal(tool.argsSummary, "");
   assert.equal(tool.result, "(interrupted)");
 });
@@ -250,8 +250,8 @@ test("abort keeps the partial reply but leaves it out of the timeline", async ()
   assert.equal(status, "aborted");
   assert.equal(reply, "partial reply");
   const timeline = session.getSnapshot().timeline;
-  assert.equal(timeline.filter((e) => e.kind === "assistant").length, 0);
-  assert.ok(timeline.some((e) => e.kind === "interrupted"));
+  assert.equal(timeline.filter((e) => e.type === "assistant").length, 0);
+  assert.ok(timeline.some((e) => e.type === "interrupted"));
 });
 
 test("dispose resolves a pending question", async () => {

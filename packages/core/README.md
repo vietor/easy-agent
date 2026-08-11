@@ -101,7 +101,7 @@ const session = await createSession({ systemPrompt, llmConfig });
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
-| `getPendingQuestion(): TimelineEntry & { kind: "question" } \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
+| `getPendingQuestion(): Extract<StreamEvent, { type: "question" }> \| undefined` | Return the first unanswered question, or `undefined` if none are pending. |
 
 ### Events
 
@@ -122,31 +122,32 @@ type StreamEvent =
   | { type: "reasoning_delta"; text: string }
   | { type: "reasoning_clear" }
   | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; argsSummary: string }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string; result?: string | null; isError?: boolean; resultSummary?: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[] }
+  | { type: "question"; id: string; text: string; options: string[]; answer?: string | null }
   | { type: "notice"; text: string }
   | { type: "run_state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
 
-| Type | Emitted when |
-|---|---|
-| `user` | User submits a prompt (`startPrompt`). |
-| `skill` | A skill is invoked. |
-| `assistant_delta` | A streaming token delta from the LLM. |
-| `reasoning_delta` | A streaming thinking/reasoning token delta (extended thinking). |
-| `reasoning_clear` | Clears the accumulated reasoning text (e.g. on new tool round). |
-| `assistant` | A text response segment is flushed (on tool call or completion). |
-| `tool_start` / `tool_end` | A tool call starts / finishes. |
-| `retry` | The LLM client retries after a transient API error. |
-| `error` | An error occurred. |
-| `interrupted` | The current run was aborted. |
-| `question` | The AskUser tool poses a question. |
-| `notice` | `session.timelineNotice()` is called, or the run auto-compacts context. |
-| `run_state` | Run state changes: at run start, every second, and at run end (`running: false`). |
+| Type | Emitted when | In timeline |
+|---|---|---|
+| `user` | User submits a prompt (`startPrompt`). | ✓ |
+| `skill` | A skill is invoked. | ✓ |
+| `assistant_delta` | A streaming token delta from the LLM. | — |
+| `reasoning_delta` | A streaming thinking/reasoning token delta (extended thinking). | — |
+| `reasoning_clear` | Clears the accumulated reasoning text (e.g. on new tool round). | — |
+| `assistant` | A text response segment is flushed (on tool call or completion). | ✓ |
+| `tool_start` | A tool call starts. | ✓ |
+| `tool_end` | A tool call finishes. | — (merged into its `tool_start` entry) |
+| `retry` | The LLM client retries after a transient API error. | ✓ |
+| `error` | An error occurred. | ✓ |
+| `interrupted` | The current run was aborted. | ✓ |
+| `question` | The AskUser tool poses a question. | ✓ |
+| `notice` | `session.timelineNotice()` is called, or the run auto-compacts context. | ✓ |
+| `run_state` | Run state changes: at run start, every second, and at run end (`running: false`). | — |
 
 Note: `subscribeEvents` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
@@ -240,7 +241,7 @@ The snapshot returned by `session.getSnapshot()`.
 
 ```ts
 interface SessionSnapshot {
-  timeline: readonly TimelineEntry[];
+  timeline: readonly StreamEvent[];
   todos: readonly Todo[];
 }
 ```
@@ -274,34 +275,17 @@ type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
 
 Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted, `"error"` on failure).
 
-### `TimelineEntry`
+### `Timeline`
 
-A discriminated union representing one entry in the session timeline.
+`SessionSnapshot.timeline` is `readonly StreamEvent[]` — the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool_start`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `reasoning_delta`, `reasoning_clear`, `run_state`) are never stored; `tool_end` is merged into its `tool_start` entry.
 
-```ts
-type TimelineEntry =
-  | { kind: "user"; text: string }
-  | { kind: "skill"; name: string }
-  | { kind: "assistant"; text: string }
-  | { kind: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string }
-  | { kind: "retry"; attempt: number; max: number; reason: string }
-  | { kind: "error"; text: string }
-  | { kind: "interrupted" }
-  | { kind: "question"; id: string; text: string; options: string[]; answer: string | null }
-  | { kind: "notice"; text: string };
-```
+`tool_start` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 
-| Kind | Emitted when |
+| Field | Meaning |
 |---|---|
-| `user` | User submits a prompt (`startPrompt`). |
-| `skill` | A skill is invoked. |
-| `assistant` | The LLM finishes a text response (flushed on tool call or completion). |
-| `tool` | A tool call starts (`result: null`) or finishes (`result` populated). |
-| `retry` | The LLM client retries after a transient API error. |
-| `error` | An error occurred (LLM failure, agent stall, etc.). |
-| `interrupted` | The current run was aborted. |
-| `question` | A question is posed to the user (from AskUser tool). `answer` is `null` until answered. |
-| `notice` | A notice (from `session.timelineNotice()`). |
+| `result?: string \| null` (`tool_start`) | `null` while the tool is running; the result text once `tool_end` arrives, or `"aborted"` if the run was interrupted. |
+| `isError?: boolean` / `resultSummary?: string` (`tool_start`) | Set when the tool ended with an error / a condensed summary of the result. |
+| `answer?: string \| null` (`question`) | `null` until the user answers (via `submitAnswer` or `abort`). |
 
 ### `ConversationMessage`
 
