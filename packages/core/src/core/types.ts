@@ -62,6 +62,5 @@ export type StreamEvent =
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
-  | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
   | ({ type: "run_state" } & RunState);

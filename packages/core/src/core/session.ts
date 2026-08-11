@@ -91,11 +91,11 @@ export class Session {
     this.eventListeners.subscribe(listener);
 
   timelineNotice = (text: string): void => {
-    this.timelineAppend("notice", text);
+    this.emit({ type: "notice", text });
   };
 
   timelineError = (text: string): void => {
-    this.timelineAppend("error", text);
+    this.emit({ type: "error", text });
   };
 
   runSkill = async (name: string): Promise<boolean> => {
@@ -106,12 +106,8 @@ export class Session {
     return true;
   };
 
-  private timelineAppend(kind: "notice" | "error", text: string): void {
-    this.timelineStore.applyEvent({ type: kind, text });
-    this.emit({ type: kind, text });
-  }
-
   private emit = (e: StreamEvent): void => {
+    this.timelineStore.applyEvent(e);
     this.eventListeners.notify(e);
   };
 
@@ -177,7 +173,6 @@ export class Session {
   }
 
   private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
-    this.timelineStore.applyEvent(event);
     this.emit(event);
     return this.run(runFn);
   }
@@ -207,7 +202,6 @@ export class Session {
       status = isAbortError(e) ? "aborted" : "error";
       this.flushStreaming();
       if (status !== "aborted") {
-        this.timelineStore.applyEvent({ type: "error", text: errorMessage(e) });
         this.emit({ type: "error", text: errorMessage(e) });
       }
     } finally {
@@ -271,7 +265,6 @@ export class Session {
         this.flushReasoning();
         break;
     }
-    this.timelineStore.applyEvent(e);
     this.emit(e);
   };
 
@@ -279,7 +272,6 @@ export class Session {
     if (this.streamingText) {
       this.lastReplyText = this.streamingText;
       const text = this.streamingText;
-      this.timelineStore.applyEvent({ type: "assistant", text });
       this.streamingText = "";
       this.emit({ type: "assistant", text });
     }
@@ -359,7 +351,6 @@ export class Session {
 
   submitAnswer(id: string, answer: string): void {
     this.timelineStore.setAnswer(id, answer);
-    this.emit({ type: "question_answered", id, answer });
   }
 
   async startPrompt(text: string): Promise<SessionPromptResult> {

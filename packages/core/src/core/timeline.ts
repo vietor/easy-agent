@@ -95,7 +95,6 @@ export class TimelineStore {
         this.append({ kind: "notice", text: e.text });
         break;
       case "question":
-      case "question_answered":
       case "assistant_delta":
       case "reasoning_delta":
       case "reasoning_clear":

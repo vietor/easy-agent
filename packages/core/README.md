@@ -128,7 +128,6 @@ type StreamEvent =
   | { type: "error"; text: string }
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
-  | { type: "question_answered"; id: string; answer: string }
   | { type: "notice"; text: string }
   | { type: "run_state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
@@ -146,7 +145,6 @@ type StreamEvent =
 | `error` | An error occurred. |
 | `interrupted` | The current run was aborted. |
 | `question` | The AskUser tool poses a question. |
-| `question_answered` | The question is answered (via `submitAnswer` or `abort`). |
 | `notice` | `session.timelineNotice()` is called, or the run auto-compacts context. |
 | `run_state` | Run state changes: at run start, every second, and at run end (`running: false`). |
 
