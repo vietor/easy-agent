@@ -107,7 +107,7 @@ test("restored timeline from persisted messages matches the live run (golden equ
     description: "echo",
     parameters: { type: "object", properties: {} },
     async execute() {
-      return "echoed";
+      return { content: "echoed" };
     },
   });
   const session = new Session({

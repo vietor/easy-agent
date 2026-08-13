@@ -24,10 +24,10 @@ export const globTool: Tool = {
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(".");
     const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal);
-    return formatRgOutput(lines, truncated, NO_MATCHES);
+    return { content: formatRgOutput(lines, truncated, NO_MATCHES) };
   },
   summarizeResult(result) {
     return rgResultSummary("file", result, "Glob failed", "Found 0 files");
   },
-  summaryArgs: ["pattern", "path"],
+  summaryKeys: ["pattern", "path"],
 };

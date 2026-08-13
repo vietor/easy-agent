@@ -17,15 +17,14 @@ test("valid list replaces the store and reports counts", async () => {
       todos: [
         { content: "a", status: "pending" },
         { content: "b", status: "completed" },
-        { content: "c", status: "in_progress" },
+        { content: "c", status: "inProgress" },
       ],
     },
     { cwd: process.cwd() }
   );
-  assert.equal(typeof result, "string");
-  assert.match(result, /3 items, 1 done/);
+  assert.match(result.content, /3 items, 1 done/);
   assert.equal(getTodos()?.length, 3);
-  assert.equal(getTodos()?.[2].status, "in_progress");
+  assert.equal(getTodos()?.[2].status, "inProgress");
 });
 
 test("non-array todos is an error and leaves the list untouched", async () => {
@@ -49,27 +48,26 @@ test("explicit empty list is a valid clear", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
   const result = await tool.execute({ todos: [] }, { cwd: process.cwd() });
-  assert.equal(typeof result, "string");
+  assert.equal(typeof result, "object");
   assert.equal(getTodos()?.length, 0);
 });
 
-test("normalizes to a single in_progress and downgrades unknown statuses", async () => {
+test("normalizes to a single inProgress and downgrades unknown statuses", async () => {
   const { tool, getTodos } = makeTool();
   const result = await tool.execute(
     {
       todos: [
-        { content: "a", status: "in_progress" },
-        { content: "b", status: "in_progress" },
+        { content: "a", status: "inProgress" },
+        { content: "b", status: "inProgress" },
         { content: "c", status: "weird" },
       ],
     },
     { cwd: process.cwd() }
   );
-  assert.equal(typeof result, "string");
-  assert.match(result, /normalized 1 item/);
+  assert.match(result.content, /normalized 1 item/);
   const todos = getTodos()!;
-  assert.equal(todos.filter((t) => t.status === "in_progress").length, 1);
-  assert.equal(todos[0].status, "in_progress");
+  assert.equal(todos.filter((t) => t.status === "inProgress").length, 1);
+  assert.equal(todos[0].status, "inProgress");
   assert.equal(todos[1].status, "pending");
   assert.equal(todos[2].status, "pending");
 });

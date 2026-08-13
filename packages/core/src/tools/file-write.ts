@@ -17,11 +17,11 @@ export const fileWriteTool: Tool = {
     const resolved = requirePath(args, ctx.cwd);
     await mkdir(dirname(resolved), { recursive: true });
     await writeFile(resolved, args.content as string, "utf-8");
-    return `Wrote ${args.path}`;
+    return { content: `Wrote ${args.path}` };
   },
   summarizeResult(result) {
     if (result.isError) return "Write failed";
     return "Write completed";
   },
-  summaryArgs: ["path"],
+  summaryKeys: ["path"],
 };

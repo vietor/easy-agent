@@ -70,10 +70,10 @@ export const fileReadTool: Tool = {
       if (size > MAX_FILE_READ_BYTES) {
         throw new Error(`file is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_FILE_READ_BYTES)} read limit`);
       }
-      if (size === 0) return "(empty file)";
+      if (size === 0) return { content: "(empty file)" };
       const { text, totalLines, eof } = await readPage(handle, offset, limit);
       if (text === null) {
-        return `(offset ${offset} is past end of file; file has ${totalLines} lines)`;
+        return { content: `(offset ${offset} is past end of file; file has ${totalLines} lines)` };
       }
       const lines = text.split("\n");
       let out = lines
@@ -82,7 +82,7 @@ export const fileReadTool: Tool = {
       if (!eof) {
         out += `\n(more lines; use offset=${offset + limit} to continue)`;
       }
-      return out;
+      return { content: out };
     } finally {
       await handle.close();
     }
@@ -90,5 +90,5 @@ export const fileReadTool: Tool = {
   summarizeResult(result) {
     return summaryBytes("Read", result, "Read failed");
   },
-  summaryArgs: ["path"],
+  summaryKeys: ["path"],
 };

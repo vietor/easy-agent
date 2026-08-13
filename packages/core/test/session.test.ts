@@ -92,8 +92,8 @@ test("restore replays persisted messages into the timeline", async () => {
     name: "Echo",
     description: "echo",
     parameters: { type: "object", properties: { path: { type: "string" } } },
-    async execute() { return "echoed"; },
-    summaryArgs: ["path"],
+    async execute() { return { content: "echoed" }; },
+    summaryKeys: ["path"],
   });
   const state: SessionData = {
     messages: [
@@ -133,8 +133,8 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     name: "Echo",
     description: "echo",
     parameters: { type: "object", properties: { path: { type: "string" } } },
-    async execute() { return "echoed"; },
-    summaryArgs: ["path"],
+    async execute() { return { content: "echoed" }; },
+    summaryKeys: ["path"],
   });
   const state: SessionData = {
     messages: [
@@ -169,7 +169,7 @@ test("a restored session with dangling tool calls is healed before the next run"
     name: "Echo",
     description: "echo",
     parameters: { type: "object", properties: {} },
-    async execute() { return "echoed"; },
+    async execute() { return { content: "echoed" }; },
   });
   const state: SessionData = {
     messages: [

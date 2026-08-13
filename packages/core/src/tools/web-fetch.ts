@@ -96,18 +96,20 @@ export const webFetchTool: Tool = {
   },
   async execute(args, ctx) {
     const url = args.url as string;
-    return withRetry(
-      () => fetchOne(url, ctx.signal),
-      {
-        retries: WEB_FETCH_RETRIES,
-        retryable: (e) => e instanceof WebFetchError,
-        backoff: exponentialBackoff,
-        signal: ctx.signal,
-      }
-    );
+    return {
+      content: await withRetry(
+        () => fetchOne(url, ctx.signal),
+        {
+          retries: WEB_FETCH_RETRIES,
+          retryable: (e) => e instanceof WebFetchError,
+          backoff: exponentialBackoff,
+          signal: ctx.signal,
+        }
+      ),
+    };
   },
   summarizeResult(result) {
     return summaryBytes("Fetched", result, "Fetch failed");
   },
-  summaryArgs: ["url"],
+  summaryKeys: ["url"],
 };

@@ -362,7 +362,7 @@ export class Agent {
 
 const STATUS_GLYPHS: Record<TodoStatus, string> = {
   pending: "○",
-  in_progress: "◐",
+  inProgress: "◐",
   completed: "✓",
 };
 
@@ -370,7 +370,7 @@ function renderTodoReminder(todos: readonly Todo[]): string {
   const items = todos.map((t) => {
     return `${STATUS_GLYPHS[t.status]} ${t.content}`;
   });
-  const focus = todos.find((t) => t.status === "in_progress");
+  const focus = todos.find((t) => t.status === "inProgress");
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";
   const incomplete = todos.filter(t => t.status !== "completed");
   const warning = incomplete.length > 0

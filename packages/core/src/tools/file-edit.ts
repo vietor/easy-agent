@@ -27,16 +27,16 @@ export const fileEditTool: Tool = {
     if (!content.includes(oldStr)) throw new Error(`old_string not found in ${args.path}; re-read the file with FileRead to get the exact current text (watch whitespace/indentation)`);
     if (all) {
       await writeFile(resolved, content.split(oldStr).join(newStr), "utf-8");
-      return `Edited ${args.path} (replaced all)`;
+      return { content: `Edited ${args.path} (replaced all)` };
     }
     const count = content.split(oldStr).length - 1;
     if (count > 1) throw new Error(`old_string appears ${count} times in ${args.path}, must be unique (or set replace_all)`);
     await writeFile(resolved, content.replace(oldStr, newStr), "utf-8");
-    return `Edited ${args.path}`;
+    return { content: `Edited ${args.path}` };
   },
   summarizeResult(result) {
     if (result.isError) return "Edit failed";
     return "Edit completed";
   },
-  summaryArgs: ["path"],
+  summaryKeys: ["path"],
 };

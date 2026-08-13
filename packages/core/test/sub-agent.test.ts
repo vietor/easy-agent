@@ -38,7 +38,7 @@ function stub(name: string, content: string, readOnly = false) {
     description: name,
     parameters: { type: "object", properties: {} },
     async execute() {
-      return content;
+      return { content };
     },
   };
 }

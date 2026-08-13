@@ -23,8 +23,8 @@ export function createAskUserTool(ask: (question: string, options: string[]) => 
       if (!options.length) {
         return toolError("options must contain at least one choice");
       }
-      return ask(question, options);
+      return { content: await ask(question, options) };
     },
-    summaryArgs: ["question"],
+    summaryKeys: ["question"],
   };
 }

@@ -8,6 +8,7 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import type { Skill } from "../src/skills/types.js";
 import type { AssistantMessage, ChatOptions, LLMClient, Message } from "../src/llm/types.js";
 import type { Todo } from "../src/tools/types.js";
+import type { TextResult } from "../src/util/types.js";
 import { sleep, waitUntil } from "./helpers.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
@@ -45,7 +46,7 @@ function makeAgent(
     description: "echo",
     parameters: { type: "object", properties: {} },
     async execute() {
-      return "echoed";
+      return { content: "echoed" };
     },
   });
   const conversation = new Conversation("system prompt");
@@ -167,7 +168,7 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
     name: "Echo",
     description: "echo",
     parameters: { type: "object", properties: {} },
-    execute: () => new Promise<string>(() => {}),
+    execute: () => new Promise<TextResult>(() => {}),
   });
   const { llm } = fakeLLM([() => toolCall("Echo")]);
   const session = new Session({
@@ -353,7 +354,7 @@ test("a failing tool summary leaves the conversation well-formed for the next tu
     description: "throws",
     parameters: { type: "object", properties: {} },
     async execute() {
-      return "result";
+      return { content: "result" };
     },
     summarizeResult() {
       throw new Error("summary boom");

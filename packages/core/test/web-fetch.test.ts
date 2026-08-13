@@ -31,7 +31,7 @@ test("retries transient status errors and succeeds", async () => {
     }
   }, async (port) => {
     const result = await webFetchTool.execute({ url: `http://127.0.0.1:${port}/x` }, { cwd: process.cwd() });
-    assert.equal(result, '{"ok":true}');
+    assert.equal(result.content, '{"ok":true}');
     assert.equal(hits, 3);
   });
 });

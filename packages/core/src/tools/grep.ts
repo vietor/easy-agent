@@ -50,10 +50,10 @@ export const grepTool: Tool = {
     else rgArgs.push("-m", String(headLimit));
     rgArgs.push("--", args.pattern as string, ".");
     const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal, headLimit);
-    return formatRgOutput(lines, truncated, NO_MATCHES);
+    return { content: formatRgOutput(lines, truncated, NO_MATCHES) };
   },
   summarizeResult(result) {
     return rgResultSummary("match", result, "Grep failed", "Found 0 matches");
   },
-  summaryArgs: ["pattern", "path", "glob"],
+  summaryKeys: ["pattern", "path", "glob"],
 };

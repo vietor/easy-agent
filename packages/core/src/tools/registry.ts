@@ -77,8 +77,7 @@ export class ToolRegistry {
     const tool = this.tools.get(name);
     if (!tool) return toolError(`unknown tool ${name}`);
     try {
-      const r = await tool.execute(args, ctx);
-      return typeof r === "string" ? { content: r } : r;
+      return await tool.execute(args, ctx);
     } catch (e) {
       return toolError(errorMessage(e));
     }
@@ -98,9 +97,9 @@ export class ToolRegistry {
     const tool = this.tools.get(name);
     if (!tool) return "";
     if (tool.summarizeArgs) return tool.summarizeArgs(args);
-    if (!tool.summaryArgs) return "";
+    if (!tool.summaryKeys) return "";
     const parts: string[] = [];
-    for (const k of tool.summaryArgs) {
+    for (const k of tool.summaryKeys) {
       const v = args[k];
       if (typeof v === "string" && v) {
         parts.push(v);

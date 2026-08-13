@@ -1,6 +1,6 @@
 import type { TextResult } from "../util/types.js";
 
-export type TodoStatus = "pending" | "in_progress" | "completed";
+export type TodoStatus = "pending" | "inProgress" | "completed";
 
 export interface Todo {
   content: string;
@@ -26,8 +26,8 @@ export interface Tool {
   readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;
-  summaryArgs?: string[];
+  summaryKeys?: string[];
   summarizeArgs?: (args: Record<string, unknown>) => string;
   summarizeResult?(result: TextResult): string;
-  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<string | TextResult>;
+  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;
 }

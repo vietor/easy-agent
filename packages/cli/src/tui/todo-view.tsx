@@ -4,13 +4,13 @@ import { type Todo, type TodoStatus } from "@vietor/easy-agent-core";
 
 const GLYPHS: Record<TodoStatus, string> = {
   pending: "○",
-  in_progress: "◐",
+  inProgress: "◐",
   completed: "✓",
 };
 
 const COLORS: Record<TodoStatus, string> = {
   pending: "gray",
-  in_progress: "yellow",
+  inProgress: "yellow",
   completed: "green",
 };
 
