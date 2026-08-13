@@ -63,7 +63,7 @@ export function App({ session }: { session: Session }) {
         case "interrupted":
           streaming.reset();
           break;
-        case "run_state":
+        case "run_stats":
           setRunStats(e);
           break;
       }

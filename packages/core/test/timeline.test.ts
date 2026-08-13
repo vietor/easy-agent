@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Session } from "../src/runtime/session.js";
 import { TimelineStore, messagesToTimelineEntries } from "../src/runtime/timeline.js";
 import { TodoStore } from "../src/runtime/todo-store.js";
-import type { StreamEvent } from "../src/runtime/events.js";
+import type { TimelineEvent } from "../src/runtime/events.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -39,15 +39,15 @@ test("setAnswer is a no-op for an unknown question id", () => {
 
 test("setResult only mutates entries still pending", () => {
   const store = new TimelineStore();
-  store.append({ type: "tool_start", id: "t1", name: "FileRead", argsSummary: "x", result: null });
+  store.append({ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: null });
   store.setResult("t1", "ok");
   store.setResult("t1", "again");
-  assert.deepEqual(store.all, [{ type: "tool_start", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
+  assert.deepEqual(store.all, [{ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
 test("setAnswer records the answer on the question entry", () => {
   const store = new TimelineStore();
-  store.appendQuestion({ id: "q1", text: "pick", options: ["a", "b"] });
+  store.applyEvent({ type: "question", id: "q1", text: "pick", options: ["a", "b"] });
   store.setAnswer("q1", "b");
   assert.deepEqual(store.all, [{ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b" }]);
 });
@@ -55,8 +55,8 @@ test("setAnswer records the answer on the question entry", () => {
 test("latestUnansweredQuestion tracks the most recent unanswered question", () => {
   const store = new TimelineStore();
   assert.equal(store.latestUnansweredQuestion, undefined);
-  store.appendQuestion({ id: "q1", text: "one", options: [] });
-  store.appendQuestion({ id: "q2", text: "two", options: [] });
+  store.applyEvent({ type: "question", id: "q1", text: "one", options: [] });
+  store.applyEvent({ type: "question", id: "q2", text: "two", options: [] });
   assert.equal(store.latestUnansweredQuestion?.id, "q2");
   store.setAnswer("q2", "yes");
   assert.equal(store.latestUnansweredQuestion?.id, "q1");
@@ -87,7 +87,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "assistant_delta", text: "x" });
   store.applyEvent({ type: "thinking_delta", text: "x" });
   store.applyEvent({ type: "thinking_clear" });
-  store.applyEvent({ type: "run_state", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
+  store.applyEvent({ type: "run_stats", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
     { type: "user", text: "hi" },
     { type: "skill", name: "s" },
@@ -96,7 +96,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
     { type: "notice", text: "n" },
     { type: "error", text: "e" },
     { type: "interrupted" },
-    { type: "tool_start", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p" },
+    { type: "tool", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p" },
   ]);
 });
 
@@ -138,8 +138,8 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
       () => ""
     )
   );
-  const tool = store.all.find((e) => e.type === "tool_start");
-  assert.deepEqual(tool, { type: "tool_start", id: "t1", name: "Echo", argsSummary: "", result: null });
+  const tool = store.all.find((e) => e.type === "tool");
+  assert.deepEqual(tool, { type: "tool", id: "t1", name: "Echo", argsSummary: "", result: null });
   store.markPendingToolsAborted();
-  assert.equal((store.all.find((e) => e.type === "tool_start") as Extract<StreamEvent, { type: "tool_start" }>).result, "aborted");
+  assert.equal((store.all.find((e) => e.type === "tool") as Extract<TimelineEvent, { type: "tool" }>).result, "aborted");
 });

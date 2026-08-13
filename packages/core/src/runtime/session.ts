@@ -123,7 +123,7 @@ export class Session {
     this.eventListeners.notify(e);
   };
 
-  get pendingQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
+  get pendingQuestion(): Extract<TimelineEvent, { type: "question" }> | undefined {
     return this.timelineStore.latestUnansweredQuestion;
   }
 
@@ -249,7 +249,7 @@ export class Session {
   }
 
   private emitRunStats(): void {
-    this.emit({ type: "run_state", ...this.runStats });
+    this.emit({ type: "run_stats", ...this.runStats });
   }
 
   private handleEvent = (e: StreamEvent): void => {
@@ -378,7 +378,6 @@ export class Session {
     this.emit({ type: "question", id, text, options });
     return new Promise<string>((resolve) => {
       this.pendingQuestionResolvers.set(id, resolve);
-      this.timelineStore.appendQuestion({ id, text, options });
     });
   }
 }

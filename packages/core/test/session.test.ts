@@ -120,8 +120,8 @@ test("restore replays persisted messages into the timeline", async () => {
   assert.equal(session.export().length, 3);
   const timeline = session.getSnapshot().timeline;
   assert.equal(timeline.filter((e) => e.type === "user").length, 1);
-  const tool = timeline.find((e) => e.type === "tool_start");
-  assert.ok(tool && tool.type === "tool_start");
+  const tool = timeline.find((e) => e.type === "tool");
+  assert.ok(tool && tool.type === "tool");
   assert.equal(tool.name, "Echo");
   assert.equal(tool.argsSummary, "a/b");
   assert.equal(tool.result, "echoed");
@@ -157,8 +157,8 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     persistence: memoryPersistence(state),
   });
   assert.equal(await session.restore(), true);
-  const tool = session.getSnapshot().timeline.find((e) => e.type === "tool_start");
-  assert.ok(tool && tool.type === "tool_start");
+  const tool = session.getSnapshot().timeline.find((e) => e.type === "tool");
+  assert.ok(tool && tool.type === "tool");
   assert.equal(tool.argsSummary, "");
   assert.equal(tool.result, "(interrupted)");
 });

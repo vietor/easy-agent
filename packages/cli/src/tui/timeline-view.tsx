@@ -30,7 +30,7 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
           <Markdown>{entry.text}</Markdown>
         </Box>
       );
-    case "tool_start":
+    case "tool":
       return <ToolEntry entry={entry} />;
     case "retry":
       return (
@@ -76,7 +76,7 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
   }
 });
 
-function ToolEntry({ entry }: { entry: Extract<TimelineEvent, { type: "tool_start" }> }) {
+function ToolEntry({ entry }: { entry: Extract<TimelineEvent, { type: "tool" }> }) {
   const running = entry.result === null;
   const [on, setOn] = useState(true);
   useEffect(() => {

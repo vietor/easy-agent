@@ -29,31 +29,28 @@ export class TimelineStore {
         this.append(e);
         break;
       case "tool_start":
-        this.append({ ...e, result: null });
+        this.append({ ...e, type: "tool", result: null });
         break;
       case "tool_end":
         this.setResult(e.id, e.result, e.isError, e.resultSummary);
         break;
       case "question":
+        this.pendingQuestions.set(e.id, this.entries.length);
+        this.append({ ...e, answer: null });
+        break;
       case "assistant_delta":
       case "thinking_delta":
       case "thinking_clear":
-      case "run_state":
+      case "run_stats":
         break;
     }
   }
 
   private append(entry: TimelineEvent): void {
     this.entries.push(entry);
-    if (entry.type === "tool_start" && entry.result === null) {
+    if (entry.type === "tool" && entry.result === null) {
       this.pendingTools.set(entry.id, this.entries.length - 1);
     }
-    this.listeners.notify();
-  }
-
-  appendQuestion(entry: { id: string; text: string; options: string[] }): void {
-    this.pendingQuestions.set(entry.id, this.entries.length);
-    this.entries.push({ type: "question", ...entry, answer: null });
     this.listeners.notify();
   }
 
@@ -62,7 +59,7 @@ export class TimelineStore {
     if (idx === undefined) return;
     this.pendingTools.delete(id);
     const entry = this.entries[idx];
-    if (entry.type !== "tool_start" || entry.result !== null) return;
+    if (entry.type !== "tool" || entry.result !== null) return;
     this.entries[idx] = { ...entry, result, isError, resultSummary };
     this.listeners.notify();
   }
@@ -77,7 +74,7 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  get latestUnansweredQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
+  get latestUnansweredQuestion(): Extract<TimelineEvent, { type: "question" }> | undefined {
     for (let i = this.entries.length - 1; i >= 0; i--) {
       const e = this.entries[i];
       if (e.type === "question" && e.answer === null) return e;
@@ -88,7 +85,7 @@ export class TimelineStore {
   markPendingToolsAborted(): void {
     for (const [, idx] of this.pendingTools) {
       const entry = this.entries[idx];
-      if (entry.type === "tool_start" && entry.result === null) {
+      if (entry.type === "tool" && entry.result === null) {
         this.entries[idx] = { ...entry, result: "aborted", isError: true, resultSummary: "aborted" };
       }
     }
@@ -108,7 +105,7 @@ export class TimelineStore {
     this.pendingTools.clear();
     this.pendingQuestions.clear();
     entries.forEach((entry, i) => {
-      if (entry.type === "tool_start" && entry.result === null) {
+      if (entry.type === "tool" && entry.result === null) {
         this.pendingTools.set(entry.id, i);
       }
     });
@@ -144,7 +141,7 @@ export function messagesToTimelineEntries(
         for (const tc of m.tool_calls) {
           const parsed = parseToolArgs(tc.function.arguments);
           const entry: TimelineEvent = {
-            type: "tool_start",
+            type: "tool",
             id: tc.id,
             name: tc.function.name,
             argsSummary: summarizeArgs(tc.function.name, parsed.ok ? parsed.args : {}),

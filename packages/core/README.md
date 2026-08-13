@@ -101,7 +101,7 @@ const session = await createSession({ systemPrompt, llm });
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
-| `pendingQuestion(): Extract<StreamEvent, { type: "question" }> \| undefined` | Return the most recent unanswered question, or `undefined` if none are pending. |
+| `pendingQuestion(): Extract<TimelineEvent, { type: "question" }> \| undefined` | Return the most recent unanswered question, or `undefined` if none are pending. |
 
 ### Events
 
@@ -122,14 +122,14 @@ type StreamEvent =
   | { type: "thinking_delta"; text: string }
   | { type: "thinking_clear" }
   | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; argsSummary: string; result?: string | null; isError?: boolean; resultSummary?: string }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[]; answer?: string | null }
+  | { type: "question"; id: string; text: string; options: string[] }
   | { type: "notice"; text: string }
-  | { type: "run_state"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
+  | { type: "run_stats"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
 
 | Type | Emitted when | In timeline |
@@ -140,14 +140,14 @@ type StreamEvent =
 | `thinking_delta` | A streaming thinking token delta (extended thinking). | — |
 | `thinking_clear` | Clears the accumulated thinking text (e.g. on new tool round). | — |
 | `assistant` | A text response segment is flushed (on tool call or completion). | ✓ |
-| `tool_start` | A tool call starts. | ✓ |
-| `tool_end` | A tool call finishes. | — (merged into its `tool_start` entry) |
+| `tool_start` | A tool call starts. | ✓ (stored as `tool`) |
+| `tool_end` | A tool call finishes. | — (merged into its `tool` entry) |
 | `retry` | The LLM client retries after a transient API error. | ✓ |
 | `error` | An error occurred. | ✓ |
 | `interrupted` | The current run was aborted. | ✓ |
 | `question` | The AskUser tool poses a question. | ✓ |
 | `notice` | `session.addNotice()` is called, or the run auto-compacts context. | ✓ |
-| `run_state` | Run state changes: at run start, every second, and at run end (`running: false`). | — |
+| `run_stats` | Run stats change: at run start, every second, and at run end (`running: false`). | — |
 
 Note: `onEvent` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
@@ -215,7 +215,7 @@ if (!session.running) {
 }
 ```
 
-The `run_state` event (`running: boolean`) also signals run start/end for stream consumers.
+The `run_stats` event (`running: boolean`) also signals run start/end for stream consumers.
 
 ### Snapshot subscription
 
@@ -276,15 +276,15 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `Timeline`
 
-`SessionView.timeline` is `readonly TimelineEvent[]` — the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool_start`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_clear`, `run_state`) are never stored; `tool_end` is merged into its `tool_start` entry.
+`SessionView.timeline` is `readonly TimelineEvent[]` — the stored entry type for the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_clear`, `run_stats`) are never stored; `tool_end` is merged into its `tool` entry.
 
 `tool_start` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 
 | Field | Meaning |
 |---|---|
-| `result?: string \| null` (`tool_start`) | `null` while the tool is running; the result text once `tool_end` arrives, or `"aborted"` if the run was interrupted. |
-| `isError?: boolean` / `resultSummary?: string` (`tool_start`) | Set when the tool ended with an error / a condensed summary of the result. |
-| `answer?: string \| null` (`question`) | `null` until the user answers (via `submitAnswer` or `abort`). |
+| `result: string \| null` (`tool`) | `null` while the tool is running; the result text once `tool_end` arrives, or `"aborted"` if the run was interrupted. |
+| `isError?: boolean` / `resultSummary?: string` (`tool`) | Set when the tool ended with an error / a condensed summary of the result. |
+| `answer: string \| null` (`question`) | `null` until the user answers (via `submitAnswer` or `abort`). |
 
 ### `ConversationMessage`
 
@@ -760,7 +760,7 @@ const session = await createSession({
 
 session.onEvent((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "run_state")
+  else if (e.type === "run_stats")
     console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
 });
 
