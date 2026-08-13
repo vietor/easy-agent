@@ -77,7 +77,7 @@ export interface LLMClient {
   chat(opts: ChatOptions): Promise<AssistantMessage>;
 }
 
-export interface BaseAdapter extends Omit<LLMClient, "chat"> {
+export interface Adapter extends Omit<LLMClient, "chat"> {
   stream(opts: ChatOptions): Promise<AssistantMessage>;
 }
 

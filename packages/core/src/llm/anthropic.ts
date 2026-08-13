@@ -1,35 +1,27 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   EmptyAssistantMessageError,
-  type BaseAdapter,
   parseToolArgs,
   textOf,
   type AssistantMessage,
   type ChatOptions,
   type ResolvedLLMConfig,
   type Message,
-  type LLMReasoningEffort,
   type RedactedThinkingBlock,
   type ThinkingBlock,
 } from "./types.js";
+import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 import { THINKING_BUDGET } from "../util/constants.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 
-export class AnthropicAdapter implements BaseAdapter {
+export class AnthropicAdapter extends BaseAdapter {
   private client: Anthropic;
-  readonly model: string;
-  readonly reasoningEffort: LLMReasoningEffort;
-  readonly maxInputTokens: number;
-  readonly maxOutputTokens: number;
 
   constructor(config: ResolvedLLMConfig) {
-    this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort;
-    this.maxInputTokens = config.maxInputTokens;
-    this.maxOutputTokens = config.maxOutputTokens;
+    super(config);
     this.client = new Anthropic({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,

@@ -1,4 +1,4 @@
-import { EmptyAssistantMessageError, type BaseAdapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig } from "./types.js";
+import { EmptyAssistantMessageError, type Adapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { ResponsesAdapter } from "./responses.js";
@@ -15,7 +15,7 @@ export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { //
   return false;
 }
 
-export function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
+export function withRetryChat(adapter: Adapter): LLMClient["chat"] {
   return (opts) => {
     let sawToolCall = false;
     return withRetry(
@@ -42,7 +42,7 @@ export function createLLM(config: LLMConfig): LLMClient {
     maxInputTokens: config.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
     maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   };
-  let adapter: BaseAdapter;
+  let adapter: Adapter;
   switch (cfg.wireApi) {
     case "responses":
       adapter = new ResponsesAdapter(cfg);

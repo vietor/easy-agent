@@ -3,29 +3,21 @@ import {
   EmptyAssistantMessageError,
   textOf,
   type AssistantMessage,
-  type BaseAdapter,
   type ChatOptions,
-  type LLMReasoningEffort,
   type Message,
   type ResolvedLLMConfig,
 } from "./types.js";
+import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 
 type ResponsesInputItem = OpenAI.Responses.ResponseInputItem;
 
-export class ResponsesAdapter implements BaseAdapter {
+export class ResponsesAdapter extends BaseAdapter {
   private client: OpenAI;
-  readonly model: string;
-  readonly reasoningEffort: LLMReasoningEffort;
-  readonly maxInputTokens: number;
-  readonly maxOutputTokens: number;
 
   constructor(config: ResolvedLLMConfig) {
-    this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort;
-    this.maxInputTokens = config.maxInputTokens;
-    this.maxOutputTokens = config.maxOutputTokens;
+    super(config);
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,

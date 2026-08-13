@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { EmptyAssistantMessageError, type BaseAdapter, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions, type LLMReasoningEffort } from "./types.js";
+import { EmptyAssistantMessageError, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions } from "./types.js";
+import { BaseAdapter } from "./base.js";
 import { netFetch } from "../util/net.js";
 
 interface ToolCallAccumulator {
@@ -8,18 +9,11 @@ interface ToolCallAccumulator {
   arguments: string;
 }
 
-export class CompletionsAdapter implements BaseAdapter {
+export class CompletionsAdapter extends BaseAdapter {
   private client: OpenAI;
-  readonly model: string;
-  readonly reasoningEffort: LLMReasoningEffort;
-  readonly maxInputTokens: number;
-  readonly maxOutputTokens: number;
 
   constructor(config: ResolvedLLMConfig) {
-    this.model = config.model;
-    this.reasoningEffort = config.reasoningEffort;
-    this.maxInputTokens = config.maxInputTokens;
-    this.maxOutputTokens = config.maxOutputTokens;
+    super(config);
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
