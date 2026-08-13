@@ -1,11 +1,10 @@
 import { compactThresholdFor } from "../llm/client.js";
 import type { LLMClient } from "../llm/types.js";
-import { lastAssistantText } from "../core/conversation.js";
+import { createSubAgentRun } from "../core/agent.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD, NOT_EXECUTED_PREFIX } from "../util/constants.js";
-import { toolError, type Tool } from "./types.js";
+import type { Tool } from "./types.js";
+import { toolError } from "../util/types.js";
 import { ToolRegistry } from "./registry.js";
-import { Agent } from "../core/agent.js";
-import { Conversation } from "../core/conversation.js";
 import { TOOL_USE_PROMPT } from "./prompt.js";
 
 export const SUB_AGENT_GUIDANCE =
@@ -94,25 +93,17 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       subTools.registerAll(deps.tools.filter((t) => t.readOnly === true));
 
       const maxTurns = deps.maxTurns ?? DEFAULT_MAX_TURNS;
-      const conversation = new Conversation(
-        [def.systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`].join("\n\n")
-      );
-      const subAgent = new Agent({
+      const run = createSubAgentRun({
         llm: deps.llm,
-        conversation,
+        systemPrompt: [def.systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`].join("\n\n"),
         tools: subTools,
         cwd: ctx.cwd,
-        setTodos: () => {},
-        getTodos: () => [],
         stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
         maxTurns,
         compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.maxInputTokens),
       });
+      const { status, report, messages } = await run(task, ctx.signal);
 
-      const status = await subAgent.run(task, undefined, ctx.signal);
-
-      const messages = conversation.export();
-      const report = lastAssistantText(messages) || `(sub-agent produced no final text; status ${status})`;
       if (status === "ok") return { content: report };
       const stallReason = status === "stalled"
         ? [...messages].reverse()

@@ -1,6 +1,7 @@
 import { runProcess } from "../util/subprocess.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
-import { toolError, type Tool } from "./types.js";
+import type { Tool } from "./types.js";
+import { toolError } from "../util/types.js";
 import { summaryBytes } from "../util/text.js";
 
 const isWindows = process.platform === "win32";

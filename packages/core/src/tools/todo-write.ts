@@ -1,4 +1,5 @@
-import { toolError, type Tool, type Todo, type TodoStatus } from "./types.js";
+import type { Tool, Todo, TodoStatus } from "./types.js";
+import { toolError } from "../util/types.js";
 
 export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use TodoWrite: create the task list first, then update each task's status as you execute. Never execute a multi-step task without a TodoWrite task list.";
 

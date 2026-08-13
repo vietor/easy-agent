@@ -1,4 +1,5 @@
-import { toolError, type Tool } from "../tools/types.js";
+import type { Tool } from "../tools/types.js";
+import { toolError } from "../util/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";

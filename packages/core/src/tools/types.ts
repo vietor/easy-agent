@@ -7,11 +7,6 @@ export interface Todo {
   status: TodoStatus;
 }
 
-export function toolError(msg: string): TextResult {
-  const content = msg.startsWith("Error: ") ? msg : `Error: ${msg}`;
-  return { content: content, isError: true };
-}
-
 export interface ToolContext {
   cwd: string;
   signal?: AbortSignal;

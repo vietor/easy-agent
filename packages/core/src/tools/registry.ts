@@ -1,4 +1,5 @@
-import { toolError, type Tool, type ToolContext, type ToolSchema, type Todo } from "./types.js";
+import type { Tool, ToolContext, ToolSchema, Todo } from "./types.js";
+import { toolError } from "../util/types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";
 import { fileWriteTool } from "./file-write.js";

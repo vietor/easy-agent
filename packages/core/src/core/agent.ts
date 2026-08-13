@@ -2,12 +2,12 @@ import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { ellipsisText, errorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
-import type { Conversation, ConversationMessage } from "./conversation.js";
+import { Conversation, lastAssistantText, type ConversationMessage } from "./conversation.js";
 import type { StreamEvent } from "./types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import { toolError, type ToolContext, type ToolSchema, type Todo, type TodoStatus } from "../tools/types.js";
-import type { TextResult } from "../util/types.js";
+import type { ToolContext, ToolSchema, Todo, TodoStatus } from "../tools/types.js";
+import { toolError, type TextResult } from "../util/types.js";
 
 
 const COMPACT_PROMPT = [
@@ -25,6 +25,37 @@ const COMPACT_PROMPT = [
 ].join("");
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
+
+export interface SubAgentRunOptions {
+  llm: LLMClient;
+  systemPrompt: string;
+  tools: ToolRegistry;
+  cwd: string;
+  maxTurns: number;
+  stallThreshold: number;
+  compactThreshold: number;
+}
+
+export function createSubAgentRun(opts: SubAgentRunOptions): (task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; report: string; messages: ConversationMessage[] }> {
+  return async (task, signal) => {
+    const conversation = new Conversation(opts.systemPrompt);
+    const subAgent = new Agent({
+      llm: opts.llm,
+      conversation,
+      tools: opts.tools,
+      cwd: opts.cwd,
+      setTodos: () => {},
+      getTodos: () => [],
+      stallThreshold: opts.stallThreshold,
+      maxTurns: opts.maxTurns,
+      compactThreshold: opts.compactThreshold,
+    });
+    const status = await subAgent.run(task, undefined, signal);
+    const messages = conversation.export();
+    const report = lastAssistantText(messages) || `(sub-agent produced no final text; status ${status})`;
+    return { status, report, messages };
+  };
+}
 
 export interface AgentOptions {
   llm: LLMClient;
