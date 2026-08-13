@@ -39,8 +39,8 @@ export function App({ session }: { session: Session }) {
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
   const [runStats, setRunStats] = useState<RunStats>(INITIAL_RUN_STATS);
   const streaming = useThrottledText(STREAM_FRAME_MS);
-  const reasoning = useThrottledText(STREAM_FRAME_MS);
-  const [showReasoning, setShowReasoning] = useState(false);
+  const thinking = useThrottledText(STREAM_FRAME_MS);
+  const [showThinking, setShowThinking] = useState(false);
   const allCmds = useMemo(() => commandSchemas(session), [session]);
   const pendingQuestion = session.pendingQuestion;
 
@@ -50,11 +50,11 @@ export function App({ session }: { session: Session }) {
         case "assistant_delta":
           streaming.append(e.text);
           break;
-        case "reasoning_delta":
-          reasoning.append(e.text);
+        case "thinking_delta":
+          thinking.append(e.text);
           break;
-        case "reasoning_clear":
-          reasoning.reset();
+        case "thinking_clear":
+          thinking.reset();
           break;
         case "assistant":
           streaming.reset();
@@ -76,8 +76,8 @@ export function App({ session }: { session: Session }) {
       if (key.ctrl && _input === "c") session.abort();
       return;
     }
-    if (_input === "t" && runStats.running && reasoning.text) {
-      setShowReasoning((v) => !v);
+    if (_input === "t" && runStats.running && thinking.text) {
+      setShowThinking((v) => !v);
       return;
     }
     if (key.escape) {
@@ -113,7 +113,7 @@ export function App({ session }: { session: Session }) {
       const spinnerLabel = streaming.text ? "replying" : "working";
       runningView = (
         <>
-          {reasoning.text ? renderReasoning(reasoning.text, showReasoning) : null}
+          {thinking.text ? renderThinking(thinking.text, showThinking) : null}
           {streaming.text ? (
             <Box marginTop={1} paddingLeft={1} paddingRight={1}>
               <Markdown>{streaming.text}</Markdown>
@@ -129,7 +129,7 @@ export function App({ session }: { session: Session }) {
 
   return (
     <Box width={columns} flexDirection="column">
-      <AppHeader cwd={session.cwd} model={session.model} reasoningEffort={session.reasoningEffort} />
+      <AppHeader cwd={session.cwd} model={session.model} thinkingEffort={session.thinkingEffort} />
 
       {view.timeline.length > 0? (
         <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
@@ -152,13 +152,13 @@ export function App({ session }: { session: Session }) {
         contextLimit={session.contextLimit}
         running={runStats.running}
         questionPending={!!pendingQuestion}
-        reasoningAvailable={!!reasoning.text}
+        thinkingAvailable={!!thinking.text}
       />
     </Box>
   );
 }
 
-function renderReasoning(text: string, expanded: boolean): ReactNode {
+function renderThinking(text: string, expanded: boolean): ReactNode {
   const lines = text.split("\n");
   const firstLine = (lines[0] ?? "").slice(0, 80);
   if (expanded) {

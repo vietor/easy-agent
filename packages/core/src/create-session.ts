@@ -1,14 +1,14 @@
 import { contextLimitFor, createLLM } from "./llm/client.js";
-import { Session } from "./core/session.js";
+import { Session } from "./runtime/session.js";
 import { ToolRegistry, type BuiltInToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
-import { TOOL_USE_PROMPT } from "./tools/prompt.js";
+import { TOOL_USE_PROMPT } from "./runtime/prompts.js";
 import { DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { SUB_AGENT_GUIDANCE } from "./tools/sub-agent.js";
 import type { Skill } from "./skills/types.js";
-import type { SessionOptions } from "./core/types.js";
+import type { SessionOptions } from "./runtime/session.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
 

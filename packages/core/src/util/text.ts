@@ -1,5 +1,5 @@
 import TurndownService from "turndown";
-import type { TextResult } from "./types.js";
+import type { TextResult } from "../tools/types.js";
 
 const turndown = new TurndownService({
   headingStyle: "atx",

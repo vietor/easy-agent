@@ -17,7 +17,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 
 ## Layout
 
-- `core/src/core/` — `Session` (orchestration), `Agent` (run loop), `Conversation`, `Timeline`, `types.ts`
+- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `Conversation`, `Timeline`, `sub-agent`, `prompts`, `events.ts`, `persistence.ts`
 - `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registration, schemas, summaries)
 - `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `client.ts`, `anthropic.ts` / `completions.ts` (wire backends)
 - `core/src/mcp/` — client/server for stdio + Streamable HTTP

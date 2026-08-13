@@ -2,7 +2,7 @@ import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
 import { NO_MATCHES, REQUEST_TIMEOUT_MS } from "./constants.js";
 import { summaryCount } from "./text.js";
-import type { TextResult } from "./types.js";
+import type { TextResult } from "../tools/types.js";
 
 const TRUNCATION_MARKER = "(output truncated)";
 

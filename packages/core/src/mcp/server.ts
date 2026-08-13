@@ -1,5 +1,6 @@
 import type { Tool } from "../tools/types.js";
-import { toolError, type ClientInfo } from "../util/types.js";
+import { toolError } from "../tools/types.js";
+import type { ClientInfo } from "./types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";

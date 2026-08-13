@@ -1,7 +1,7 @@
 import type { Skill } from "../skills/types.js";
 import { SKILL_TOOL_NAME } from "../util/constants.js";
 import type { Tool } from "./types.js";
-import { toolError } from "../util/types.js";
+import { toolError } from "./types.js";
 
 const DESCRIPTION = "Invoke a skill by name. Skills are packaged instructions that extend capabilities. Available skills and their descriptions are listed in the system prompt. When invoked, the skill's instructions are loaded into context — follow them.";
 

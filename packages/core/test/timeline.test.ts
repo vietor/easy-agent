@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Session } from "../src/core/session.js";
-import { TimelineStore, TodoStore, messagesToTimelineEntries } from "../src/core/timeline.js";
-import type { StreamEvent } from "../src/core/types.js";
+import { Session } from "../src/runtime/session.js";
+import { TimelineStore, messagesToTimelineEntries } from "../src/runtime/timeline.js";
+import { TodoStore } from "../src/runtime/todo-store.js";
+import type { StreamEvent } from "../src/runtime/events.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -10,7 +11,7 @@ import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const llm: LLMClient = {
     model: "fake",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     maxInputTokens: 200000,
     maxOutputTokens: 128000,
     chat: async (opts) => {
@@ -84,8 +85,8 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", argsSummary: "s" });
   store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, resultSummary: "p" });
   store.applyEvent({ type: "assistant_delta", text: "x" });
-  store.applyEvent({ type: "reasoning_delta", text: "x" });
-  store.applyEvent({ type: "reasoning_clear" });
+  store.applyEvent({ type: "thinking_delta", text: "x" });
+  store.applyEvent({ type: "thinking_clear" });
   store.applyEvent({ type: "run_state", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
     { type: "user", text: "hi" },

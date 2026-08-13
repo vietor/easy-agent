@@ -23,7 +23,7 @@ export class CompletionsAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, thinking, signal } = opts;
+    const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, signal } = opts;
     let content = "";
     let refusal = "";
     const calls = new Map<number, ToolCallAccumulator>();
@@ -35,7 +35,7 @@ export class CompletionsAdapter extends BaseAdapter {
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
-      ...(useThinking && { reasoning_effort: this.reasoningEffort })
+      ...(useThinking && { reasoning_effort: this.thinkingEffort })
     };
     const stream = await this.client.chat.completions.create(
       params as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
@@ -52,10 +52,10 @@ export class CompletionsAdapter extends BaseAdapter {
         content += delta.content;
         onDelta?.(delta.content);
       }
-      const reasoningDelta = delta as { reasoning_content?: string | null; reasoning?: string | null };
-      const reasoningText = reasoningDelta.reasoning_content ?? reasoningDelta.reasoning;
-      if (reasoningText) {
-        onReasoning?.(reasoningText);
+      const thinkingDelta = delta as { reasoning_content?: string | null; reasoning?: string | null };
+      const thinkingText = thinkingDelta.reasoning_content ?? thinkingDelta.reasoning;
+      if (thinkingText) {
+        onThinking?.(thinkingText);
       }
       const refusalDelta = delta as { refusal?: string | null };
       if (refusalDelta.refusal) {

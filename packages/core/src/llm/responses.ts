@@ -27,7 +27,7 @@ export class ResponsesAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, thinking, signal } = opts;
+    const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, signal } = opts;
     const useThinking = thinking !== false;
     const params: Record<string, unknown> = {
       model: this.model,
@@ -36,7 +36,7 @@ export class ResponsesAdapter extends BaseAdapter {
       stream: true,
       ...(tools.length > 0 && { tools: tools.map(toResponsesTool) }),
       ...(useThinking && {
-        reasoning: { effort: this.reasoningEffort },
+        reasoning: { effort: this.thinkingEffort },
         include: ["reasoning.summary_text"],
       }),
     };
@@ -55,7 +55,7 @@ export class ResponsesAdapter extends BaseAdapter {
           onDelta?.(event.delta);
           break;
         case "response.reasoning_summary_text.delta":
-          onReasoning?.(event.delta);
+          onThinking?.(event.delta);
           break;
         case "response.output_item.added":
           if (event.item.type === "function_call") onToolCall?.();

@@ -1,3 +1,8 @@
+export interface ClientInfo {
+  name: string;
+  version: string;
+}
+
 export type MCPServerConfig = StdioServerConfig | HttpServerConfig;
 
 export interface StdioServerConfig {

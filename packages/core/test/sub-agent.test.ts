@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent } from "../src/core/agent.js";
-import { Conversation } from "../src/core/conversation.js";
+import { Agent } from "../src/runtime/agent.js";
+import { Conversation } from "../src/runtime/conversation.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool } from "../src/tools/sub-agent.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -10,7 +10,7 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const calls: ChatOptions[] = [];
   const llm: LLMClient = {
     model: "fake",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     maxInputTokens: 200000,
     maxOutputTokens: 128000,
     chat: async (opts) => {
@@ -64,7 +64,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   });
 }
 
-test("nested sub-agent report becomes the SubAgent tool result", async () => {
+test("nested sub-agent reply becomes the SubAgent tool result", async () => {
   const { llm, calls } = fakeLLM([
     () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "find X" })),
     () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1"),
@@ -173,7 +173,7 @@ test("multiple SubAgent calls in one turn run concurrently", async () => {
   ];
   const llm: LLMClient = {
     model: "fake",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     maxInputTokens: 200000,
     maxOutputTokens: 128000,
     chat: async (opts) => {

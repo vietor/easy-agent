@@ -1,21 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent } from "../src/core/agent.js";
-import { Conversation } from "../src/core/conversation.js";
-import { Session } from "../src/core/session.js";
+import { Agent } from "../src/runtime/agent.js";
+import { Conversation } from "../src/runtime/conversation.js";
+import { Session } from "../src/runtime/session.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { Skill } from "../src/skills/types.js";
 import type { AssistantMessage, ChatOptions, LLMClient, Message } from "../src/llm/types.js";
 import type { Todo } from "../src/tools/types.js";
-import type { TextResult } from "../src/util/types.js";
+import type { TextResult } from "../src/tools/types.js";
 import { sleep, waitUntil } from "./helpers.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const calls: ChatOptions[] = [];
   const llm: LLMClient = {
     model: "fake",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     maxInputTokens: 200000,
     maxOutputTokens: 128000,
     chat: async (opts) => {

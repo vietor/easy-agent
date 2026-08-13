@@ -1,7 +1,7 @@
 import type { ToolSchema } from "../tools/types.js";
 import { errorMessage } from "../util/text.js";
 
-export type LLMReasoningEffort = "high" | "max";
+export type LLMThinkingEffort = "high" | "max";
 
 export type LLMBackend = "completions" | "anthropic" | "responses";
 
@@ -9,14 +9,14 @@ export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
-  reasoningEffort?: LLMReasoningEffort;
+  thinkingEffort?: LLMThinkingEffort;
   backend?: LLMBackend;
   maxInputTokens?: number;
   maxOutputTokens?: number;
 }
 
 export interface ResolvedLLMConfig extends LLMConfig {
-  reasoningEffort: LLMReasoningEffort;
+  thinkingEffort: LLMThinkingEffort;
   backend: LLMBackend;
   maxInputTokens: number;
   maxOutputTokens: number;
@@ -61,7 +61,7 @@ export interface ChatOptions {
   messages: Message[];
   tools: ToolSchema[];
   onDelta?: (text: string) => void;
-  onReasoning?: (text: string) => void;
+  onThinking?: (text: string) => void;
   onRetry?: (attempt: number, max: number, error: unknown) => void;
   onUsage?: (inputTokens: number, outputTokens: number) => void;
   onToolCall?: () => void;
@@ -71,7 +71,7 @@ export interface ChatOptions {
 
 export interface LLMClient {
   readonly model: string;
-  readonly reasoningEffort: LLMReasoningEffort;
+  readonly thinkingEffort: LLMThinkingEffort;
   readonly maxInputTokens: number;
   readonly maxOutputTokens: number;
   chat(opts: ChatOptions): Promise<AssistantMessage>;

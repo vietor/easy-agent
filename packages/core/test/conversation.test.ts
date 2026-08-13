@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Conversation } from "../src/core/conversation.js";
+import { Conversation } from "../src/runtime/conversation.js";
 import type { AssistantMessage } from "../src/llm/types.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 

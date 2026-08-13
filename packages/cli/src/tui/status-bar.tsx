@@ -7,10 +7,10 @@ interface StatusBarProps {
   contextLimit: number;
   running: boolean;
   questionPending: boolean;
-  reasoningAvailable: boolean;
+  thinkingAvailable: boolean;
 }
 
-export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, running, questionPending, reasoningAvailable }: StatusBarProps) {
+export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, running, questionPending, thinkingAvailable }: StatusBarProps) {
   const { columns } = useWindowSize();
   const pct = Math.min(100, contextLimit > 0 ? Math.round((contextTokens / contextLimit) * 100) : 0);
   const filled = Math.round((pct / 100) * 10);
@@ -18,7 +18,7 @@ export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, 
   const ctxColor = pct >= 85 ? "red" : pct >= 60 ? "yellow" : "green";
   let hints: string;
   if (questionPending) hints = "↑↓ select · enter confirm · esc skip";
-  else if (running) hints = reasoningAvailable ? "esc stop · t reasoning" : "esc stop";
+  else if (running) hints = thinkingAvailable ? "esc stop · t thinking" : "esc stop";
   else hints = "/ commands";
   return (
     <Box width={columns} paddingX={1} flexDirection="row" justifyContent="space-between" borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray">

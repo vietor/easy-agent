@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LLMClient } from "../llm/types.js";
+import type { LLMClient, LLMConfig } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { errorMessage } from "../util/text.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
@@ -7,26 +7,35 @@ import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type BuiltInToolsOptions, type ToolRegistry } from "../tools/registry.js";
-import type { Todo } from "../tools/types.js";
-import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type TimelineEvent, type SessionPersistence, type SessionData } from "./types.js";
-import type { ClientInfo } from "../util/types.js";
+import type { Todo, Tool } from "../tools/types.js";
+import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type TimelineEvent } from "./events.js";
+import type { SessionPersistence, SessionData } from "./persistence.js";
+import type { ClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries } from "./timeline.js";
+import { ListenerSet } from "../util/pubsub.js";
+import { TimelineStore, messagesToTimelineEntries } from "./timeline.js";
+import { TodoStore } from "./todo-store.js";
 
-export interface SessionDeps {
+export interface SessionOptions {
   systemPrompt: string;
-  llm: LLMClient;
+  llm: LLMConfig;
   cwd?: string;
+  tools?: Tool[];
   skills?: Skill[];
-  tools: ToolRegistry;
-  mcp: MCPServers;
+  mcp?: Record<string, MCPServerConfig>;
   builtInTools?: BuiltInToolsOptions | false;
   clientInfo?: ClientInfo;
   sessionId?: string;
   persistence?: SessionPersistence;
   maxTurns?: number;
   stallThreshold?: number;
+}
+
+export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcp"> {
+  llm: LLMClient;
+  tools: ToolRegistry;
+  mcp: MCPServers;
   contextLimit: number;
 }
 
@@ -56,7 +65,7 @@ export class Session {
   private todoStore = new TodoStore();
 
   private streamingText = "";
-  private reasoningText = "";
+  private thinkingText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
   private runStats: RunStats = INITIAL_RUN_STATS;
@@ -130,8 +139,8 @@ export class Session {
     return this.agent.model;
   }
 
-  get reasoningEffort() {
-    return this.agent.reasoningEffort;
+  get thinkingEffort() {
+    return this.agent.thinkingEffort;
   }
 
   get contextLimit() {
@@ -183,7 +192,7 @@ export class Session {
   private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<{ status: RunStatus; reply: string }> {
     this.streamingText = "";
     this.lastReplyText = "";
-    this.reasoningText = "";
+    this.thinkingText = "";
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
@@ -213,7 +222,7 @@ export class Session {
       this.timelineStore.markPendingToolsAborted();
       this.runStats = { ...this.runStats, ...this.computeTimings(), running: false, ...this.agent.usage };
       this.emitRunStats();
-      this.flushReasoning();
+      this.flushThinking();
       this.clearCompletedTodos();
       this.persistSnapshot();
     }
@@ -249,12 +258,12 @@ export class Session {
         if (this.replyStart === null) this.replyStart = Date.now();
         this.streamingText += e.text;
         break;
-      case "reasoning_delta":
-        this.reasoningText += e.text;
+      case "thinking_delta":
+        this.thinkingText += e.text;
         break;
       case "retry":
         this.streamingText = "";
-        this.flushReasoning();
+        this.flushThinking();
         break;
       case "tool_start":
       case "error":
@@ -263,7 +272,7 @@ export class Session {
       case "interrupted":
         this.lastReplyText = this.streamingText;
         this.streamingText = "";
-        this.flushReasoning();
+        this.flushThinking();
         break;
     }
     this.emit(e);
@@ -276,13 +285,13 @@ export class Session {
       this.streamingText = "";
       this.emit({ type: "assistant", text });
     }
-    this.flushReasoning();
+    this.flushThinking();
   }
 
-  private flushReasoning(): void {
-    if (this.reasoningText) {
-      this.reasoningText = "";
-      this.emit({ type: "reasoning_clear" });
+  private flushThinking(): void {
+    if (this.thinkingText) {
+      this.thinkingText = "";
+      this.emit({ type: "thinking_clear" });
     }
   }
 

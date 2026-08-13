@@ -10,7 +10,7 @@ An autonomous coding agent in the terminal — monorepo workspace.
 ## Features
 
 - **Multi-backend LLM client** — pluggable wire protocol that supports OpenAI Chat Completions (`"completions"`), Anthropic Messages API (`"anthropic"`), and OpenAI Responses API (`"responses"`) backends.
-- **Reasoning effort** — configure `reasoningEffort` (`high` / `max`) to control reasoning depth; displayed live in the TUI header.
+- **Thinking effort** — configure `thinkingEffort` (`high` / `max`) to control thinking depth; displayed live in the TUI header.
 - **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
 - **Session persistence** — save/resume conversations with async `SessionPersistence` and `flush()` write-completion guarantees; CLI supports `--continue` / `--resume`.
 - **Built-in tool system** — FileRead/Glob/Grep/WebFetch (read-only) plus Shell/FileWrite/Edit enabled by default; interactive tools AskUser, TodoWrite, and SubAgent (nested read-only explore/plan sub-agents) opt in via `builtinTools`, and Skill auto-registers when skills are loaded; `{ readOnly: true }` limits the session to read-only tools, `false` disables all — plus a simple `Tool` interface for custom tools.
@@ -18,7 +18,7 @@ An autonomous coding agent in the terminal — monorepo workspace.
 - **Context compaction** — auto-triggered LLM summarization when the conversation nears the token limit; also available as `/compact`.
 - **Stall & turn limits** — detects repeated identical tool calls or text-only responses while todos are incomplete (`stallThreshold`) and caps agent loop iterations (`maxTurns`), configurable per session.
 - **Transient error retry** — automatic retry of transient API failures (timeouts, rate limits, empty responses) and flaky WebFetch requests, with attempts surfaced via `retry` events.
-- **Reentrancy protection** — `SessionBusyError` guards against concurrent `startPrompt`/`compact` calls.
+- **Reentrancy protection** — `SessionBusyError` guards against concurrent `prompt`/`compact` calls.
 - **Token usage tracking** — per-run `inputTokens` / `outputTokens` counters displayed in the TUI and exposed via events.
 
 This repo contains two packages:
@@ -53,7 +53,7 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/easy-agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── core/                # Agent, Session, Conversation, Timeline
+│   │       ├── runtime/             # Agent, Session, Conversation, Timeline
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
@@ -74,7 +74,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`StreamEvent` / `subscribeEvents`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`) plus its own built-in slash commands and dispatcher.
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`StreamEvent` / `onEvent`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`) plus its own built-in slash commands and dispatcher.
 
 ### Build order
 

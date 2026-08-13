@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Session } from "../src/core/session.js";
+import { Session } from "../src/runtime/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { waitUntil } from "./helpers.js";
-import type { SessionPersistence, SessionData } from "../src/core/types.js";
+import type { SessionPersistence, SessionData } from "../src/runtime/persistence.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
 
 function memoryPersistence(state: SessionData): SessionPersistence {
@@ -14,7 +14,7 @@ function memoryPersistence(state: SessionData): SessionPersistence {
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   const llm: LLMClient = {
     model: "fake",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     maxInputTokens: 200000,
     maxOutputTokens: 128000,
     chat: async (opts) => {

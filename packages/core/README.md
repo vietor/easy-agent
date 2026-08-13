@@ -25,7 +25,7 @@ const session = await createSession({
     baseUrl: "https://api.deepseek.com/v1",
     apiKey: "your-api-key",
     model: "deepseek-v4-flash",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     backend: "completions",
     maxInputTokens: 1_000_000,
   },
@@ -44,7 +44,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `reasoningEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
+| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -119,8 +119,8 @@ type StreamEvent =
   | { type: "user"; text: string }
   | { type: "skill"; name: string }
   | { type: "assistant_delta"; text: string }
-  | { type: "reasoning_delta"; text: string }
-  | { type: "reasoning_clear" }
+  | { type: "thinking_delta"; text: string }
+  | { type: "thinking_clear" }
   | { type: "assistant"; text: string }
   | { type: "tool_start"; id: string; name: string; argsSummary: string; result?: string | null; isError?: boolean; resultSummary?: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
@@ -137,8 +137,8 @@ type StreamEvent =
 | `user` | User submits a prompt (`prompt`). | ✓ |
 | `skill` | A skill is invoked. | ✓ |
 | `assistant_delta` | A streaming token delta from the LLM. | — |
-| `reasoning_delta` | A streaming thinking/reasoning token delta (extended thinking). | — |
-| `reasoning_clear` | Clears the accumulated reasoning text (e.g. on new tool round). | — |
+| `thinking_delta` | A streaming thinking token delta (extended thinking). | — |
+| `thinking_clear` | Clears the accumulated thinking text (e.g. on new tool round). | — |
 | `assistant` | A text response segment is flushed (on tool call or completion). | ✓ |
 | `tool_start` | A tool call starts. | ✓ |
 | `tool_end` | A tool call finishes. | — (merged into its `tool_start` entry) |
@@ -157,7 +157,7 @@ Note: `onEvent` is the primary stream for network/remote consumers (multi-subscr
 interface RunStats {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
-  thinkingElapsed: number; // seconds before the first assistant text token (incl. reasoning/tools)
+  thinkingElapsed: number; // seconds before the first assistant text token (incl. thinking/tools)
   replyElapsed: number;    // seconds after the first assistant text token (incl. later tool rounds)
   inputTokens: number;     // cumulative input (prompt) tokens for the current run
   outputTokens: number;    // cumulative output (completion) tokens for the current run
@@ -182,16 +182,15 @@ The command system lives in host code. Core exposes the primitives hosts build o
 | Property | Type | Description |
 |---|---|---|
 | `model` | `string` | The LLM model name (e.g. `"deepseek-v4-flash"`). |
-| `reasoningEffort` | `"high" \| "max"` | The configured reasoning effort. |
+| `thinkingEffort` | `"high" \| "max"` | The configured thinking effort. |
 | `contextLimit` | `number` | Estimated-token threshold that triggers auto-compaction. |
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
 | `running` | `boolean` | Whether a prompt/compact is in progress. Check before issuing a driver call (see Reentrancy). |
-| `localStore` | `Map<string, unknown>` | A local key-value store available to tools and host code during the session. |
 
 ### Reentrancy
 
-A `Session` runs one prompt/compact at a time. While a run is in progress, calling a **driver** method throws `SessionBusyError` (`code === "SESSION_BUSY"`) so a host can map it to an HTTP 409:
+A `Session` runs one prompt/compact at a time. While a run is in progress, calling a **driver** method throws `SessionBusyError` so a host can map it to an HTTP 409:
 
 | Driver method | Behavior when busy |
 |---|---|
@@ -277,7 +276,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `Timeline`
 
-`SessionView.timeline` is `readonly TimelineEvent[]` — the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool_start`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `reasoning_delta`, `reasoning_clear`, `run_state`) are never stored; `tool_end` is merged into its `tool_start` entry.
+`SessionView.timeline` is `readonly TimelineEvent[]` — the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool_start`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_clear`, `run_state`) are never stored; `tool_end` is merged into its `tool_start` entry.
 
 `tool_start` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 
@@ -309,13 +308,13 @@ interface LLMConfig {
   baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com") — required
   apiKey: string;             // API key — required
   model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
-  reasoningEffort?: LLMReasoningEffort;  // Reasoning depth; "high" for standard tasks, "max" for deeper reasoning on complex tasks (default: "high")
+  thinkingEffort?: LLMThinkingEffort;  // Thinking depth; "high" for standard tasks, "max" for deeper thinking on complex tasks (default: "high")
   backend?: LLMBackend;  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK) (default: "completions")
   maxInputTokens?: number;    // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
   maxOutputTokens?: number;   // Max output tokens per request, capped by the model's output limit (default: 128,000)
 }
 
-type LLMReasoningEffort = "high" | "max";
+type LLMThinkingEffort = "high" | "max";
 
 type LLMBackend = "completions" | "anthropic" | "responses";
 ```
@@ -324,9 +323,9 @@ Both aliases are exported so hosts can reference them in their own config types.
 
 `backend` selects the request/response protocol the client speaks:
 
-- `"completions"` - OpenAI Chat Completions compatible endpoint. `reasoningEffort` is sent as `reasoning_effort`; `maxOutputTokens` is sent as `max_tokens`.
-- `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `reasoningEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
-- `"responses"` - OpenAI Responses API (via `openai` SDK). Tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `reasoningEffort` is sent as `reasoning.effort`, and reasoning summaries are streamed via `reasoning.summary_text`.
+- `"completions"` - OpenAI Chat Completions compatible endpoint. `thinkingEffort` is sent as `reasoning_effort`; `maxOutputTokens` is sent as `max_tokens`.
+- `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `thinkingEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
+- `"responses"` - OpenAI Responses API (via `openai` SDK). Tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `thinkingEffort` is sent as `reasoning.effort`, and reasoning summaries are streamed via `reasoning.summary_text`.
 
 ### `SessionPersistence`
 
@@ -750,7 +749,7 @@ const session = await createSession({
     baseUrl: "https://api.deepseek.com/v1",
     apiKey: "your-api-key",
     model: "deepseek-v4-flash",
-    reasoningEffort: "high",
+    thinkingEffort: "high",
     backend: "completions",
     maxInputTokens: 1_000_000,
   },

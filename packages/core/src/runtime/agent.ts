@@ -2,60 +2,15 @@ import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { ellipsisText, errorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
-import { Conversation, lastAssistantText, type ConversationMessage } from "./conversation.js";
-import type { StreamEvent } from "./types.js";
+import { Conversation, type ConversationMessage } from "./conversation.js";
+import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
+import type { StreamEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { ToolContext, ToolSchema, Todo, TodoStatus } from "../tools/types.js";
-import { toolError, type TextResult } from "../util/types.js";
-
-
-const COMPACT_PROMPT = [
-  "Summarize the conversation above for context continuation. Preserve:\n",
-  "1. Primary goal, sub-goals, constraints, acceptance criteria.\n",
-  "2. Decisions and rationale (including rejected approaches).\n",
-  "3. Files (paths, signatures, config values, key code snippets).\n",
-  "4. Tool calls and relevant results (commands, search hits, test output).\n",
-  "5. Errors/failures and how they were resolved.\n",
-  "6. Current progress: what is done, verified, and in-progress state.\n",
-  "7. Pending tasks, open questions, concrete next step.\n",
-  "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. Keep only what the next turn needs to continue without re-reading history.\n",
-  "Concise but thorough; keep technical specifics; use the conversation language. Target roughly 10% of the original length, capped at a few hundred tokens — technical specifics over prose. ",
-  "Start with \"Summary of conversation so far\":",
-].join("");
+import type { ToolContext, ToolSchema, Todo } from "../tools/types.js";
+import { toolError, type TextResult } from "../tools/types.js";
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
-
-export interface SubAgentRunOptions {
-  llm: LLMClient;
-  systemPrompt: string;
-  tools: ToolRegistry;
-  cwd: string;
-  maxTurns: number;
-  stallThreshold: number;
-  contextLimit: number;
-}
-
-export function createSubAgentRun(opts: SubAgentRunOptions): (task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; report: string; messages: ConversationMessage[] }> {
-  return async (task, signal) => {
-    const conversation = new Conversation(opts.systemPrompt);
-    const subAgent = new Agent({
-      llm: opts.llm,
-      conversation,
-      tools: opts.tools,
-      cwd: opts.cwd,
-      setTodos: () => {},
-      getTodos: () => [],
-      stallThreshold: opts.stallThreshold,
-      maxTurns: opts.maxTurns,
-      contextLimit: opts.contextLimit,
-    });
-    const status = await subAgent.run(task, undefined, signal);
-    const messages = conversation.export();
-    const report = lastAssistantText(messages) || `(sub-agent produced no final text; status ${status})`;
-    return { status, report, messages };
-  };
-}
 
 export interface AgentOptions {
   llm: LLMClient;
@@ -118,8 +73,8 @@ export class Agent {
     return this.llm.model;
   }
 
-  get reasoningEffort() {
-    return this.llm.reasoningEffort;
+  get thinkingEffort() {
+    return this.llm.thinkingEffort;
   }
 
   clear(): void {
@@ -307,7 +262,7 @@ export class Agent {
         tools: opts.tools,
         thinking: opts.thinking,
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
-        onReasoning: (text) => opts.onEvent?.({ type: "reasoning_delta", text }),
+        onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: errorMessage(error) }),
         onUsage: (inputTokens, outputTokens) => {
           this.inputTokens = inputTokens;
@@ -358,29 +313,4 @@ export class Agent {
     if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, resultSummary });
     return { id: call.id, content: result.content, resultSummary, isError: result.isError, args };
   }
-}
-
-const STATUS_GLYPHS: Record<TodoStatus, string> = {
-  pending: "○",
-  inProgress: "◐",
-  completed: "✓",
-};
-
-function renderTodoReminder(todos: readonly Todo[]): string {
-  const items = todos.map((t) => {
-    return `${STATUS_GLYPHS[t.status]} ${t.content}`;
-  });
-  const focus = todos.find((t) => t.status === "inProgress");
-  const focusLine = focus ? ` Current focus: ${focus.content}` : "";
-  const incomplete = todos.filter(t => t.status !== "completed");
-  const warning = incomplete.length > 0
-    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response — update status via TodoWrite after each task finishes.`
-    : "";
-  return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
-}
-
-function renderIncompleteTodoNudge(todos: readonly Todo[]): string {
-  const incomplete = todos.filter(t => t.status !== "completed");
-  const names = incomplete.map(t => `"${t.content}"`).join(", ");
-  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to complete them. Call TodoWrite to mark each one completed before your final text response.</system-reminder>`;
 }

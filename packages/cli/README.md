@@ -30,7 +30,7 @@ Create `~/.easy-agent.json` in your home directory:
     "baseUrl": "https://api.deepseek.com/v1",
     "apiKey": "your-api-key",
     "model": "deepseek-v4-flash",
-    "reasoningEffort": "high"
+    "thinkingEffort": "high"
   }
 }
 ```
@@ -41,9 +41,9 @@ Create `~/.easy-agent.json` in your home directory:
 
 Selects the wire protocol the client speaks. Valid values: `"completions"` | `"anthropic"` | `"responses"`. Defaults to `"completions"`.
 
-- `"completions"` - OpenAI Chat Completions compatible endpoint (the default). `reasoningEffort` is sent as `reasoning_effort`.
-- `"anthropic"` - Anthropic Messages API via the official SDK. Point `baseUrl` at an Anthropic-compatible endpoint (e.g. `https://api.anthropic.com`) and `model` at a Claude model. `reasoningEffort` enables extended thinking (`"high"` = 16k budget, `"max"` = 32k).
-- `"responses"` - OpenAI Responses API via the official SDK. `reasoningEffort` is sent as `reasoning.effort`, with reasoning summaries streamed to the UI.
+- `"completions"` - OpenAI Chat Completions compatible endpoint (the default). `thinkingEffort` is sent as `reasoning_effort`.
+- `"anthropic"` - Anthropic Messages API via the official SDK. Point `baseUrl` at an Anthropic-compatible endpoint (e.g. `https://api.anthropic.com`) and `model` at a Claude model. `thinkingEffort` enables extended thinking (`"high"` = 16k budget, `"max"` = 32k).
+- `"responses"` - OpenAI Responses API via the official SDK. `thinkingEffort` is sent as `reasoning.effort`, with reasoning summaries streamed to the UI.
 
 ```json
 {
@@ -52,14 +52,14 @@ Selects the wire protocol the client speaks. Valid values: `"completions"` | `"a
     "apiKey": "your-api-key",
     "model": "claude-sonnet-5",
     "backend": "anthropic",
-    "reasoningEffort": "high"
+    "thinkingEffort": "high"
   }
 }
 ```
 
-#### `reasoningEffort` (optional)
+#### `thinkingEffort` (optional)
 
-Controls the depth of model reasoning. Valid values: `"high"` | `"max"`. Defaults to `"high"`. When set to `"max"` the model spends more tokens on deeper reasoning before responding — useful for complex logic, math, or multi-step analysis. The current setting is shown in the TUI header (e.g. ` · reasoning max`). Requires a model that supports the `reasoning_effort` parameter.
+Controls the depth of model thinking. Valid values: `"high"` | `"max"`. Defaults to `"high"`. When set to `"max"` the model spends more tokens on deeper thinking before responding — useful for complex logic, math, or multi-step analysis. The current setting is shown in the TUI header (e.g. ` · thinking max`). Requires a model that supports the `reasoning_effort` parameter.
 
 ### Proxy
 
@@ -141,9 +141,9 @@ easy-agent --resume      # list all saved sessions for this directory
 
 Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line summary of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
 
-The TUI header shows the model name, version, and configured reasoning effort (e.g. `deepseek-v4-flash · reasoning high`). While the agent is running, a spinner displays the thinking and reply elapsed time alongside token counts (e.g. `⠋ thinking · think 2s · reply 0s · ↑1.2k · ↓0.4k`). If the LLM emits extended thinking blocks, a collapsible reasoning panel appears — press <kbd>t</kbd> to expand/collapse it.
+The TUI header shows the model name, version, and configured thinking effort (e.g. `deepseek-v4-flash · thinking high`). While the agent is running, a spinner displays the thinking and reply elapsed time alongside token counts (e.g. `⠋ thinking · think 2s · reply 0s · ↑1.2k · ↓0.4k`). If the LLM emits extended thinking blocks, a collapsible thinking panel appears — press <kbd>t</kbd> to expand/collapse it.
 
-A status bar at the bottom shows the context token usage with a progress bar and percentage, along with keyboard shortcut hints: <kbd>ESC</kbd> to abort a running task, <kbd>t</kbd> to toggle reasoning (when available), and <kbd>/</kbd> for commands.
+A status bar at the bottom shows the context token usage with a progress bar and percentage, along with keyboard shortcut hints: <kbd>ESC</kbd> to abort a running task, <kbd>t</kbd> to toggle thinking (when available), and <kbd>/</kbd> for commands.
 
 ### Built-in tools
 

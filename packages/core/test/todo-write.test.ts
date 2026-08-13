@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Todo } from "../src/tools/types.js";
-import type { TextResult } from "../src/util/types.js";
+import type { TextResult } from "../src/tools/types.js";
 
 function makeTool() {
   let current: Todo[] | null = null;

@@ -32,7 +32,7 @@ export class AnthropicAdapter extends BaseAdapter {
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
     const useThinking = opts.thinking !== false;
-    const budget = THINKING_BUDGET[this.reasoningEffort];
+    const budget = THINKING_BUDGET[this.thinkingEffort];
     const { system, messages } = toAnthropicMessages(opts.messages, useThinking);
     const tools = opts.tools.map(toAnthropicTool);
 
@@ -52,7 +52,7 @@ export class AnthropicAdapter extends BaseAdapter {
       ...(systemCached && { system: systemCached }),
       ...(useThinking && {
         thinking: { type: "enabled" as const, budget_tokens: Math.min(budget, this.maxOutputTokens - 1) },
-        output_config: { effort: this.reasoningEffort },
+        output_config: { effort: this.thinkingEffort },
       }),
       ...(tools.length > 0 && { tools: toolsCached ?? tools }),
     };
@@ -60,7 +60,7 @@ export class AnthropicAdapter extends BaseAdapter {
     const stream = this.client.messages.stream(params, { signal: opts.signal });
     if (opts.onUsage) stream.on("streamEvent", (e) => { if (e.type === "message_start") opts.onUsage!(e.message.usage.input_tokens, 0); });
     if (opts.onDelta) stream.on("text", (delta) => opts.onDelta!(delta));
-    if (opts.onReasoning) stream.on("thinking", (delta) => opts.onReasoning!(delta));
+    if (opts.onThinking) stream.on("thinking", (delta) => opts.onThinking!(delta));
     if (opts.onToolCall) stream.on("contentBlock", (block) => { if (block.type === "tool_use") opts.onToolCall!(); });
 
     const final = await stream.finalMessage();

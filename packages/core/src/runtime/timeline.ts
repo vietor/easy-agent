@@ -1,40 +1,7 @@
-import type { Todo } from "../tools/types.js";
 import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
-import type { StreamEvent, TimelineEvent } from "./types.js";
-
-export class ListenerSet<T extends (...args: any[]) => void = () => void> {
-  private listeners = new Set<T>();
-
-  subscribe(listener: T): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  notify(...args: Parameters<T>): void {
-    for (const l of this.listeners) {
-      try { l(...args); } catch { /* isolate listener errors */ }
-    }
-  }
-}
-
-export class TodoStore {
-  private listeners = new ListenerSet();
-  private items: Todo[] = [];
-
-  get all(): readonly Todo[] {
-    return this.items;
-  }
-
-  subscribe(listener: () => void): () => void {
-    return this.listeners.subscribe(listener);
-  }
-
-  set(todos: Todo[]): void {
-    this.items = todos;
-    this.listeners.notify();
-  }
-}
+import type { StreamEvent, TimelineEvent } from "./events.js";
+import { ListenerSet } from "../util/pubsub.js";
 
 export class TimelineStore {
   private listeners = new ListenerSet();
@@ -69,8 +36,8 @@ export class TimelineStore {
         break;
       case "question":
       case "assistant_delta":
-      case "reasoning_delta":
-      case "reasoning_clear":
+      case "thinking_delta":
+      case "thinking_clear":
       case "run_state":
         break;
     }
