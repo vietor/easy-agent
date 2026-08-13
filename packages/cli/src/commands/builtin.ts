@@ -54,7 +54,7 @@ export const exitCommand: Command = {
   name: "exit",
   description: "Exit the conversation",
   async execute(ctx) {
-    ctx.session.localStore.set("exitRequested", true);
+    ctx.requestExit();
   },
 };
 
@@ -79,7 +79,7 @@ export const quitCommand: Command = {
   name: "quit",
   description: "Exit the conversation",
   async execute(ctx) {
-    ctx.session.localStore.set("exitRequested", true);
+    ctx.requestExit();
   },
 };
 

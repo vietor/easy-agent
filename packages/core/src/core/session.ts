@@ -41,8 +41,6 @@ export interface PromptResult {
 }
 
 export class SessionBusyError extends Error {
-  readonly code = "SESSION_BUSY" as const;
-
   constructor() {
     super("session is busy; another run is in progress");
     this.name = "SessionBusyError";
@@ -56,7 +54,6 @@ export class Session {
   private resolveSkill = (name: string) => this.skillsMap.get(name);
   private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
-  readonly localStore: Map<string, unknown> = new Map();
 
   private streamingText = "";
   private reasoningText = "";

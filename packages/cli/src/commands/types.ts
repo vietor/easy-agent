@@ -4,6 +4,7 @@ export interface CommandContext {
   session: Session;
   message(text: string): void;
   error(text: string): void;
+  requestExit(): void;
 }
 
 export interface CommandSchema {
