@@ -116,7 +116,7 @@ test("max_turns run records placeholder results for the pending tool calls", asy
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo")]);
   const agent = makeAgent(llm, { maxTurns: 2 });
   const status = await agent.run("go");
-  assert.equal(status, "max_turns");
+  assert.equal(status, "maxTurns");
   const messages = agent.export();
   assert.equal(messages[messages.length - 2].role, "assistant");
   const last = messages[messages.length - 1];
@@ -143,7 +143,7 @@ test("max_turns aborts after the configured limit of tool-call turns", async () 
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo")]);
   const agent = makeAgent(llm, { maxTurns: 2 });
   const status = await agent.run("go");
-  assert.equal(status, "max_turns");
+  assert.equal(status, "maxTurns");
 });
 
 test("abort rolls the conversation back to the pre-run snapshot", async () => {

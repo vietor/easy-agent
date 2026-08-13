@@ -40,7 +40,7 @@ export interface SessionOptions {
   stallThreshold?: number;
 }
 
-export interface RunState {
+export interface RunStats {
   running: boolean;
   elapsed: number;
   thinkingElapsed: number;
@@ -48,6 +48,8 @@ export interface RunState {
   inputTokens: number;
   outputTokens: number;
 }
+
+export const INITIAL_RUN_STATS: RunStats = { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
 
 export type StreamEvent =
   | { type: "user"; text: string }
@@ -63,4 +65,4 @@ export type StreamEvent =
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[]; answer?: string | null }
   | { type: "notice"; text: string }
-  | ({ type: "run_state" } & RunState);
+  | ({ type: "run_state" } & RunStats);

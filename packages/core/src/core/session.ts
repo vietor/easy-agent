@@ -8,7 +8,7 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { type RunState, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionData } from "./types.js";
+import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionData } from "./types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries } from "./timeline.js";
@@ -39,10 +39,6 @@ export class SessionBusyError extends Error {
   }
 }
 
-export function createRunState(): RunState {
-  return { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
-}
-
 export class Session {
   private agent: Agent;
   private mcp: MCPServers;
@@ -56,7 +52,7 @@ export class Session {
   private reasoningText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
-  private runState: RunState = createRunState();
+  private runState: RunStats = INITIAL_RUN_STATS;
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -184,7 +180,7 @@ export class Session {
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { ...createRunState(), running: true };
+    this.runState = { ...INITIAL_RUN_STATS, running: true };
     this.agent.resetUsage();
     this.emitRunState();
 

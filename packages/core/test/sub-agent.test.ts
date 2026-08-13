@@ -121,7 +121,7 @@ test("nested maxTurns is enforced", async () => {
   const toolMsg = agent.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
-  assert.ok(String(toolMsg.content).includes("max_turns"));
+  assert.ok(String(toolMsg.content).includes("maxTurns"));
 });
 
 test("stalled sub-agent reports the repeated tool call in its result", async () => {

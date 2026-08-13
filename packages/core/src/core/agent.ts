@@ -24,7 +24,7 @@ const COMPACT_PROMPT = [
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
-export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "max_turns";
+export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
 
 export interface SubAgentRunOptions {
   llm: LLMClient;
@@ -271,7 +271,7 @@ export class Agent {
       if (++turns >= this.maxTurns) {
         this.resolvePendingToolCalls(msg.tool_calls, `max turns reached (${this.maxTurns})`);
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
-        return "max_turns";
+        return "maxTurns";
       }
       const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
       if (!results) return "aborted";
