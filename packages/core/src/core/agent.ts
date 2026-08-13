@@ -40,6 +40,7 @@ export interface AgentOptions {
 }
 
 type ToolCallResult = { id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> };
+type ChatResult = { ok: true; message: AssistantMessage } | { ok: false; status: RunStatus };
 
 export class Agent {
   private llm: LLMClient;
@@ -107,13 +108,13 @@ export class Agent {
       request.push({ role: "user", content: renderTodoReminder(todos) });
     }
     request.push({ role: "user", content: COMPACT_PROMPT });
-    const msg = await this.chatOnce(
+    const chat = await this.chatOnce(
       { messages: request, tools: [], reasoning: false, onEvent, signal },
       () => onEvent?.({ type: "interrupted" })
     );
-    if (typeof msg === "string") return msg;
+    if (!chat.ok) return chat.status;
     if (signal?.aborted) return "aborted";
-    const compactText = textOf(msg.content);
+    const compactText = textOf(chat.message.content);
     if (!compactText) {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
       return "error";
@@ -204,12 +205,13 @@ export class Agent {
         messages.push({ role: "user", content: pendingNudge });
         pendingNudge = "";
       }
-      const msg = await this.chatOnce(
+      const chat = await this.chatOnce(
         { messages, tools: this.tools.schemas(), onEvent, signal },
         () => {}
       );
-      if (typeof msg === "string") return msg;
+      if (!chat.ok) return chat.status;
       if (signal?.aborted) return "aborted";
+      const msg = chat.message;
       this.conversation.add(msg);
       this.conversation.collapseSkills();
       if (!msg.tool_calls?.length) {
@@ -267,9 +269,9 @@ export class Agent {
   private async chatOnce(
     opts: { messages: Message[]; tools: ToolSchema[]; reasoning?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
     onAbort: () => void
-  ): Promise<AssistantMessage | RunStatus> {
+  ): Promise<ChatResult> {
     try {
-      return await withAbort(this.llm.chat({
+      const message = await withAbort(this.llm.chat({
         messages: opts.messages,
         tools: opts.tools,
         reasoning: opts.reasoning,
@@ -282,13 +284,14 @@ export class Agent {
         },
         signal: opts.signal,
       }), opts.signal);
+      return { ok: true, message };
     } catch (e) {
       if (opts.signal?.aborted || isAbortError(e)) {
         onAbort();
-        return "aborted";
+        return { ok: false, status: "aborted" };
       }
       opts.onEvent?.({ type: "error", text: errorMessage(e) });
-      return "error";
+      return { ok: false, status: "error" };
     }
   }
 
@@ -312,8 +315,8 @@ export class Agent {
     signal?: AbortSignal
   ): Promise<ToolCallResult> {
     const parsed = parseToolArgs(call.function.arguments);
-    const args = parsed.args;
-    const argsError = parsed.error ? toolError(`invalid arguments: ${parsed.error}`) : undefined;
+    const args = parsed.ok ? parsed.args : {};
+    const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);
     const argsSummary = this.tools.summarizeArgs(call.function.name, args);
     onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, argsSummary });
     const ctx: ToolContext = { signal, cwd: this.cwd };

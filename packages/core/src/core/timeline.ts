@@ -181,12 +181,12 @@ export function messagesToTimelineEntries(
       if (text) entries.push({ type: "assistant", text });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {
-          const { args } = parseToolArgs(tc.function.arguments);
+          const parsed = parseToolArgs(tc.function.arguments);
           const entry: StreamEvent = {
             type: "tool_start",
             id: tc.id,
             name: tc.function.name,
-            argsSummary: summarizeArgs(tc.function.name, args),
+            argsSummary: summarizeArgs(tc.function.name, parsed.ok ? parsed.args : {}),
             result: null,
           };
           const result = toolResults.get(tc.id);

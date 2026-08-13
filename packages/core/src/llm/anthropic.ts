@@ -170,11 +170,12 @@ function toMessageParam(m: Message, includeThinking: boolean): Anthropic.Message
   if (text) blocks.push({ type: "text", text });
   if (a.tool_calls) {
     for (const tc of a.tool_calls) {
+      const parsed = parseToolArgs(tc.function.arguments);
       blocks.push({
         type: "tool_use",
         id: tc.id,
         name: tc.function.name,
-        input: parseToolArgs(tc.function.arguments).args,
+        input: parsed.ok ? parsed.args : {},
       });
     }
   }

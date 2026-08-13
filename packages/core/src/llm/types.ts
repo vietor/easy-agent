@@ -94,15 +94,17 @@ export class EmptyAssistantMessageError extends Error {
   }
 }
 
-export function parseToolArgs(args: string | undefined): { args: Record<string, unknown>; error?: string } {
-  if (!args) return { args: {} };
+export function parseToolArgs(
+  args: string | undefined
+): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
+  if (!args) return { ok: true, args: {} };
   try {
     const parsed: unknown = JSON.parse(args);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { args: {}, error: "arguments must be a JSON object" };
+      return { ok: false, error: "arguments must be a JSON object" };
     }
-    return { args: parsed as Record<string, unknown> };
+    return { ok: true, args: parsed as Record<string, unknown> };
   } catch (e) {
-    return { args: {}, error: errorMessage(e) };
+    return { ok: false, error: errorMessage(e) };
   }
 }
