@@ -113,7 +113,7 @@ test("every assistant tool_calls is followed by its tool results, even on stall"
   }
 });
 
-test("max_turns run records placeholder results for the pending tool calls", async () => {
+test("maxTurns run records placeholder results for the pending tool calls", async () => {
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo")]);
   const agent = makeAgent(llm, { maxTurns: 2 });
   const status = await agent.run("go");
@@ -140,7 +140,7 @@ test("text-only stall with incomplete todos: nudge is sent but never stored", as
   assert.ok(calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("STOP!")));
 });
 
-test("max_turns aborts after the configured limit of tool-call turns", async () => {
+test("maxTurns aborts after the configured limit of tool-call turns", async () => {
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo")]);
   const agent = makeAgent(llm, { maxTurns: 2 });
   const status = await agent.run("go");

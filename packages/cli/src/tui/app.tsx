@@ -37,7 +37,7 @@ export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
-  const [runState, setRunState] = useState<RunStats>(INITIAL_RUN_STATS);
+  const [runStats, setRunStats] = useState<RunStats>(INITIAL_RUN_STATS);
   const streaming = useThrottledText(STREAM_FRAME_MS);
   const reasoning = useThrottledText(STREAM_FRAME_MS);
   const [showReasoning, setShowReasoning] = useState(false);
@@ -64,7 +64,7 @@ export function App({ session }: { session: Session }) {
           streaming.reset();
           break;
         case "run_state":
-          setRunState(e);
+          setRunStats(e);
           break;
       }
     });
@@ -76,14 +76,14 @@ export function App({ session }: { session: Session }) {
       if (key.ctrl && _input === "c") session.abort();
       return;
     }
-    if (_input === "t" && runState.running && reasoning.text) {
+    if (_input === "t" && runStats.running && reasoning.text) {
       setShowReasoning((v) => !v);
       return;
     }
     if (key.escape) {
       session.abort();
     } else if (key.ctrl && _input === "c") {
-      if (runState.running) session.abort();
+      if (runStats.running) session.abort();
       else exit();
     }
   });
@@ -101,7 +101,7 @@ export function App({ session }: { session: Session }) {
   }
 
   let runningView: ReactNode = null;
-  if (runState.running) {
+  if (runStats.running) {
     if (pendingQuestion) {
       runningView = (
         <QuestionView
@@ -120,7 +120,7 @@ export function App({ session }: { session: Session }) {
             </Box>
           ) : null}
           <Box marginTop={1} paddingLeft={1}>
-            <Spinner label={spinnerLabel} thinkingElapsed={runState.thinkingElapsed} replyElapsed={runState.replyElapsed} inputTokens={runState.inputTokens} outputTokens={runState.outputTokens} />
+            <Spinner label={spinnerLabel} thinkingElapsed={runStats.thinkingElapsed} replyElapsed={runStats.replyElapsed} inputTokens={runStats.inputTokens} outputTokens={runStats.outputTokens} />
           </Box>
         </>
       );
@@ -143,14 +143,14 @@ export function App({ session }: { session: Session }) {
 
       {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
 
-      {!runState.running ? (
+      {!runStats.running ? (
         <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
       ) : null}
 
       <StatusBar
         contextTokens={session.contextTokens}
         contextLimit={session.contextLimit}
-        running={runState.running}
+        running={runStats.running}
         questionPending={!!pendingQuestion}
         reasoningAvailable={!!reasoning.text}
       />

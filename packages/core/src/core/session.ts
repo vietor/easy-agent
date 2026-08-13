@@ -59,7 +59,7 @@ export class Session {
   private reasoningText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
-  private runState: RunStats = INITIAL_RUN_STATS;
+  private runStats: RunStats = INITIAL_RUN_STATS;
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -187,13 +187,13 @@ export class Session {
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runState = { ...INITIAL_RUN_STATS, running: true };
+    this.runStats = { ...INITIAL_RUN_STATS, running: true };
     this.agent.resetUsage();
-    this.emitRunState();
+    this.emitRunStats();
 
     this.timer = setInterval(() => {
-      this.runState = { ...this.runState, ...this.computeTimings(), ...this.agent.usage };
-      this.emitRunState();
+      this.runStats = { ...this.runStats, ...this.computeTimings(), ...this.agent.usage };
+      this.emitRunStats();
     }, 1000);
 
     let status: RunStatus = "ok";
@@ -211,8 +211,8 @@ export class Session {
       this.timer = undefined;
       this.abortController = null;
       this.timelineStore.markPendingToolsAborted();
-      this.runState = { ...this.runState, ...this.computeTimings(), running: false, ...this.agent.usage };
-      this.emitRunState();
+      this.runStats = { ...this.runStats, ...this.computeTimings(), running: false, ...this.agent.usage };
+      this.emitRunStats();
       this.flushReasoning();
       this.clearCompletedTodos();
       this.persistSnapshot();
@@ -239,8 +239,8 @@ export class Session {
     };
   }
 
-  private emitRunState(): void {
-    this.emit({ type: "run_state", ...this.runState });
+  private emitRunStats(): void {
+    this.emit({ type: "run_state", ...this.runStats });
   }
 
   private handleEvent = (e: StreamEvent): void => {
