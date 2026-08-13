@@ -1,9 +1,9 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/markdown.js";
-import type { StreamEvent } from "@vietor/easy-agent-core";
+import type { TimelineEvent } from "@vietor/easy-agent-core";
 
-export const TimelineView = memo(function TimelineView({ entry }: { entry: StreamEvent }) {
+export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEvent }) {
   switch (entry.type) {
     case "user":
       return (
@@ -76,7 +76,7 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Strea
   }
 });
 
-function ToolEntry({ entry }: { entry: Extract<StreamEvent, { type: "tool_start" }> }) {
+function ToolEntry({ entry }: { entry: Extract<TimelineEvent, { type: "tool_start" }> }) {
   const running = entry.result === null;
   const [on, setOn] = useState(true);
   useEffect(() => {

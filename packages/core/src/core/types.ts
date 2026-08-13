@@ -67,3 +67,5 @@ export type StreamEvent =
   | { type: "question"; id: string; text: string; options: string[]; answer?: string | null }
   | { type: "notice"; text: string }
   | ({ type: "run_state" } & RunStats);
+
+export type TimelineEvent = Extract<StreamEvent, { type: "user" | "skill" | "assistant" | "tool_start" | "retry" | "error" | "interrupted" | "notice" | "question" }>;

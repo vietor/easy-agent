@@ -1,7 +1,7 @@
 import type { Todo } from "../tools/types.js";
 import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
-import type { StreamEvent } from "./types.js";
+import type { StreamEvent, TimelineEvent } from "./types.js";
 
 export class ListenerSet<T extends (...args: any[]) => void = () => void> {
   private listeners = new Set<T>();
@@ -38,11 +38,11 @@ export class TodoStore {
 
 export class TimelineStore {
   private listeners = new ListenerSet();
-  private entries: StreamEvent[] = [];
+  private entries: TimelineEvent[] = [];
   private pendingTools = new Map<string, number>();
   private pendingQuestions = new Map<string, number>();
 
-  get all(): readonly StreamEvent[] {
+  get all(): readonly TimelineEvent[] {
     return this.entries;
   }
 
@@ -76,7 +76,7 @@ export class TimelineStore {
     }
   }
 
-  private append(entry: StreamEvent): void {
+  private append(entry: TimelineEvent): void {
     this.entries.push(entry);
     if (entry.type === "tool_start" && entry.result === null) {
       this.pendingTools.set(entry.id, this.entries.length - 1);
@@ -136,7 +136,7 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  rebuild(entries: StreamEvent[]): void {
+  rebuild(entries: TimelineEvent[]): void {
     this.entries = entries;
     this.pendingTools.clear();
     this.pendingQuestions.clear();
@@ -152,7 +152,7 @@ export class TimelineStore {
 export function messagesToTimelineEntries(
   messages: ConversationMessage[],
   summarizeArgs: (name: string, args: Record<string, unknown>) => string
-): StreamEvent[] {
+): TimelineEvent[] {
   const toolResults = new Map<string, { content: string; resultSummary?: string; isError?: boolean }>();
   for (const m of messages) {
     if (m.role === "tool") {
@@ -164,7 +164,7 @@ export function messagesToTimelineEntries(
       toolResults.set(m.tool_call_id, result);
     }
   }
-  const entries: StreamEvent[] = [];
+  const entries: TimelineEvent[] = [];
   for (const m of messages) {
     if (m.role === "user") {
       entries.push({ type: "user", text: m.content });
@@ -176,7 +176,7 @@ export function messagesToTimelineEntries(
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {
           const parsed = parseToolArgs(tc.function.arguments);
-          const entry: StreamEvent = {
+          const entry: TimelineEvent = {
             type: "tool_start",
             id: tc.id,
             name: tc.function.name,

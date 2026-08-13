@@ -8,7 +8,7 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type BuiltInToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type SessionPersistence, type SessionData } from "./types.js";
+import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type TimelineEvent, type SessionPersistence, type SessionData } from "./types.js";
 import type { ClientInfo } from "../util/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
@@ -30,8 +30,8 @@ export interface SessionDeps {
   contextLimit: number;
 }
 
-export interface SessionSnapshot {
-  timeline: readonly StreamEvent[];
+export interface SessionView {
+  timeline: readonly TimelineEvent[];
   todos: readonly Todo[];
 }
 
@@ -75,7 +75,7 @@ export class Session {
 
   private questionSeq = 0;
   private pendingQuestionResolvers = new Map<string, (answer: string) => void>();
-  private viewCache: SessionSnapshot | null = null;
+  private viewCache: SessionView | null = null;
   private eventListeners = new ListenerSet<(e: StreamEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
 
@@ -86,7 +86,7 @@ export class Session {
     return () => { unsubscribeTimeline(); unsubscribeTodos(); };
   };
 
-  getSnapshot = (): SessionSnapshot => {
+  getSnapshot = (): SessionView => {
     if (!this.viewCache) {
       this.viewCache = { timeline: this.timelineStore.all, todos: this.todoStore.all };
     }
