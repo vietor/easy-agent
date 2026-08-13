@@ -30,9 +30,9 @@ function toolCall(name: string, id = "t1"): AssistantMessage {
   };
 }
 
-test("setAnswer returns false for an unknown question id", () => {
+test("setAnswer is a no-op for an unknown question id", () => {
   const store = new TimelineStore();
-  assert.equal(store.setAnswer("q1", "yes"), false);
+  store.setAnswer("q1", "yes");
   assert.equal(store.all.length, 0);
 });
 
@@ -44,32 +44,18 @@ test("setResult only mutates entries still pending", () => {
   assert.deepEqual(store.all, [{ type: "tool_start", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
-test("appendQuestion registers a resolver that setAnswer resolves", () => {
+test("setAnswer records the answer on the question entry", () => {
   const store = new TimelineStore();
-  let resolved: string | undefined;
-  store.appendQuestion({ id: "q1", text: "pick", options: ["a", "b"] }, (a) => { resolved = a; });
-  assert.equal(store.setAnswer("q1", "b"), true);
-  assert.equal(resolved, "b");
+  store.appendQuestion({ id: "q1", text: "pick", options: ["a", "b"] });
+  store.setAnswer("q1", "b");
   assert.deepEqual(store.all, [{ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b" }]);
-});
-
-test("pendingQuestionIds lists unanswered questions until answered", () => {
-  const store = new TimelineStore();
-  const answers: string[] = [];
-  store.appendQuestion({ id: "q1", text: "one", options: [] }, (a) => answers.push(a));
-  store.appendQuestion({ id: "q2", text: "two", options: [] }, (a) => answers.push(a));
-  assert.deepEqual(store.pendingQuestionIds(), ["q1", "q2"]);
-  assert.equal(store.setAnswer("q1", "yes"), true);
-  assert.deepEqual(store.pendingQuestionIds(), ["q2"]);
-  assert.deepEqual(answers, ["yes"]);
-  assert.equal(store.setAnswer("q1", "x"), false);
 });
 
 test("latestUnansweredQuestion tracks the most recent unanswered question", () => {
   const store = new TimelineStore();
   assert.equal(store.latestUnansweredQuestion, undefined);
-  store.appendQuestion({ id: "q1", text: "one", options: [] }, () => {});
-  store.appendQuestion({ id: "q2", text: "two", options: [] }, () => {});
+  store.appendQuestion({ id: "q1", text: "one", options: [] });
+  store.appendQuestion({ id: "q2", text: "two", options: [] });
   assert.equal(store.latestUnansweredQuestion?.id, "q2");
   store.setAnswer("q2", "yes");
   assert.equal(store.latestUnansweredQuestion?.id, "q1");

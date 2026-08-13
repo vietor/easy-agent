@@ -68,6 +68,7 @@ export class Session {
   private persistence?: SessionPersistence;
 
   private questionSeq = 0;
+  private pendingQuestionResolvers = new Map<string, (answer: string) => void>();
   private viewCache: SessionSnapshot | null = null;
   private eventListeners = new ListenerSet<(e: StreamEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
@@ -341,12 +342,17 @@ export class Session {
   }
 
   private resolvePendingQuestions(answer: string): void {
-    for (const id of this.timelineStore.pendingQuestionIds()) {
+    for (const id of [...this.pendingQuestionResolvers.keys()]) {
       this.submitAnswer(id, answer);
     }
   }
 
   submitAnswer(id: string, answer: string): void {
+    const resolve = this.pendingQuestionResolvers.get(id);
+    if (resolve) {
+      this.pendingQuestionResolvers.delete(id);
+      resolve(answer);
+    }
     this.timelineStore.setAnswer(id, answer);
   }
 
@@ -359,7 +365,8 @@ export class Session {
     const id = `q${++this.questionSeq}`;
     this.emit({ type: "question", id, text, options });
     return new Promise<string>((resolve) => {
-      this.timelineStore.appendQuestion({ id, text, options }, resolve);
+      this.pendingQuestionResolvers.set(id, resolve);
+      this.timelineStore.appendQuestion({ id, text, options });
     });
   }
 }

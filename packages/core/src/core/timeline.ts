@@ -40,7 +40,7 @@ export class TimelineStore {
   private listeners = new ListenerSet();
   private entries: StreamEvent[] = [];
   private pendingTools = new Map<string, number>();
-  private pendingQuestions = new Map<string, { index: number; resolve: (a: string) => void }>();
+  private pendingQuestions = new Map<string, number>();
 
   get all(): readonly StreamEvent[] {
     return this.entries;
@@ -84,8 +84,8 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  appendQuestion(entry: { id: string; text: string; options: string[] }, resolve: (a: string) => void): void {
-    this.pendingQuestions.set(entry.id, { index: this.entries.length, resolve });
+  appendQuestion(entry: { id: string; text: string; options: string[] }): void {
+    this.pendingQuestions.set(entry.id, this.entries.length);
     this.entries.push({ type: "question", ...entry, answer: null });
     this.listeners.notify();
   }
@@ -100,20 +100,14 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  setAnswer(id: string, answer: string): boolean {
-    const pending = this.pendingQuestions.get(id);
-    if (!pending) return false;
+  setAnswer(id: string, answer: string): void {
+    const index = this.pendingQuestions.get(id);
+    if (index === undefined) return;
     this.pendingQuestions.delete(id);
-    const entry = this.entries[pending.index];
-    if (entry.type !== "question" || entry.answer !== null) return false;
-    this.entries[pending.index] = { ...entry, answer };
-    pending.resolve(answer);
+    const entry = this.entries[index];
+    if (entry.type !== "question" || entry.answer !== null) return;
+    this.entries[index] = { ...entry, answer };
     this.listeners.notify();
-    return true;
-  }
-
-  pendingQuestionIds(): string[] {
-    return [...this.pendingQuestions.keys()];
   }
 
   get latestUnansweredQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
