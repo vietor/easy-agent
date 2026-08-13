@@ -90,10 +90,10 @@ export async function main(argv: string[] = []): Promise<void> {
 
   const session = await createSession({
     systemPrompt,
-    llmConfig: config.llm,
-    mcpServers: config.mcpServers,
+    llm: config.llm,
+    mcp: config.mcpServers,
     skills: globalSkills,
-    builtinTools: {
+    builtInTools: {
       askUser: true,
       todoWrite: true,
       subAgent: true,

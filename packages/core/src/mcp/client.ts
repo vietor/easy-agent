@@ -1,5 +1,6 @@
 import { AbortedError } from "../util/async.js";
 import { killProcessTree } from "../util/subprocess.js";
+import type { ClientInfo } from "../util/types.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -16,7 +17,7 @@ export class MCPClient {
 
   constructor(
     config: MCPServerConfig,
-    clientInfo: { name: string; version: string },
+    clientInfo: ClientInfo,
   ) {
     this.client = new Client(clientInfo, { capabilities: {} });
     if ("command" in config) {

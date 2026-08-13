@@ -6,17 +6,27 @@ import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
-import { registerBuiltinTools, type ToolRegistry } from "../tools/registry.js";
+import { registerBuiltinTools, type BuiltInToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo } from "../tools/types.js";
-import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type SessionOptions, type SessionPersistence, type SessionData } from "./types.js";
+import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type SessionPersistence, type SessionData } from "./types.js";
+import type { ClientInfo } from "../util/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet, TimelineStore, TodoStore, messagesToTimelineEntries } from "./timeline.js";
 
-export interface SessionDeps extends Omit<SessionOptions, "tools"> {
+export interface SessionDeps {
+  systemPrompt: string;
   llm: LLMClient;
+  cwd?: string;
+  skills?: Skill[];
   tools: ToolRegistry;
   mcp: MCPServers;
+  builtInTools?: BuiltInToolsOptions | false;
+  clientInfo?: ClientInfo;
+  sessionId?: string;
+  persistence?: SessionPersistence;
+  maxTurns?: number;
+  stallThreshold?: number;
   contextLimit: number;
 }
 
@@ -146,7 +156,7 @@ export class Session {
     this.sessionId = deps.sessionId ?? randomUUID();
     this.persistence = deps.persistence;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
-    registerBuiltinTools(this.tools, deps.builtinTools, {
+    registerBuiltinTools(this.tools, deps.builtInTools, {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,

@@ -42,7 +42,7 @@ function makeSession(script: Array<(opts: ChatOptions) => AssistantMessage>): Se
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
-    builtinTools: { todoWrite: true },
+    builtInTools: { todoWrite: true },
   });
 }
 
@@ -204,7 +204,7 @@ test("a restored session with dangling tool calls is healed before the next run"
   assert.equal(status, "ok");
 });
 
-test("builtinTools: false registers no built-in tools", async () => {
+test("builtInTools: false registers no built-in tools", async () => {
   const tools = new ToolRegistry();
   new Session({
     systemPrompt: "test",
@@ -212,7 +212,7 @@ test("builtinTools: false registers no built-in tools", async () => {
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
-    builtinTools: false,
+    builtInTools: false,
   });
   assert.equal(tools.schemas().length, 0);
 });
@@ -268,7 +268,7 @@ test("dispose resolves a pending question", async () => {
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
-    builtinTools: { askUser: true },
+    builtInTools: { askUser: true },
   });
   const run = session.prompt("go");
   assert.ok(await waitUntil(() => session.pendingQuestion !== undefined, 5000), "question must become pending");

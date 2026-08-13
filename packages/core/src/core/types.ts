@@ -4,6 +4,7 @@ import type { BuiltInToolsOptions } from "../tools/registry.js";
 import type { Skill } from "../skills/types.js";
 import type { MCPServerConfig } from "../mcp/types.js";
 import type { LLMConfig } from "../llm/types.js";
+import type { ClientInfo } from "../util/types.js";
 
 export interface SessionData {
   messages: ConversationMessage[];
@@ -27,13 +28,13 @@ export interface SessionPersistence {
 
 export interface SessionOptions {
   systemPrompt: string;
-  llmConfig: LLMConfig;
+  llm: LLMConfig;
   cwd?: string;
   tools?: Tool[];
   skills?: Skill[];
-  mcpServers?: Record<string, MCPServerConfig>;
-  builtinTools?: BuiltInToolsOptions | false;
-  clientInfo?: { name: string; version: string };
+  mcp?: Record<string, MCPServerConfig>;
+  builtInTools?: BuiltInToolsOptions | false;
+  clientInfo?: ClientInfo;
   sessionId?: string;
   persistence?: SessionPersistence;
   maxTurns?: number;

@@ -1,5 +1,5 @@
 import type { Tool } from "../tools/types.js";
-import { toolError } from "../util/types.js";
+import { toolError, type ClientInfo } from "../util/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
@@ -84,7 +84,7 @@ export class MCPServers {
 
   constructor(
     private tools: ToolRegistry,
-    private clientInfo: { name: string; version: string },
+    private clientInfo: ClientInfo,
   ) {}
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {
