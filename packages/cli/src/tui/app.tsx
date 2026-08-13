@@ -150,7 +150,7 @@ export function App({ session }: { session: Session }) {
 
       <StatusBar
         contextTokens={session.contextTokens}
-        contextLimit={session.compactThreshold}
+        contextLimit={session.contextLimit}
         running={runState.running}
         questionPending={!!pendingQuestion}
         reasoningAvailable={!!reasoning.text}

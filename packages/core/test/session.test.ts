@@ -41,7 +41,7 @@ function makeSession(script: Array<(opts: ChatOptions) => AssistantMessage>): Se
     llm: fakeLLM(script),
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
     builtinTools: { todoWrite: true },
   });
 }
@@ -112,7 +112,7 @@ test("restore replays persisted messages into the timeline", async () => {
     llm: fakeLLM([]),
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
     sessionId: "s1",
     persistence: memoryPersistence(state),
   });
@@ -152,7 +152,7 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     llm: fakeLLM([]),
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
     sessionId: "s1",
     persistence: memoryPersistence(state),
   });
@@ -195,7 +195,7 @@ test("a restored session with dangling tool calls is healed before the next run"
     ]),
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
     sessionId: "s1",
     persistence: memoryPersistence(state),
   });
@@ -211,7 +211,7 @@ test("builtinTools: false registers no built-in tools", async () => {
     llm: fakeLLM([]),
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
     builtinTools: false,
   });
   assert.equal(tools.schemas().length, 0);
@@ -267,7 +267,7 @@ test("dispose resolves a pending question", async () => {
     ]),
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
     builtinTools: { askUser: true },
   });
   const run = session.prompt("go");

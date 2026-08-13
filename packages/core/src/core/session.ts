@@ -17,7 +17,7 @@ export interface SessionDeps extends Omit<SessionOptions, "tools"> {
   llm: LLMClient;
   tools: ToolRegistry;
   mcp: MCPServers;
-  compactThreshold: number;
+  contextLimit: number;
 }
 
 export interface SessionSnapshot {
@@ -127,8 +127,8 @@ export class Session {
     return this.agent.reasoningEffort;
   }
 
-  get compactThreshold() {
-    return this.agent.compactThreshold;
+  get contextLimit() {
+    return this.agent.contextLimit;
   }
 
   get mcpServers(): readonly MCPServerInfo[] {
@@ -150,7 +150,7 @@ export class Session {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
-      subAgent: { llm: deps.llm, stallThreshold: deps.stallThreshold, maxTurns: deps.maxTurns, compactThreshold: deps.compactThreshold },
+      subAgent: { llm: deps.llm, stallThreshold: deps.stallThreshold, maxTurns: deps.maxTurns, contextLimit: deps.contextLimit },
     });
 
     this.agent = new Agent({
@@ -162,7 +162,7 @@ export class Session {
       getTodos: () => this.todoStore.all,
       stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
       maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
-      compactThreshold: deps.compactThreshold,
+      contextLimit: deps.contextLimit,
       resolveSkill: this.resolveSkill,
     });
     this.mcp = deps.mcp;

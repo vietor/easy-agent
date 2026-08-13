@@ -62,6 +62,6 @@ export function createLLM(config: LLMConfig): LLMClient {
   };
 }
 
-export function compactThresholdFor(maxInputTokens: number): number {
+export function contextLimitFor(maxInputTokens: number): number {
   return Math.floor(maxInputTokens * 0.75);
 }

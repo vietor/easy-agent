@@ -1,4 +1,4 @@
-import { compactThresholdFor, createLLM } from "./llm/client.js";
+import { contextLimitFor, createLLM } from "./llm/client.js";
 import { Session } from "./core/session.js";
 import { ToolRegistry, type BuiltInToolsOptions } from "./tools/registry.js";
 import { MCPServers } from "./mcp/server.js";
@@ -39,7 +39,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     llm,
     tools,
     mcp,
-    compactThreshold: compactThresholdFor(llm.maxInputTokens),
+    contextLimit: contextLimitFor(llm.maxInputTokens),
   });
 
   if (opts.tools) {

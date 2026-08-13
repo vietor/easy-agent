@@ -60,7 +60,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
   });
 }
 

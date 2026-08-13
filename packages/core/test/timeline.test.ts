@@ -115,7 +115,7 @@ test("restored timeline from persisted messages matches the live run (golden equ
     llm,
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
   });
   session.subscribe(() => {});
   const result = await session.prompt("go");

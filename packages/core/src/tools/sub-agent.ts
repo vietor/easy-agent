@@ -1,4 +1,4 @@
-import { compactThresholdFor } from "../llm/client.js";
+import { contextLimitFor } from "../llm/client.js";
 import type { LLMClient } from "../llm/types.js";
 import { createSubAgentRun } from "../core/agent.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD, NOT_EXECUTED_PREFIX } from "../util/constants.js";
@@ -15,7 +15,7 @@ export interface SubAgentToolDeps {
   tools: ToolRegistry;
   stallThreshold?: number;
   maxTurns?: number;
-  compactThreshold?: number;
+  contextLimit?: number;
 }
 
 const EXPLORE_PROMPT = [
@@ -100,7 +100,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         cwd: ctx.cwd,
         stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
         maxTurns,
-        compactThreshold: deps.compactThreshold ?? compactThresholdFor(deps.llm.maxInputTokens),
+        contextLimit: deps.contextLimit ?? contextLimitFor(deps.llm.maxInputTokens),
       });
       const { status, report, messages } = await run(task, ctx.signal);
 

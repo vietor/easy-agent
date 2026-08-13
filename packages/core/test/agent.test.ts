@@ -37,7 +37,7 @@ function toolCall(name: string, args = "{}", id = "t1"): AssistantMessage {
 
 function makeAgent(
   llm: LLMClient,
-  opts: { maxTurns?: number; compactThreshold?: number; getTodos?: () => readonly Todo[]; resolveSkill?: (name: string) => Skill | undefined } = {}
+  opts: { maxTurns?: number; contextLimit?: number; getTodos?: () => readonly Todo[]; resolveSkill?: (name: string) => Skill | undefined } = {}
 ): Agent {
   const tools = new ToolRegistry();
   tools.register({
@@ -58,7 +58,7 @@ function makeAgent(
     getTodos: opts.getTodos ?? (() => []),
     stallThreshold: 3,
     maxTurns: opts.maxTurns ?? 50,
-    compactThreshold: opts.compactThreshold ?? 750_000,
+    contextLimit: opts.contextLimit ?? 750_000,
     resolveSkill: opts.resolveSkill,
   });
 }
@@ -175,7 +175,7 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
     llm,
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
   });
   session.subscribe(() => {});
   const run = session.prompt("go");
@@ -199,7 +199,7 @@ test("auto-compact failure surfaces an error event", async () => {
     },
   ]);
   const events: string[] = [];
-  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const agent = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000), (e) => events.push(e.type));
   assert.equal(status, "error");
   assert.ok(events.includes("error"), "compact failure must emit an error event");
@@ -218,7 +218,7 @@ test("abort after auto-compact still rolls the conversation back", async () => {
       return { role: "assistant", content: "partial" };
     },
   ]);
-  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const agent = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000), undefined, controller.signal);
   assert.equal(status, "aborted");
   assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
@@ -233,7 +233,7 @@ test("auto-compact fires above the threshold and the run continues", async () =>
     },
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const agent = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000));
   assert.equal(status, "ok");
   assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
@@ -292,7 +292,7 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
     llm,
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
   });
   session.subscribe(() => {});
   const run = session.prompt("go");
@@ -318,7 +318,7 @@ test("aborting during chat emits exactly one interrupted event", async () => {
     llm,
     tools,
     mcp: new MCPServers(tools, { name: "test", version: "0" }),
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
   });
   session.subscribe(() => {});
   const events: string[] = [];
@@ -336,7 +336,7 @@ test("aborting during auto-compact emits exactly one interrupted event", async (
   const controller = new AbortController();
   const { llm, calls } = fakeLLM([() => new Promise<AssistantMessage>(() => {})]);
   const events: string[] = [];
-  const agent = makeAgent(llm, { compactThreshold: 1000 });
+  const agent = makeAgent(llm, { contextLimit: 1000 });
   const run = agent.run("a".repeat(5000), (e) => events.push(e.type), controller.signal);
   assert.ok(await waitUntil(() => calls.length === 1, 5000), "compact call must start");
   controller.abort();
@@ -370,7 +370,7 @@ test("a failing tool summary leaves the conversation well-formed for the next tu
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,
-    compactThreshold: 750_000,
+    contextLimit: 750_000,
   });
   await assert.rejects(() => agent.run("go"), /summary boom/);
   assert.deepEqual(agent.export()[agent.export().length - 1], { role: "tool", tool_call_id: "t1", content: "(interrupted)" });

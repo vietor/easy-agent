@@ -33,7 +33,7 @@ export interface SubAgentRunOptions {
   cwd: string;
   maxTurns: number;
   stallThreshold: number;
-  compactThreshold: number;
+  contextLimit: number;
 }
 
 export function createSubAgentRun(opts: SubAgentRunOptions): (task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; report: string; messages: ConversationMessage[] }> {
@@ -48,7 +48,7 @@ export function createSubAgentRun(opts: SubAgentRunOptions): (task: string, sign
       getTodos: () => [],
       stallThreshold: opts.stallThreshold,
       maxTurns: opts.maxTurns,
-      compactThreshold: opts.compactThreshold,
+      contextLimit: opts.contextLimit,
     });
     const status = await subAgent.run(task, undefined, signal);
     const messages = conversation.export();
@@ -66,7 +66,7 @@ export interface AgentOptions {
   getTodos: () => readonly Todo[];
   stallThreshold: number;
   maxTurns: number;
-  compactThreshold: number;
+  contextLimit: number;
   resolveSkill?: (name: string) => Skill | undefined;
 }
 
@@ -82,7 +82,7 @@ export class Agent {
   private getTodos: () => readonly Todo[];
   private stallThreshold: number;
   private maxTurns: number;
-  readonly compactThreshold: number;
+  readonly contextLimit: number;
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
   private inputTokens = 0;
@@ -97,7 +97,7 @@ export class Agent {
     this.getTodos = opts.getTodos;
     this.stallThreshold = opts.stallThreshold;
     this.maxTurns = opts.maxTurns;
-    this.compactThreshold = opts.compactThreshold;
+    this.contextLimit = opts.contextLimit;
     this.resolveSkill = opts.resolveSkill;
   }
 
@@ -219,7 +219,7 @@ export class Agent {
     let textOnlyStreak = 0;
     let pendingNudge = "";
     while (true) {
-      if (this.conversation.getEstimatedTokens() > this.compactThreshold) {
+      if (this.conversation.getEstimatedTokens() > this.contextLimit) {
         onEvent?.({ type: "notice", text: "auto-compacting context" });
         const compactStatus = await this.compact(
           (e) => { if (e.type === "error") onEvent?.(e); },
