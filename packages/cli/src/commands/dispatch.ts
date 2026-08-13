@@ -7,7 +7,7 @@ const commands = new Map(builtinCommands.map((c) => [c.name, c]));
 export async function executeCommand(name: string, session: Session): Promise<void> {
   const cmd = commands.get(name);
   if (cmd) {
-    const ctx: CommandContext = { session, message: session.timelineNotice, error: session.timelineError };
+    const ctx: CommandContext = { session, message: session.addNotice, error: session.addError };
     try {
       await cmd.execute(ctx);
     } catch (e) {
@@ -18,10 +18,10 @@ export async function executeCommand(name: string, session: Session): Promise<vo
   try {
     if (await session.runSkill(name)) return;
   } catch (e) {
-    session.timelineError(errorMessage(e));
+    session.addError(errorMessage(e));
     return;
   }
-  session.timelineError(`unknown command: /${name}`);
+  session.addError(`unknown command: /${name}`);
 }
 
 export function commandSchemas(session: Session): CommandSchema[] {

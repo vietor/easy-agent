@@ -25,7 +25,7 @@ export interface SessionSnapshot {
   todos: readonly Todo[];
 }
 
-export interface SessionPromptResult {
+export interface PromptResult {
   status: RunStatus;
   reply: string;
 }
@@ -83,14 +83,14 @@ export class Session {
     return this.viewCache;
   };
 
-  subscribeEvents = (listener: (e: StreamEvent) => void): (() => void) =>
+  onEvent = (listener: (e: StreamEvent) => void): (() => void) =>
     this.eventListeners.subscribe(listener);
 
-  timelineNotice = (text: string): void => {
+  addNotice = (text: string): void => {
     this.emit({ type: "notice", text });
   };
 
-  timelineError = (text: string): void => {
+  addError = (text: string): void => {
     this.emit({ type: "error", text });
   };
 
@@ -107,7 +107,7 @@ export class Session {
     this.eventListeners.notify(e);
   };
 
-  getPendingQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
+  get pendingQuestion(): Extract<StreamEvent, { type: "question" }> | undefined {
     return this.timelineStore.latestUnansweredQuestion;
   }
 
@@ -352,7 +352,7 @@ export class Session {
     this.timelineStore.setAnswer(id, answer);
   }
 
-  async startPrompt(text: string): Promise<SessionPromptResult> {
+  async prompt(text: string): Promise<PromptResult> {
     this.rejectIfBusy();
     return this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
   }

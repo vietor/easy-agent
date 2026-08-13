@@ -1,4 +1,4 @@
-export { Session, SessionBusyError, type SessionDeps, type SessionSnapshot, type SessionPromptResult } from "./core/session.js";
+export { Session, SessionBusyError, type SessionDeps, type SessionSnapshot, type PromptResult } from "./core/session.js";
 export type { RunStatus } from "./core/agent.js";
 export type { ConversationMessage } from "./core/conversation.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus } from "./tools/types.js";

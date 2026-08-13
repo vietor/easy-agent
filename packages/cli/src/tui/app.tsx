@@ -42,10 +42,10 @@ export function App({ session }: { session: Session }) {
   const reasoning = useThrottledText(STREAM_FRAME_MS);
   const [showReasoning, setShowReasoning] = useState(false);
   const allCmds = useMemo(() => commandSchemas(session), [session]);
-  const pendingQuestion = session.getPendingQuestion();
+  const pendingQuestion = session.pendingQuestion;
 
   useEffect(() => {
-    const unsub = session.subscribeEvents((e: StreamEvent) => {
+    const unsub = session.onEvent((e: StreamEvent) => {
       switch (e.type) {
         case "assistant_delta":
           streaming.append(e.text);
@@ -95,9 +95,9 @@ export function App({ session }: { session: Session }) {
 
   async function handlePrompt(text: string) {
     try {
-      await session.startPrompt(text);
+      await session.prompt(text);
     } catch (e) {
-      session.timelineError(errorMessage(e));
+      session.addError(errorMessage(e));
     }
   }
 

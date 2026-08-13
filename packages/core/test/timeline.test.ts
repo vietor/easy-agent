@@ -118,7 +118,7 @@ test("restored timeline from persisted messages matches the live run (golden equ
     compactThreshold: 750_000,
   });
   session.subscribe(() => {});
-  const result = await session.startPrompt("go");
+  const result = await session.prompt("go");
   assert.equal(result.status, "ok");
   const live = session.getSnapshot().timeline;
   const restored = new TimelineStore();

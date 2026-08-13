@@ -61,10 +61,10 @@ test("a new prompt clears the all-completed todo list from the session view", as
   ]);
   session.subscribe(() => {});
 
-  await session.startPrompt("plan it");
+  await session.prompt("plan it");
   assert.equal(session.getSnapshot().todos.length, 0);
 
-  await session.startPrompt("next");
+  await session.prompt("next");
   assert.equal(session.getSnapshot().todos.length, 0);
 });
 
@@ -81,8 +81,8 @@ test("a completed list re-created mid-run is cleared when the run settles", asyn
   ]);
   session.subscribe(() => {});
 
-  await session.startPrompt("plan it");
-  await session.startPrompt("continue");
+  await session.prompt("plan it");
+  await session.prompt("continue");
   assert.equal(session.getSnapshot().todos.length, 0);
 });
 
@@ -200,7 +200,7 @@ test("a restored session with dangling tool calls is healed before the next run"
     persistence: memoryPersistence(state),
   });
   assert.equal(await session.restore(), true);
-  const { status } = await session.startPrompt("continue");
+  const { status } = await session.prompt("continue");
   assert.equal(status, "ok");
 });
 
@@ -228,9 +228,9 @@ test("a run that settles without streaming text returns an empty reply, not the 
     },
   ]);
   session.subscribe(() => {});
-  const first = await session.startPrompt("one");
+  const first = await session.prompt("one");
   assert.equal(first.reply, "done");
-  const second = await session.startPrompt("two");
+  const second = await session.prompt("two");
   assert.equal(second.status, "error");
   assert.equal(second.reply, "");
 });
@@ -243,7 +243,7 @@ test("abort keeps the partial reply but leaves it out of the timeline", async ()
     },
   ]);
   session.subscribe(() => {});
-  const run = session.startPrompt("go");
+  const run = session.prompt("go");
   assert.ok(await waitUntil(() => session.running, 5000), "run must start");
   session.abort();
   const { status, reply } = await run;
@@ -270,10 +270,10 @@ test("dispose resolves a pending question", async () => {
     compactThreshold: 750_000,
     builtinTools: { askUser: true },
   });
-  const run = session.startPrompt("go");
-  assert.ok(await waitUntil(() => session.getPendingQuestion() !== undefined, 5000), "question must become pending");
+  const run = session.prompt("go");
+  assert.ok(await waitUntil(() => session.pendingQuestion !== undefined, 5000), "question must become pending");
   session.dispose();
   const { status } = await run;
   assert.equal(status, "aborted");
-  assert.equal(session.getPendingQuestion(), undefined);
+  assert.equal(session.pendingQuestion, undefined);
 });

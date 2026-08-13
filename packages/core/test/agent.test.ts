@@ -178,7 +178,7 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
     compactThreshold: 750_000,
   });
   session.subscribe(() => {});
-  const run = session.startPrompt("go");
+  const run = session.prompt("go");
   assert.ok(
     await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool_start"), 5000),
     "tool entry must appear before the run settles"
@@ -295,7 +295,7 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
     compactThreshold: 750_000,
   });
   session.subscribe(() => {});
-  const run = session.startPrompt("go");
+  const run = session.prompt("go");
   assert.ok(
     await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool_start"), 5000),
     "tool entry must appear before the run settles"
@@ -322,8 +322,8 @@ test("aborting during chat emits exactly one interrupted event", async () => {
   });
   session.subscribe(() => {});
   const events: string[] = [];
-  session.subscribeEvents((e) => events.push(e.type));
-  const run = session.startPrompt("go");
+  session.onEvent((e) => events.push(e.type));
+  const run = session.prompt("go");
   assert.ok(await waitUntil(() => session.running, 5000), "run must start");
   session.abort();
   const { status } = await run;
