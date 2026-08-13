@@ -1,14 +1,14 @@
-export type MCPServerConfig = StdioServerConfig | RemoteServerConfig;
+export type MCPServerConfig = StdioServerConfig | HttpServerConfig;
 
 export interface StdioServerConfig {
-  type?: "stdio";
+  type: "stdio";
   command: string;
   args?: string[];
   env?: Record<string, string>;
   enabled?: boolean;
 }
 
-export interface RemoteServerConfig {
+export interface HttpServerConfig {
   type: "http";
   url: string;
   headers?: Record<string, string>;

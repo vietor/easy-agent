@@ -20,7 +20,7 @@ export class MCPClient {
     clientInfo: ClientInfo,
   ) {
     this.client = new Client(clientInfo, { capabilities: {} });
-    if ("command" in config) {
+    if (config.type === "stdio") {
       this.transport = new StdioClientTransport({ ...config, stderr: "ignore" });
     } else {
       const opts = { requestInit: { headers: config.headers } };

@@ -17,7 +17,7 @@ const LLMConfigSchema = z.object({
 
 const MCPServerConfigSchema = z.union([
   z.object({
-    type: z.literal("stdio").optional(),
+    type: z.literal("stdio").default("stdio"),
     command: z.string(),
     args: z.array(z.string()).optional(),
     env: z.record(z.string(), z.string()).optional(),

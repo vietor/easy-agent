@@ -33,10 +33,6 @@ function summaryCandidates(inputSchema: MCPTool["inputSchema"]): string[] {
 
 type ServerType = "stdio" | "http";
 
-function serverType(cfg: MCPServerConfig): ServerType {
-  return "command" in cfg ? "stdio" : cfg.type;
-}
-
 function extractContent(result: CallToolResult): string {
   const parts: string[] = [];
   for (const c of result.content) {
@@ -95,7 +91,7 @@ export class MCPServers {
 
   private async connectServer(name: string, cfg: MCPServerConfig): Promise<void> {
     if (this.disposed) return;
-    const type = serverType(cfg);
+    const type = cfg.type;
     if (cfg.enabled === false) {
       this.servers.set(name, { type, status: "disabled", tools: [] });
       return;
