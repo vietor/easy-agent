@@ -41,7 +41,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 
 - Node's built-in runner: `node --import tsx --test`, assertions from `node:assert/strict`.
 - Files: `packages/core/test/*.test.ts`, shared helpers in `test/helpers.ts`.
-- **The `test` script in `packages/core/package.json` is an explicit file list, not a glob — append new test files to it.**
+- The `test` script in `packages/core/package.json` is a glob (`test/*.test.ts`), expanded by the Node 22 test runner — new test files are picked up automatically.
 - Established patterns: scripted LLM responses, tool-call message builders, agent factories. New tests should reuse these.
 
 ## Settled Design Decisions — Do Not Revert

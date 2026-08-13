@@ -37,7 +37,7 @@ Create `~/.easy-agent.json` in your home directory:
 
 `llm.baseUrl`, `llm.apiKey`, and `llm.model` are all required. Point `baseUrl` at any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, local servers, etc.) and set `model` to a model that endpoint serves.
 
-#### `wireApi` (optional)
+#### `backend` (optional)
 
 Selects the wire protocol the client speaks. Valid values: `"completions"` | `"anthropic"` | `"responses"`. Defaults to `"completions"`.
 
@@ -51,7 +51,7 @@ Selects the wire protocol the client speaks. Valid values: `"completions"` | `"a
     "baseUrl": "https://api.anthropic.com",
     "apiKey": "your-api-key",
     "model": "claude-sonnet-5",
-    "wireApi": "anthropic",
+    "backend": "anthropic",
     "reasoningEffort": "high"
   }
 }
@@ -155,7 +155,7 @@ A status bar at the bottom shows the context token usage with a progress bar and
 - **Grep** — search file contents by regex with `glob`/`type` filters, context lines, case-insensitive, and `files_with_matches`/`count` output modes.
 - **WebFetch** — fetch a URL as markdown or text.
 - **AskUser** — ask the user a question and wait for their answer.
-- **TodoWrite** — track multi-step work as a task list (pending / in_progress / completed), shown live as a panel in the TUI.
+- **TodoWrite** — track multi-step work as a task list (pending / inProgress / completed), shown live as a panel in the TUI.
 - **SubAgent** — delegate investigation (`explore`) or implementation-planning (`plan`) subtasks to a nested read-only sub-agent.
 
 ### Slash commands
