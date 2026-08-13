@@ -27,8 +27,8 @@ export class ResponsesAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, reasoning, signal } = opts;
-    const useThinking = reasoning !== false;
+    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, thinking, signal } = opts;
+    const useThinking = thinking !== false;
     const params: Record<string, unknown> = {
       model: this.model,
       input: toResponsesInput(messages),

@@ -6,7 +6,7 @@ export type { TextResult } from "./util/types.js";
 export type { BuiltInToolsOptions } from "./tools/registry.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
-export type { LLMConfig, LLMReasoningEffort, LLMWireApi } from "./llm/types.js";
+export type { LLMConfig, LLMReasoningEffort, LLMBackend } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { formatSeconds, formatCompactNumber, getTextBytes, ellipsisText, errorMessage, htmlToMarkdown } from "./util/text.js";

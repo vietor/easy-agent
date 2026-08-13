@@ -31,7 +31,7 @@ export class AnthropicAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const useThinking = opts.reasoning !== false;
+    const useThinking = opts.thinking !== false;
     const budget = THINKING_BUDGET[this.reasoningEffort];
     const { system, messages } = toAnthropicMessages(opts.messages, useThinking);
     const tools = opts.tools.map(toAnthropicTool);

@@ -38,12 +38,12 @@ export function createLLM(config: LLMConfig): LLMClient {
   const cfg: ResolvedLLMConfig = {
     ...config,
     reasoningEffort: config.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
-    wireApi: config.wireApi ?? DEFAULT_BACKEND,
+    backend: config.backend ?? DEFAULT_BACKEND,
     maxInputTokens: config.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
     maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   };
   let adapter: Adapter;
-  switch (cfg.wireApi) {
+  switch (cfg.backend) {
     case "responses":
       adapter = new ResponsesAdapter(cfg);
       break;

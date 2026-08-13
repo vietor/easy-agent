@@ -23,11 +23,11 @@ export class CompletionsAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<AssistantMessage> {
-    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, reasoning, signal } = opts;
+    const { messages, tools, onDelta, onReasoning, onUsage, onToolCall, thinking, signal } = opts;
     let content = "";
     let refusal = "";
     const calls = new Map<number, ToolCallAccumulator>();
-    const useThinking = reasoning !== false;
+    const useThinking = thinking !== false;
     const params: Record<string, unknown> = {
       model: this.model,
       max_tokens: this.maxOutputTokens,

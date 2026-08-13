@@ -3,21 +3,21 @@ import { errorMessage } from "../util/text.js";
 
 export type LLMReasoningEffort = "high" | "max";
 
-export type LLMWireApi = "completions" | "anthropic" | "responses";
+export type LLMBackend = "completions" | "anthropic" | "responses";
 
 export interface LLMConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
   reasoningEffort?: LLMReasoningEffort;
-  wireApi?: LLMWireApi;
+  backend?: LLMBackend;
   maxInputTokens?: number;
   maxOutputTokens?: number;
 }
 
 export interface ResolvedLLMConfig extends LLMConfig {
   reasoningEffort: LLMReasoningEffort;
-  wireApi: LLMWireApi;
+  backend: LLMBackend;
   maxInputTokens: number;
   maxOutputTokens: number;
 }
@@ -65,7 +65,7 @@ export interface ChatOptions {
   onRetry?: (attempt: number, max: number, error: unknown) => void;
   onUsage?: (inputTokens: number, outputTokens: number) => void;
   onToolCall?: () => void;
-  reasoning?: boolean;
+  thinking?: boolean;
   signal?: AbortSignal;
 }
 

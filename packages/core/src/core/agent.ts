@@ -140,7 +140,7 @@ export class Agent {
     }
     request.push({ role: "user", content: COMPACT_PROMPT });
     const chat = await this.chatOnce(
-      { messages: request, tools: [], reasoning: false, onEvent, signal },
+      { messages: request, tools: [], thinking: false, onEvent, signal },
       () => onEvent?.({ type: "interrupted" })
     );
     if (!chat.ok) return chat.status;
@@ -298,14 +298,14 @@ export class Agent {
   }
 
   private async chatOnce(
-    opts: { messages: Message[]; tools: ToolSchema[]; reasoning?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
+    opts: { messages: Message[]; tools: ToolSchema[]; thinking?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
       const message = await withAbort(this.llm.chat({
         messages: opts.messages,
         tools: opts.tools,
-        reasoning: opts.reasoning,
+        thinking: opts.thinking,
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onReasoning: (text) => opts.onEvent?.({ type: "reasoning_delta", text }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: errorMessage(error) }),
