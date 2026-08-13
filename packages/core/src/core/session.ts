@@ -56,7 +56,6 @@ export class Session {
   private reasoningText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
-  private lastStatusValue: RunStatus = "ok";
   private runState: RunState = createRunState();
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -172,12 +171,12 @@ export class Session {
     this.mcp = deps.mcp;
   }
 
-  private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+  private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<{ status: RunStatus; reply: string }> {
     this.emit(event);
     return this.run(runFn);
   }
 
-  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<void> {
+  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<{ status: RunStatus; reply: string }> {
     this.streamingText = "";
     this.lastReplyText = "";
     this.reasoningText = "";
@@ -186,7 +185,6 @@ export class Session {
     this.abortController = new AbortController();
     this.runState = { ...createRunState(), running: true };
     this.agent.resetUsage();
-    this.lastStatusValue = "ok";
     this.emitRunState();
 
     this.timer = setInterval(() => {
@@ -208,7 +206,6 @@ export class Session {
       clearInterval(this.timer);
       this.timer = undefined;
       this.abortController = null;
-      this.lastStatusValue = status;
       this.timelineStore.markPendingToolsAborted();
       this.runState = { ...this.runState, ...this.computeTimings(), running: false, ...this.agent.usage };
       this.emitRunState();
@@ -216,6 +213,7 @@ export class Session {
       this.clearCompletedTodos();
       this.persistSnapshot();
     }
+    return { status, reply: this.lastReplyText };
   }
 
   private clearCompletedTodos(): void {
@@ -333,8 +331,8 @@ export class Session {
 
   async compact(): Promise<RunStatus> {
     this.rejectIfBusy();
-    await this.run((signal) => this.agent.compact(this.handleEvent, signal));
-    return this.lastStatusValue;
+    const { status } = await this.run((signal) => this.agent.compact(this.handleEvent, signal));
+    return status;
   }
 
   abort(): void {
@@ -354,8 +352,7 @@ export class Session {
 
   async startPrompt(text: string): Promise<SessionPromptResult> {
     this.rejectIfBusy();
-    await this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
-    return { status: this.lastStatusValue, reply: this.lastReplyText };
+    return this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   private ask(text: string, options: string[]): Promise<string> {
