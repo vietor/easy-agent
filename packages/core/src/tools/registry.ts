@@ -11,15 +11,13 @@ import { createSkillTool } from "./skill.js";
 import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
-import { MAX_SUMMARY_LENGTH } from "../util/constants.js";
+import { MAX_ARGS_SUMMARY_LENGTH, MAX_SUMMARY_LENGTH } from "../util/constants.js";
 import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText } from "../util/text.js";
 import type { TextResult } from "../util/types.js";
 
 function lineCount(content: string): number {
   return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
 }
-
-const MAX_ARGS_SUMMARY_LENGTH = 300;
 
 function defaultResultSummary(result: TextResult): string {
   if (result.isError) {

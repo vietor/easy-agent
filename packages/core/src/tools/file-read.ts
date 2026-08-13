@@ -1,14 +1,13 @@
 import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
 import { requirePath } from "../util/file.js";
-import { MAX_FILE_READ_MB } from "../util/constants.js";
+import { DEFAULT_FILE_READ_LIMIT, MAX_FILE_READ_MB, mbToBytes } from "../util/constants.js";
 import { formatCompactNumber, summaryBytes } from "../util/text.js";
 
-const DEFAULT_LIMIT = 2000;
 const CHUNK = 64 * 1024;
-const MAX_FILE_READ_BYTES = MAX_FILE_READ_MB * 1024 * 1024;
+const MAX_FILE_READ_BYTES = mbToBytes(MAX_FILE_READ_MB);
 
-const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB are rejected. Binary files may return garbled output or fail.`;
+const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB are rejected. Binary files may return garbled output or fail.`;
 
 interface PageRead {
   text: string | null;
@@ -55,14 +54,14 @@ export const fileReadTool: Tool = {
     properties: {
       path: { type: "string" },
       offset: { type: "number", description: "line number to start reading from (1-indexed)" },
-      limit: { type: "number", description: `number of lines to read (default ${DEFAULT_LIMIT})` },
+      limit: { type: "number", description: `number of lines to read (default ${DEFAULT_FILE_READ_LIMIT})` },
     },
     required: ["path"],
   },
   async execute(args, ctx) {
     const resolved = requirePath(args, ctx.cwd);
     const offset = args.offset === undefined ? 1 : args.offset;
-    const limit = args.limit === undefined ? DEFAULT_LIMIT : args.limit;
+    const limit = args.limit === undefined ? DEFAULT_FILE_READ_LIMIT : args.limit;
     if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 1) throw new Error("offset must be a positive integer");
     if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) throw new Error("limit must be a positive integer");
     const handle = await open(resolved, "r");

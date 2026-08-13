@@ -17,6 +17,16 @@ function estimateTokens(text: string): number {
   return Math.round(tokens / 4);
 }
 
+export function lastAssistantText(messages: ConversationMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "assistant") continue;
+    const text = textOf(m.content);
+    if (text) return text;
+  }
+  return "";
+}
+
 function messageText(msg: ConversationMessage): string {
   const parts: string[] = [];
   const t = textOf(msg.content);

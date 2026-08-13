@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { MAX_PROCESS_BUFFER_MB } from "./constants.js";
+import { MAX_PROCESS_BUFFER_MB, mbToBytes } from "./constants.js";
 
 export interface ProcessResult {
   stdout: string;
@@ -10,7 +10,7 @@ export interface ProcessResult {
 }
 
 const KILL_GRACE_MS = 2000;
-const MAX_PROCESS_BUFFER = MAX_PROCESS_BUFFER_MB * 1024 * 1024;
+const MAX_PROCESS_BUFFER = mbToBytes(MAX_PROCESS_BUFFER_MB);
 
 const liveProcesses = new Set<number>();
 process.on("exit", () => {

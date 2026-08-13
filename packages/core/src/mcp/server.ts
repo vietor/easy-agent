@@ -3,11 +3,9 @@ import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
 import { withTimeout, withTimeoutError } from "../util/async.js";
-import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
+import { CALL_TIMEOUT_MS, MCP_CONNECT_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import { errorMessage } from "../util/text.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
-
-const CONNECT_TIMEOUT_MS = 30_000;
 
 const SUMMARY_PRIORITY = ["url", "path", "file_path", "filePath", "command", "query", "pattern", "name", "text", "selector", "uid"];
 
@@ -111,9 +109,9 @@ export class MCPServers {
     }
     this.pending.add(client);
     try {
-      await withTimeout(client.connect(), CONNECT_TIMEOUT_MS);
+      await withTimeout(client.connect(), MCP_CONNECT_TIMEOUT_MS);
       if (this.disposed) return;
-      const mcpTools = await withTimeout(client.listTools(), CONNECT_TIMEOUT_MS);
+      const mcpTools = await withTimeout(client.listTools(), MCP_CONNECT_TIMEOUT_MS);
       if (this.disposed) return;
       this.servers.set(name, { type, status: "connected", client, tools: mcpTools.map((t) => t.name) });
       this.tools.registerAll(mcpTools.map((t) => this.adapt(name, client, t)));

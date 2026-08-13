@@ -1,7 +1,7 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { isAbortError, withRetry, withTimeoutError } from "../util/async.js";
-import { MAX_WEB_FETCH_MB, REQUEST_TIMEOUT_MS } from "../util/constants.js";
+import { exponentialBackoff, isAbortError, withRetry, withTimeoutError } from "../util/async.js";
+import { MAX_WEB_FETCH_MB, mbToBytes, REQUEST_TIMEOUT_MS, WEB_FETCH_RETRIES } from "../util/constants.js";
 import { errorMessage, htmlToMarkdown, summaryBytes } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
@@ -22,8 +22,7 @@ function isTextualMime(mime: string): boolean {
 }
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
-const WEB_FETCH_RETRIES = 2;
-const MAX_WEB_FETCH_BYTES = MAX_WEB_FETCH_MB * 1024 * 1024;
+const MAX_WEB_FETCH_BYTES = mbToBytes(MAX_WEB_FETCH_MB);
 const REQUEST_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
   "Accept": "text/markdown,text/html,text/plain,application/xhtml+xml,application/xml,application/json;q=0.9,image/webp,*/*;q=0.8",
@@ -102,7 +101,7 @@ export const webFetchTool: Tool = {
       {
         retries: WEB_FETCH_RETRIES,
         retryable: (e) => e instanceof WebFetchError,
-        backoff: (attempt) => 1000 * 2 ** attempt,
+        backoff: exponentialBackoff,
         signal: ctx.signal,
       }
     );

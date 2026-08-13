@@ -15,3 +15,7 @@ export function requirePath(args: Record<string, unknown>, cwd: string): string 
   return resolve(cwd, path);
 }
 
+export function resolveOptionalPath(args: Record<string, unknown>, cwd: string): string {
+  return resolve(cwd, (args.path as string) || "");
+}
+

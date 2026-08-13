@@ -1,15 +1,9 @@
-import { EmptyAssistantMessageError, type BaseAdapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig, type LLMReasoningEffort, type LLMWireApi } from "./types.js";
+import { EmptyAssistantMessageError, type BaseAdapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { ResponsesAdapter } from "./responses.js";
-import { isAbortError, withRetry } from "../util/async.js";
-
-const DEFAULT_REASONING_EFFORT: LLMReasoningEffort = "high";
-const DEFAULT_WIRE_API: LLMWireApi = "completions";
-const DEFAULT_MAX_INPUT_TOKENS = 1_000_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 128_000;
-
-const MAX_RETRIES = 3;
+import { isAbortError, withRetry, exponentialBackoff } from "../util/async.js";
+import { DEFAULT_BACKEND, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_REASONING_EFFORT, LLM_MAX_RETRIES } from "../util/constants.js";
 
 export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
   if (signal?.aborted || isAbortError(e)) return false;
@@ -30,9 +24,9 @@ export function withRetryChat(adapter: BaseAdapter): LLMClient["chat"] {
         return adapter.stream({ ...opts, onToolCall: () => { sawToolCall = true; } });
       },
       {
-        retries: MAX_RETRIES,
+        retries: LLM_MAX_RETRIES,
         retryable: (e) => !sawToolCall && isRetryableError(e, opts.signal),
-        backoff: (attempt) => 1000 * 2 ** attempt,
+        backoff: exponentialBackoff,
         onRetry: opts.onRetry,
         signal: opts.signal,
       }
@@ -44,7 +38,7 @@ export function createLLM(config: LLMConfig): LLMClient {
   const cfg: ResolvedLLMConfig = {
     ...config,
     reasoningEffort: config.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
-    wireApi: config.wireApi ?? DEFAULT_WIRE_API,
+    wireApi: config.wireApi ?? DEFAULT_BACKEND,
     maxInputTokens: config.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
     maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
   };

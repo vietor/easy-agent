@@ -11,6 +11,10 @@ export function isAbortError(e: unknown): boolean {
   return name === "AbortError" || name === "APIUserAbortError";
 }
 
+export function exponentialBackoff(attempt: number): number {
+  return 1000 * 2 ** attempt;
+}
+
 export interface RetryOptions {
   retries: number;
   retryable: (e: unknown) => boolean;

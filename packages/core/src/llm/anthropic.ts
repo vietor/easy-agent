@@ -14,11 +14,7 @@ import {
 } from "./types.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
-
-const THINKING_BUDGET: Record<LLMReasoningEffort, number> = {
-  high: 16000,
-  max: 32000,
-};
+import { THINKING_BUDGET } from "../util/constants.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 

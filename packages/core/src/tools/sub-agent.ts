@@ -1,6 +1,6 @@
 import { compactThresholdFor } from "../llm/client.js";
-import { textOf, type LLMClient } from "../llm/types.js";
-import type { ConversationMessage } from "../core/conversation.js";
+import type { LLMClient } from "../llm/types.js";
+import { lastAssistantText } from "../core/conversation.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD, NOT_EXECUTED_PREFIX } from "../util/constants.js";
 import { toolError, type Tool } from "./types.js";
 import { ToolRegistry } from "./registry.js";
@@ -123,14 +123,4 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       return { content: `Sub-agent "${type}" ended with status ${status}.${suffix}\n\n${report}`, isError: true };
     },
   };
-}
-
-function lastAssistantText(messages: ConversationMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role !== "assistant") continue;
-    const text = textOf(m.content);
-    if (text) return text;
-  }
-  return "";
 }
