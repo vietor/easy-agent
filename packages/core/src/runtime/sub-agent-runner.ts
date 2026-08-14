@@ -13,7 +13,13 @@ export interface SubAgentRunOptions {
   contextLimit: number;
 }
 
-export function createSubAgentRun(opts: SubAgentRunOptions): (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; reply: string; messages: SessionMessage[] }> {
+export interface SubAgentRunResult {
+  status: RunStatus;
+  reply: string;
+  messages: SessionMessage[];
+}
+
+export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<SubAgentRunResult> {
   return async (systemPrompt, task, signal) => {
     const conversation = new SessionMessages([systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${opts.maxTurns} tool-calling turns per run.`].join("\n\n"));
     const subTools = new ToolRegistry();

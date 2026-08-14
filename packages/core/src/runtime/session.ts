@@ -17,7 +17,7 @@ import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
-import { createSubAgentRun } from "./sub-agent-run.js";
+import { createSubAgentRunner } from "./sub-agent-runner.js";
 import { StreamBuffer } from "./stream-buffer.js";
 import { QuestionQueue } from "./question-queue.js";
 import { RunTimer } from "./run-timer.js";
@@ -169,7 +169,7 @@ export class Session {
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: {
         runSubAgent: (systemPrompt, task, signal) =>
-          createSubAgentRun({
+          createSubAgentRunner({
             llm: deps.llm,
             tools: this.tools,
             cwd: this.cwd,
