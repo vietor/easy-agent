@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toAnthropicMessages } from "../src/llm/anthropic.js";
-import type { Message } from "../src/llm/types.js";
+import { toAnthropicMessages } from "../src/llm/anthropic-messages.js";
 
 test("satisfied tool_use is left untouched", () => {
   const { messages } = toAnthropicMessages(

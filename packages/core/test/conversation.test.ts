@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Conversation } from "../src/runtime/conversation.js";
-import type { AssistantMessage } from "../src/llm/types.js";
+import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 
 const SYS = "sys";
 
-function assistantToolCall(id: string): AssistantMessage {
+function assistantToolCall(id: string): LLMAssistantMessage {
   return { role: "assistant", content: null, tool_calls: [{ id, type: "function", function: { name: "Echo", arguments: "{}" } }] };
 }
 

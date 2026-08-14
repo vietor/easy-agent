@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { EmptyAssistantMessageError, type ResolvedLLMConfig, type AssistantMessage, type ChatOptions } from "./types.js";
+import { EmptyAssistantMessageError, type LLMAssistantMessage } from "./messages.js";
+import type { ChatOptions, ResolvedLLMConfig } from "./types.js";
 import { BaseAdapter } from "./base.js";
 import { netFetch } from "../util/net.js";
 
@@ -22,7 +23,7 @@ export class CompletionsAdapter extends BaseAdapter {
     });
   }
 
-  async stream(opts: ChatOptions): Promise<AssistantMessage> {
+  async stream(opts: ChatOptions): Promise<LLMAssistantMessage> {
     const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, signal } = opts;
     let content = "";
     let refusal = "";
@@ -77,7 +78,7 @@ export class CompletionsAdapter extends BaseAdapter {
       }
     }
 
-    const message: AssistantMessage = {
+    const message: LLMAssistantMessage = {
       role: "assistant",
       content: content || refusal || null,
     };

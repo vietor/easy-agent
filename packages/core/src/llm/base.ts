@@ -1,4 +1,5 @@
-import type { Adapter, AssistantMessage, ChatOptions, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
+import type { LLMAssistantMessage } from "./messages.js";
+import type { Adapter, ChatOptions, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
 
 export abstract class BaseAdapter implements Adapter {
   readonly model: string;
@@ -13,5 +14,5 @@ export abstract class BaseAdapter implements Adapter {
     this.maxOutputTokens = config.maxOutputTokens;
   }
 
-  abstract stream(opts: ChatOptions): Promise<AssistantMessage>;
+  abstract stream(opts: ChatOptions): Promise<LLMAssistantMessage>;
 }

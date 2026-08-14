@@ -5,13 +5,14 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { waitUntil } from "./helpers.js";
 import type { SessionPersistence, SessionData } from "../src/runtime/persistence.js";
-import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { LLMAssistantMessage } from "../src/llm/messages.js";
+import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 
 function memoryPersistence(state: SessionData): SessionPersistence {
   return { load: async () => state, saveAll: async () => {}, listSessions: async () => [] };
 }
 
-function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
+function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const llm: LLMClient = {
     model: "fake",
     thinkingEffort: "high",
@@ -26,7 +27,7 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   return llm;
 }
 
-function todoCall(todos: unknown, id: string): AssistantMessage {
+function todoCall(todos: unknown, id: string): LLMAssistantMessage {
   return {
     role: "assistant",
     content: null,
@@ -34,7 +35,7 @@ function todoCall(todos: unknown, id: string): AssistantMessage {
   };
 }
 
-function makeSession(script: Array<(opts: ChatOptions) => AssistantMessage>): Session {
+function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>): Session {
   const tools = new ToolRegistry();
   return new Session({
     systemPrompt: "test",
@@ -239,7 +240,7 @@ test("abort keeps the partial reply but leaves it out of the timeline", async ()
   const session = makeSession([
     (opts) => {
       opts.onDelta?.("partial reply");
-      return new Promise<AssistantMessage>(() => {});
+      return new Promise<LLMAssistantMessage>(() => {});
     },
   ]);
   session.subscribe(() => {});

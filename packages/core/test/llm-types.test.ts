@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseToolArgs } from "../src/llm/types.js";
+import { parseToolArgs } from "../src/llm/messages.js";
 import { toErrorMessage } from "../src/util/text.js";
 
 test("missing or empty arguments parse to an empty object", () => {

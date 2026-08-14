@@ -1,4 +1,5 @@
-import { EmptyAssistantMessageError, type Adapter, type LLMClient, type LLMConfig, type ResolvedLLMConfig } from "./types.js";
+import { EmptyAssistantMessageError } from "./messages.js";
+import type { Adapter, LLMClient, LLMConfig, ResolvedLLMConfig } from "./types.js";
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { ResponsesAdapter } from "./responses.js";

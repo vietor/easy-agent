@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isRetryableError, withRetryChat } from "../src/llm/client.js";
-import { EmptyAssistantMessageError, type Adapter } from "../src/llm/types.js";
+import { EmptyAssistantMessageError } from "../src/llm/messages.js";
+import type { Adapter } from "../src/llm/types.js";
 
 function fakeAdapter(stream: Adapter["stream"]): Adapter {
   return { model: "test-model", thinkingEffort: "high", maxInputTokens: 1000, maxOutputTokens: 100, stream };

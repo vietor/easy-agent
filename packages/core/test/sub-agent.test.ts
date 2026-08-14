@@ -5,9 +5,10 @@ import { Conversation } from "../src/runtime/conversation.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool } from "../src/tools/sub-agent.js";
 import { createSubAgentRun } from "../src/runtime/sub-agent-run.js";
-import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { LLMAssistantMessage } from "../src/llm/messages.js";
+import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 
-function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
+function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const calls: ChatOptions[] = [];
   const llm: LLMClient = {
     model: "fake",
@@ -24,7 +25,7 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   return { llm, calls };
 }
 
-function toolCall(name: string, args = "{}", id = "t1"): AssistantMessage {
+function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
   return {
     role: "assistant",
     content: null,
@@ -159,7 +160,7 @@ test("multiple SubAgent calls in one turn run concurrently", async () => {
     release = r;
   });
   const calls: ChatOptions[] = [];
-  const script: Array<() => AssistantMessage> = [
+  const script: Array<() => LLMAssistantMessage> = [
     () => ({
       role: "assistant",
       content: null,

@@ -6,12 +6,13 @@ import { Session } from "../src/runtime/session.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { Skill } from "../src/skills/types.js";
-import type { AssistantMessage, ChatOptions, LLMClient, Message } from "../src/llm/types.js";
+import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
+import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { Todo } from "../src/tools/types.js";
 import type { TextResult } from "../src/tools/types.js";
 import { sleep, waitUntil } from "./helpers.js";
 
-function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
+function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const calls: ChatOptions[] = [];
   const llm: LLMClient = {
     model: "fake",
@@ -28,7 +29,7 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   return { llm, calls };
 }
 
-function toolCall(name: string, args = "{}", id = "t1"): AssistantMessage {
+function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
   return {
     role: "assistant",
     content: null,
@@ -64,7 +65,7 @@ function makeAgent(
   });
 }
 
-function textContent(m: Message): string {
+function textContent(m: LLMMessage): string {
   return typeof m.content === "string" ? m.content : m.content?.map((p) => p.text).join("") ?? "";
 }
 
@@ -313,7 +314,7 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
 
 test("aborting during chat emits exactly one interrupted event", async () => {
   const tools = new ToolRegistry();
-  const { llm } = fakeLLM([() => new Promise<AssistantMessage>(() => {})]);
+  const { llm } = fakeLLM([() => new Promise<LLMAssistantMessage>(() => {})]);
   const session = new Session({
     systemPrompt: "test",
     llm,
@@ -335,7 +336,7 @@ test("aborting during chat emits exactly one interrupted event", async () => {
 
 test("aborting during auto-compact emits exactly one interrupted event", async () => {
   const controller = new AbortController();
-  const { llm, calls } = fakeLLM([() => new Promise<AssistantMessage>(() => {})]);
+  const { llm, calls } = fakeLLM([() => new Promise<LLMAssistantMessage>(() => {})]);
   const events: string[] = [];
   const agent = makeAgent(llm, { contextLimit: 1000 });
   const run = agent.run("a".repeat(5000), (e) => events.push(e.type), controller.signal);

@@ -1,12 +1,11 @@
 import OpenAI from "openai";
 import {
   EmptyAssistantMessageError,
-  textOf,
-  type AssistantMessage,
-  type ChatOptions,
-  type Message,
-  type ResolvedLLMConfig,
-} from "./types.js";
+  toText,
+  type LLMAssistantMessage,
+  type LLMMessage,
+} from "./messages.js";
+import type { ChatOptions, ResolvedLLMConfig } from "./types.js";
 import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
@@ -26,7 +25,7 @@ export class ResponsesAdapter extends BaseAdapter {
     });
   }
 
-  async stream(opts: ChatOptions): Promise<AssistantMessage> {
+  async stream(opts: ChatOptions): Promise<LLMAssistantMessage> {
     const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, signal } = opts;
     const useThinking = thinking !== false;
     const params: Record<string, unknown> = {
@@ -79,7 +78,7 @@ export class ResponsesAdapter extends BaseAdapter {
     }
 
     const textParts: string[] = [];
-    const toolCalls: NonNullable<AssistantMessage["tool_calls"]> = [];
+    const toolCalls: NonNullable<LLMAssistantMessage["tool_calls"]> = [];
     for (const item of finalResponse.output) {
       if (item.type === "message") {
         for (const part of item.content) {
@@ -95,7 +94,7 @@ export class ResponsesAdapter extends BaseAdapter {
       }
     }
     const content = textParts.join("") || null;
-    const message: AssistantMessage = { role: "assistant", content };
+    const message: LLMAssistantMessage = { role: "assistant", content };
     if (toolCalls.length) message.tool_calls = toolCalls;
     if (!content && !toolCalls.length) {
       throw new EmptyAssistantMessageError();
@@ -114,19 +113,19 @@ export function toResponsesTool(schema: ToolSchema): OpenAI.Responses.FunctionTo
   };
 }
 
-export function toResponsesInput(messages: Message[]): ResponsesInputItem[] {
+export function toResponsesInput(messages: LLMMessage[]): ResponsesInputItem[] {
   const items: ResponsesInputItem[] = [];
   for (const m of messages) {
     if (m.role === "system") {
-      const text = textOf(m.content);
+      const text = toText(m.content);
       if (text) items.push({ type: "message", role: "system", content: [{ type: "input_text", text }] });
     } else if (m.role === "user") {
-      const text = textOf(m.content);
+      const text = toText(m.content);
       if (text) items.push({ type: "message", role: "user", content: [{ type: "input_text", text }] });
     } else if (m.role === "tool") {
       items.push({ type: "function_call_output", call_id: m.tool_call_id, output: m.content });
     } else {
-      const text = textOf(m.content);
+      const text = toText(m.content);
       if (text) items.push({ type: "message", role: "assistant", content: [{ type: "input_text", text }] });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {

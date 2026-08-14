@@ -1,7 +1,8 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { truncateText, toErrorMessage } from "../util/text.js";
-import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
+import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
+import type { LLMClient } from "../llm/types.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { StreamEvent } from "./events.js";
@@ -26,7 +27,7 @@ export interface AgentOptions {
 }
 
 type ToolCallResult = { id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> };
-type ChatResult = { ok: true; message: AssistantMessage } | { ok: false; status: RunStatus };
+type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
 
 export class Agent {
   private llm: LLMClient;
@@ -88,7 +89,7 @@ export class Agent {
   async compact(onEvent?: (e: StreamEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return "ok";
-    const request: Message[] = [...history];
+    const request: LLMMessage[] = [...history];
     const todos = this.getTodos();
     if (todos.length) {
       request.push({ role: "user", content: renderTodoReminder(todos) });
@@ -100,7 +101,7 @@ export class Agent {
     );
     if (!chat.ok) return chat.status;
     if (signal?.aborted) return "aborted";
-    const compactText = textOf(chat.message.content);
+    const compactText = toText(chat.message.content);
     if (!compactText) {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
       return "error";
@@ -246,14 +247,14 @@ export class Agent {
     }
   }
 
-  private resolvePendingToolCalls(calls: NonNullable<AssistantMessage["tool_calls"]>, reason: string): void {
+  private resolvePendingToolCalls(calls: NonNullable<LLMAssistantMessage["tool_calls"]>, reason: string): void {
     for (const tc of calls) {
       this.conversation.add({ role: "tool", tool_call_id: tc.id, content: `${NOT_EXECUTED_PREFIX}${reason})`, isError: true });
     }
   }
 
   private async chatOnce(
-    opts: { messages: Message[]; tools: ToolSchema[]; thinking?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
+    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
@@ -282,7 +283,7 @@ export class Agent {
   }
 
   private async runToolCalls(
-    calls: NonNullable<AssistantMessage["tool_calls"]>,
+    calls: NonNullable<LLMAssistantMessage["tool_calls"]>,
     onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallResult[] | null> {
@@ -296,7 +297,7 @@ export class Agent {
   }
 
   private async executeToolCall(
-    call: NonNullable<AssistantMessage["tool_calls"]>[number],
+    call: NonNullable<LLMAssistantMessage["tool_calls"]>[number],
     onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallResult> {

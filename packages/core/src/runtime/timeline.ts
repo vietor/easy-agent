@@ -1,4 +1,4 @@
-import { parseToolArgs, textOf } from "../llm/types.js";
+import { parseToolArgs, toText } from "../llm/messages.js";
 import type { ConversationMessage } from "./conversation.js";
 import type { StreamEvent } from "./events.js";
 import { Emitter } from "../util/emitter.js";
@@ -146,7 +146,7 @@ export function messagesToTimelineEntries(
     } else if (m.role === "skill") {
       entries.push({ type: "skill", name: m.name });
     } else if (m.role === "assistant") {
-      const text = textOf(m.content);
+      const text = toText(m.content);
       if (text) entries.push({ type: "assistant", text });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {

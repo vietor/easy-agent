@@ -1,11 +1,11 @@
-import { textOf, type AssistantMessage, type Message } from "../llm/types.js";
+import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../util/constants.js";
 
 export type ConversationMessage =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
-  | AssistantMessage
+  | LLMAssistantMessage
   | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
 
 function estimateTokens(text: string): number {
@@ -21,7 +21,7 @@ export function lastAssistantText(messages: ConversationMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.role !== "assistant") continue;
-    const text = textOf(m.content);
+    const text = toText(m.content);
     if (text) return text;
   }
   return "";
@@ -29,7 +29,7 @@ export function lastAssistantText(messages: ConversationMessage[]): string {
 
 function messageText(msg: ConversationMessage): string {
   const parts: string[] = [];
-  const t = textOf(msg.content);
+  const t = toText(msg.content);
   if (t) parts.push(t);
   if ("tool_calls" in msg && msg.tool_calls) {
     for (const tc of msg.tool_calls) {
@@ -45,7 +45,7 @@ function messageText(msg: ConversationMessage): string {
   return parts.join(" ");
 }
 
-function toLLMMessage(m: ConversationMessage): Message {
+function toLLMMessage(m: ConversationMessage): LLMMessage {
   if (m.role === "tool") return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
   if (m.role === "skill") return { role: "user", name: m.name, content: m.content };
   return m;
@@ -58,7 +58,7 @@ export class Conversation {
   private estimatedTokens = 0;
   private collapsedCount = 0;
   private snapshot?: { messages: ConversationMessage[]; estimatedTokens: number; collapsedCount: number };
-  private llmCache: Message[] | null = null;
+  private llmCache: LLMMessage[] | null = null;
 
   constructor(private system: string) {
     this.systemEstimateTokens = estimateTokens(system);
@@ -77,11 +77,11 @@ export class Conversation {
     }
   }
 
-  toLLM(): Message[] {
+  toLLM(): LLMMessage[] {
     if (this.llmCache) {
       return this.llmCache.slice();
     }
-    const result: Message[] = new Array(this.messages.length + 1);
+    const result: LLMMessage[] = new Array(this.messages.length + 1);
     result[0] = { role: "system", content: this.system };
     for (let i = 0; i < this.messages.length; i++) {
       result[i + 1] = toLLMMessage(this.messages[i]);

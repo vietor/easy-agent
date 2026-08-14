@@ -6,9 +6,10 @@ import { TodoStore } from "../src/runtime/todo-store.js";
 import type { TimelineEvent } from "../src/runtime/timeline.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { LLMAssistantMessage } from "../src/llm/messages.js";
+import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 
-function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
+function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const llm: LLMClient = {
     model: "fake",
     thinkingEffort: "high",
@@ -23,7 +24,7 @@ function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
   return llm;
 }
 
-function toolCall(name: string, id = "t1"): AssistantMessage {
+function toolCall(name: string, id = "t1"): LLMAssistantMessage {
   return {
     role: "assistant",
     content: null,
