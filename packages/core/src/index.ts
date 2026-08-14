@@ -16,6 +16,5 @@ export { MAX_SUMMARY_LENGTH } from "./util/constants.js";
 export { netFetch } from "./util/net.js";
 export { type ProcessResult, runProcess } from "./util/subprocess.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";
-export { INITIAL_RUN_METRICS, type StreamEvent, type RunMetrics } from "./runtime/events.js";
-export type { TimelineEvent } from "./runtime/timeline.js";
+export { INITIAL_RUN_METRICS, type AgentEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";
 export type { SessionPersistence, SessionData, SessionMeta } from "./runtime/persistence.js";

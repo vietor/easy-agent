@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_METRICS, toErrorMessage, type Session, type RunMetrics, type StreamEvent, type SessionView } from "@vietor/agent-core";
+import { INITIAL_RUN_METRICS, toErrorMessage, type AgentEvent, type Session, type RunMetrics, type SessionView } from "@vietor/agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -45,15 +45,15 @@ export function App({ session }: { session: Session }) {
   const pendingQuestion = session.pendingQuestion;
 
   useEffect(() => {
-    const unsub = session.onEvent((e: StreamEvent) => {
+    const unsub = session.onEvent((e: AgentEvent) => {
       switch (e.type) {
-        case "assistant_delta":
+        case "assistantDelta":
           streaming.append(e.text);
           break;
-        case "thinking_delta":
+        case "thinkingDelta":
           thinking.append(e.text);
           break;
-        case "thinking_clear":
+        case "thinkingClear":
           thinking.reset();
           break;
         case "assistant":
@@ -63,7 +63,7 @@ export function App({ session }: { session: Session }) {
         case "interrupted":
           streaming.reset();
           break;
-        case "run_metrics":
+        case "runMetrics":
           setRunMetrics(e);
           break;
       }

@@ -5,7 +5,7 @@ import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
-import type { StreamEvent } from "./events.js";
+import type { AgentEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext, ToolSchema, Todo } from "../tools/types.js";
@@ -86,7 +86,7 @@ export class Agent {
     return this.conversation.export();
   }
 
-  async compact(onEvent?: (e: StreamEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
+  async compact(onEvent?: (e: AgentEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
     const history = this.conversation.toLLM().slice(1);
     if (history.length === 0) return "ok";
     const request: LLMMessage[] = [...history];
@@ -97,13 +97,13 @@ export class Agent {
     request.push({ role: "user", content: COMPACT_PROMPT });
     const chat = await this.chatOnce(
       { messages: request, tools: [], thinking: false, onEvent, signal },
-      () => onEvent?.({ type: "interrupted" })
+      () => onEvent?.({ type: "interrupted", persisted: true })
     );
     if (!chat.ok) return chat.status;
     if (signal?.aborted) return "aborted";
     const compactText = toText(chat.message.content);
     if (!compactText) {
-      onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
+      onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text", persisted: true });
       return "error";
     }
     this.conversation.compact(compactText);
@@ -112,7 +112,7 @@ export class Agent {
 
   async run(
     userInput: string,
-    onEvent?: (e: StreamEvent) => void,
+    onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {
     return this.runTurn({ role: "user", content: userInput }, onEvent, signal);
@@ -120,7 +120,7 @@ export class Agent {
 
   async runSkill(
     skill: Skill,
-    onEvent?: (e: StreamEvent) => void,
+    onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {
     return this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
@@ -128,7 +128,7 @@ export class Agent {
 
   private async runTurn(
     msg: SessionMessage,
-    onEvent?: (e: StreamEvent) => void,
+    onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {
     this.conversation.add(msg);
@@ -141,7 +141,7 @@ export class Agent {
       aborted = true;
       this.conversation.restoreFromSnapshot();
       this.setTodos([...this.todoSnapshot]);
-      onEvent?.({ type: "interrupted" });
+      onEvent?.({ type: "interrupted", persisted: true });
     };
 
     let status: RunStatus;
@@ -166,7 +166,7 @@ export class Agent {
   }
 
   private async loop(
-    onEvent?: (e: StreamEvent) => void,
+    onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {
     let lastSig = "";
@@ -176,7 +176,7 @@ export class Agent {
     let pendingNudge = "";
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.contextLimit) {
-        onEvent?.({ type: "notice", text: "auto-compacting context" });
+        onEvent?.({ type: "notice", text: "auto-compacting context", persisted: true });
         const compactStatus = await this.compact(
           (e) => { if (e.type === "error") onEvent?.(e); },
           signal
@@ -204,7 +204,7 @@ export class Agent {
       if (!msg.tool_calls?.length) {
         if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
           if (++textOnlyStreak >= this.stallThreshold) {
-            onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks` });
+            onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks`, persisted: true });
             return "stalled";
           }
           pendingNudge = renderIncompleteTodoNudge(todos);
@@ -221,12 +221,12 @@ export class Agent {
       if (stall >= this.stallThreshold) {
         const reason = `stalled: repeated identical tool calls: ${truncateText(sig, 200)}`;
         this.resolvePendingToolCalls(msg.tool_calls, reason);
-        onEvent?.({ type: "error", text: `agent stalled: ${reason}` });
+        onEvent?.({ type: "error", text: `agent stalled: ${reason}`, persisted: true });
         return "stalled";
       }
       if (++turns >= this.maxTurns) {
         this.resolvePendingToolCalls(msg.tool_calls, `max turns reached (${this.maxTurns})`);
-        onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
+        onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})`, persisted: true });
         return "maxTurns";
       }
       const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
@@ -242,7 +242,7 @@ export class Agent {
         const skill = this.resolveSkill?.(name);
         if (!skill) continue;
         this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
-        onEvent?.({ type: "skill", name: skill.name });
+        onEvent?.({ type: "skill", name: skill.name, persisted: true });
       }
     }
   }
@@ -254,7 +254,7 @@ export class Agent {
   }
 
   private async chatOnce(
-    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; onEvent?: (e: StreamEvent) => void; signal?: AbortSignal },
+    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; onEvent?: (e: AgentEvent) => void; signal?: AbortSignal },
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
@@ -262,9 +262,9 @@ export class Agent {
         messages: opts.messages,
         tools: opts.tools,
         thinking: opts.thinking,
-        onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
-        onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),
-        onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error) }),
+        onDelta: (text) => opts.onEvent?.({ type: "assistantDelta", text, persisted: false }),
+        onThinking: (text) => opts.onEvent?.({ type: "thinkingDelta", text, persisted: false }),
+        onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error), persisted: true }),
         onUsage: (inputTokens, outputTokens) => {
           this.inputTokens = inputTokens;
           this.outputTokens = outputTokens;
@@ -277,14 +277,14 @@ export class Agent {
         onAbort();
         return { ok: false, status: "aborted" };
       }
-      opts.onEvent?.({ type: "error", text: toErrorMessage(e) });
+      opts.onEvent?.({ type: "error", text: toErrorMessage(e), persisted: true });
       return { ok: false, status: "error" };
     }
   }
 
   private async runToolCalls(
     calls: NonNullable<LLMAssistantMessage["tool_calls"]>,
-    onEvent?: (e: StreamEvent) => void,
+    onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallResult[] | null> {
     const results = await mapWithConcurrency(
@@ -298,20 +298,20 @@ export class Agent {
 
   private async executeToolCall(
     call: NonNullable<LLMAssistantMessage["tool_calls"]>[number],
-    onEvent?: (e: StreamEvent) => void,
+    onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallResult> {
     const parsed = parseToolArgs(call.function.arguments);
     const args = parsed.ok ? parsed.args : {};
     const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);
     const argsSummary = this.tools.summarizeArgs(call.function.name, args);
-    onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, argsSummary });
+    onEvent?.({ type: "toolStart", id: call.id, name: call.function.name, argsSummary, persisted: false });
     const ctx: ToolContext = { signal, cwd: this.cwd };
     const start = performance.now();
     const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
     const resultSummary = this.tools.summarizeResult(call.function.name, result, duration);
-    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, resultSummary });
+    if (!signal?.aborted) onEvent?.({ type: "toolEnd", id: call.id, result: result.content, isError: result.isError, resultSummary, persisted: false });
     return { id: call.id, content: result.content, resultSummary, isError: result.isError, args };
   }
 }

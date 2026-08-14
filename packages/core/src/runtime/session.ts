@@ -9,13 +9,13 @@ import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { registerBuiltinTools, type BuiltinToolsOptions } from "../tools/builtins.js";
 import type { Todo, Tool } from "../tools/types.js";
-import { INITIAL_RUN_METRICS, type RunMetrics, type StreamEvent } from "./events.js";
+import { INITIAL_RUN_METRICS, type AgentEvent, type RunMetrics, type TimelineEvent } from "./events.js";
 import type { SessionPersistence, SessionData } from "./persistence.js";
 import type { ClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Emitter } from "../util/emitter.js";
-import { TimelineStore, messagesToTimelineEntries, type TimelineEvent } from "./timeline.js";
+import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
 import { createSubAgentRun } from "./sub-agent-run.js";
 
@@ -84,7 +84,7 @@ export class Session {
   private questionSeq = 0;
   private pendingQuestionResolvers = new Map<string, (answer: string) => void>();
   private viewCache: SessionView | null = null;
-  private eventListeners = new Emitter<(e: StreamEvent) => void>();
+  private eventListeners = new Emitter<(e: AgentEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
 
   subscribe = (listener: () => void): (() => void) => {
@@ -101,26 +101,26 @@ export class Session {
     return this.viewCache;
   };
 
-  onEvent = (listener: (e: StreamEvent) => void): (() => void) =>
+  onEvent = (listener: (e: AgentEvent) => void): (() => void) =>
     this.eventListeners.subscribe(listener);
 
   addNotice = (text: string): void => {
-    this.emit({ type: "notice", text });
+    this.emit({ type: "notice", text, persisted: true });
   };
 
   addError = (text: string): void => {
-    this.emit({ type: "error", text });
+    this.emit({ type: "error", text, persisted: true });
   };
 
   runSkill = async (name: string): Promise<boolean> => {
     this.rejectIfBusy();
     const skill = this.skillsMap.get(name);
     if (!skill) return false;
-    await this.start({ type: "skill", name: skill.name }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
+    await this.start({ type: "skill", name: skill.name, persisted: true }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
     return true;
   };
 
-  private emit = (e: StreamEvent): void => {
+  private emit = (e: AgentEvent): void => {
     this.timelineStore.applyEvent(e);
     this.eventListeners.notify(e);
   };
@@ -196,7 +196,7 @@ export class Session {
     this.mcp = deps.mcp;
   }
 
-  private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
+  private start(event: AgentEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
     this.emit(event);
     return this.run(runFn);
   }
@@ -225,7 +225,7 @@ export class Session {
       status = isAbortError(e) ? "aborted" : "error";
       this.flushStreaming();
       if (status !== "aborted") {
-        this.emit({ type: "error", text: toErrorMessage(e) });
+        this.emit({ type: "error", text: toErrorMessage(e), persisted: true });
       }
     } finally {
       clearInterval(this.timer);
@@ -261,23 +261,23 @@ export class Session {
   }
 
   private emitRunMetrics(): void {
-    this.emit({ type: "run_metrics", ...this.runMetrics });
+    this.emit({ type: "runMetrics", persisted: false, ...this.runMetrics });
   }
 
-  private handleEvent = (e: StreamEvent): void => {
+  private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
-      case "assistant_delta":
+      case "assistantDelta":
         if (this.replyStart === null) this.replyStart = Date.now();
         this.streamingText += e.text;
         break;
-      case "thinking_delta":
+      case "thinkingDelta":
         this.thinkingText += e.text;
         break;
       case "retry":
         this.streamingText = "";
         this.flushThinking();
         break;
-      case "tool_start":
+      case "toolStart":
       case "error":
         this.flushStreaming();
         break;
@@ -295,7 +295,7 @@ export class Session {
       this.lastReplyText = this.streamingText;
       const text = this.streamingText;
       this.streamingText = "";
-      this.emit({ type: "assistant", text });
+      this.emit({ type: "assistant", text, persisted: true });
     }
     this.flushThinking();
   }
@@ -303,7 +303,7 @@ export class Session {
   private flushThinking(): void {
     if (this.thinkingText) {
       this.thinkingText = "";
-      this.emit({ type: "thinking_clear" });
+      this.emit({ type: "thinkingClear", persisted: false });
     }
   }
 
@@ -349,7 +349,7 @@ export class Session {
     if (!state) return false;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
-    this.timelineStore.rebuild(messagesToTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
+    this.timelineStore.rebuild(toTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
     this.viewCache = null;
     return true;
   }
@@ -382,12 +382,12 @@ export class Session {
 
   async prompt(text: string): Promise<PromptResult> {
     this.rejectIfBusy();
-    return this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
+    return this.start({ type: "user", text, persisted: true }, (signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   private ask(text: string, options: string[]): Promise<string> {
     const id = `q${++this.questionSeq}`;
-    this.emit({ type: "question", id, text, options });
+    this.emit({ type: "question", id, text, options, answer: null, persisted: true });
     return new Promise<string>((resolve) => {
       this.pendingQuestionResolvers.set(id, resolve);
     });

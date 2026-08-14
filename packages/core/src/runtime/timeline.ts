@@ -1,18 +1,7 @@
 import { parseToolArgs, toText } from "../llm/messages.js";
 import type { SessionMessage } from "./session-messages.js";
-import type { StreamEvent } from "./events.js";
+import type { AgentEvent, TimelineEvent } from "./events.js";
 import { Emitter } from "../util/emitter.js";
-
-export type TimelineEvent =
-  | { type: "user"; text: string }
-  | { type: "skill"; name: string }
-  | { type: "assistant"; text: string }
-  | { type: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string }
-  | { type: "retry"; attempt: number; max: number; reason: string }
-  | { type: "error"; text: string }
-  | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[]; answer: string | null }
-  | { type: "notice"; text: string };
 
 export class TimelineStore {
   private listeners = new Emitter();
@@ -28,32 +17,16 @@ export class TimelineStore {
     return this.listeners.subscribe(listener);
   }
 
-  applyEvent(e: StreamEvent): void {
-    switch (e.type) {
-      case "user":
-      case "skill":
-      case "assistant":
-      case "retry":
-      case "error":
-      case "interrupted":
-      case "notice":
-        this.append(e);
-        break;
-      case "tool_start":
-        this.append({ ...e, type: "tool", result: null });
-        break;
-      case "tool_end":
-        this.setResult(e.id, e.result, e.isError, e.resultSummary);
-        break;
-      case "question":
-        this.pendingQuestions.set(e.id, this.entries.length);
-        this.append({ ...e, answer: null });
-        break;
-      case "assistant_delta":
-      case "thinking_delta":
-      case "thinking_clear":
-      case "run_metrics":
-        break;
+  applyEvent(e: AgentEvent): void {
+    if (e.persisted) {
+      if (e.type === "question") this.pendingQuestions.set(e.id, this.entries.length);
+      this.append(e);
+      return;
+    }
+    if (e.type === "toolStart") {
+      this.append({ type: "tool", id: e.id, name: e.name, argsSummary: e.argsSummary, result: null, persisted: true });
+    } else if (e.type === "toolEnd") {
+      this.setResult(e.id, e.result, e.isError, e.resultSummary);
     }
   }
 
@@ -124,7 +97,7 @@ export class TimelineStore {
   }
 }
 
-export function messagesToTimelineEntries(
+export function toTimelineEntries(
   messages: SessionMessage[],
   summarizeArgs: (name: string, args: Record<string, unknown>) => string
 ): TimelineEvent[] {
@@ -142,12 +115,12 @@ export function messagesToTimelineEntries(
   const entries: TimelineEvent[] = [];
   for (const m of messages) {
     if (m.role === "user") {
-      entries.push({ type: "user", text: m.content });
+      entries.push({ type: "user", text: m.content, persisted: true });
     } else if (m.role === "skill") {
-      entries.push({ type: "skill", name: m.name });
+      entries.push({ type: "skill", name: m.name, persisted: true });
     } else if (m.role === "assistant") {
       const text = toText(m.content);
-      if (text) entries.push({ type: "assistant", text });
+      if (text) entries.push({ type: "assistant", text, persisted: true });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {
           const parsed = parseToolArgs(tc.function.arguments);
@@ -157,6 +130,7 @@ export function messagesToTimelineEntries(
             name: tc.function.name,
             argsSummary: summarizeArgs(tc.function.name, parsed.ok ? parsed.args : {}),
             result: null,
+            persisted: true,
           };
           const result = toolResults.get(tc.id);
           if (result) {
