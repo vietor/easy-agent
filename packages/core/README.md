@@ -10,12 +10,12 @@ Requires Node.js ≥ 22 (ESM only).
 
 ## Breaking changes (0.8)
 
-- `StreamEvent` and `TimelineEvent` merged into a single `AgentEvent` union; every variant now carries a `persisted: true/false` flag. Streaming tags are camelCase: `assistantDelta`, `thinkingDelta`, `thinkingClear`, `toolStart`, `toolEnd`, `runMetrics`.
+- `StreamEvent` and `TimelineEvent` merged into a single `AgentEvent` union; every variant now carries a `persisted: true/false` flag. Streaming tags are snake_case: `assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`, `tool_end`, `run_metrics`.
 - `ConversationMessage` → `SessionMessage`; `Conversation` (internal) → `SessionMessages`.
 - `SessionOptions.mcp` → `SessionOptions.mcpServers` (the runtime getter `session.mcpServers` is unchanged).
 - `ClientInfo` → `MCPClientInfo`; internal `MCPServers` → `MCPServerManager`.
 - `BuiltInToolsOptions` → `BuiltinToolsOptions`.
-- Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatSeconds`, `formatCompactNumber`, `truncateText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
+- Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatSeconds`, `formatCompactNumber`, `summarizeText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
 - Tool-result summaries count non-empty lines (previously every newline).
 
 ---
@@ -135,30 +135,30 @@ type AgentEvent =
   | { type: "interrupted"; persisted: true }
   | { type: "question"; id: string; text: string; options: string[]; answer: string | null; persisted: true }
   | { type: "notice"; text: string; persisted: true }
-  | { type: "assistantDelta"; text: string; persisted: false }
-  | { type: "thinkingDelta"; text: string; persisted: false }
-  | { type: "thinkingClear"; persisted: false }
-  | { type: "toolStart"; id: string; name: string; argsSummary: string; persisted: false }
-  | { type: "toolEnd"; id: string; result: string; isError?: boolean; resultSummary?: string; persisted: false }
-  | { type: "runMetrics"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number; persisted: false };
+  | { type: "assistant_delta"; text: string; persisted: false }
+  | { type: "thinking_delta"; text: string; persisted: false }
+  | { type: "thinking_cleared"; persisted: false }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string; persisted: false }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string; persisted: false }
+  | { type: "run_metrics"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number; persisted: false };
 ```
 
 | Type | Emitted when | In timeline |
 |---|---|---|
 | `user` | User submits a prompt (`prompt`). | ✓ |
 | `skill` | A skill is invoked. | ✓ |
-| `assistantDelta` | A streaming token delta from the LLM. | — |
-| `thinkingDelta` | A streaming thinking token delta (extended thinking). | — |
-| `thinkingClear` | Clears the accumulated thinking text (e.g. on new tool round). | — |
+| `assistant_delta` | A streaming token delta from the LLM. | — |
+| `thinking_delta` | A streaming thinking token delta (extended thinking). | — |
+| `thinking_cleared` | The accumulated thinking text is cleared (e.g. on new tool round). | — |
 | `assistant` | A text response segment is flushed (on tool call or completion). | ✓ |
-| `toolStart` | A tool call starts. | ✓ (stored as `tool`) |
-| `toolEnd` | A tool call finishes. | — (merged into its `tool` entry) |
+| `tool_start` | A tool call starts. | ✓ (stored as `tool`) |
+| `tool_end` | A tool call finishes. | — (merged into its `tool` entry) |
 | `retry` | The LLM client retries after a transient API error. | ✓ |
 | `error` | An error occurred. | ✓ |
 | `interrupted` | The current run was aborted. | ✓ |
 | `question` | The AskUser tool poses a question. | ✓ |
 | `notice` | `session.addNotice()` is called, or the run auto-compacts context. | ✓ |
-| `runMetrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
+| `run_metrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
 
 Note: `onEvent` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
@@ -226,7 +226,7 @@ if (!session.running) {
 }
 ```
 
-The `runMetrics` event (`running: boolean`) also signals run start/end for stream consumers.
+The `run_metrics` event (`running: boolean`) also signals run start/end for stream consumers.
 
 ### Snapshot subscription
 
@@ -287,7 +287,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `Timeline`
 
-`SessionView.timeline` is `readonly TimelineEvent[]` — a derived alias for the persisted subset of `AgentEvent`: `TimelineEvent = Extract<AgentEvent, { persisted: true }>` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistantDelta`, `thinkingDelta`, `thinkingClear`, `toolStart`/`toolEnd`, `runMetrics`) are never stored; `toolEnd` is merged into its `tool` entry.
+`SessionView.timeline` is `readonly TimelineEvent[]` — a derived alias for the persisted subset of `AgentEvent`: `TimelineEvent = Extract<AgentEvent, { persisted: true }>` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`/`tool_end`, `run_metrics`) are never stored; `tool_end` is merged into its `tool` entry.
 
 `tool` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 
@@ -665,17 +665,17 @@ import { formatCompactNumber } from "@vietor/agent-core/util";
 formatCompactNumber(1234);   // "1.23K"
 ```
 
-### `truncateText`
+### `summarizeText`
 
-**`truncateText(content: string, length: number, showChars?: boolean): string`**
+**`summarizeText(content: string, length: number, showChars?: boolean): string`**
 
 Collapse whitespace and truncate text to `length` characters with a trailing `…`. With `showChars`, append the total character count when truncated — useful for text that changes size over time.
 
 ```ts
-import { truncateText } from "@vietor/agent-core/util";
+import { summarizeText } from "@vietor/agent-core/util";
 
-truncateText("a\nvery   long line", 8);              // "a very l…"
-truncateText("a very long line here", 8, true);      // "a very l… (21)"
+summarizeText("a\nvery   long line", 8);              // "a very l…"
+summarizeText("a very long line here", 8, true);      // "a very l… (21)"
 ```
 
 ### `toErrorMessage`
@@ -772,8 +772,8 @@ const session = await createSession({
 });
 
 session.onEvent((e) => {
-  if (e.type === "assistantDelta") process.stdout.write(e.text);
-  else if (e.type === "runMetrics")
+  if (e.type === "assistant_delta") process.stdout.write(e.text);
+  else if (e.type === "run_metrics")
     console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
 });
 

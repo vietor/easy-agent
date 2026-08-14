@@ -13,7 +13,7 @@ import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/loader.js";
 import { MAX_ARGS_SUMMARY_LENGTH } from "../util/constants.js";
-import { defaultResultSummary, formatSeconds, toErrorMessage, truncateText } from "../util/text.js";
+import { defaultResultSummary, formatSeconds, summarizeText, toErrorMessage } from "../util/text.js";
 import type { TextResult } from "./types.js";
 
 export class ToolRegistry {
@@ -92,7 +92,7 @@ export class ToolRegistry {
         parts.push(v);
       }
     }
-    return truncateText(parts.join(" "), MAX_ARGS_SUMMARY_LENGTH, true);
+    return summarizeText(parts.join(" "), MAX_ARGS_SUMMARY_LENGTH, true);
   }
 }
 

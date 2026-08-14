@@ -1,7 +1,7 @@
 import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
 import { NO_MATCHES, REQUEST_TIMEOUT_MS } from "./constants.js";
-import { countLines, summaryCount } from "./text.js";
+import { countNonEmptyLines, summaryCount } from "./text.js";
 
 const TRUNCATION_MARKER = "(output truncated)";
 
@@ -14,7 +14,7 @@ export function formatRipgrepOutput(lines: string[], truncated: boolean, emptyTe
 export function ripgrepResultSummary(word: "file" | "match", result: { content: string; isError?: boolean }, failText: string, noMatchesText: string): string {
   if (result.isError) return failText;
   if (result.content === NO_MATCHES) return noMatchesText;
-  const lines = countLines(result.content);
+  const lines = countNonEmptyLines(result.content);
   const count = lines - (result.content.endsWith(TRUNCATION_MARKER) ? 1 : 0);
   return summaryCount(word, count, false, failText);
 }

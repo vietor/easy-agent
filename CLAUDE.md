@@ -53,6 +53,8 @@ These came out of deliberate refactors; treat as final unless the user explicitl
 - **No validation libraries** — plain TS types, hand-written checks where needed (e.g. tool args must parse to a plain object).
 - **A single registration point for built-in tools**; it accepts `false` to disable all builtins, and options flags to opt into optional ones.
 - **Shared helpers have single homes**: file IO/path resolution in `util/file.ts`, string/format in `util/text.ts`, byte caps in `util/constants.ts`, abort/retry in `util/async.ts`. Don't duplicate or move them.
+- **`AgentEvent` is a single union; every variant carries a `persisted: true/false` literal**, and `TimelineEvent = Extract<AgentEvent, { persisted: true }>` is the persisted subset. Multi-word type tags are snake_case (`assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`, `tool_end`, `run_metrics`); persisted variants are single-word (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). No terminal `thinking` event exists — consumers accumulate `thinking_delta` until `thinking_cleared`.
+- **Util names must match behavior**: `countNonEmptyLines` counts non-empty lines, `summarizeText` collapses whitespace and truncates with `…`, `withTimeoutFn` is the function variant of `withTimeout`. Don't rename these back to misleading names (`countLines`, `truncateText`, `withTimeoutError`).
 - **Todo status glyphs live in consumers** (CLI), not in core types.
 - **Dead code is removed, not kept** — don't resurrect deleted code paths.
 

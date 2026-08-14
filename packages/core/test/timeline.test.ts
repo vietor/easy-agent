@@ -83,12 +83,12 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "notice", text: "n", persisted: true });
   store.applyEvent({ type: "error", text: "e", persisted: true });
   store.applyEvent({ type: "interrupted", persisted: true });
-  store.applyEvent({ type: "toolStart", id: "t1", name: "Echo", argsSummary: "s", persisted: false });
-  store.applyEvent({ type: "toolEnd", id: "t1", result: "out", isError: true, resultSummary: "p", persisted: false });
-  store.applyEvent({ type: "assistantDelta", text: "x", persisted: false });
-  store.applyEvent({ type: "thinkingDelta", text: "x", persisted: false });
-  store.applyEvent({ type: "thinkingClear", persisted: false });
-  store.applyEvent({ type: "runMetrics", persisted: false, running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
+  store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", argsSummary: "s", persisted: false });
+  store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, resultSummary: "p", persisted: false });
+  store.applyEvent({ type: "assistant_delta", text: "x", persisted: false });
+  store.applyEvent({ type: "thinking_delta", text: "x", persisted: false });
+  store.applyEvent({ type: "thinking_cleared", persisted: false });
+  store.applyEvent({ type: "run_metrics", persisted: false, running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
     { type: "user", text: "hi", persisted: true },
     { type: "skill", name: "s", persisted: true },

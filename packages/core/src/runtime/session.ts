@@ -358,28 +358,28 @@ export class Session {
   }
 
   private emitRunMetrics(): void {
-    this.emit({ type: "runMetrics", persisted: false, ...this.runMetrics });
+    this.emit({ type: "run_metrics", persisted: false, ...this.runMetrics });
   }
 
   private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
-      case "assistantDelta":
+      case "assistant_delta":
         this.stream.push(e.text);
         break;
-      case "thinkingDelta":
+      case "thinking_delta":
         this.stream.pushThinking(e.text);
         break;
       case "retry": {
         const { thinkingCleared } = this.stream.flushForRetry();
-        if (thinkingCleared) this.emit({ type: "thinkingClear", persisted: false });
+        if (thinkingCleared) this.emit({ type: "thinking_cleared", persisted: false });
         break;
       }
-      case "toolStart":
+      case "tool_start":
       case "error":
         this.flushStreaming();
         break;
       case "interrupted":
-        if (this.stream.interrupt()) this.emit({ type: "thinkingClear", persisted: false });
+        if (this.stream.interrupt()) this.emit({ type: "thinking_cleared", persisted: false });
         break;
     }
     this.emit(e);
@@ -388,11 +388,11 @@ export class Session {
   private flushStreaming(): void {
     const { assistant, thinkingCleared } = this.stream.flush();
     if (assistant !== null) this.emit({ type: "assistant", text: assistant, persisted: true });
-    if (thinkingCleared) this.emit({ type: "thinkingClear", persisted: false });
+    if (thinkingCleared) this.emit({ type: "thinking_cleared", persisted: false });
   }
 
   private flushThinking(): void {
-    if (this.stream.flushThinking()) this.emit({ type: "thinkingClear", persisted: false });
+    if (this.stream.flushThinking()) this.emit({ type: "thinking_cleared", persisted: false });
   }
 
   async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {

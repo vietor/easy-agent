@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AbortedError, isAbortError, isTimeout, withTimeoutSignal, withAbort, withRetry, withTimeoutError } from "../src/util/async.js";
+import { AbortedError, isAbortError, isTimeout, withTimeoutSignal, withAbort, withRetry, withTimeoutFn } from "../src/util/async.js";
 import { sleep, waitUntil } from "./helpers.js";
 
 test("AbortedError carries name and message", () => {
@@ -99,8 +99,8 @@ test("isTimeout reports the timeout reason, not an external abort", async () => 
   assert.equal(isTimeout(external), false);
 });
 
-test("withTimeoutError throws the timeout message on timeout", async () => {
-  const p = withTimeoutError(
+test("withTimeoutFn throws the timeout message on timeout", async () => {
+  const p = withTimeoutFn(
     (signal) => new Promise((_, reject) => {
       signal.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")));
     }),
@@ -113,9 +113,9 @@ test("withTimeoutError throws the timeout message on timeout", async () => {
   await assertion;
 });
 
-test("withTimeoutError propagates an external abort, not the timeout message", async () => {
+test("withTimeoutFn propagates an external abort, not the timeout message", async () => {
   const controller = new AbortController();
-  const p = withTimeoutError(
+  const p = withTimeoutFn(
     (signal) => new Promise((_, reject) => {
       signal.addEventListener("abort", () => reject(new AbortedError()));
     }),
@@ -127,10 +127,10 @@ test("withTimeoutError propagates an external abort, not the timeout message", a
   await assert.rejects(p, (e: unknown) => isAbortError(e) && !(e as Error).message.includes("boom-timeout"));
 });
 
-test("withTimeoutError with a pre-aborted external signal rejects with the abort error", async () => {
+test("withTimeoutFn with a pre-aborted external signal rejects with the abort error", async () => {
   const controller = new AbortController();
   controller.abort();
-  const p = withTimeoutError(
+  const p = withTimeoutFn(
     (signal) => new Promise((_, reject) => {
       if (signal.aborted) reject(new DOMException("aborted", "AbortError"));
     }),

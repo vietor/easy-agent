@@ -19,11 +19,11 @@ export type AgentEvent =
   | { type: "interrupted"; persisted: true }
   | { type: "question"; id: string; text: string; options: string[]; answer: string | null; persisted: true }
   | { type: "notice"; text: string; persisted: true }
-  | { type: "assistantDelta"; text: string; persisted: false }
-  | { type: "thinkingDelta"; text: string; persisted: false }
-  | { type: "thinkingClear"; persisted: false }
-  | { type: "toolStart"; id: string; name: string; argsSummary: string; persisted: false }
-  | { type: "toolEnd"; id: string; result: string; isError?: boolean; resultSummary?: string; persisted: false }
-  | ({ type: "runMetrics"; persisted: false } & RunMetrics);
+  | { type: "assistant_delta"; text: string; persisted: false }
+  | { type: "thinking_delta"; text: string; persisted: false }
+  | { type: "thinking_cleared"; persisted: false }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string; persisted: false }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string; persisted: false }
+  | ({ type: "run_metrics"; persisted: false } & RunMetrics);
 
 export type TimelineEvent = Extract<AgentEvent, { persisted: true }>;

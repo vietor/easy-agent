@@ -58,7 +58,7 @@ function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return withTimeoutError(() => p, ms, undefined, `timeout after ${ms}ms`);
+  return withTimeoutFn(() => p, ms, undefined, `timeout after ${ms}ms`);
 }
 
 export function withTimeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
@@ -94,7 +94,7 @@ export async function mapWithConcurrency<T, R>(
   return results;
 }
 
-export async function withTimeoutError<T>(
+export async function withTimeoutFn<T>(
   fn: (signal: AbortSignal) => Promise<T>,
   ms: number,
   signal: AbortSignal | undefined,

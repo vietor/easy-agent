@@ -3,7 +3,7 @@ import { toolError } from "../tools/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { MCPClientInfo, MCPServerConfig, MCPServerInfo, ServerType } from "./types.js";
 import { MCPClient } from "./client.js";
-import { withTimeout, withTimeoutError } from "../util/async.js";
+import { withTimeout, withTimeoutFn } from "../util/async.js";
 import { CALL_TIMEOUT_MS, MCP_CONNECT_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import { toErrorMessage } from "../util/text.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
@@ -144,7 +144,7 @@ export class MCPServerManager {
       parameters: tool.inputSchema,
       ...(summaryKeys.length ? { summaryKeys } : {}),
       async execute(args, ctx) {
-        const result = await withTimeoutError(
+        const result = await withTimeoutFn(
           (signal) => client.callTool(tool.name, args, signal),
           CALL_TIMEOUT_MS,
           ctx.signal,

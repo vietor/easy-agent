@@ -1,6 +1,6 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { backoffDelay, isAbortError, withRetry, withTimeoutError } from "../util/async.js";
+import { backoffDelay, isAbortError, withRetry, withTimeoutFn } from "../util/async.js";
 import { MAX_WEB_FETCH_MB, mbToBytes, REQUEST_TIMEOUT_MS, WEB_FETCH_RETRIES } from "../util/constants.js";
 import { htmlToMarkdown } from "../util/html.js";
 import { toErrorMessage, summaryBytes } from "../util/text.js";
@@ -55,7 +55,7 @@ async function readTextBounded(res: Response, maxBytes: number): Promise<string>
 }
 
 async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<string> {
-  const res = await withTimeoutError(
+  const res = await withTimeoutFn(
     (s) => netFetch(url, { headers: REQUEST_HEADERS, redirect: "follow", signal: s }),
     REQUEST_TIMEOUT_MS,
     signal,

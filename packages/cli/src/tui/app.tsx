@@ -43,13 +43,13 @@ function useSessionStream(session: Session) {
   useEffect(() => {
     const unsub = session.onEvent((e: AgentEvent) => {
       switch (e.type) {
-        case "assistantDelta":
+        case "assistant_delta":
           streaming.append(e.text);
           break;
-        case "thinkingDelta":
+        case "thinking_delta":
           thinking.append(e.text);
           break;
-        case "thinkingClear":
+        case "thinking_cleared":
           thinking.reset();
           break;
         case "assistant":
@@ -57,7 +57,7 @@ function useSessionStream(session: Session) {
         case "interrupted":
           streaming.reset();
           break;
-        case "runMetrics":
+        case "run_metrics":
           setRunMetrics(e);
           break;
       }

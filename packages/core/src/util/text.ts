@@ -26,11 +26,11 @@ export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 
-export function countLines(content: string): number {
+export function countNonEmptyLines(content: string): number {
   return content.split("\n").filter((l) => l).length;
 }
 
-export function truncateText(content: string, length: number, showChars?: boolean) {
+export function summarizeText(content: string, length: number, showChars?: boolean) {
   const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   if (text.length <= length) return text;
   const truncated = text.slice(0, length) + "…";
@@ -50,10 +50,10 @@ export function summaryCount(word: "file" | "match", count: number, isError: boo
 
 export function defaultResultSummary(result: { content: string; isError?: boolean }): string {
   if (result.isError) {
-    return truncateText(result.content, MAX_SUMMARY_LENGTH);
+    return summarizeText(result.content, MAX_SUMMARY_LENGTH);
   }
   const bytes = getTextBytes(result.content);
-  const lines = countLines(result.content);
+  const lines = countNonEmptyLines(result.content);
   return `Retrieved ${formatCompactNumber(bytes)} bytes, ${formatCompactNumber(lines)} lines`;
 }
 

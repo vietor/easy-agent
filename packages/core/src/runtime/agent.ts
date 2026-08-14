@@ -1,6 +1,6 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
-import { truncateText, toErrorMessage } from "../util/text.js";
+import { summarizeText, toErrorMessage } from "../util/text.js";
 import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -218,7 +218,7 @@ export class Agent {
       stall = sig === lastSig ? stall + 1 : 1;
       lastSig = sig;
       if (stall >= this.stallThreshold) {
-        const reason = `stalled: repeated identical tool calls: ${truncateText(sig, 200)}`;
+        const reason = `stalled: repeated identical tool calls: ${summarizeText(sig, 200)}`;
         this.resolvePendingToolCalls(msg.tool_calls, reason);
         onEvent?.({ type: "error", text: `agent stalled: ${reason}`, persisted: true });
         return "stalled";
@@ -261,8 +261,8 @@ export class Agent {
         messages: opts.messages,
         tools: opts.tools,
         thinking: opts.thinking,
-        onDelta: (text) => opts.onEvent?.({ type: "assistantDelta", text, persisted: false }),
-        onThinking: (text) => opts.onEvent?.({ type: "thinkingDelta", text, persisted: false }),
+        onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text, persisted: false }),
+        onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text, persisted: false }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error), persisted: true }),
         onUsage: (inputTokens, outputTokens) => {
           this.inputTokens = inputTokens;
@@ -304,13 +304,13 @@ export class Agent {
     const args = parsed.ok ? parsed.args : {};
     const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);
     const argsSummary = this.tools.summarizeArgs(call.function.name, args);
-    onEvent?.({ type: "toolStart", id: call.id, name: call.function.name, argsSummary, persisted: false });
+    onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, argsSummary, persisted: false });
     const ctx: ToolContext = { signal, cwd: this.cwd };
     const start = performance.now();
     const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
     const resultSummary = this.tools.summarizeResult(call.function.name, result, duration);
-    if (!signal?.aborted) onEvent?.({ type: "toolEnd", id: call.id, result: result.content, isError: result.isError, resultSummary, persisted: false });
+    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, resultSummary, persisted: false });
     return { id: call.id, content: result.content, resultSummary, isError: result.isError, args };
   }
 }

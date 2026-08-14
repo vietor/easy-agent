@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type SessionMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/agent-core";
-import { truncateText } from "@vietor/agent-core/util";
+import { summarizeText } from "@vietor/agent-core/util";
 
 const MAX_TITLE_LENGTH = 75;
 
@@ -90,7 +90,7 @@ export class FileSessionPersistence implements SessionPersistence {
   private readTitle(path: string): string | undefined {
     const first = this.readFirstUser(path);
     if (!first) return undefined;
-    return truncateText(first, MAX_TITLE_LENGTH);
+    return summarizeText(first, MAX_TITLE_LENGTH);
   }
 
   private readFirstUser(path: string): string | undefined {

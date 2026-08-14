@@ -23,9 +23,9 @@ export class TimelineStore {
       this.append(e);
       return;
     }
-    if (e.type === "toolStart") {
+    if (e.type === "tool_start") {
       this.append({ type: "tool", id: e.id, name: e.name, argsSummary: e.argsSummary, result: null, persisted: true });
-    } else if (e.type === "toolEnd") {
+    } else if (e.type === "tool_end") {
       this.setResult(e.id, e.result, e.isError, e.resultSummary);
     }
   }
