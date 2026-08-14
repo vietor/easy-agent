@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { LLMConfig, MCPServerConfig } from "@vietor/agent-core";
 import { DEFAULT_BACKEND, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_THINKING_EFFORT } from "@vietor/agent-core/util";
 
-const CONFIG_PATH = join(".easy-agent", "config.json");
+const CONFIG_PATH = ".easy-agent.json";
 
 const LLMConfigSchema = z.object({
   baseUrl: z.string(),

@@ -6,8 +6,7 @@ import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/loader.js";
-import type { ToolRegistry } from "../tools/registry.js";
-import { registerBuiltinTools, type BuiltinToolsOptions } from "../tools/builtins.js";
+import { registerBuiltinTools, type BuiltinToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo, Tool } from "../tools/types.js";
 import { INITIAL_RUN_METRICS, type AgentEvent, type RunMetrics, type TimelineEvent } from "./events.js";
 import type { SessionPersistence, SessionData } from "./persistence.js";
@@ -18,9 +17,124 @@ import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
 import { createSubAgentRunner } from "./sub-agent-runner.js";
-import { StreamBuffer } from "./stream-buffer.js";
-import { QuestionQueue } from "./question-queue.js";
-import { RunTimer } from "./run-timer.js";
+
+class StreamBuffer {
+  private streamingText = "";
+  private thinkingText = "";
+  private replyStart: number | null = null;
+  private lastReplyText = "";
+
+  get reply(): string {
+    return this.lastReplyText;
+  }
+
+  get firstReplyAt(): number | null {
+    return this.replyStart;
+  }
+
+  begin(): void {
+    this.streamingText = "";
+    this.thinkingText = "";
+    this.replyStart = null;
+    this.lastReplyText = "";
+  }
+
+  push(text: string): void {
+    if (this.replyStart === null) this.replyStart = Date.now();
+    this.streamingText += text;
+  }
+
+  pushThinking(text: string): void {
+    this.thinkingText += text;
+  }
+
+  flush(): { assistant: string | null; thinkingCleared: boolean } {
+    const assistant = this.flushAssistant();
+    const thinkingCleared = this.flushThinking();
+    return { assistant, thinkingCleared };
+  }
+
+  flushForRetry(): { thinkingCleared: boolean } {
+    this.streamingText = "";
+    return { thinkingCleared: this.flushThinking() };
+  }
+
+  interrupt(): boolean {
+    this.lastReplyText = this.streamingText;
+    this.streamingText = "";
+    return this.flushThinking();
+  }
+
+  flushThinking(): boolean {
+    if (!this.thinkingText) return false;
+    this.thinkingText = "";
+    return true;
+  }
+
+  private flushAssistant(): string | null {
+    if (!this.streamingText) return null;
+    this.lastReplyText = this.streamingText;
+    const text = this.streamingText;
+    this.streamingText = "";
+    return text;
+  }
+}
+
+class QuestionQueue {
+  private questionSeq = 0;
+  private resolvers = new Map<string, (answer: string) => void>();
+
+  ask(): { id: string; promise: Promise<string> } {
+    const id = `q${++this.questionSeq}`;
+    const promise = new Promise<string>((resolve) => {
+      this.resolvers.set(id, resolve);
+    });
+    return { id, promise };
+  }
+
+  submit(id: string, answer: string): void {
+    const resolve = this.resolvers.get(id);
+    if (resolve) {
+      this.resolvers.delete(id);
+      resolve(answer);
+    }
+  }
+
+  resolveAll(answer: string): string[] {
+    const ids = [...this.resolvers.keys()];
+    for (const id of ids) {
+      this.submit(id, answer);
+    }
+    return ids;
+  }
+}
+
+class RunTimer {
+  private startTime = 0;
+
+  begin(): void {
+    this.startTime = Date.now();
+  }
+
+  metrics(
+    usage: { inputTokens: number; outputTokens: number },
+    firstReplyAt: number | null,
+    running: boolean
+  ): RunMetrics {
+    const now = Date.now();
+    const elapsed = Math.floor((now - this.startTime) / 1000);
+    if (firstReplyAt === null) {
+      return { running, elapsed, thinkingElapsed: elapsed, replyElapsed: 0, ...usage };
+    }
+    return {
+      running,
+      elapsed,
+      thinkingElapsed: Math.floor((firstReplyAt - this.startTime) / 1000),
+      replyElapsed: Math.floor((now - firstReplyAt) / 1000),
+      ...usage,
+    };
+  }
+}
 
 export interface SessionOptions {
   systemPrompt: string;

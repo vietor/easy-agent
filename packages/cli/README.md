@@ -22,7 +22,7 @@ npx @vietor/easy-agent
 
 ## Configuration
 
-Create `~/.easy-agent/config.json` in your home directory:
+Create `~/.easy-agent.json` in your home directory:
 
 ```json
 {

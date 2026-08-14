@@ -4,7 +4,7 @@ export type { SessionMessage } from "./runtime/session-messages.js";
 export { INITIAL_RUN_METRICS, type AgentEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus, TextResult } from "./tools/types.js";
 export { toolError } from "./tools/types.js";
-export type { BuiltinToolsOptions } from "./tools/builtins.js";
+export type { BuiltinToolsOptions } from "./tools/registry.js";
 export type { Skill } from "./skills/loader.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export type { MCPClientInfo, MCPServerConfig, MCPServerInfo } from "./mcp/types.js";

@@ -17,13 +17,13 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 
 ## Layout
 
-- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `SessionMessages`, `Timeline`, `sub-agent-runner`, `prompts`, `events.ts`, `persistence.ts`, plus state machines (`stream-buffer.ts`, `question-queue.ts`, `run-timer.ts`, `tool-calls.ts`, `stall-detector.ts`)
-- `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registry, schemas, summaries) + `builtins.ts` (registration)
-- `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `messages.ts` (message family), `client.ts`, `base.ts`, `anthropic.ts` / `anthropic-messages.ts`, `responses.ts`, `completions.ts` (wire backends)
+- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `SessionMessages`, `Timeline`, `sub-agent-runner`, `prompts`, `events.ts`, `persistence.ts`
+- `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registry, schemas, summaries, registration)
+- `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `messages.ts` (message family), `client.ts`, `base.ts`, `anthropic.ts`, `responses.ts`, `completions.ts` (wire backends)
 - `core/src/mcp/` — `manager.ts` (client-side server manager) + `client.ts` (single-server client) for stdio + Streamable HTTP
 - `core/src/skills/`, `core/src/util/` — loader; shared helpers (`async.ts`, `file.ts`, `text.ts`, `constants.ts`, `emitter.ts`)
 - `core/src/create-session.ts`, `core/src/index.ts` — factory; public API re-exports (`@vietor/agent-core` root + `@vietor/agent-core/util` subpath via `util/index.ts`)
-- `cli/src/` — `index.ts`, `main.ts`, `config.ts`, `system-prompt.ts`, `session-persistence.ts`, `commands/`, `tui/`
+- `cli/src/` — `index.ts`, `main.ts`, `config.ts`, `session-persistence.ts`, `commands/`, `tui/`
 
 ## Code Style (no linter/prettier config — conventions only)
 

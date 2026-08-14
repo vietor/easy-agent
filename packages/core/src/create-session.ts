@@ -1,7 +1,6 @@
 import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
-import { ToolRegistry } from "./tools/registry.js";
-import type { BuiltinToolsOptions } from "./tools/builtins.js";
+import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { TOOL_USE_PROMPT } from "./runtime/prompts.js";
 import { DEFAULT_MAX_TURNS } from "./util/constants.js";

@@ -53,7 +53,7 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── runtime/             # Agent, Session, SessionMessages, Timeline, events, persistence, prompts, sub-agent-runner, stream-buffer, question-queue, run-timer, tool-calls, stall-detector, todo-store
+│   │       ├── runtime/             # Agent, Session, SessionMessages, Timeline, events, persistence, prompts, sub-agent-runner, todo-store
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
