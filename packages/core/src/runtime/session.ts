@@ -8,7 +8,7 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/loader.js";
 import { registerBuiltinTools, type BuiltinToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo, Tool } from "../tools/types.js";
-import { INITIAL_RUN_METRICS, type AgentEvent, type RunMetrics, type TimelineEvent } from "./events.js";
+import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineEvent } from "./events.js";
 import type { SessionPersistence, SessionData } from "./persistence.js";
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
@@ -197,7 +197,7 @@ export class Session {
   private persistence?: SessionPersistence;
 
   private viewCache: SessionView | null = null;
-  private eventListeners = new Emitter<(e: AgentEvent) => void>();
+  private eventListeners = new Emitter<(e: SessionEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
 
   subscribe = (listener: () => void): (() => void) => {
@@ -214,26 +214,26 @@ export class Session {
     return this.viewCache;
   };
 
-  onEvent = (listener: (e: AgentEvent) => void): (() => void) =>
+  onEvent = (listener: (e: SessionEvent) => void): (() => void) =>
     this.eventListeners.subscribe(listener);
 
   addNotice = (text: string): void => {
-    this.emit({ type: "notice", text, persisted: true });
+    this.emit({ type: "notice", text });
   };
 
   addError = (text: string): void => {
-    this.emit({ type: "error", text, persisted: true });
+    this.emit({ type: "error", text });
   };
 
   runSkill = async (name: string): Promise<boolean> => {
     this.rejectIfBusy();
     const skill = this.skillsMap.get(name);
     if (!skill) return false;
-    await this.start({ type: "skill", name: skill.name, persisted: true }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
+    await this.start({ type: "skill", name: skill.name }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
     return true;
   };
 
-  private emit = (e: AgentEvent): void => {
+  private emit = (e: SessionEvent): void => {
     this.timelineStore.applyEvent(e);
     this.eventListeners.notify(e);
   };
@@ -309,7 +309,7 @@ export class Session {
     this.mcp = deps.mcp;
   }
 
-  private start(event: AgentEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
+  private start(event: TimelineEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
     this.emit(event);
     return this.run(runFn);
   }
@@ -335,7 +335,7 @@ export class Session {
       status = isAbortError(e) ? "aborted" : "error";
       this.flushStreaming();
       if (status !== "aborted") {
-        this.emit({ type: "error", text: toErrorMessage(e), persisted: true });
+        this.emit({ type: "error", text: toErrorMessage(e) });
       }
     } finally {
       clearInterval(this.timer);
@@ -358,10 +358,10 @@ export class Session {
   }
 
   private emitRunMetrics(): void {
-    this.emit({ type: "run_metrics", persisted: false, ...this.runMetrics });
+    this.emit({ type: "run_metrics", ...this.runMetrics });
   }
 
-  private handleEvent = (e: AgentEvent): void => {
+  private handleEvent = (e: SessionEvent): void => {
     switch (e.type) {
       case "assistant_delta":
         this.stream.push(e.text);
@@ -371,7 +371,7 @@ export class Session {
         break;
       case "retry": {
         const { thinkingCleared } = this.stream.flushForRetry();
-        if (thinkingCleared) this.emit({ type: "thinking_cleared", persisted: false });
+        if (thinkingCleared) this.emit({ type: "thinking_cleared" });
         break;
       }
       case "tool_start":
@@ -379,7 +379,7 @@ export class Session {
         this.flushStreaming();
         break;
       case "interrupted":
-        if (this.stream.interrupt()) this.emit({ type: "thinking_cleared", persisted: false });
+        if (this.stream.interrupt()) this.emit({ type: "thinking_cleared" });
         break;
     }
     this.emit(e);
@@ -387,12 +387,12 @@ export class Session {
 
   private flushStreaming(): void {
     const { assistant, thinkingCleared } = this.stream.flush();
-    if (assistant !== null) this.emit({ type: "assistant", text: assistant, persisted: true });
-    if (thinkingCleared) this.emit({ type: "thinking_cleared", persisted: false });
+    if (assistant !== null) this.emit({ type: "assistant", text: assistant });
+    if (thinkingCleared) this.emit({ type: "thinking_cleared" });
   }
 
   private flushThinking(): void {
-    if (this.stream.flushThinking()) this.emit({ type: "thinking_cleared", persisted: false });
+    if (this.stream.flushThinking()) this.emit({ type: "thinking_cleared" });
   }
 
   async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {
@@ -462,12 +462,12 @@ export class Session {
 
   async prompt(text: string): Promise<PromptResult> {
     this.rejectIfBusy();
-    return this.start({ type: "user", text, persisted: true }, (signal) => this.agent.run(text, this.handleEvent, signal));
+    return this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
   private ask(text: string, options: string[]): Promise<string> {
     const { id, promise } = this.questionQueue.ask();
-    this.emit({ type: "question", id, text, options, answer: null, persisted: true });
+    this.emit({ type: "question", id, text, options, answer: null });
     return promise;
   }
 }

@@ -1,7 +1,7 @@
 export { Session, SessionBusyError, type SessionOptions, type SessionView, type PromptResult } from "./runtime/session.js";
 export type { RunStatus } from "./runtime/agent.js";
 export type { SessionMessage } from "./runtime/session-messages.js";
-export { INITIAL_RUN_METRICS, type AgentEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";
+export { INITIAL_RUN_METRICS, type SessionEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus, TextResult } from "./tools/types.js";
 export { toolError } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";

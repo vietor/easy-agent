@@ -40,24 +40,24 @@ test("setAnswer is a no-op for an unknown question id", () => {
 
 test("setResult only mutates entries still pending", () => {
   const store = new TimelineStore();
-  store.append({ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: null, persisted: true });
+  store.append({ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: null });
   store.setResult("t1", "ok");
   store.setResult("t1", "again");
-  assert.deepEqual(store.all, [{ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined, persisted: true }]);
+  assert.deepEqual(store.all, [{ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
 test("setAnswer records the answer on the question entry", () => {
   const store = new TimelineStore();
-  store.applyEvent({ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: null, persisted: true });
+  store.applyEvent({ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: null });
   store.setAnswer("q1", "b");
-  assert.deepEqual(store.all, [{ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b", persisted: true }]);
+  assert.deepEqual(store.all, [{ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b" }]);
 });
 
 test("latestUnansweredQuestion tracks the most recent unanswered question", () => {
   const store = new TimelineStore();
   assert.equal(store.latestUnansweredQuestion, undefined);
-  store.applyEvent({ type: "question", id: "q1", text: "one", options: [], answer: null, persisted: true });
-  store.applyEvent({ type: "question", id: "q2", text: "two", options: [], answer: null, persisted: true });
+  store.applyEvent({ type: "question", id: "q1", text: "one", options: [], answer: null });
+  store.applyEvent({ type: "question", id: "q2", text: "two", options: [], answer: null });
   assert.equal(store.latestUnansweredQuestion?.id, "q2");
   store.setAnswer("q2", "yes");
   assert.equal(store.latestUnansweredQuestion?.id, "q1");
@@ -74,30 +74,30 @@ test("a throwing listener does not break other listeners", () => {
   assert.deepEqual(events, ["second"]);
 });
 
-test("applyEvent translates every persisted event type into an entry", () => {
+test("applyEvent stores timeline entries and merges tool stream events", () => {
   const store = new TimelineStore();
-  store.applyEvent({ type: "user", text: "hi", persisted: true });
-  store.applyEvent({ type: "skill", name: "s", persisted: true });
-  store.applyEvent({ type: "assistant", text: "hello", persisted: true });
-  store.applyEvent({ type: "retry", attempt: 2, max: 3, reason: "429 rate limited", persisted: true });
-  store.applyEvent({ type: "notice", text: "n", persisted: true });
-  store.applyEvent({ type: "error", text: "e", persisted: true });
-  store.applyEvent({ type: "interrupted", persisted: true });
-  store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", argsSummary: "s", persisted: false });
-  store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, resultSummary: "p", persisted: false });
-  store.applyEvent({ type: "assistant_delta", text: "x", persisted: false });
-  store.applyEvent({ type: "thinking_delta", text: "x", persisted: false });
-  store.applyEvent({ type: "thinking_cleared", persisted: false });
-  store.applyEvent({ type: "run_metrics", persisted: false, running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
+  store.applyEvent({ type: "user", text: "hi" });
+  store.applyEvent({ type: "skill", name: "s" });
+  store.applyEvent({ type: "assistant", text: "hello" });
+  store.applyEvent({ type: "retry", attempt: 2, max: 3, reason: "429 rate limited" });
+  store.applyEvent({ type: "notice", text: "n" });
+  store.applyEvent({ type: "error", text: "e" });
+  store.applyEvent({ type: "interrupted" });
+  store.applyEvent({ type: "tool_start", id: "t1", name: "Echo", argsSummary: "s" });
+  store.applyEvent({ type: "tool_end", id: "t1", result: "out", isError: true, resultSummary: "p" });
+  store.applyEvent({ type: "assistant_delta", text: "x" });
+  store.applyEvent({ type: "thinking_delta", text: "x" });
+  store.applyEvent({ type: "thinking_cleared" });
+  store.applyEvent({ type: "run_metrics", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
-    { type: "user", text: "hi", persisted: true },
-    { type: "skill", name: "s", persisted: true },
-    { type: "assistant", text: "hello", persisted: true },
-    { type: "retry", attempt: 2, max: 3, reason: "429 rate limited", persisted: true },
-    { type: "notice", text: "n", persisted: true },
-    { type: "error", text: "e", persisted: true },
-    { type: "interrupted", persisted: true },
-    { type: "tool", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p", persisted: true },
+    { type: "user", text: "hi" },
+    { type: "skill", name: "s" },
+    { type: "assistant", text: "hello" },
+    { type: "retry", attempt: 2, max: 3, reason: "429 rate limited" },
+    { type: "notice", text: "n" },
+    { type: "error", text: "e" },
+    { type: "interrupted" },
+    { type: "tool", id: "t1", name: "Echo", argsSummary: "s", result: "out", isError: true, resultSummary: "p" },
   ]);
 });
 
@@ -140,7 +140,7 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
     )
   );
   const tool = store.all.find((e) => e.type === "tool");
-  assert.deepEqual(tool, { type: "tool", id: "t1", name: "Echo", argsSummary: "", result: null, persisted: true });
+  assert.deepEqual(tool, { type: "tool", id: "t1", name: "Echo", argsSummary: "", result: null });
   store.markPendingToolsAborted();
   assert.equal((store.all.find((e) => e.type === "tool") as Extract<TimelineEvent, { type: "tool" }>).result, "aborted");
 });

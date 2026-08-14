@@ -1,6 +1,6 @@
 import { parseToolArgs, toText } from "../llm/messages.js";
 import type { SessionMessage } from "./session-messages.js";
-import type { AgentEvent, TimelineEvent } from "./events.js";
+import type { SessionEvent, TimelineEvent } from "./events.js";
 import { Emitter } from "../util/emitter.js";
 
 export class TimelineStore {
@@ -17,16 +17,25 @@ export class TimelineStore {
     return this.listeners.subscribe(listener);
   }
 
-  applyEvent(e: AgentEvent): void {
-    if (e.persisted) {
-      if (e.type === "question") this.pendingQuestions.set(e.id, this.entries.length);
-      this.append(e);
-      return;
-    }
-    if (e.type === "tool_start") {
-      this.append({ type: "tool", id: e.id, name: e.name, argsSummary: e.argsSummary, result: null, persisted: true });
-    } else if (e.type === "tool_end") {
-      this.setResult(e.id, e.result, e.isError, e.resultSummary);
+  applyEvent(e: SessionEvent): void {
+    switch (e.type) {
+      case "tool_start":
+        this.append({ type: "tool", id: e.id, name: e.name, argsSummary: e.argsSummary, result: null });
+        break;
+      case "tool_end":
+        this.setResult(e.id, e.result, e.isError, e.resultSummary);
+        break;
+      case "question":
+        this.pendingQuestions.set(e.id, this.entries.length);
+        this.append(e);
+        break;
+      case "assistant_delta":
+      case "thinking_delta":
+      case "thinking_cleared":
+      case "run_metrics":
+        break;
+      default:
+        this.append(e);
     }
   }
 
@@ -115,12 +124,12 @@ export function toTimelineEntries(
   const entries: TimelineEvent[] = [];
   for (const m of messages) {
     if (m.role === "user") {
-      entries.push({ type: "user", text: m.content, persisted: true });
+      entries.push({ type: "user", text: m.content });
     } else if (m.role === "skill") {
-      entries.push({ type: "skill", name: m.name, persisted: true });
+      entries.push({ type: "skill", name: m.name });
     } else if (m.role === "assistant") {
       const text = toText(m.content);
-      if (text) entries.push({ type: "assistant", text, persisted: true });
+      if (text) entries.push({ type: "assistant", text });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {
           const parsed = parseToolArgs(tc.function.arguments);
@@ -130,7 +139,6 @@ export function toTimelineEntries(
             name: tc.function.name,
             argsSummary: summarizeArgs(tc.function.name, parsed.ok ? parsed.args : {}),
             result: null,
-            persisted: true,
           };
           const result = toolResults.get(tc.id);
           if (result) {

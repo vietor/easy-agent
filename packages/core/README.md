@@ -117,30 +117,42 @@ const session = await createSession({ systemPrompt, llm });
 
 | Method | Description |
 |---|---|
-| `onEvent(listener: (e: AgentEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
+| `onEvent(listener: (e: SessionEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
 | `flush(): Promise<void>` | Resolve once all pending persistence writes for this session have settled. |
 
-#### `AgentEvent`
+#### `SessionEvent`
 
-A discriminated union emitted as the session runs. Every variant carries a `persisted` flag: `true` for events that are also stored in the timeline, `false` for transient streaming/run-state events.
+A discriminated union emitted as the session runs — the union of the standalone `TimelineEvent` and `StreamEvent` types:
 
 ```ts
-type AgentEvent =
-  | { type: "user"; text: string; persisted: true }
-  | { type: "skill"; name: string; persisted: true }
-  | { type: "assistant"; text: string; persisted: true }
-  | { type: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string; persisted: true }
-  | { type: "retry"; attempt: number; max: number; reason: string; persisted: true }
-  | { type: "error"; text: string; persisted: true }
-  | { type: "interrupted"; persisted: true }
-  | { type: "question"; id: string; text: string; options: string[]; answer: string | null; persisted: true }
-  | { type: "notice"; text: string; persisted: true }
-  | { type: "assistant_delta"; text: string; persisted: false }
-  | { type: "thinking_delta"; text: string; persisted: false }
-  | { type: "thinking_cleared"; persisted: false }
-  | { type: "tool_start"; id: string; name: string; argsSummary: string; persisted: false }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string; persisted: false }
-  | { type: "run_metrics"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number; persisted: false };
+type SessionEvent = TimelineEvent | StreamEvent;
+```
+
+Timeline events are also stored in `session.getSnapshot().timeline`:
+
+```ts
+type TimelineEvent =
+  | { type: "user"; text: string }
+  | { type: "skill"; name: string }
+  | { type: "assistant"; text: string }
+  | { type: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string }
+  | { type: "retry"; attempt: number; max: number; reason: string }
+  | { type: "error"; text: string }
+  | { type: "interrupted" }
+  | { type: "question"; id: string; text: string; options: string[]; answer: string | null }
+  | { type: "notice"; text: string };
+```
+
+Streaming events are transient — never stored in the timeline, delivered only to `onEvent` listeners:
+
+```ts
+type StreamEvent =
+  | { type: "assistant_delta"; text: string }
+  | { type: "thinking_delta"; text: string }
+  | { type: "thinking_cleared" }
+  | { type: "tool_start"; id: string; name: string; argsSummary: string }
+  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
+  | ({ type: "run_metrics" } & RunMetrics);
 ```
 
 | Type | Emitted when | In timeline |
@@ -287,7 +299,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `Timeline`
 
-`SessionView.timeline` is `readonly TimelineEvent[]` — a derived alias for the persisted subset of `AgentEvent`: `TimelineEvent = Extract<AgentEvent, { persisted: true }>` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`/`tool_end`, `run_metrics`) are never stored; `tool_end` is merged into its `tool` entry.
+`SessionView.timeline` is `readonly TimelineEvent[]` — a standalone union of nine entry types (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`), defined independently of the event stream. Transient stream events (`assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`/`tool_end`, `run_metrics`) are never stored; `tool_start` opens a `tool` entry with `result: null` and `tool_end` is merged into it.
 
 `tool` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 

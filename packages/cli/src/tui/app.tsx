@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_METRICS, type AgentEvent, type RunMetrics, type Session, type SessionView } from "@vietor/agent-core";
+import { INITIAL_RUN_METRICS, type RunMetrics, type Session, type SessionEvent, type SessionView } from "@vietor/agent-core";
 import { toErrorMessage } from "@vietor/agent-core/util";
 import { executeSlashCommand, slashCommandInfos } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
@@ -41,7 +41,7 @@ function useSessionStream(session: Session) {
   const [showThinking, setShowThinking] = useState(false);
 
   useEffect(() => {
-    const unsub = session.onEvent((e: AgentEvent) => {
+    const unsub = session.onEvent((e: SessionEvent) => {
       switch (e.type) {
         case "assistant_delta":
           streaming.append(e.text);
