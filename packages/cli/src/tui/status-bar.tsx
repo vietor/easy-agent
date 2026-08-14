@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Box, Text, useWindowSize } from "ink";
-import { formatCompactNumber } from "@vietor/agent-core";
+import { formatCompactNumber } from "@vietor/agent-core/util";
 
 interface StatusBarProps {
   contextTokens: number;

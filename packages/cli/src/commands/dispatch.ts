@@ -1,4 +1,5 @@
-import { toErrorMessage, type Session } from "@vietor/agent-core";
+import type { Session } from "@vietor/agent-core";
+import { toErrorMessage } from "@vietor/agent-core/util";
 import { builtinCommands } from "./builtin.js";
 import type { CommandContext, CommandSchema } from "./types.js";
 

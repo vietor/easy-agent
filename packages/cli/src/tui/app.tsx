@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_METRICS, toErrorMessage, type AgentEvent, type Session, type RunMetrics, type SessionView } from "@vietor/agent-core";
+import { INITIAL_RUN_METRICS, type AgentEvent, type Session, type RunMetrics, type SessionView } from "@vietor/agent-core";
+import { toErrorMessage } from "@vietor/agent-core/util";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";

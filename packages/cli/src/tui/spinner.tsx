@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Text } from "ink";
-import { formatSeconds, formatCompactNumber } from "@vietor/agent-core";
+import { formatCompactNumber, formatSeconds } from "@vietor/agent-core/util";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
