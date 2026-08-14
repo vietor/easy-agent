@@ -53,7 +53,7 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── runtime/             # Agent, Session, Conversation, Timeline, events, persistence, prompts, sub-agent-run, todo-store
+│   │       ├── runtime/             # Agent, Session, SessionMessages, Timeline, events, persistence, prompts, sub-agent-runner, stream-buffer, question-queue, run-timer, tool-calls, stall-detector, todo-store
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
@@ -66,16 +66,16 @@ easy-agent/
 │           ├── tui/                 # terminal UI (app, timeline-view, todo-view, etc.)
 │           │   └── components/      # shared UI components (Markdown renderer…)
 │           ├── commands/            # built-in slash commands + dispatcher
-│           ├── session-store.ts     # FileSessionPersistence (JSONL save/resume)
+│           ├── session-persistence.ts # FileSessionPersistence (JSONL save/resume)
 │           ├── util/                # package info
-│           ├── config.ts            # JSON config loader (~/.easy-agent.json)
+│           ├── config.ts            # JSON config loader (~/.easy-agent/config.json)
 │           └── main.ts              # bin entry (shebang) — parses args, wires session, starts TUI
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`StreamEvent` / `onEvent`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`) plus its own built-in slash commands and dispatcher.
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`AgentEvent` / `onEvent`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`) plus its own built-in slash commands and dispatcher.
 
 ### Build order
 

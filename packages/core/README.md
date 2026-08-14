@@ -8,6 +8,16 @@ npm install @vietor/agent-core
 
 Requires Node.js ≥ 22 (ESM only).
 
+## Breaking changes (0.8)
+
+- `StreamEvent` and `TimelineEvent` merged into a single `AgentEvent` union; every variant now carries a `persisted: true/false` flag. Streaming tags are camelCase: `assistantDelta`, `thinkingDelta`, `thinkingClear`, `toolStart`, `toolEnd`, `runMetrics`.
+- `ConversationMessage` → `SessionMessage`; `Conversation` (internal) → `SessionMessages`.
+- `SessionOptions.mcp` → `SessionOptions.mcpServers` (the runtime getter `session.mcpServers` is unchanged).
+- `ClientInfo` → `MCPClientInfo`; internal `MCPServers` → `MCPServerManager`.
+- `BuiltInToolsOptions` → `BuiltinToolsOptions`.
+- Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatSeconds`, `formatCompactNumber`, `truncateText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
+- Tool-result summaries count non-empty lines (previously every newline).
+
 ---
 
 ## `createSession`
@@ -31,7 +41,7 @@ const session = await createSession({
   },
   tools: [myCustomTool],
   skills: tryLoadSkills("./skills") ?? [],
-  mcp: {
+  mcpServers: {
     filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
   },
   builtInTools: { askUser: true },
@@ -48,8 +58,8 @@ const session = await createSession({
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
-| `mcp` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtInTools` | `BuiltInToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
+| `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
+| `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
@@ -97,7 +107,7 @@ const session = await createSession({ systemPrompt, llm });
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
 | `restore(): Promise<boolean>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. Returns `false` (loading nothing) when the backend has no saved state for this session. |
-| `export(): ConversationMessage[]` | Return all conversation messages (excluding the system prompt). |
+| `export(): SessionMessage[]` | Return all session messages (excluding the system prompt). |
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
@@ -107,47 +117,48 @@ const session = await createSession({ systemPrompt, llm });
 
 | Method | Description |
 |---|---|
-| `onEvent(listener: (e: StreamEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
+| `onEvent(listener: (e: AgentEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
 | `flush(): Promise<void>` | Resolve once all pending persistence writes for this session have settled. |
 
-#### `StreamEvent`
+#### `AgentEvent`
 
-A discriminated union emitted as the session runs.
+A discriminated union emitted as the session runs. Every variant carries a `persisted` flag: `true` for events that are also stored in the timeline, `false` for transient streaming/run-state events.
 
 ```ts
-type StreamEvent =
-  | { type: "user"; text: string }
-  | { type: "skill"; name: string }
-  | { type: "assistant_delta"; text: string }
-  | { type: "thinking_delta"; text: string }
-  | { type: "thinking_clear" }
-  | { type: "assistant"; text: string }
-  | { type: "tool_start"; id: string; name: string; argsSummary: string }
-  | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
-  | { type: "retry"; attempt: number; max: number; reason: string }
-  | { type: "error"; text: string }
-  | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[] }
-  | { type: "notice"; text: string }
-  | { type: "run_metrics"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
+type AgentEvent =
+  | { type: "user"; text: string; persisted: true }
+  | { type: "skill"; name: string; persisted: true }
+  | { type: "assistant"; text: string; persisted: true }
+  | { type: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string; persisted: true }
+  | { type: "retry"; attempt: number; max: number; reason: string; persisted: true }
+  | { type: "error"; text: string; persisted: true }
+  | { type: "interrupted"; persisted: true }
+  | { type: "question"; id: string; text: string; options: string[]; answer: string | null; persisted: true }
+  | { type: "notice"; text: string; persisted: true }
+  | { type: "assistantDelta"; text: string; persisted: false }
+  | { type: "thinkingDelta"; text: string; persisted: false }
+  | { type: "thinkingClear"; persisted: false }
+  | { type: "toolStart"; id: string; name: string; argsSummary: string; persisted: false }
+  | { type: "toolEnd"; id: string; result: string; isError?: boolean; resultSummary?: string; persisted: false }
+  | { type: "runMetrics"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number; persisted: false };
 ```
 
 | Type | Emitted when | In timeline |
 |---|---|---|
 | `user` | User submits a prompt (`prompt`). | ✓ |
 | `skill` | A skill is invoked. | ✓ |
-| `assistant_delta` | A streaming token delta from the LLM. | — |
-| `thinking_delta` | A streaming thinking token delta (extended thinking). | — |
-| `thinking_clear` | Clears the accumulated thinking text (e.g. on new tool round). | — |
+| `assistantDelta` | A streaming token delta from the LLM. | — |
+| `thinkingDelta` | A streaming thinking token delta (extended thinking). | — |
+| `thinkingClear` | Clears the accumulated thinking text (e.g. on new tool round). | — |
 | `assistant` | A text response segment is flushed (on tool call or completion). | ✓ |
-| `tool_start` | A tool call starts. | ✓ (stored as `tool`) |
-| `tool_end` | A tool call finishes. | — (merged into its `tool` entry) |
+| `toolStart` | A tool call starts. | ✓ (stored as `tool`) |
+| `toolEnd` | A tool call finishes. | — (merged into its `tool` entry) |
 | `retry` | The LLM client retries after a transient API error. | ✓ |
 | `error` | An error occurred. | ✓ |
 | `interrupted` | The current run was aborted. | ✓ |
 | `question` | The AskUser tool poses a question. | ✓ |
 | `notice` | `session.addNotice()` is called, or the run auto-compacts context. | ✓ |
-| `run_metrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
+| `runMetrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
 
 Note: `onEvent` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
@@ -215,7 +226,7 @@ if (!session.running) {
 }
 ```
 
-The `run_metrics` event (`running: boolean`) also signals run start/end for stream consumers.
+The `runMetrics` event (`running: boolean`) also signals run start/end for stream consumers.
 
 ### Snapshot subscription
 
@@ -276,7 +287,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `Timeline`
 
-`SessionView.timeline` is `readonly TimelineEvent[]` — the stored entry type for the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_clear`, `run_metrics`) are never stored; `tool_end` is merged into its `tool` entry.
+`SessionView.timeline` is `readonly TimelineEvent[]` — a derived alias for the persisted subset of `AgentEvent`: `TimelineEvent = Extract<AgentEvent, { persisted: true }>` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistantDelta`, `thinkingDelta`, `thinkingClear`, `toolStart`/`toolEnd`, `runMetrics`) are never stored; `toolEnd` is merged into its `tool` entry.
 
 `tool` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 
@@ -286,19 +297,19 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 | `isError?: boolean` / `resultSummary?: string` (`tool`) | Set when the tool ended with an error / a condensed summary of the result. |
 | `answer: string \| null` (`question`) | `null` until the user answers (via `submitAnswer` or `abort`). |
 
-### `ConversationMessage`
+### `SessionMessage`
 
 The internal message format exchanged with the agent, also returned by `session.export()`.
 
 ```ts
-type ConversationMessage =
+type SessionMessage =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
-  | AssistantMessage
+  | LLMAssistantMessage
   | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
 
-// AssistantMessage includes optional tool_calls[] for function-calling
+// LLMAssistantMessage includes optional tool_calls[] for function-calling
 ```
 
 ### `LLMConfig`
@@ -344,7 +355,7 @@ interface SessionPersistence {
 
 ```ts
 interface SessionData {
-  messages: ConversationMessage[];
+  messages: SessionMessage[];
   todos: Todo[];
 }
 ```
@@ -590,6 +601,8 @@ MCP tools are exposed to the LLM with the prefixed name `MCP__<server>__<tool>`.
 
 ## Utility Functions
 
+All utilities below are exported from the `@vietor/agent-core/util` subpath.
+
 ### `tryReadFileText`
 
 **`tryReadFileText(path: string): string | undefined`**
@@ -610,7 +623,7 @@ if (content) {
 Convert HTML to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Strips script, style, title, meta, head, noscript, template, link, and base elements.
 
 ```ts
-import { htmlToMarkdown } from "@vietor/agent-core";
+import { htmlToMarkdown } from "@vietor/agent-core/util";
 
 const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
 // "# Hello\n\nWorld"
@@ -623,7 +636,7 @@ const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
 Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
 
 ```ts
-import { getTextBytes } from "@vietor/agent-core";
+import { getTextBytes } from "@vietor/agent-core/util";
 
 const bytes = getTextBytes("Hello");   // 5
 ```
@@ -635,7 +648,7 @@ const bytes = getTextBytes("Hello");   // 5
 Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result summaries.
 
 ```ts
-import { formatSeconds } from "@vietor/agent-core";
+import { formatSeconds } from "@vietor/agent-core/util";
 
 formatSeconds(3.24);   // "3.24s"
 ```
@@ -647,7 +660,7 @@ formatSeconds(3.24);   // "3.24s"
 Format a number compactly (e.g. `1.2K`). Used for byte/line counts in summaries.
 
 ```ts
-import { formatCompactNumber } from "@vietor/agent-core";
+import { formatCompactNumber } from "@vietor/agent-core/util";
 
 formatCompactNumber(1234);   // "1.23K"
 ```
@@ -659,7 +672,7 @@ formatCompactNumber(1234);   // "1.23K"
 Collapse whitespace and truncate text to `length` characters with a trailing `…`. With `showChars`, append the total character count when truncated — useful for text that changes size over time.
 
 ```ts
-import { truncateText } from "@vietor/agent-core";
+import { truncateText } from "@vietor/agent-core/util";
 
 truncateText("a\nvery   long line", 8);              // "a very l…"
 truncateText("a very long line here", 8, true);      // "a very l… (21)"
@@ -672,7 +685,7 @@ truncateText("a very long line here", 8, true);      // "a very l… (21)"
 Stringify an unknown error for display (`e instanceof Error ? e.message : String(e)`). Used across core for error events.
 
 ```ts
-import { toErrorMessage } from "@vietor/agent-core";
+import { toErrorMessage } from "@vietor/agent-core/util";
 
 toErrorMessage(new Error("boom"));   // "boom"
 toErrorMessage("oops");              // "oops"
@@ -689,7 +702,7 @@ A drop-in replacement for `fetch` that automatically routes through an HTTP(S) p
 - `NO_PROXY` / `no_proxy` — comma-separated hostnames/domains to bypass the proxy
 
 ```ts
-import { netFetch } from "@vietor/agent-core";
+import { netFetch } from "@vietor/agent-core/util";
 
 // Same signature as fetch — automatically uses proxy if env vars are set
 const res = await netFetch("https://api.example.com/data");
@@ -703,7 +716,7 @@ const data = await res.json();
 Run a subprocess, capturing stdout and stderr (used by the built-in Shell tool). The promise never rejects — spawn failures, timeouts, and output over the 10MB cap are reported via `ProcessResult.error`. Pass a `timeout` (ms) or an `AbortSignal` to kill the process tree.
 
 ```ts
-import { runProcess } from "@vietor/agent-core";
+import { runProcess } from "@vietor/agent-core/util";
 
 const result = await runProcess("ls", ["-la"], { cwd: "./src" });
 if (result.error) console.error(result.error.message);
@@ -731,7 +744,7 @@ interface ProcessResult {
 The character cap the tool registry applies when truncating tool results into timeline summaries.
 
 ```ts
-import { MAX_SUMMARY_LENGTH } from "@vietor/agent-core";
+import { MAX_SUMMARY_LENGTH } from "@vietor/agent-core/util";
 
 const summary = result.length > MAX_SUMMARY_LENGTH ? `${result.slice(0, MAX_SUMMARY_LENGTH)}…` : result;
 ```
@@ -753,14 +766,14 @@ const session = await createSession({
     backend: "completions",
     maxInputTokens: 1_000_000,
   },
-  mcp: {
+  mcpServers: {
     filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
   },
 });
 
 session.onEvent((e) => {
-  if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "run_metrics")
+  if (e.type === "assistantDelta") process.stdout.write(e.text);
+  else if (e.type === "runMetrics")
     console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
 });
 

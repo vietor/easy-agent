@@ -22,7 +22,7 @@ npx @vietor/easy-agent
 
 ## Configuration
 
-Create `~/.easy-agent.json` in your home directory:
+Create `~/.easy-agent/config.json` in your home directory:
 
 ```json
 {
@@ -166,8 +166,8 @@ A status bar at the bottom shows the context token usage with a progress bar and
 | `/clear` | Reset the conversation |
 | `/compact` | Compress the conversation into a summary to free context |
 | `/skill` | List available skills |
-| `/export` | Save the current conversation to `conversation-{timestamp}.jsonl` |
-| `/quit` or `/exit` | Leave the app |
+| `/save` | Save the current session to `session-{timestamp}.jsonl` |
+| `/exit` | Leave the app |
 
 ## Build from source
 
