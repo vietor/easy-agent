@@ -13,7 +13,7 @@ import { INITIAL_RUN_METRICS, type RunMetrics, type StreamEvent } from "./events
 import type { SessionPersistence, SessionData } from "./persistence.js";
 import type { ClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
-import { Conversation, type ConversationMessage } from "./conversation.js";
+import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, messagesToTimelineEntries, type TimelineEvent } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
@@ -25,7 +25,7 @@ export interface SessionOptions {
   cwd?: string;
   tools?: Tool[];
   skills?: Skill[];
-  mcp?: Record<string, MCPServerConfig>;
+  mcpServers?: Record<string, MCPServerConfig>;
   builtInTools?: BuiltinToolsOptions | false;
   clientInfo?: ClientInfo;
   sessionId?: string;
@@ -34,7 +34,7 @@ export interface SessionOptions {
   stallThreshold?: number;
 }
 
-export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcp"> {
+export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
   llm: LLMClient;
   tools: ToolRegistry;
   mcp: MCPServers;
@@ -75,7 +75,7 @@ export class Session {
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
 
-  private conversation: Conversation;
+  private conversation: SessionMessages;
   private tools: ToolRegistry;
   readonly cwd: string;
   readonly sessionId: string;
@@ -158,7 +158,7 @@ export class Session {
   }
 
   constructor(deps: SessionDeps) {
-    this.conversation = new Conversation(deps.systemPrompt);
+    this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
     this.sessionId = deps.sessionId ?? randomUUID();
@@ -338,7 +338,7 @@ export class Session {
     return this.saveChain;
   }
 
-  export(): ConversationMessage[] {
+  export(): SessionMessage[] {
     return this.agent.export();
   }
 

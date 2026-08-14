@@ -1,5 +1,5 @@
 import { parseToolArgs, toText } from "../llm/messages.js";
-import type { ConversationMessage } from "./conversation.js";
+import type { SessionMessage } from "./session-messages.js";
 import type { StreamEvent } from "./events.js";
 import { Emitter } from "../util/emitter.js";
 
@@ -125,7 +125,7 @@ export class TimelineStore {
 }
 
 export function messagesToTimelineEntries(
-  messages: ConversationMessage[],
+  messages: SessionMessage[],
   summarizeArgs: (name: string, args: Record<string, unknown>) => string
 ): TimelineEvent[] {
   const toolResults = new Map<string, { content: string; resultSummary?: string; isError?: boolean }>();

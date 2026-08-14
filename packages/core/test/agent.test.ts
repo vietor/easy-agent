@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Agent } from "../src/runtime/agent.js";
-import { Conversation } from "../src/runtime/conversation.js";
+import { SessionMessages } from "../src/runtime/session-messages.js";
 import { Session } from "../src/runtime/session.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
@@ -50,7 +50,7 @@ function makeAgent(
       return { content: "echoed" };
     },
   });
-  const conversation = new Conversation("system prompt");
+  const conversation = new SessionMessages("system prompt");
   return new Agent({
     llm,
     conversation,
@@ -362,7 +362,7 @@ test("a failing tool summary leaves the conversation well-formed for the next tu
     },
   });
   const { llm } = fakeLLM([() => toolCall("Boom")]);
-  const conversation = new Conversation("system prompt");
+  const conversation = new SessionMessages("system prompt");
   const agent = new Agent({
     llm,
     conversation,

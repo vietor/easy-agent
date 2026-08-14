@@ -2,7 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { truncateText, MAX_SUMMARY_LENGTH, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/agent-core";
+import { truncateText, MAX_SUMMARY_LENGTH, type SessionMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/agent-core";
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
@@ -36,9 +36,9 @@ export class FileSessionPersistence implements SessionPersistence {
   async load(sessionId: string): Promise<SessionData | null> {
     const path = this.file(sessionId);
     if (!existsSync(path)) return null;
-    const messages: ConversationMessage[] = [];
+    const messages: SessionMessage[] = [];
     let todos: Todo[] = [];
-    for (const r of parseJsonLines<{ t?: string; m?: ConversationMessage; todos?: Todo[] }>(readFileSync(path, "utf-8"))) {
+    for (const r of parseJsonLines<{ t?: string; m?: SessionMessage; todos?: Todo[] }>(readFileSync(path, "utf-8"))) {
       if (r.t === "message" && r.m) messages.push(r.m);
       else if (r.t === "todo" && r.todos) todos = r.todos;
     }
@@ -91,7 +91,7 @@ export class FileSessionPersistence implements SessionPersistence {
   }
 
   private readFirstUser(path: string): string | undefined {
-    const first = parseJsonLines<{ t?: string; m?: ConversationMessage }>(readFileSync(path, "utf-8"))
+    const first = parseJsonLines<{ t?: string; m?: SessionMessage }>(readFileSync(path, "utf-8"))
       .find((r) => r.t === "message" && r.m && r.m.role === "user" && typeof r.m.content === "string");
     return first?.m?.content as string | undefined;
   }

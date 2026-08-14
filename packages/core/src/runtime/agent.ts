@@ -3,7 +3,7 @@ import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from ".
 import { truncateText, toErrorMessage } from "../util/text.js";
 import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
-import { Conversation, type ConversationMessage } from "./conversation.js";
+import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { StreamEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
@@ -15,7 +15,7 @@ export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
 
 export interface AgentOptions {
   llm: LLMClient;
-  conversation: Conversation;
+  conversation: SessionMessages;
   tools: ToolRegistry;
   cwd: string;
   setTodos: (todos: Todo[]) => void;
@@ -31,7 +31,7 @@ type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; stat
 
 export class Agent {
   private llm: LLMClient;
-  private conversation: Conversation;
+  private conversation: SessionMessages;
   private tools: ToolRegistry;
   private cwd: string;
   private setTodos: (todos: Todo[]) => void;
@@ -82,7 +82,7 @@ export class Agent {
     this.conversation.clear();
   }
 
-  export(): ConversationMessage[] {
+  export(): SessionMessage[] {
     return this.conversation.export();
   }
 
@@ -127,7 +127,7 @@ export class Agent {
   }
 
   private async runTurn(
-    msg: ConversationMessage,
+    msg: SessionMessage,
     onEvent?: (e: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Conversation } from "../src/runtime/conversation.js";
+import { SessionMessages } from "../src/runtime/session-messages.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 
@@ -11,7 +11,7 @@ function assistantToolCall(id: string): LLMAssistantMessage {
 }
 
 test("estimatedTokens tracks bytes/4 of added messages", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "hello world" });
   assert.equal(c.getEstimatedTokens(), 1 + 3);
   c.add({ role: "assistant", content: "hi" });
@@ -19,7 +19,7 @@ test("estimatedTokens tracks bytes/4 of added messages", () => {
 });
 
 test("toLLM maps roles and prepends the system message", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "hi" });
   c.add({ role: "tool", tool_call_id: "t1", content: "out" });
   c.add({ role: "skill", name: "s", content: "instructions" });
@@ -31,7 +31,7 @@ test("toLLM maps roles and prepends the system message", () => {
 });
 
 test("toLLM cache stays in sync with add", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "a" });
   c.toLLM();
   c.add({ role: "user", content: "b" });
@@ -41,7 +41,7 @@ test("toLLM cache stays in sync with add", () => {
 });
 
 test("snapshot/restore rolls back messages and token estimate", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "a" });
   c.createSnapshot();
   c.add({ role: "user", content: "b" });
@@ -57,7 +57,7 @@ test("snapshot/restore rolls back messages and token estimate", () => {
 });
 
 test("compact replaces the conversation with the summary", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "history" });
   c.compact("summary text");
   assert.equal(c.export().length, 1);
@@ -66,7 +66,7 @@ test("compact replaces the conversation with the summary", () => {
 });
 
 test("collapseSkills replaces skill content and invalidates the LLM cache", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "skill", name: "test-skill", content: "do X and Y and Z" });
   const before = c.getEstimatedTokens();
   c.toLLM();
@@ -84,12 +84,12 @@ test("collapseSkills replaces skill content and invalidates the LLM cache", () =
 });
 
 test("import restores messages and token estimate", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "a" });
   c.add({ role: "assistant", content: "b" });
   const exported = c.export();
   const tokens = c.getEstimatedTokens();
-  const c2 = new Conversation(SYS);
+  const c2 = new SessionMessages(SYS);
   c2.import(exported);
   assert.equal(c2.export().length, 2);
   assert.equal(c2.getEstimatedTokens(), tokens);
@@ -97,7 +97,7 @@ test("import restores messages and token estimate", () => {
 });
 
 test("normalizeInterruptedToolCalls appends a placeholder for a dangling tool call", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "go" });
   c.add(assistantToolCall("t1"));
   c.normalizeInterruptedToolCalls();
@@ -109,7 +109,7 @@ test("normalizeInterruptedToolCalls appends a placeholder for a dangling tool ca
 });
 
 test("normalizeInterruptedToolCalls inserts the placeholder before the next non-tool message", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "go" });
   c.add(assistantToolCall("t1"));
   c.add({ role: "user", content: "next" });
@@ -121,7 +121,7 @@ test("normalizeInterruptedToolCalls inserts the placeholder before the next non-
 });
 
 test("normalizeInterruptedToolCalls leaves satisfied tool calls untouched", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "go" });
   c.add(assistantToolCall("t1"));
   c.add({ role: "tool", tool_call_id: "t1", content: "echoed" });
@@ -130,7 +130,7 @@ test("normalizeInterruptedToolCalls leaves satisfied tool calls untouched", () =
 });
 
 test("normalizeInterruptedToolCalls appends only the missing placeholder after real results", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({
     role: "assistant",
     content: null,
@@ -147,7 +147,7 @@ test("normalizeInterruptedToolCalls appends only the missing placeholder after r
 });
 
 test("normalizeInterruptedToolCalls handles consecutive dangling assistant messages", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "go" });
   c.add(assistantToolCall("t1"));
   c.add(assistantToolCall("t2"));
@@ -158,7 +158,7 @@ test("normalizeInterruptedToolCalls handles consecutive dangling assistant messa
 });
 
 test("normalizeInterruptedToolCalls updates tokens and invalidates the LLM cache", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "go" });
   c.add(assistantToolCall("t1"));
   const before = c.getEstimatedTokens();
@@ -169,7 +169,7 @@ test("normalizeInterruptedToolCalls updates tokens and invalidates the LLM cache
 });
 
 test("import normalizes dangling tool calls", () => {
-  const c = new Conversation(SYS);
+  const c = new SessionMessages(SYS);
   c.import([{ role: "user", content: "go" }, assistantToolCall("t1")]);
   assert.deepEqual(c.export()[2], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
 });

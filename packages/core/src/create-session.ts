@@ -47,8 +47,8 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     tools.registerAll(opts.tools);
   }
 
-  if (opts.mcp) {
-    await session.connectMCP(opts.mcp);
+  if (opts.mcpServers) {
+    await session.connectMCP(opts.mcpServers);
   }
 
   return session;

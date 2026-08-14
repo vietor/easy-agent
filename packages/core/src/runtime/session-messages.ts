@@ -1,7 +1,7 @@
 import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../util/constants.js";
 
-export type ConversationMessage =
+export type SessionMessage =
   | { role: "system"; content: string }
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
@@ -17,7 +17,7 @@ function estimateTokens(text: string): number {
   return Math.round(tokens / 4);
 }
 
-export function lastAssistantText(messages: ConversationMessage[]): string {
+export function lastAssistantText(messages: SessionMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.role !== "assistant") continue;
@@ -27,7 +27,7 @@ export function lastAssistantText(messages: ConversationMessage[]): string {
   return "";
 }
 
-function messageText(msg: ConversationMessage): string {
+function messageText(msg: SessionMessage): string {
   const parts: string[] = [];
   const t = toText(msg.content);
   if (t) parts.push(t);
@@ -45,19 +45,19 @@ function messageText(msg: ConversationMessage): string {
   return parts.join(" ");
 }
 
-function toLLMMessage(m: ConversationMessage): LLMMessage {
+function toLLMMessage(m: SessionMessage): LLMMessage {
   if (m.role === "tool") return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
   if (m.role === "skill") return { role: "user", name: m.name, content: m.content };
   return m;
 }
 
-export class Conversation {
+export class SessionMessages {
   private readonly systemEstimateTokens: number;
 
-  private messages: ConversationMessage[] = [];
+  private messages: SessionMessage[] = [];
   private estimatedTokens = 0;
   private collapsedCount = 0;
-  private snapshot?: { messages: ConversationMessage[]; estimatedTokens: number; collapsedCount: number };
+  private snapshot?: { messages: SessionMessage[]; estimatedTokens: number; collapsedCount: number };
   private llmCache: LLMMessage[] | null = null;
 
   constructor(private system: string) {
@@ -69,7 +69,7 @@ export class Conversation {
     return this.estimatedTokens;
   }
 
-  add(msg: ConversationMessage): void {
+  add(msg: SessionMessage): void {
     this.messages.push(msg);
     this.estimatedTokens += estimateTokens(messageText(msg));
     if (this.llmCache) {
@@ -90,11 +90,11 @@ export class Conversation {
     return result.slice();
   }
 
-  export(): ConversationMessage[] {
+  export(): SessionMessage[] {
     return this.messages.slice();
   }
 
-  import(messages: ConversationMessage[]): void {
+  import(messages: SessionMessage[]): void {
     this.resetMessages(
       messages.slice(),
       messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0)
@@ -103,7 +103,7 @@ export class Conversation {
   }
 
   normalizeInterruptedToolCalls(): void {
-    const out: ConversationMessage[] = [];
+    const out: SessionMessage[] = [];
     let changed = false;
     let addedTokens = 0;
     for (let i = 0; i < this.messages.length; i++) {
@@ -140,7 +140,7 @@ export class Conversation {
     this.resetMessages([{ role: "assistant", content: summary }], estimateTokens(summary), true);
   }
 
-  private resetMessages(messages: ConversationMessage[], extraTokens: number, keepSnapshot = false): void {
+  private resetMessages(messages: SessionMessage[], extraTokens: number, keepSnapshot = false): void {
     this.messages = messages;
     this.estimatedTokens = this.systemEstimateTokens + extraTokens;
     this.collapsedCount = 0;
@@ -156,7 +156,7 @@ export class Conversation {
     this.collapsedCount = this.messages.length;
   }
 
-  private collapseOne(index: number, m: Extract<ConversationMessage, { role: "skill" }>): void {
+  private collapseOne(index: number, m: Extract<SessionMessage, { role: "skill" }>): void {
     const before = estimateTokens(messageText(m));
     const collapsed = `<skill "${m.name}" invoked - its instructions were followed above>`;
     this.messages[index] = { ...m, content: collapsed };

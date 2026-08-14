@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Agent } from "../src/runtime/agent.js";
-import { Conversation } from "../src/runtime/conversation.js";
+import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool } from "../src/tools/sub-agent.js";
 import { createSubAgentRun } from "../src/runtime/sub-agent-run.js";
@@ -52,7 +52,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   tools.registerAll(SUB_TOOLS);
   tools.register(stub("Shell", "ok"));
   tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRun({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, contextLimit: 750_000 })(systemPrompt, task, signal) }));
-  const conversation = new Conversation("system prompt");
+  const conversation = new SessionMessages("system prompt");
   return new Agent({
     llm,
     conversation,

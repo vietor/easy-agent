@@ -1,6 +1,6 @@
 export { Session, SessionBusyError, type SessionOptions, type SessionView, type PromptResult } from "./runtime/session.js";
 export type { RunStatus } from "./runtime/agent.js";
-export type { ConversationMessage } from "./runtime/conversation.js";
+export type { SessionMessage } from "./runtime/session-messages.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export { toolError, type TextResult } from "./tools/types.js";
 export type { ClientInfo } from "./mcp/types.js";

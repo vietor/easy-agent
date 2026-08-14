@@ -1,4 +1,4 @@
-import { Conversation, lastAssistantText, type ConversationMessage } from "./conversation.js";
+import { SessionMessages, lastAssistantText, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { TOOL_USE_PROMPT } from "./prompts.js";
 import type { LLMClient } from "../llm/types.js";
@@ -13,9 +13,9 @@ export interface SubAgentRunOptions {
   contextLimit: number;
 }
 
-export function createSubAgentRun(opts: SubAgentRunOptions): (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; reply: string; messages: ConversationMessage[] }> {
+export function createSubAgentRun(opts: SubAgentRunOptions): (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; reply: string; messages: SessionMessage[] }> {
   return async (systemPrompt, task, signal) => {
-    const conversation = new Conversation([systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${opts.maxTurns} tool-calling turns per run.`].join("\n\n"));
+    const conversation = new SessionMessages([systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${opts.maxTurns} tool-calling turns per run.`].join("\n\n"));
     const subTools = new ToolRegistry();
     subTools.registerAll(opts.tools.filter((t) => t.readOnly === true));
     const subAgent = new Agent({
