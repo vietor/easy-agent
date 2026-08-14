@@ -1,33 +1,30 @@
 import { rgPath } from "@vscode/ripgrep";
 import { runProcess } from "./subprocess.js";
 import { NO_MATCHES, REQUEST_TIMEOUT_MS } from "./constants.js";
-import { summaryCount } from "./text.js";
+import { countLines, summaryCount } from "./text.js";
 
 const TRUNCATION_MARKER = "(output truncated)";
 
-function visibleLineCount(content: string): number {
-  const lines = content.split("\n").filter((l) => l);
-  return lines.length - (lines[lines.length - 1] === TRUNCATION_MARKER ? 1 : 0);
-}
-
-export function formatRgOutput(lines: string[], truncated: boolean, emptyText: string): string {
+export function formatRipgrepOutput(lines: string[], truncated: boolean, emptyText: string): string {
   if (!lines.length) return emptyText;
   const out = lines.join("\n");
   return truncated ? out + "\n" + TRUNCATION_MARKER : out;
 }
 
-export function rgResultSummary(word: "file" | "match", result: { content: string; isError?: boolean }, failText: string, noMatchesText: string): string {
+export function ripgrepResultSummary(word: "file" | "match", result: { content: string; isError?: boolean }, failText: string, noMatchesText: string): string {
   if (result.isError) return failText;
   if (result.content === NO_MATCHES) return noMatchesText;
-  return summaryCount(word, visibleLineCount(result.content), false, failText);
+  const lines = countLines(result.content);
+  const count = lines - (result.content.endsWith(TRUNCATION_MARKER) ? 1 : 0);
+  return summaryCount(word, count, false, failText);
 }
 
-export interface RgLinesResult {
+export interface RipgrepLinesResult {
   lines: string[];
   truncated: boolean;
 }
 
-export async function runRgLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number): Promise<RgLinesResult> {
+export async function runRipgrepLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number): Promise<RipgrepLinesResult> {
   const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", "-g", "!node_modules/**", ...args];
   const r = await runProcess(rgPath, rgArgs, { cwd, timeout: REQUEST_TIMEOUT_MS }, signal);
   if (!r.truncated && (r.error || (r.status !== 0 && r.status !== 1))) {

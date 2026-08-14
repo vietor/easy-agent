@@ -5,6 +5,8 @@ const secondsFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
+import { MAX_SUMMARY_LENGTH } from "./constants.js";
+
 const compactNumberFormatter = new Intl.NumberFormat("en-US", {
   notation: "compact",
   maximumFractionDigits: 2,
@@ -24,6 +26,10 @@ export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 
+export function countLines(content: string): number {
+  return content.split("\n").filter((l) => l).length;
+}
+
 export function truncateText(content: string, length: number, showChars?: boolean) {
   const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   if (text.length <= length) return text;
@@ -40,6 +46,15 @@ export function summaryCount(word: "file" | "match", count: number, isError: boo
   if (isError) return failText;
   const plural = word === "match" ? "matches" : "files";
   return `Found ${count} ${count === 1 ? word : plural}`;
+}
+
+export function defaultResultSummary(result: { content: string; isError?: boolean }): string {
+  if (result.isError) {
+    return truncateText(result.content, MAX_SUMMARY_LENGTH);
+  }
+  const bytes = getTextBytes(result.content);
+  const lines = countLines(result.content);
+  return `Retrieved ${formatCompactNumber(bytes)} bytes, ${formatCompactNumber(lines)} lines`;
 }
 
 export function toErrorMessage(e: unknown): string {

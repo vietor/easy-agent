@@ -1,4 +1,4 @@
-export class ListenerSet<T extends (...args: any[]) => void = () => void> {
+export class Emitter<T extends (...args: any[]) => void = () => void> {
   private listeners = new Set<T>();
 
   subscribe(listener: T): () => void {

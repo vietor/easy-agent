@@ -12,22 +12,9 @@ import { createSkillTool } from "./skill.js";
 import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
-import { MAX_ARGS_SUMMARY_LENGTH, MAX_SUMMARY_LENGTH } from "../util/constants.js";
-import { toErrorMessage, formatSeconds, formatCompactNumber, getTextBytes, truncateText } from "../util/text.js";
+import { MAX_ARGS_SUMMARY_LENGTH } from "../util/constants.js";
+import { defaultResultSummary, formatSeconds, toErrorMessage, truncateText } from "../util/text.js";
 import type { TextResult } from "./types.js";
-
-function lineCount(content: string): number {
-  return content === "" ? 0 : (content.match(/\n/g) || []).length + 1;
-}
-
-function defaultResultSummary(result: TextResult): string {
-  if (result.isError) {
-    return truncateText(result.content, MAX_SUMMARY_LENGTH);
-  }
-  const bytes = getTextBytes(result.content);
-  const lines = lineCount(result.content);
-  return `Retrieved ${formatCompactNumber(bytes)} bytes, ${formatCompactNumber(lines)} lines`;
-}
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();

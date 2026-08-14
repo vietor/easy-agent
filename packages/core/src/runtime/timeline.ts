@@ -1,7 +1,7 @@
 import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
 import type { StreamEvent } from "./events.js";
-import { ListenerSet } from "../util/pubsub.js";
+import { Emitter } from "../util/emitter.js";
 
 export type TimelineEvent =
   | { type: "user"; text: string }
@@ -15,7 +15,7 @@ export type TimelineEvent =
   | { type: "notice"; text: string };
 
 export class TimelineStore {
-  private listeners = new ListenerSet();
+  private listeners = new Emitter();
   private entries: TimelineEvent[] = [];
   private pendingTools = new Map<string, number>();
   private pendingQuestions = new Map<string, number>();

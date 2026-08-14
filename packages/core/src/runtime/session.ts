@@ -13,7 +13,7 @@ import type { SessionPersistence, SessionData } from "./persistence.js";
 import type { ClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
-import { ListenerSet } from "../util/pubsub.js";
+import { Emitter } from "../util/emitter.js";
 import { TimelineStore, messagesToTimelineEntries, type TimelineEvent } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
 import { createSubAgentRun } from "./sub-agent-run.js";
@@ -83,7 +83,7 @@ export class Session {
   private questionSeq = 0;
   private pendingQuestionResolvers = new Map<string, (answer: string) => void>();
   private viewCache: SessionView | null = null;
-  private eventListeners = new ListenerSet<(e: StreamEvent) => void>();
+  private eventListeners = new Emitter<(e: StreamEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
 
   subscribe = (listener: () => void): (() => void) => {

@@ -1,8 +1,8 @@
 import type { Todo } from "../tools/types.js";
-import { ListenerSet } from "../util/pubsub.js";
+import { Emitter } from "../util/emitter.js";
 
 export class TodoStore {
-  private listeners = new ListenerSet();
+  private listeners = new Emitter();
   private items: Todo[] = [];
 
   get all(): readonly Todo[] {

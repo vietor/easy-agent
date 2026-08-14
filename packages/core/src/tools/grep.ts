@@ -1,4 +1,4 @@
-import { formatRgOutput, rgResultSummary, runRgLines } from "../util/ripgrep.js";
+import { formatRipgrepOutput, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
 import { DEFAULT_GREP_LIMIT, NO_MATCHES } from "../util/constants.js";
 import { resolveOptionalPath } from "../util/file.js";
 import type { Tool } from "./types.js";
@@ -49,11 +49,11 @@ export const grepTool: Tool = {
     else if (output_mode === "count") rgArgs.push("-c");
     else rgArgs.push("-m", String(headLimit));
     rgArgs.push("--", args.pattern as string, ".");
-    const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal, headLimit);
-    return { content: formatRgOutput(lines, truncated, NO_MATCHES) };
+    const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal, headLimit);
+    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
   },
   summarizeResult(result) {
-    return rgResultSummary("match", result, "Grep failed", "Found 0 matches");
+    return ripgrepResultSummary("match", result, "Grep failed", "Found 0 matches");
   },
   summaryKeys: ["pattern", "path", "glob"],
 };

@@ -1,4 +1,4 @@
-import { formatRgOutput, rgResultSummary, runRgLines } from "../util/ripgrep.js";
+import { formatRipgrepOutput, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
 import { NO_MATCHES } from "../util/constants.js";
 import { resolveOptionalPath } from "../util/file.js";
 import type { Tool } from "./types.js";
@@ -23,11 +23,11 @@ export const globTool: Tool = {
     const pattern = args.pattern as string;
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(".");
-    const { lines, truncated } = await runRgLines(rgArgs, cwd, ctx.signal);
-    return { content: formatRgOutput(lines, truncated, NO_MATCHES) };
+    const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal);
+    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
   },
   summarizeResult(result) {
-    return rgResultSummary("file", result, "Glob failed", "Found 0 files");
+    return ripgrepResultSummary("file", result, "Glob failed", "Found 0 files");
   },
   summaryKeys: ["pattern", "path"],
 };
