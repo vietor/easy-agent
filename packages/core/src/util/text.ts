@@ -1,21 +1,3 @@
-import TurndownService from "turndown";
-import type { TextResult } from "../tools/types.js";
-
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  hr: "---",
-  bulletListMarker: "-",
-  codeBlockStyle: "fenced",
-  emDelimiter: "*",
-  strongDelimiter: "**",
-  linkStyle: "inlined",
-});
-turndown.remove(["script", "style", "title", "meta", "head", "noscript", "template", "link", "base"]);
-
-export function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html);
-}
-
 const secondsFormatter = new Intl.NumberFormat("en-US", {
   style: "unit",
   unit: "second",
@@ -49,7 +31,7 @@ export function ellipsisText(content: string, length: number, showChars?: boolea
   return showChars ? `${truncated} (${text.length})` : truncated;
 }
 
-export function summaryBytes(prefix: string, result: TextResult, failText: string): string {
+export function summaryBytes(prefix: string, result: { content: string; isError?: boolean }, failText: string): string {
   if (result.isError) return failText;
   return `${prefix} ${formatCompactNumber(getTextBytes(result.content))} bytes`;
 }

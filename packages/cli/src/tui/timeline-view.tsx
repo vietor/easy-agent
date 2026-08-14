@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/markdown.js";
-import type { TimelineEvent } from "@vietor/easy-agent-core";
+import type { TimelineEvent } from "@vietor/agent-core";
 
 export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEvent }) {
   switch (entry.type) {

@@ -1,8 +1,8 @@
 # Easy Agent
 
-![](https://img.shields.io/badge/Node.js-22%2B-brightgreen?style=flat-square) [![core]](https://www.npmjs.com/package/@vietor/easy-agent-core) [![cli]](https://www.npmjs.com/package/@vietor/easy-agent)
+![](https://img.shields.io/badge/Node.js-22%2B-brightgreen?style=flat-square) [![core]](https://www.npmjs.com/package/@vietor/agent-core) [![cli]](https://www.npmjs.com/package/@vietor/easy-agent)
 
-[core]: https://img.shields.io/npm/v/@vietor/easy-agent-core.svg?style=flat-square&label=core
+[core]: https://img.shields.io/npm/v/@vietor/agent-core.svg?style=flat-square&label=core
 [cli]: https://img.shields.io/npm/v/@vietor/easy-agent.svg?style=flat-square&label=cli
 
 An autonomous coding agent in the terminal — monorepo workspace.
@@ -26,7 +26,7 @@ This repo contains two packages:
 | Package | npm | Description |
 |---------|-----|-------------|
 | [`@vietor/easy-agent`](./packages/cli/README.md) | CLI | Terminal TUI app (Ink/React) |
-| [`@vietor/easy-agent-core`](./packages/core/README.md) | Library | SDK framework for building AI agents |
+| [`@vietor/agent-core`](./packages/core/README.md) | Library | SDK framework for building AI agents |
 
 ## Development
 
@@ -51,9 +51,9 @@ pnpm --filter @vietor/easy-agent dev   # run TUI in dev mode (tsx hot-reload)
 ```
 easy-agent/
 ├── packages/
-│   ├── core/          # @vietor/easy-agent-core — SDK framework (library)
+│   ├── core/          # @vietor/agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── runtime/             # Agent, Session, Conversation, Timeline
+│   │       ├── runtime/             # Agent, Session, Conversation, Timeline, events, persistence, prompts, sub-agent-run, todo-store
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
@@ -66,7 +66,8 @@ easy-agent/
 │           ├── tui/                 # terminal UI (app, timeline-view, todo-view, etc.)
 │           │   └── components/      # shared UI components (Markdown renderer…)
 │           ├── commands/            # built-in slash commands + dispatcher
-│           ├── util/                # package info, FileSessionPersistence
+│           ├── session-store.ts     # FileSessionPersistence (JSONL save/resume)
+│           ├── util/                # package info
 │           ├── config.ts            # JSON config loader (~/.easy-agent.json)
 │           └── main.ts              # bin entry (shebang) — parses args, wires session, starts TUI
 ├── package.json       # workspace root (private)
@@ -81,7 +82,7 @@ The `core` package contains the framework logic (agent loop, tools, MCP client/s
 Always build `core` first, then `cli`, because CLI depends on core:
 
 ```bash
-pnpm --filter @vietor/easy-agent-core build
+pnpm --filter @vietor/agent-core build
 pnpm --filter @vietor/easy-agent build
 ```
 
@@ -104,7 +105,7 @@ Both packages are published to npmjs under the `@vietor` scope.
 pnpm login
 
 # 1. Publish the core library
-pnpm publish --filter @vietor/easy-agent-core
+pnpm publish --filter @vietor/agent-core
 
 # 2. Publish the CLI (pnpm auto-replaces workspace:* with the published version)
 pnpm publish --filter @vietor/easy-agent
@@ -112,6 +113,6 @@ pnpm publish --filter @vietor/easy-agent
 
 ### Before publishing
 
-- Bump versions: `pnpm version patch --filter @vietor/easy-agent-core && pnpm version patch --filter @vietor/easy-agent` (or `minor`/`major`)
+- Bump versions: `pnpm version patch --filter @vietor/agent-core && pnpm version patch --filter @vietor/easy-agent` (or `minor`/`major`)
 - Run `pnpm build` to ensure clean dist output
 - Run `pnpm publish --filter <package> --dry-run` to preview the package contents

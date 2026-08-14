@@ -6,7 +6,7 @@ Monorepo (pnpm workspace) for a terminal AI coding agent. Node.js >= 22, TypeScr
 
 | Package | Role |
 |---|---|
-| `packages/core` (`@vietor/easy-agent-core`) | Framework library: agent loop, session, tools, MCP, skills, LLM clients |
+| `packages/core` (`@vietor/agent-core`) | Framework library: agent loop, session, tools, MCP, skills, LLM clients |
 | `packages/cli` (`@vietor/easy-agent`) | Ink/React TUI CLI; depends on core via `workspace:*` |
 
 ```bash
@@ -17,7 +17,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 
 ## Layout
 
-- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `Conversation`, `Timeline`, `sub-agent`, `prompts`, `events.ts`, `persistence.ts`
+- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `Conversation`, `Timeline`, `sub-agent-run`, `prompts`, `events.ts`, `persistence.ts`
 - `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registration, schemas, summaries)
 - `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `client.ts`, `anthropic.ts` / `completions.ts` (wire backends)
 - `core/src/mcp/` — client/server for stdio + Streamable HTTP

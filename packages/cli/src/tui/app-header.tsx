@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Box, Text, useWindowSize } from "ink";
-import type { LLMThinkingEffort } from "@vietor/easy-agent-core";
+import type { LLMThinkingEffort } from "@vietor/agent-core";
 import { getPackageInfo } from "../util/package.js";
 
 export const AppHeader = memo(function AppHeader({ cwd, model, thinkingEffort }: { cwd: string; model: string; thinkingEffort: LLMThinkingEffort }) {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_STATS, errorMessage, type Session, type RunStats, type StreamEvent, type SessionView } from "@vietor/easy-agent-core";
+import { INITIAL_RUN_METRICS, errorMessage, type Session, type RunMetrics, type StreamEvent, type SessionView } from "@vietor/agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -37,7 +37,7 @@ export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
-  const [runStats, setRunStats] = useState<RunStats>(INITIAL_RUN_STATS);
+  const [runMetrics, setRunMetrics] = useState<RunMetrics>(INITIAL_RUN_METRICS);
   const streaming = useThrottledText(STREAM_FRAME_MS);
   const thinking = useThrottledText(STREAM_FRAME_MS);
   const [showThinking, setShowThinking] = useState(false);
@@ -63,8 +63,8 @@ export function App({ session }: { session: Session }) {
         case "interrupted":
           streaming.reset();
           break;
-        case "run_stats":
-          setRunStats(e);
+        case "run_metrics":
+          setRunMetrics(e);
           break;
       }
     });
@@ -76,14 +76,14 @@ export function App({ session }: { session: Session }) {
       if (key.ctrl && _input === "c") session.abort();
       return;
     }
-    if (_input === "t" && runStats.running && thinking.text) {
+    if (_input === "t" && runMetrics.running && thinking.text) {
       setShowThinking((v) => !v);
       return;
     }
     if (key.escape) {
       session.abort();
     } else if (key.ctrl && _input === "c") {
-      if (runStats.running) session.abort();
+      if (runMetrics.running) session.abort();
       else exit();
     }
   });
@@ -101,7 +101,7 @@ export function App({ session }: { session: Session }) {
   }
 
   let runningView: ReactNode = null;
-  if (runStats.running) {
+  if (runMetrics.running) {
     if (pendingQuestion) {
       runningView = (
         <QuestionView
@@ -120,7 +120,7 @@ export function App({ session }: { session: Session }) {
             </Box>
           ) : null}
           <Box marginTop={1} paddingLeft={1}>
-            <Spinner label={spinnerLabel} thinkingElapsed={runStats.thinkingElapsed} replyElapsed={runStats.replyElapsed} inputTokens={runStats.inputTokens} outputTokens={runStats.outputTokens} />
+            <Spinner label={spinnerLabel} thinkingElapsed={runMetrics.thinkingElapsed} replyElapsed={runMetrics.replyElapsed} inputTokens={runMetrics.inputTokens} outputTokens={runMetrics.outputTokens} />
           </Box>
         </>
       );
@@ -143,14 +143,14 @@ export function App({ session }: { session: Session }) {
 
       {view.todos.length > 0 ? <TodoView todos={view.todos} /> : null}
 
-      {!runStats.running ? (
+      {!runMetrics.running ? (
         <PromptOrCommandInput commands={allCmds} onCommand={handleCommand} onPrompt={handlePrompt} />
       ) : null}
 
       <StatusBar
         contextTokens={session.contextTokens}
         contextLimit={session.contextLimit}
-        running={runStats.running}
+        running={runMetrics.running}
         questionPending={!!pendingQuestion}
         thinkingAvailable={!!thinking.text}
       />

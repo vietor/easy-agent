@@ -8,14 +8,15 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type BuiltInToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo, Tool } from "../tools/types.js";
-import { INITIAL_RUN_STATS, type RunStats, type StreamEvent, type TimelineEvent } from "./events.js";
+import { INITIAL_RUN_METRICS, type RunMetrics, type StreamEvent } from "./events.js";
 import type { SessionPersistence, SessionData } from "./persistence.js";
 import type { ClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { ListenerSet } from "../util/pubsub.js";
-import { TimelineStore, messagesToTimelineEntries } from "./timeline.js";
+import { TimelineStore, messagesToTimelineEntries, type TimelineEvent } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
+import { createSubAgentRun } from "./sub-agent-run.js";
 
 export interface SessionOptions {
   systemPrompt: string;
@@ -68,7 +69,7 @@ export class Session {
   private thinkingText = "";
   private replyStart: number | null = null;
   private lastReplyText = "";
-  private runStats: RunStats = INITIAL_RUN_STATS;
+  private runMetrics: RunMetrics = INITIAL_RUN_METRICS;
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private startTime = 0;
@@ -166,7 +167,17 @@ export class Session {
       ask: (q, o) => this.ask(q, o),
       setTodos: (t) => this.todoStore.set(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
-      subAgent: { llm: deps.llm, stallThreshold: deps.stallThreshold, maxTurns: deps.maxTurns, contextLimit: deps.contextLimit },
+      subAgent: {
+        runSubAgent: (systemPrompt, task, signal) =>
+          createSubAgentRun({
+            llm: deps.llm,
+            tools: this.tools,
+            cwd: this.cwd,
+            maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
+            stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
+            contextLimit: deps.contextLimit,
+          })(systemPrompt, task, signal),
+      },
     });
 
     this.agent = new Agent({
@@ -184,25 +195,25 @@ export class Session {
     this.mcp = deps.mcp;
   }
 
-  private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<{ status: RunStatus; reply: string }> {
+  private start(event: StreamEvent, runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
     this.emit(event);
     return this.run(runFn);
   }
 
-  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<{ status: RunStatus; reply: string }> {
+  private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
     this.streamingText = "";
     this.lastReplyText = "";
     this.thinkingText = "";
     this.replyStart = null;
     this.startTime = Date.now();
     this.abortController = new AbortController();
-    this.runStats = { ...INITIAL_RUN_STATS, running: true };
+    this.runMetrics = { ...INITIAL_RUN_METRICS, running: true };
     this.agent.resetUsage();
-    this.emitRunStats();
+    this.emitRunMetrics();
 
     this.timer = setInterval(() => {
-      this.runStats = { ...this.runStats, ...this.computeTimings(), ...this.agent.usage };
-      this.emitRunStats();
+      this.runMetrics = { ...this.runMetrics, ...this.computeTimings(), ...this.agent.usage };
+      this.emitRunMetrics();
     }, 1000);
 
     let status: RunStatus = "ok";
@@ -220,8 +231,8 @@ export class Session {
       this.timer = undefined;
       this.abortController = null;
       this.timelineStore.markPendingToolsAborted();
-      this.runStats = { ...this.runStats, ...this.computeTimings(), running: false, ...this.agent.usage };
-      this.emitRunStats();
+      this.runMetrics = { ...this.runMetrics, ...this.computeTimings(), running: false, ...this.agent.usage };
+      this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
       this.persistSnapshot();
@@ -248,8 +259,8 @@ export class Session {
     };
   }
 
-  private emitRunStats(): void {
-    this.emit({ type: "run_stats", ...this.runStats });
+  private emitRunMetrics(): void {
+    this.emit({ type: "run_metrics", ...this.runMetrics });
   }
 
   private handleEvent = (e: StreamEvent): void => {

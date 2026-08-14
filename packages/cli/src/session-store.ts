@@ -2,7 +2,7 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { ellipsisText, MAX_SUMMARY_LENGTH, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/easy-agent-core";
+import { ellipsisText, MAX_SUMMARY_LENGTH, type ConversationMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/agent-core";
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");

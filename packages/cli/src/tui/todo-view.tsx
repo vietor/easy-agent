@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Box, Text } from "ink";
-import { type Todo, type TodoStatus } from "@vietor/easy-agent-core";
+import { type Todo, type TodoStatus } from "@vietor/agent-core";
 
 const GLYPHS: Record<TodoStatus, string> = {
   pending: "○",

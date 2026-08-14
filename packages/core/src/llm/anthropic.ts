@@ -6,6 +6,7 @@ import {
   type AssistantMessage,
   type ChatOptions,
   type ResolvedLLMConfig,
+  type LLMThinkingEffort,
   type Message,
   type RedactedThinkingBlock,
   type ThinkingBlock,
@@ -13,7 +14,11 @@ import {
 import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
-import { THINKING_BUDGET } from "../util/constants.js";
+
+export const THINKING_BUDGET: Record<LLMThinkingEffort, number> = {
+  high: 16000,
+  max: 32000,
+};
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 

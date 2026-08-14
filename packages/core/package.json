@@ -1,6 +1,6 @@
 {
-  "name": "@vietor/easy-agent-core",
-  "version": "0.6.3",
+  "name": "@vietor/agent-core",
+  "version": "0.7.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

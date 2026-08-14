@@ -2,7 +2,8 @@ import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
 import { exponentialBackoff, isAbortError, withRetry, withTimeoutError } from "../util/async.js";
 import { MAX_WEB_FETCH_MB, mbToBytes, REQUEST_TIMEOUT_MS, WEB_FETCH_RETRIES } from "../util/constants.js";
-import { errorMessage, htmlToMarkdown, summaryBytes } from "../util/text.js";
+import { htmlToMarkdown } from "../util/html.js";
+import { errorMessage, summaryBytes } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();

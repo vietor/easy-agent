@@ -10,7 +10,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@vietor/easy-agent-core':
+      '@vietor/agent-core':
         specifier: workspace:*
         version: link:../core
       commander:

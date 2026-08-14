@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Session } from "../src/runtime/session.js";
 import { TimelineStore, messagesToTimelineEntries } from "../src/runtime/timeline.js";
 import { TodoStore } from "../src/runtime/todo-store.js";
-import type { TimelineEvent } from "../src/runtime/events.js";
+import type { TimelineEvent } from "../src/runtime/timeline.js";
 import { MCPServers } from "../src/mcp/server.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -87,7 +87,7 @@ test("applyEvent translates every persisted event type into an entry", () => {
   store.applyEvent({ type: "assistant_delta", text: "x" });
   store.applyEvent({ type: "thinking_delta", text: "x" });
   store.applyEvent({ type: "thinking_clear" });
-  store.applyEvent({ type: "run_stats", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
+  store.applyEvent({ type: "run_metrics", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
     { type: "user", text: "hi" },
     { type: "skill", name: "s" },

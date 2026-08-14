@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
-import { tryLoadSkills, tryReadFileText, createSession, SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
+import { tryLoadSkills, tryReadFileText, createSession, SYSTEM_PROMPT_BOUNDARY } from "@vietor/agent-core";
 import { startApp } from "./tui/app.js";
 import { getPackageInfo } from "./util/package.js";
 import { FileSessionPersistence } from "./session-store.js";

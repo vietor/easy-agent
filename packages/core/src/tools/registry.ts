@@ -120,7 +120,7 @@ export interface BuiltInToolsDeps {
   ask: (question: string, options: string[]) => Promise<string>;
   setTodos: (todos: Todo[]) => void;
   resolveSkill?: (name: string) => Skill | undefined;
-  subAgent: Omit<SubAgentToolDeps, "tools">;
+  subAgent: SubAgentToolDeps;
 }
 
 const BUILTIN_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, shellTool, fileWriteTool, fileEditTool];
@@ -134,5 +134,5 @@ export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltInToolsOpti
   if (opts?.askUser) tools.register(createAskUserTool(deps.ask));
   if (opts?.todoWrite) tools.register(createTodoWriteTool(deps.setTodos));
   if (deps.resolveSkill) tools.register(createSkillTool(deps.resolveSkill));
-  if (opts?.subAgent) tools.register(createSubAgentTool({ tools, ...deps.subAgent }));
+  if (opts?.subAgent) tools.register(createSubAgentTool(deps.subAgent));
 }

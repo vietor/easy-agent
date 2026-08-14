@@ -1,9 +1,9 @@
-# @vietor/easy-agent-core
+# @vietor/agent-core
 
 > Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader.
 
 ```bash
-npm install @vietor/easy-agent-core
+npm install @vietor/agent-core
 ```
 
 Requires Node.js ≥ 22 (ESM only).
@@ -17,7 +17,7 @@ Requires Node.js ≥ 22 (ESM only).
 Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance.
 
 ```ts
-import { createSession } from "@vietor/easy-agent-core";
+import { createSession } from "@vietor/agent-core";
 
 const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
@@ -32,7 +32,7 @@ const session = await createSession({
   tools: [myCustomTool],
   skills: tryLoadSkills("./skills") ?? [],
   mcp: {
-    filesystem: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
+    filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
   },
   builtInTools: { askUser: true },
   clientInfo: { name: "my-app", version: "1.0.0" },
@@ -50,7 +50,7 @@ const session = await createSession({
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
 | `mcp` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
 | `builtInTools` | `BuiltInToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
-| `clientInfo` | `{ name: string; version: string }` | `{ name: "easy-agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
+| `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
 | `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
 | `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
@@ -67,7 +67,7 @@ The auto-compaction threshold is not configurable — it's derived internally as
 A constant separator that `createSession` appends between the user-provided `systemPrompt` and the auto-generated tool-use/behavior guidelines. Also exported so callers can use it when composing their own system prompt from multiple segments:
 
 ```ts
-import { SYSTEM_PROMPT_BOUNDARY } from "@vietor/easy-agent-core";
+import { SYSTEM_PROMPT_BOUNDARY } from "@vietor/agent-core";
 
 const systemPrompt = [
   coreInstructions,
@@ -129,7 +129,7 @@ type StreamEvent =
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "notice"; text: string }
-  | { type: "run_stats"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
+  | { type: "run_metrics"; running: boolean; elapsed: number; thinkingElapsed: number; replyElapsed: number; inputTokens: number; outputTokens: number };
 ```
 
 | Type | Emitted when | In timeline |
@@ -147,14 +147,14 @@ type StreamEvent =
 | `interrupted` | The current run was aborted. | ✓ |
 | `question` | The AskUser tool poses a question. | ✓ |
 | `notice` | `session.addNotice()` is called, or the run auto-compacts context. | ✓ |
-| `run_stats` | Run stats change: at run start, every second, and at run end (`running: false`). | — |
+| `run_metrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
 
 Note: `onEvent` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
-#### `RunStats`
+#### `RunMetrics`
 
 ```ts
-interface RunStats {
+interface RunMetrics {
   running: boolean;        // whether a prompt is in progress
   elapsed: number;         // seconds since the current prompt started
   thinkingElapsed: number; // seconds before the first assistant text token (incl. thinking/tools)
@@ -164,7 +164,7 @@ interface RunStats {
 }
 ```
 
-`INITIAL_RUN_STATS: RunStats` is the all-zero, not-running initial value.
+`INITIAL_RUN_METRICS: RunMetrics` is the all-zero, not-running initial value.
 
 ### Skills & messages
 
@@ -204,7 +204,7 @@ These remain callable during a run (they are inputs to the running loop, or read
 | `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `export`, `flush`, `dispose`, accessors | Allowed. |
 
 ```ts
-import { SessionBusyError } from "@vietor/easy-agent-core";
+import { SessionBusyError } from "@vietor/agent-core";
 
 if (!session.running) {
   try {
@@ -215,7 +215,7 @@ if (!session.running) {
 }
 ```
 
-The `run_stats` event (`running: boolean`) also signals run start/end for stream consumers.
+The `run_metrics` event (`running: boolean`) also signals run start/end for stream consumers.
 
 ### Snapshot subscription
 
@@ -276,9 +276,9 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `Timeline`
 
-`SessionView.timeline` is `readonly TimelineEvent[]` — the stored entry type for the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_clear`, `run_stats`) are never stored; `tool_end` is merged into its `tool` entry.
+`SessionView.timeline` is `readonly TimelineEvent[]` — the stored entry type for the persisted subset of `StreamEvent` (`user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`). Transient events (`assistant_delta`, `thinking_delta`, `thinking_clear`, `run_metrics`) are never stored; `tool_end` is merged into its `tool` entry.
 
-`tool_start` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
+`tool` and `question` entries carry lifecycle state as pending fields, set `null` while outstanding and replaced on completion:
 
 | Field | Meaning |
 |---|---|
@@ -473,7 +473,7 @@ const session = await createSession({
 ### Custom tools example
 
 ```ts
-import type { Tool } from "@vietor/easy-agent-core";
+import type { Tool } from "@vietor/agent-core";
 
 const greetTool: Tool = {
   name: "greet",
@@ -555,7 +555,7 @@ const session = await createSession({
 type MCPServerConfig = StdioServerConfig | HttpServerConfig;
 
 interface StdioServerConfig {
-  type?: "stdio";
+  type: "stdio";
   command: string;
   args?: string[];
   env?: Record<string, string>;
@@ -610,7 +610,7 @@ if (content) {
 Convert HTML to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Strips script, style, title, meta, head, noscript, template, link, and base elements.
 
 ```ts
-import { htmlToMarkdown } from "@vietor/easy-agent-core";
+import { htmlToMarkdown } from "@vietor/agent-core";
 
 const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
 // "# Hello\n\nWorld"
@@ -623,7 +623,7 @@ const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
 Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
 
 ```ts
-import { getTextBytes } from "@vietor/easy-agent-core";
+import { getTextBytes } from "@vietor/agent-core";
 
 const bytes = getTextBytes("Hello");   // 5
 ```
@@ -635,7 +635,7 @@ const bytes = getTextBytes("Hello");   // 5
 Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result summaries.
 
 ```ts
-import { formatSeconds } from "@vietor/easy-agent-core";
+import { formatSeconds } from "@vietor/agent-core";
 
 formatSeconds(3.24);   // "3.24s"
 ```
@@ -647,7 +647,7 @@ formatSeconds(3.24);   // "3.24s"
 Format a number compactly (e.g. `1.2K`). Used for byte/line counts in summaries.
 
 ```ts
-import { formatCompactNumber } from "@vietor/easy-agent-core";
+import { formatCompactNumber } from "@vietor/agent-core";
 
 formatCompactNumber(1234);   // "1.23K"
 ```
@@ -659,7 +659,7 @@ formatCompactNumber(1234);   // "1.23K"
 Collapse whitespace and truncate text to `length` characters with a trailing `…`. With `showChars`, append the total character count when truncated — useful for text that changes size over time.
 
 ```ts
-import { ellipsisText } from "@vietor/easy-agent-core";
+import { ellipsisText } from "@vietor/agent-core";
 
 ellipsisText("a\nvery   long line", 8);              // "a very l…"
 ellipsisText("a very long line here", 8, true);      // "a very l… (21)"
@@ -672,7 +672,7 @@ ellipsisText("a very long line here", 8, true);      // "a very l… (21)"
 Stringify an unknown error for display (`e instanceof Error ? e.message : String(e)`). Used across core for error events.
 
 ```ts
-import { errorMessage } from "@vietor/easy-agent-core";
+import { errorMessage } from "@vietor/agent-core";
 
 errorMessage(new Error("boom"));   // "boom"
 errorMessage("oops");              // "oops"
@@ -689,7 +689,7 @@ A drop-in replacement for `fetch` that automatically routes through an HTTP(S) p
 - `NO_PROXY` / `no_proxy` — comma-separated hostnames/domains to bypass the proxy
 
 ```ts
-import { netFetch } from "@vietor/easy-agent-core";
+import { netFetch } from "@vietor/agent-core";
 
 // Same signature as fetch — automatically uses proxy if env vars are set
 const res = await netFetch("https://api.example.com/data");
@@ -703,7 +703,7 @@ const data = await res.json();
 Run a subprocess, capturing stdout and stderr (used by the built-in Shell tool). The promise never rejects — spawn failures, timeouts, and output over the 10MB cap are reported via `ProcessResult.error`. Pass a `timeout` (ms) or an `AbortSignal` to kill the process tree.
 
 ```ts
-import { runProcess } from "@vietor/easy-agent-core";
+import { runProcess } from "@vietor/agent-core";
 
 const result = await runProcess("ls", ["-la"], { cwd: "./src" });
 if (result.error) console.error(result.error.message);
@@ -731,7 +731,7 @@ interface ProcessResult {
 The character cap the tool registry applies when truncating tool results into timeline summaries.
 
 ```ts
-import { MAX_SUMMARY_LENGTH } from "@vietor/easy-agent-core";
+import { MAX_SUMMARY_LENGTH } from "@vietor/agent-core";
 
 const summary = result.length > MAX_SUMMARY_LENGTH ? `${result.slice(0, MAX_SUMMARY_LENGTH)}…` : result;
 ```
@@ -741,7 +741,7 @@ const summary = result.length > MAX_SUMMARY_LENGTH ? `${result.slice(0, MAX_SUMM
 ## Full Quick Start
 
 ```ts
-import { createSession, tryLoadSkills } from "@vietor/easy-agent-core";
+import { createSession, tryLoadSkills } from "@vietor/agent-core";
 
 const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
@@ -754,13 +754,13 @@ const session = await createSession({
     maxInputTokens: 1_000_000,
   },
   mcp: {
-    filesystem: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
+    filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
   },
 });
 
 session.onEvent((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "run_stats")
+  else if (e.type === "run_metrics")
     console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
 });
 

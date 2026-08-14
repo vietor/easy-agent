@@ -1,11 +1,11 @@
 import { Conversation, lastAssistantText, type ConversationMessage } from "./conversation.js";
 import { Agent, type RunStatus } from "./agent.js";
+import { TOOL_USE_PROMPT } from "./prompts.js";
 import type { LLMClient } from "../llm/types.js";
-import type { ToolRegistry } from "../tools/registry.js";
+import { ToolRegistry } from "../tools/registry.js";
 
 export interface SubAgentRunOptions {
   llm: LLMClient;
-  systemPrompt: string;
   tools: ToolRegistry;
   cwd: string;
   maxTurns: number;
@@ -13,13 +13,15 @@ export interface SubAgentRunOptions {
   contextLimit: number;
 }
 
-export function createSubAgentRun(opts: SubAgentRunOptions): (task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; reply: string; messages: ConversationMessage[] }> {
-  return async (task, signal) => {
-    const conversation = new Conversation(opts.systemPrompt);
+export function createSubAgentRun(opts: SubAgentRunOptions): (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<{ status: RunStatus; reply: string; messages: ConversationMessage[] }> {
+  return async (systemPrompt, task, signal) => {
+    const conversation = new Conversation([systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${opts.maxTurns} tool-calling turns per run.`].join("\n\n"));
+    const subTools = new ToolRegistry();
+    subTools.registerAll(opts.tools.filter((t) => t.readOnly === true));
     const subAgent = new Agent({
       llm: opts.llm,
       conversation,
-      tools: opts.tools,
+      tools: subTools,
       cwd: opts.cwd,
       setTodos: () => {},
       getTodos: () => [],

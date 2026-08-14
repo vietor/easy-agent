@@ -4,6 +4,7 @@ import { Agent } from "../src/runtime/agent.js";
 import { Conversation } from "../src/runtime/conversation.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool } from "../src/tools/sub-agent.js";
+import { createSubAgentRun } from "../src/runtime/sub-agent-run.js";
 import type { AssistantMessage, ChatOptions, LLMClient } from "../src/llm/types.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => AssistantMessage>) {
@@ -49,7 +50,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   const tools = new ToolRegistry();
   tools.registerAll(SUB_TOOLS);
   tools.register(stub("Shell", "ok"));
-  tools.register(createSubAgentTool({ llm, tools, ...subAgentOpts }));
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRun({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, contextLimit: 750_000 })(systemPrompt, task, signal) }));
   const conversation = new Conversation("system prompt");
   return new Agent({
     llm,
@@ -145,7 +146,7 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
 });
 
 test("SubAgent tool type enum covers explore and plan", () => {
-  const tool = createSubAgentTool({ llm: fakeLLM([]).llm, tools: new ToolRegistry() });
+  const tool = createSubAgentTool({ runSubAgent: async () => ({ status: "ok", reply: "", messages: [] }) });
   const params = tool.parameters as { properties: { type: { enum: string[] } } };
   assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
 });

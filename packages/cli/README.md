@@ -1,6 +1,6 @@
 # @vietor/easy-agent
 
-Terminal-based AI agent CLI with a conversational TUI, powered by `@vietor/easy-agent-core`.
+Terminal-based AI agent CLI with a conversational TUI, powered by `@vietor/agent-core`.
 
 ## Requirements
 

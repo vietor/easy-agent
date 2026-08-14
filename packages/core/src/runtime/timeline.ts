@@ -1,7 +1,18 @@
 import { parseToolArgs, textOf } from "../llm/types.js";
 import type { ConversationMessage } from "./conversation.js";
-import type { StreamEvent, TimelineEvent } from "./events.js";
+import type { StreamEvent } from "./events.js";
 import { ListenerSet } from "../util/pubsub.js";
+
+export type TimelineEvent =
+  | { type: "user"; text: string }
+  | { type: "skill"; name: string }
+  | { type: "assistant"; text: string }
+  | { type: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string }
+  | { type: "retry"; attempt: number; max: number; reason: string }
+  | { type: "error"; text: string }
+  | { type: "interrupted" }
+  | { type: "question"; id: string; text: string; options: string[]; answer: string | null }
+  | { type: "notice"; text: string };
 
 export class TimelineStore {
   private listeners = new ListenerSet();
@@ -41,7 +52,7 @@ export class TimelineStore {
       case "assistant_delta":
       case "thinking_delta":
       case "thinking_clear":
-      case "run_stats":
+      case "run_metrics":
         break;
     }
   }

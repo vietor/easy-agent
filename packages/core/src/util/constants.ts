@@ -1,5 +1,3 @@
-import type { LLMBackend, LLMThinkingEffort } from "../llm/types.js";
-
 export const MAX_PROCESS_BUFFER_MB = 10;
 export const MAX_WEB_FETCH_MB = 10;
 export const MAX_FILE_READ_MB = 20;
@@ -20,14 +18,10 @@ export const MAX_PARALLEL_TOOL_CALLS = 8;
 export const SKILL_TOOL_NAME = "Skill" as const;
 export const LLM_MAX_RETRIES = 3;
 export const WEB_FETCH_RETRIES = 2;
-export const DEFAULT_THINKING_EFFORT: LLMThinkingEffort = "high";
-export const DEFAULT_BACKEND: LLMBackend = "completions";
+export const DEFAULT_THINKING_EFFORT = "high" as const;
+export const DEFAULT_BACKEND = "completions" as const;
 export const DEFAULT_MAX_INPUT_TOKENS = 1_000_000;
 export const DEFAULT_MAX_OUTPUT_TOKENS = 128_000;
-export const THINKING_BUDGET: Record<LLMThinkingEffort, number> = {
-  high: 16000,
-  max: 32000,
-};
 
 export function mbToBytes(mb: number): number {
   return mb * 1024 * 1024;

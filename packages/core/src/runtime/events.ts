@@ -1,4 +1,4 @@
-export interface RunStats {
+export interface RunMetrics {
   running: boolean;
   elapsed: number;
   thinkingElapsed: number;
@@ -7,7 +7,7 @@ export interface RunStats {
   outputTokens: number;
 }
 
-export const INITIAL_RUN_STATS: RunStats = { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
+export const INITIAL_RUN_METRICS: RunMetrics = { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
 
 export type StreamEvent =
   | { type: "user"; text: string }
@@ -23,15 +23,4 @@ export type StreamEvent =
   | { type: "interrupted" }
   | { type: "question"; id: string; text: string; options: string[] }
   | { type: "notice"; text: string }
-  | ({ type: "run_stats" } & RunStats);
-
-export type TimelineEvent =
-  | { type: "user"; text: string }
-  | { type: "skill"; name: string }
-  | { type: "assistant"; text: string }
-  | { type: "tool"; id: string; name: string; argsSummary: string; result: string | null; isError?: boolean; resultSummary?: string }
-  | { type: "retry"; attempt: number; max: number; reason: string }
-  | { type: "error"; text: string }
-  | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[]; answer: string | null }
-  | { type: "notice"; text: string };
+  | ({ type: "run_metrics" } & RunMetrics);

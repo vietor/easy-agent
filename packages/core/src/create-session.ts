@@ -31,7 +31,7 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInToo
 export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llm);
   const tools = new ToolRegistry();
-  const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "easy-agent-core", version: "0.0.0" });
+  const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
 
   const session = new Session({
     ...opts,

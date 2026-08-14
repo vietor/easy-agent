@@ -1,21 +1,18 @@
-import { contextLimitFor } from "../llm/client.js";
-import type { LLMClient } from "../llm/types.js";
-import { createSubAgentRun } from "../runtime/sub-agent.js";
-import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD, NOT_EXECUTED_PREFIX } from "../util/constants.js";
+import { NOT_EXECUTED_PREFIX } from "../util/constants.js";
 import type { Tool } from "./types.js";
 import { toolError } from "./types.js";
-import { ToolRegistry } from "./registry.js";
-import { TOOL_USE_PROMPT } from "../runtime/prompts.js";
 
 export const SUB_AGENT_GUIDANCE =
   '- Consider delegating to the SubAgent tool when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. type: "explore" — read-only search agent for broad fan-out searches (state the search breadth in the task); type: "plan" — software architect producing implementation plans. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result. Issue at most 2 SubAgent calls per turn; multiple calls in the same turn run concurrently. Sub-agents are read-only and return only their final report, not intermediate steps — verify important results yourself. For large workloads with many independent items that would exceed the turn budget, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.';
 
+export interface SubAgentRunResult {
+  status: string;
+  reply: string;
+  messages: ReadonlyArray<{ content: unknown }>;
+}
+
 export interface SubAgentToolDeps {
-  llm: LLMClient;
-  tools: ToolRegistry;
-  stallThreshold?: number;
-  maxTurns?: number;
-  contextLimit?: number;
+  runSubAgent: (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<SubAgentRunResult>;
 }
 
 const EXPLORE_PROMPT = [
@@ -89,20 +86,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         return toolError("task is required");
       }
 
-      const subTools = new ToolRegistry();
-      subTools.registerAll(deps.tools.filter((t) => t.readOnly === true));
-
-      const maxTurns = deps.maxTurns ?? DEFAULT_MAX_TURNS;
-      const run = createSubAgentRun({
-        llm: deps.llm,
-        systemPrompt: [def.systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`].join("\n\n"),
-        tools: subTools,
-        cwd: ctx.cwd,
-        stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
-        maxTurns,
-        contextLimit: deps.contextLimit ?? contextLimitFor(deps.llm.maxInputTokens),
-      });
-      const { status, reply, messages } = await run(task, ctx.signal);
+      const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, ctx.signal);
 
       if (status === "ok") return { content: reply };
       const stallReason = status === "stalled"

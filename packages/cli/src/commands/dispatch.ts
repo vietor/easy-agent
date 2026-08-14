@@ -1,4 +1,4 @@
-import { errorMessage, type Session } from "@vietor/easy-agent-core";
+import { errorMessage, type Session } from "@vietor/agent-core";
 import { builtinCommands } from "./builtin.js";
 import type { CommandContext, CommandSchema } from "./types.js";
 
