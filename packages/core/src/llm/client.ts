@@ -62,7 +62,3 @@ export function createLLM(config: LLMConfig): LLMClient {
     chat: withRetryChat(adapter),
   };
 }
-
-export function contextLimitFor(maxInputTokens: number): number {
-  return Math.floor(maxInputTokens * 0.75);
-}

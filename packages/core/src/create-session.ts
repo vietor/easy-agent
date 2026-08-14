@@ -1,4 +1,4 @@
-import { contextLimitFor, createLLM } from "./llm/client.js";
+import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { ToolRegistry } from "./tools/registry.js";
 import type { BuiltinToolsOptions } from "./tools/builtins.js";
@@ -12,6 +12,10 @@ import type { Skill } from "./skills/types.js";
 import type { SessionOptions } from "./runtime/session.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
+
+function contextLimitFor(maxInputTokens: number): number {
+  return Math.floor(maxInputTokens * 0.75);
+}
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number): string {
   const parts = [base];

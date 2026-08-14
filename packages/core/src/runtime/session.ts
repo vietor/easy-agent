@@ -18,6 +18,9 @@ import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
 import { createSubAgentRun } from "./sub-agent-run.js";
+import { StreamBuffer } from "./stream-buffer.js";
+import { QuestionQueue } from "./question-queue.js";
+import { RunTimer } from "./run-timer.js";
 
 export interface SessionOptions {
   systemPrompt: string;
@@ -66,14 +69,12 @@ export class Session {
   private timelineStore = new TimelineStore();
   private todoStore = new TodoStore();
 
-  private streamingText = "";
-  private thinkingText = "";
-  private replyStart: number | null = null;
-  private lastReplyText = "";
+  private stream = new StreamBuffer();
+  private questionQueue = new QuestionQueue();
+  private runTimer = new RunTimer();
   private runMetrics: RunMetrics = INITIAL_RUN_METRICS;
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
-  private startTime = 0;
 
   private conversation: SessionMessages;
   private tools: ToolRegistry;
@@ -81,8 +82,6 @@ export class Session {
   readonly sessionId: string;
   private persistence?: SessionPersistence;
 
-  private questionSeq = 0;
-  private pendingQuestionResolvers = new Map<string, (answer: string) => void>();
   private viewCache: SessionView | null = null;
   private eventListeners = new Emitter<(e: AgentEvent) => void>();
   private saveChain: Promise<void> = Promise.resolve();
@@ -202,18 +201,15 @@ export class Session {
   }
 
   private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
-    this.streamingText = "";
-    this.lastReplyText = "";
-    this.thinkingText = "";
-    this.replyStart = null;
-    this.startTime = Date.now();
+    this.stream.begin();
+    this.runTimer.begin();
     this.abortController = new AbortController();
     this.runMetrics = { ...INITIAL_RUN_METRICS, running: true };
     this.agent.resetUsage();
     this.emitRunMetrics();
 
     this.timer = setInterval(() => {
-      this.runMetrics = { ...this.runMetrics, ...this.computeTimings(), ...this.agent.usage };
+      this.runMetrics = this.runTimer.metrics(this.agent.usage, this.stream.firstReplyAt, true);
       this.emitRunMetrics();
     }, 1000);
 
@@ -232,32 +228,19 @@ export class Session {
       this.timer = undefined;
       this.abortController = null;
       this.timelineStore.markPendingToolsAborted();
-      this.runMetrics = { ...this.runMetrics, ...this.computeTimings(), running: false, ...this.agent.usage };
+      this.runMetrics = this.runTimer.metrics(this.agent.usage, this.stream.firstReplyAt, false);
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
       this.persistSnapshot();
     }
-    return { status, reply: this.lastReplyText };
+    return { status, reply: this.stream.reply };
   }
 
   private clearCompletedTodos(): void {
     if (this.todoStore.all.length > 0 && this.todoStore.all.every((t) => t.status === "completed")) {
       this.todoStore.set([]);
     }
-  }
-
-  private computeTimings(): { elapsed: number; thinkingElapsed: number; replyElapsed: number } {
-    const now = Date.now();
-    const elapsed = Math.floor((now - this.startTime) / 1000);
-    if (this.replyStart === null) {
-      return { elapsed, thinkingElapsed: elapsed, replyElapsed: 0 };
-    }
-    return {
-      elapsed,
-      thinkingElapsed: Math.floor((this.replyStart - this.startTime) / 1000),
-      replyElapsed: Math.floor((now - this.replyStart) / 1000),
-    };
   }
 
   private emitRunMetrics(): void {
@@ -267,44 +250,35 @@ export class Session {
   private handleEvent = (e: AgentEvent): void => {
     switch (e.type) {
       case "assistantDelta":
-        if (this.replyStart === null) this.replyStart = Date.now();
-        this.streamingText += e.text;
+        this.stream.push(e.text);
         break;
       case "thinkingDelta":
-        this.thinkingText += e.text;
+        this.stream.pushThinking(e.text);
         break;
-      case "retry":
-        this.streamingText = "";
-        this.flushThinking();
+      case "retry": {
+        const { thinkingCleared } = this.stream.flushForRetry();
+        if (thinkingCleared) this.emit({ type: "thinkingClear", persisted: false });
         break;
+      }
       case "toolStart":
       case "error":
         this.flushStreaming();
         break;
       case "interrupted":
-        this.lastReplyText = this.streamingText;
-        this.streamingText = "";
-        this.flushThinking();
+        if (this.stream.interrupt()) this.emit({ type: "thinkingClear", persisted: false });
         break;
     }
     this.emit(e);
   };
 
   private flushStreaming(): void {
-    if (this.streamingText) {
-      this.lastReplyText = this.streamingText;
-      const text = this.streamingText;
-      this.streamingText = "";
-      this.emit({ type: "assistant", text, persisted: true });
-    }
-    this.flushThinking();
+    const { assistant, thinkingCleared } = this.stream.flush();
+    if (assistant !== null) this.emit({ type: "assistant", text: assistant, persisted: true });
+    if (thinkingCleared) this.emit({ type: "thinkingClear", persisted: false });
   }
 
   private flushThinking(): void {
-    if (this.thinkingText) {
-      this.thinkingText = "";
-      this.emit({ type: "thinkingClear", persisted: false });
-    }
+    if (this.stream.flushThinking()) this.emit({ type: "thinkingClear", persisted: false });
   }
 
   async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {
@@ -362,21 +336,13 @@ export class Session {
 
   abort(): void {
     this.abortController?.abort();
-    this.resolvePendingQuestions("");
-  }
-
-  private resolvePendingQuestions(answer: string): void {
-    for (const id of [...this.pendingQuestionResolvers.keys()]) {
-      this.submitAnswer(id, answer);
+    for (const id of this.questionQueue.resolveAll("")) {
+      this.timelineStore.setAnswer(id, "");
     }
   }
 
   submitAnswer(id: string, answer: string): void {
-    const resolve = this.pendingQuestionResolvers.get(id);
-    if (resolve) {
-      this.pendingQuestionResolvers.delete(id);
-      resolve(answer);
-    }
+    this.questionQueue.submit(id, answer);
     this.timelineStore.setAnswer(id, answer);
   }
 
@@ -386,10 +352,8 @@ export class Session {
   }
 
   private ask(text: string, options: string[]): Promise<string> {
-    const id = `q${++this.questionSeq}`;
+    const { id, promise } = this.questionQueue.ask();
     this.emit({ type: "question", id, text, options, answer: null, persisted: true });
-    return new Promise<string>((resolve) => {
-      this.pendingQuestionResolvers.set(id, resolve);
-    });
+    return promise;
   }
 }

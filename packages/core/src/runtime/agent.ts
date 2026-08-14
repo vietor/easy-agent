@@ -1,15 +1,16 @@
-import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
-import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
+import { isAbortError, withAbort } from "../util/async.js";
+import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { truncateText, toErrorMessage } from "../util/text.js";
-import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
+import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { AgentEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { ToolContext, ToolSchema, Todo } from "../tools/types.js";
-import { toolError, type TextResult } from "../tools/types.js";
+import type { ToolSchema, Todo } from "../tools/types.js";
+import { runToolCalls } from "./tool-calls.js";
+import { StallDetector } from "./stall-detector.js";
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
 
@@ -26,7 +27,6 @@ export interface AgentOptions {
   resolveSkill?: (name: string) => Skill | undefined;
 }
 
-type ToolCallResult = { id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> };
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
 
 export class Agent {
@@ -169,10 +169,8 @@ export class Agent {
     onEvent?: (e: AgentEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {
-    let lastSig = "";
-    let stall = 0;
+    const stallDetector = new StallDetector();
     let turns = 0;
-    let textOnlyStreak = 0;
     let pendingNudge = "";
     while (true) {
       if (this.conversation.getEstimatedTokens() > this.contextLimit) {
@@ -203,8 +201,9 @@ export class Agent {
       this.conversation.collapseSkills();
       if (!msg.tool_calls?.length) {
         if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
-          if (++textOnlyStreak >= this.stallThreshold) {
-            onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks`, persisted: true });
+          const streak = stallDetector.noteTextOnly();
+          if (streak >= this.stallThreshold) {
+            onEvent?.({ type: "error", text: `agent stalled: ${streak} text-only responses with incomplete tasks`, persisted: true });
             return "stalled";
           }
           pendingNudge = renderIncompleteTodoNudge(todos);
@@ -212,12 +211,11 @@ export class Agent {
         }
         return "ok";
       }
-      textOnlyStreak = 0;
+      stallDetector.resetTextOnly();
       const sig = msg.tool_calls
         .map((c) => `${c.function.name}:${c.function.arguments}`)
         .join("|");
-      stall = sig === lastSig ? stall + 1 : 1;
-      lastSig = sig;
+      const stall = stallDetector.noteToolSig(sig);
       if (stall >= this.stallThreshold) {
         const reason = `stalled: repeated identical tool calls: ${truncateText(sig, 200)}`;
         this.resolvePendingToolCalls(msg.tool_calls, reason);
@@ -229,7 +227,7 @@ export class Agent {
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})`, persisted: true });
         return "maxTurns";
       }
-      const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
+      const results = await runToolCalls(msg.tool_calls, { tools: this.tools, cwd: this.cwd }, onEvent, signal);
       if (!results) return "aborted";
       for (const r of results) {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, resultSummary: r.resultSummary, isError: r.isError });
@@ -282,36 +280,4 @@ export class Agent {
     }
   }
 
-  private async runToolCalls(
-    calls: NonNullable<LLMAssistantMessage["tool_calls"]>,
-    onEvent?: (e: AgentEvent) => void,
-    signal?: AbortSignal
-  ): Promise<ToolCallResult[] | null> {
-    const results = await mapWithConcurrency(
-      calls,
-      MAX_PARALLEL_TOOL_CALLS,
-      (call) => this.executeToolCall(call, onEvent, signal),
-      signal
-    );
-    return signal?.aborted ? null : results;
-  }
-
-  private async executeToolCall(
-    call: NonNullable<LLMAssistantMessage["tool_calls"]>[number],
-    onEvent?: (e: AgentEvent) => void,
-    signal?: AbortSignal
-  ): Promise<ToolCallResult> {
-    const parsed = parseToolArgs(call.function.arguments);
-    const args = parsed.ok ? parsed.args : {};
-    const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);
-    const argsSummary = this.tools.summarizeArgs(call.function.name, args);
-    onEvent?.({ type: "toolStart", id: call.id, name: call.function.name, argsSummary, persisted: false });
-    const ctx: ToolContext = { signal, cwd: this.cwd };
-    const start = performance.now();
-    const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
-    const duration = performance.now() - start;
-    const resultSummary = this.tools.summarizeResult(call.function.name, result, duration);
-    if (!signal?.aborted) onEvent?.({ type: "toolEnd", id: call.id, result: result.content, isError: result.isError, resultSummary, persisted: false });
-    return { id: call.id, content: result.content, resultSummary, isError: result.isError, args };
-  }
 }
