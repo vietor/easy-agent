@@ -1,4 +1,4 @@
-import type { Skill } from "../skills/types.js";
+import type { Skill } from "../skills/loader.js";
 import { SKILL_TOOL_NAME } from "../util/constants.js";
 import type { Tool } from "./types.js";
 import { toolError } from "./types.js";

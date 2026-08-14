@@ -2,7 +2,11 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tryReadFileText } from "../util/file.js";
 
-import type { Skill } from "./types.js";
+export interface Skill {
+  name: string;
+  description?: string;
+  prompt: string;
+}
 
 function parseSkillFile(skillName: string, skillFile: string): Skill | undefined {
   const content = tryReadFileText(skillFile);

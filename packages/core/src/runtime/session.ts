@@ -5,7 +5,7 @@ import { toErrorMessage } from "../util/text.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
-import type { Skill } from "../skills/types.js";
+import type { Skill } from "../skills/loader.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import { registerBuiltinTools, type BuiltinToolsOptions } from "../tools/builtins.js";
 import type { Todo, Tool } from "../tools/types.js";

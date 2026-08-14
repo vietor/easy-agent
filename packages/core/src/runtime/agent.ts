@@ -6,7 +6,7 @@ import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { AgentEvent } from "./events.js";
-import type { Skill } from "../skills/types.js";
+import type { Skill } from "../skills/loader.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolSchema, Todo } from "../tools/types.js";
 import { runToolCalls } from "./tool-calls.js";

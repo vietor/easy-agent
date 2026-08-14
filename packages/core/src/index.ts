@@ -5,7 +5,7 @@ export { INITIAL_RUN_METRICS, type AgentEvent, type TimelineEvent, type RunMetri
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus, TextResult } from "./tools/types.js";
 export { toolError } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/builtins.js";
-export type { Skill } from "./skills/types.js";
+export type { Skill } from "./skills/loader.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export type { MCPClientInfo, MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig, LLMThinkingEffort, LLMBackend } from "./llm/types.js";

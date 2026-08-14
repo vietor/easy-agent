@@ -10,7 +10,7 @@ import { createAskUserTool } from "./ask-user.js";
 import { createSkillTool } from "./skill.js";
 import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
-import type { Skill } from "../skills/types.js";
+import type { Skill } from "../skills/loader.js";
 import type { ToolRegistry } from "./registry.js";
 
 export interface BuiltinToolsOptions {
