@@ -11,7 +11,7 @@ export function isAbortError(e: unknown): boolean {
   return name === "AbortError" || name === "APIUserAbortError";
 }
 
-export function exponentialBackoff(attempt: number): number {
+export function backoffDelay(attempt: number): number {
   return 1000 * 2 ** attempt;
 }
 
@@ -61,7 +61,7 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return withTimeoutError(() => p, ms, undefined, `timeout after ${ms}ms`);
 }
 
-export function timeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
+export function withTimeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
   return signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
 }
 
@@ -101,7 +101,7 @@ export async function withTimeoutError<T>(
   timeoutMessage: string,
   otherError?: (e: unknown) => unknown
 ): Promise<T> {
-  const timed = timeoutSignal(signal, ms);
+  const timed = withTimeoutSignal(signal, ms);
   try {
     return await fn(timed);
   } catch (e) {

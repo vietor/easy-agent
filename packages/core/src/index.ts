@@ -11,7 +11,7 @@ export type { LLMConfig, LLMThinkingEffort, LLMBackend } from "./llm/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export { tryReadFileText } from "./util/file.js";
 export { htmlToMarkdown } from "./util/html.js";
-export { formatSeconds, formatCompactNumber, getTextBytes, ellipsisText, errorMessage, } from "./util/text.js";
+export { formatSeconds, formatCompactNumber, getTextBytes, truncateText, toErrorMessage, } from "./util/text.js";
 export { MAX_SUMMARY_LENGTH } from "./util/constants.js";
 export { netFetch } from "./util/net.js";
 export { type ProcessResult, runProcess } from "./util/subprocess.js";

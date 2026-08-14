@@ -24,7 +24,7 @@ export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 
-export function ellipsisText(content: string, length: number, showChars?: boolean) {
+export function truncateText(content: string, length: number, showChars?: boolean) {
   const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   if (text.length <= length) return text;
   const truncated = text.slice(0, length) + "…";
@@ -42,6 +42,6 @@ export function summaryCount(word: "file" | "match", count: number, isError: boo
   return `Found ${count} ${count === 1 ? word : plural}`;
 }
 
-export function errorMessage(e: unknown): string {
+export function toErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }

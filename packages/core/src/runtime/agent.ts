@@ -1,6 +1,6 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
-import { ellipsisText, errorMessage } from "../util/text.js";
+import { truncateText, toErrorMessage } from "../util/text.js";
 import { parseToolArgs, textOf, type AssistantMessage, type LLMClient, type Message } from "../llm/types.js";
 import { Conversation, type ConversationMessage } from "./conversation.js";
 import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
@@ -218,7 +218,7 @@ export class Agent {
       stall = sig === lastSig ? stall + 1 : 1;
       lastSig = sig;
       if (stall >= this.stallThreshold) {
-        const reason = `stalled: repeated identical tool calls: ${ellipsisText(sig, 200)}`;
+        const reason = `stalled: repeated identical tool calls: ${truncateText(sig, 200)}`;
         this.resolvePendingToolCalls(msg.tool_calls, reason);
         onEvent?.({ type: "error", text: `agent stalled: ${reason}` });
         return "stalled";
@@ -263,7 +263,7 @@ export class Agent {
         thinking: opts.thinking,
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),
-        onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: errorMessage(error) }),
+        onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error) }),
         onUsage: (inputTokens, outputTokens) => {
           this.inputTokens = inputTokens;
           this.outputTokens = outputTokens;
@@ -276,7 +276,7 @@ export class Agent {
         onAbort();
         return { ok: false, status: "aborted" };
       }
-      opts.onEvent?.({ type: "error", text: errorMessage(e) });
+      opts.onEvent?.({ type: "error", text: toErrorMessage(e) });
       return { ok: false, status: "error" };
     }
   }

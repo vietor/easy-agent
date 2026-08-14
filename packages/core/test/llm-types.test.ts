@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseToolArgs } from "../src/llm/types.js";
-import { errorMessage } from "../src/util/text.js";
+import { toErrorMessage } from "../src/util/text.js";
 
 test("missing or empty arguments parse to an empty object", () => {
   assert.deepEqual(parseToolArgs(undefined), { ok: true, args: {} });
@@ -29,8 +29,8 @@ test("invalid JSON is rejected with the parse error", () => {
   if (!parsed.ok) assert.ok(parsed.error);
 });
 
-test("errorMessage renders any thrown value as text", () => {
-  assert.equal(errorMessage(new Error("boom")), "boom");
-  assert.equal(errorMessage("boom"), "boom");
-  assert.equal(errorMessage(null), "null");
+test("toErrorMessage renders any thrown value as text", () => {
+  assert.equal(toErrorMessage(new Error("boom")), "boom");
+  assert.equal(toErrorMessage("boom"), "boom");
+  assert.equal(toErrorMessage(null), "null");
 });

@@ -1,4 +1,4 @@
-import { errorMessage, type Session } from "@vietor/agent-core";
+import { toErrorMessage, type Session } from "@vietor/agent-core";
 import { builtinCommands } from "./builtin.js";
 import type { CommandContext, CommandSchema } from "./types.js";
 
@@ -11,14 +11,14 @@ export async function executeCommand(name: string, session: Session, requestExit
     try {
       await cmd.execute(ctx);
     } catch (e) {
-      ctx.error(errorMessage(e));
+      ctx.error(toErrorMessage(e));
     }
     return;
   }
   try {
     if (await session.runSkill(name)) return;
   } catch (e) {
-    session.addError(errorMessage(e));
+    session.addError(toErrorMessage(e));
     return;
   }
   session.addError(`unknown command: /${name}`);

@@ -652,30 +652,30 @@ import { formatCompactNumber } from "@vietor/agent-core";
 formatCompactNumber(1234);   // "1.23K"
 ```
 
-### `ellipsisText`
+### `truncateText`
 
-**`ellipsisText(content: string, length: number, showChars?: boolean): string`**
+**`truncateText(content: string, length: number, showChars?: boolean): string`**
 
 Collapse whitespace and truncate text to `length` characters with a trailing `…`. With `showChars`, append the total character count when truncated — useful for text that changes size over time.
 
 ```ts
-import { ellipsisText } from "@vietor/agent-core";
+import { truncateText } from "@vietor/agent-core";
 
-ellipsisText("a\nvery   long line", 8);              // "a very l…"
-ellipsisText("a very long line here", 8, true);      // "a very l… (21)"
+truncateText("a\nvery   long line", 8);              // "a very l…"
+truncateText("a very long line here", 8, true);      // "a very l… (21)"
 ```
 
-### `errorMessage`
+### `toErrorMessage`
 
-**`errorMessage(e: unknown): string`**
+**`toErrorMessage(e: unknown): string`**
 
 Stringify an unknown error for display (`e instanceof Error ? e.message : String(e)`). Used across core for error events.
 
 ```ts
-import { errorMessage } from "@vietor/agent-core";
+import { toErrorMessage } from "@vietor/agent-core";
 
-errorMessage(new Error("boom"));   // "boom"
-errorMessage("oops");              // "oops"
+toErrorMessage(new Error("boom"));   // "boom"
+toErrorMessage("oops");              // "oops"
 ```
 
 ### `netFetch`

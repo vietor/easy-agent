@@ -9,7 +9,7 @@ export function tryReadFileText(path: string): string | undefined {
   return undefined;
 }
 
-export function requirePath(args: Record<string, unknown>, cwd: string): string {
+export function resolveRequiredPath(args: Record<string, unknown>, cwd: string): string {
   const path = args.path;
   if (typeof path !== "string" || !path) throw new Error("path is required");
   return resolve(cwd, path);

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
-import { errorMessage } from "../util/text.js";
+import { toErrorMessage } from "../util/text.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServers } from "../mcp/server.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
@@ -224,7 +224,7 @@ export class Session {
       status = isAbortError(e) ? "aborted" : "error";
       this.flushStreaming();
       if (status !== "aborted") {
-        this.emit({ type: "error", text: errorMessage(e) });
+        this.emit({ type: "error", text: toErrorMessage(e) });
       }
     } finally {
       clearInterval(this.timer);

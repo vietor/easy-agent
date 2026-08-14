@@ -6,7 +6,7 @@ import type { MCPServerConfig, MCPServerInfo } from "./types.js";
 import { MCPClient } from "./client.js";
 import { withTimeout, withTimeoutError } from "../util/async.js";
 import { CALL_TIMEOUT_MS, MCP_CONNECT_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
-import { errorMessage } from "../util/text.js";
+import { toErrorMessage } from "../util/text.js";
 import type { CallToolResult, Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 
 const SUMMARY_PRIORITY = ["url", "path", "file_path", "filePath", "command", "query", "pattern", "name", "text", "selector", "uid"];
@@ -102,7 +102,7 @@ export class MCPServers {
     try {
       client = new MCPClient(cfg, this.clientInfo);
     } catch (e) {
-      this.markFailed(name, type, errorMessage(e));
+      this.markFailed(name, type, toErrorMessage(e));
       return;
     }
     this.pending.add(client);
@@ -117,7 +117,7 @@ export class MCPServers {
     } catch (e) {
       client.kill();
       if (!this.disposed) {
-        this.markFailed(name, type, errorMessage(e));
+        this.markFailed(name, type, toErrorMessage(e));
       }
     } finally {
       this.pending.delete(client);

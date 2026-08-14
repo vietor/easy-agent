@@ -1,5 +1,5 @@
 import type { ToolSchema } from "../tools/types.js";
-import { errorMessage } from "../util/text.js";
+import { toErrorMessage } from "../util/text.js";
 
 export type LLMThinkingEffort = "high" | "max";
 
@@ -105,6 +105,6 @@ export function parseToolArgs(
     }
     return { ok: true, args: parsed as Record<string, unknown> };
   } catch (e) {
-    return { ok: false, error: errorMessage(e) };
+    return { ok: false, error: toErrorMessage(e) };
   }
 }

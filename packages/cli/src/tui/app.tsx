@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_METRICS, errorMessage, type Session, type RunMetrics, type StreamEvent, type SessionView } from "@vietor/agent-core";
+import { INITIAL_RUN_METRICS, toErrorMessage, type Session, type RunMetrics, type StreamEvent, type SessionView } from "@vietor/agent-core";
 import { executeCommand, commandSchemas } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
@@ -96,7 +96,7 @@ export function App({ session }: { session: Session }) {
     try {
       await session.prompt(text);
     } catch (e) {
-      session.addError(errorMessage(e));
+      session.addError(toErrorMessage(e));
     }
   }
 

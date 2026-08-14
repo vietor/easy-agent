@@ -1,9 +1,9 @@
 import type { Tool } from "./types.js";
 import { netFetch } from "../util/net.js";
-import { exponentialBackoff, isAbortError, withRetry, withTimeoutError } from "../util/async.js";
+import { backoffDelay, isAbortError, withRetry, withTimeoutError } from "../util/async.js";
 import { MAX_WEB_FETCH_MB, mbToBytes, REQUEST_TIMEOUT_MS, WEB_FETCH_RETRIES } from "../util/constants.js";
 import { htmlToMarkdown } from "../util/html.js";
-import { errorMessage, summaryBytes } from "../util/text.js";
+import { toErrorMessage, summaryBytes } from "../util/text.js";
 
 function mimeFrom(contentType: string): string {
   return contentType.split(";", 1)[0].trim().toLowerCase();
@@ -62,7 +62,7 @@ async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<s
     `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
   ).catch((e) => {
     if (isAbortError(e)) throw e;
-    throw new WebFetchError(`failed to fetch ${url}: ${errorMessage(e)}`);
+    throw new WebFetchError(`failed to fetch ${url}: ${toErrorMessage(e)}`);
   });
   if (!res.ok) {
     const message = `${res.status} ${res.statusText} for ${url}`;
@@ -103,7 +103,7 @@ export const webFetchTool: Tool = {
         {
           retries: WEB_FETCH_RETRIES,
           retryable: (e) => e instanceof WebFetchError,
-          backoff: exponentialBackoff,
+          backoff: backoffDelay,
           signal: ctx.signal,
         }
       ),

@@ -13,7 +13,7 @@ import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import { MAX_ARGS_SUMMARY_LENGTH, MAX_SUMMARY_LENGTH } from "../util/constants.js";
-import { errorMessage, formatSeconds, formatCompactNumber, getTextBytes, ellipsisText } from "../util/text.js";
+import { toErrorMessage, formatSeconds, formatCompactNumber, getTextBytes, truncateText } from "../util/text.js";
 import type { TextResult } from "./types.js";
 
 function lineCount(content: string): number {
@@ -22,7 +22,7 @@ function lineCount(content: string): number {
 
 function defaultResultSummary(result: TextResult): string {
   if (result.isError) {
-    return ellipsisText(result.content, MAX_SUMMARY_LENGTH);
+    return truncateText(result.content, MAX_SUMMARY_LENGTH);
   }
   const bytes = getTextBytes(result.content);
   const lines = lineCount(result.content);
@@ -79,7 +79,7 @@ export class ToolRegistry {
     try {
       return await tool.execute(args, ctx);
     } catch (e) {
-      return toolError(errorMessage(e));
+      return toolError(toErrorMessage(e));
     }
   }
 
@@ -105,7 +105,7 @@ export class ToolRegistry {
         parts.push(v);
       }
     }
-    return ellipsisText(parts.join(" "), MAX_ARGS_SUMMARY_LENGTH, true);
+    return truncateText(parts.join(" "), MAX_ARGS_SUMMARY_LENGTH, true);
   }
 }
 

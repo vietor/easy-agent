@@ -2,7 +2,7 @@ import { EmptyAssistantMessageError, type Adapter, type LLMClient, type LLMConfi
 import { CompletionsAdapter } from "./completions.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { ResponsesAdapter } from "./responses.js";
-import { isAbortError, withRetry, exponentialBackoff } from "../util/async.js";
+import { isAbortError, withRetry, backoffDelay } from "../util/async.js";
 import { DEFAULT_BACKEND, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_THINKING_EFFORT, LLM_MAX_RETRIES } from "../util/constants.js";
 
 export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
@@ -26,7 +26,7 @@ export function withRetryChat(adapter: Adapter): LLMClient["chat"] {
       {
         retries: LLM_MAX_RETRIES,
         retryable: (e) => !sawToolCall && isRetryableError(e, opts.signal),
-        backoff: exponentialBackoff,
+        backoff: backoffDelay,
         onRetry: opts.onRetry,
         signal: opts.signal,
       }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AbortedError, isAbortError, isTimeout, timeoutSignal, withAbort, withRetry, withTimeoutError } from "../src/util/async.js";
+import { AbortedError, isAbortError, isTimeout, withTimeoutSignal, withAbort, withRetry, withTimeoutError } from "../src/util/async.js";
 import { sleep, waitUntil } from "./helpers.js";
 
 test("AbortedError carries name and message", () => {
@@ -89,11 +89,11 @@ test("withRetry does not retry non-retryable errors", async () => {
 
 test("isTimeout reports the timeout reason, not an external abort", async () => {
   const controller = new AbortController();
-  const timed = timeoutSignal(controller.signal, 20);
+  const timed = withTimeoutSignal(controller.signal, 20);
   await sleep(40);
   assert.equal(timed.aborted, true);
   assert.equal(isTimeout(timed), true);
-  const external = timeoutSignal(controller.signal, 1000);
+  const external = withTimeoutSignal(controller.signal, 1000);
   controller.abort();
   assert.equal(external.aborted, true);
   assert.equal(isTimeout(external), false);
