@@ -1,6 +1,7 @@
 import { contextLimitFor, createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
-import { ToolRegistry, type BuiltInToolsOptions } from "./tools/registry.js";
+import { ToolRegistry } from "./tools/registry.js";
+import type { BuiltinToolsOptions } from "./tools/builtins.js";
 import { MCPServers } from "./mcp/server.js";
 import { TOOL_USE_PROMPT } from "./runtime/prompts.js";
 import { DEFAULT_MAX_TURNS } from "./util/constants.js";
@@ -12,7 +13,7 @@ import type { SessionOptions } from "./runtime/session.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
 
-function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltInToolsOptions | false | undefined, maxTurns: number): string {
+function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number): string {
   const parts = [base];
   const toolUseLines = [TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`];
   if (typeof builtInTools === "object") {

@@ -4,7 +4,7 @@ export type { ConversationMessage } from "./runtime/conversation.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export { toolError, type TextResult } from "./tools/types.js";
 export type { ClientInfo } from "./mcp/types.js";
-export type { BuiltInToolsOptions } from "./tools/registry.js";
+export type { BuiltinToolsOptions } from "./tools/builtins.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig, LLMThinkingEffort, LLMBackend } from "./llm/types.js";
