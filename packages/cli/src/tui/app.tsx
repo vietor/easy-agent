@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
 import { INITIAL_RUN_METRICS, type AgentEvent, type Session, type RunMetrics, type SessionView } from "@vietor/agent-core";
 import { toErrorMessage } from "@vietor/agent-core/util";
-import { executeCommand, commandSchemas } from "../commands/dispatch.js";
+import { executeSlashCommand, slashCommandInfos } from "../commands/dispatch.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
 import { TodoView } from "./todo-view.js";
@@ -42,7 +42,7 @@ export function App({ session }: { session: Session }) {
   const streaming = useThrottledText(STREAM_FRAME_MS);
   const thinking = useThrottledText(STREAM_FRAME_MS);
   const [showThinking, setShowThinking] = useState(false);
-  const allCmds = useMemo(() => commandSchemas(session), [session]);
+  const allCmds = useMemo(() => slashCommandInfos(session), [session]);
   const pendingQuestion = session.pendingQuestion;
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export function App({ session }: { session: Session }) {
   });
 
   async function handleCommand(name: string) {
-    await executeCommand(name, session, exit);
+    await executeSlashCommand(name, session, exit);
   }
 
   async function handlePrompt(text: string) {

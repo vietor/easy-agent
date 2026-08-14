@@ -1,15 +1,15 @@
 import { writeFileSync } from "node:fs";
-import type { Command } from "./types.js";
+import type { SlashCommand } from "./types.js";
 
-export const clearCommand: Command = {
+export const clearCommand: SlashCommand = {
   name: "clear",
-  description: "Clear the conversation and log",
+  description: "Clear the session and log",
   async execute(ctx) {
     ctx.session.clear();
   },
 };
 
-export const mcpCommand: Command = {
+export const mcpCommand: SlashCommand = {
   name: "mcp",
   description: "List linked MCP servers",
   async execute(ctx) {
@@ -27,7 +27,7 @@ export const mcpCommand: Command = {
   },
 };
 
-export const compactCommand: Command = {
+export const compactCommand: SlashCommand = {
   name: "compact",
   description: "Compact the agent context",
   async execute(ctx) {
@@ -35,7 +35,7 @@ export const compactCommand: Command = {
   },
 };
 
-export const skillCommand: Command = {
+export const skillCommand: SlashCommand = {
   name: "skill",
   description: "List available skills",
   async execute(ctx) {
@@ -50,7 +50,7 @@ export const skillCommand: Command = {
   },
 };
 
-export const exitCommand: Command = {
+export const exitCommand: SlashCommand = {
   name: "exit",
   description: "Exit the conversation",
   async execute(ctx) {
@@ -58,37 +58,28 @@ export const exitCommand: Command = {
   },
 };
 
-export const exportCommand: Command = {
-  name: "export",
-  description: "Export the conversation to a JSONL file",
+export const saveCommand: SlashCommand = {
+  name: "save",
+  description: "Save the session to a JSONL file",
   async execute(ctx) {
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-    const file = `conversation-${ts}.jsonl`;
+    const file = `session-${ts}.jsonl`;
     const lines = ctx.session
       .export()
       .map((m) => JSON.stringify(m))
       .join("\n");
     writeFileSync(file, lines + "\n", "utf-8");
-    ctx.message(`exported to ${file}`);
+    ctx.message(`saved to ${file}`);
   },
 };
 
-export const quitCommand: Command = {
-  name: "quit",
-  description: "Exit the conversation",
-  async execute(ctx) {
-    ctx.requestExit();
-  },
-};
-
-export const builtinCommands: Command[] = [
+export const builtinCommands: SlashCommand[] = [
   clearCommand,
   mcpCommand,
   compactCommand,
   skillCommand,
   exitCommand,
-  quitCommand,
-  exportCommand,
+  saveCommand,
 ];

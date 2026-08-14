@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { CommandSchema } from "../commands/types.js";
+import type { SlashCommandInfo } from "../commands/types.js";
 
 interface PromptOrCommandInputProps {
-  commands: CommandSchema[];
+  commands: SlashCommandInfo[];
   onCommand: (name: string) => void;
   onPrompt: (value: string) => void;
 }
@@ -42,7 +42,7 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
   );
 
   const visibleItems = useMemo(() => {
-    if (!showMenu || filtered.length === 0) return { start: 0, items: [] as CommandSchema[] };
+    if (!showMenu || filtered.length === 0) return { start: 0, items: [] as SlashCommandInfo[] };
     const total = filtered.length;
     const half = Math.floor(MAX_ITEMS / 2);
     let start = Math.max(0, selectedIndex - half);
