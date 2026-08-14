@@ -9,7 +9,6 @@ import type { Skill } from "../skills/loader.js";
 import { registerBuiltinTools, type BuiltinToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo, Tool } from "../tools/types.js";
 import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineEvent } from "./events.js";
-import type { SessionPersistence, SessionData } from "./persistence.js";
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -146,7 +145,6 @@ export interface SessionOptions {
   builtInTools?: BuiltinToolsOptions | false;
   clientInfo?: MCPClientInfo;
   sessionId?: string;
-  persistence?: SessionPersistence;
   maxTurns?: number;
   stallThreshold?: number;
 }
@@ -161,6 +159,11 @@ export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcp
 export interface SessionView {
   timeline: readonly TimelineEvent[];
   todos: readonly Todo[];
+}
+
+export interface SessionState {
+  messages: SessionMessage[];
+  todos: Todo[];
 }
 
 export interface PromptResult {
@@ -194,11 +197,9 @@ export class Session {
   private tools: ToolRegistry;
   readonly cwd: string;
   readonly sessionId: string;
-  private persistence?: SessionPersistence;
 
   private viewCache: SessionView | null = null;
   private eventListeners = new Emitter<(e: SessionEvent) => void>();
-  private saveChain: Promise<void> = Promise.resolve();
 
   subscribe = (listener: () => void): (() => void) => {
     const on = () => { this.viewCache = null; listener(); };
@@ -275,7 +276,6 @@ export class Session {
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
     this.sessionId = deps.sessionId ?? randomUUID();
-    this.persistence = deps.persistence;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
     registerBuiltinTools(this.tools, deps.builtInTools, {
       ask: (q, o) => this.ask(q, o),
@@ -346,7 +346,6 @@ export class Session {
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
-      this.persistSnapshot();
     }
     return { status, reply: this.stream.reply };
   }
@@ -413,33 +412,22 @@ export class Session {
     this.agent.clear();
     this.timelineStore.clear();
     this.todoStore.set([]);
-    this.persistSnapshot();
-  }
-
-  private persistSnapshot(): void {
-    if (!this.persistence) return;
-    const state: SessionData = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
-    this.saveChain = this.saveChain.catch(() => {}).then(() => this.persistence!.saveAll(this.sessionId, state));
-  }
-
-  flush(): Promise<void> {
-    return this.saveChain;
   }
 
   export(): SessionMessage[] {
     return this.agent.export();
   }
 
-  async restore(): Promise<boolean> {
+  exportState(): SessionState {
+    return { messages: this.conversation.export(), todos: [...this.todoStore.all] };
+  }
+
+  importState(state: SessionState): void {
     this.rejectIfBusy();
-    if (!this.persistence) return false;
-    const state = await this.persistence.load(this.sessionId);
-    if (!state) return false;
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
     this.timelineStore.rebuild(toTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
     this.viewCache = null;
-    return true;
   }
 
   async compact(): Promise<RunStatus> {

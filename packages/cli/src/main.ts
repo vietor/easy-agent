@@ -104,32 +104,38 @@ export async function main(argv: string[] = []): Promise<void> {
     },
     cwd: cwd,
     sessionId,
-    persistence: store,
   });
 
   if (resume) {
-    const restored = await session.restore();
-    if (!restored) {
+    const state = await store.load(sessionId);
+    if (!state) {
       console.error(`Session not found: ${sessionId}`);
       process.exit(1);
     }
+    session.importState(state);
   }
+
+  let saveChain: Promise<void> = Promise.resolve();
+  const persist = (): void => {
+    const state = session.exportState();
+    saveChain = saveChain.catch(() => {}).then(() => store.saveAll(sessionId, state));
+  };
 
   let shuttingDown = false;
   const shutdown = () => {
     if (shuttingDown) process.exit(1);
     shuttingDown = true;
     session.dispose();
-    session.flush().catch(() => {}).finally(() => process.exit(0));
+    saveChain.catch(() => {}).finally(() => process.exit(0));
   };
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
 
   process.stdout.write("[2J[H");
-  const app = startApp(session);
+  const app = startApp(session, persist);
   await app.waitUntilExit().finally(async () => {
     session.dispose();
-    await session.flush();
+    await saveChain;
     console.log(["Resume this session with:", `${program.name()} --resume ${sessionId}`].join("\n"));
   });
 }

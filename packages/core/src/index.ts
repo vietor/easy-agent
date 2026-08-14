@@ -1,4 +1,4 @@
-export { Session, SessionBusyError, type SessionOptions, type SessionView, type PromptResult } from "./runtime/session.js";
+export { Session, SessionBusyError, type SessionOptions, type SessionView, type SessionState, type PromptResult } from "./runtime/session.js";
 export type { RunStatus } from "./runtime/agent.js";
 export type { SessionMessage } from "./runtime/session-messages.js";
 export { INITIAL_RUN_METRICS, type SessionEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";
@@ -10,4 +10,3 @@ export { tryLoadSkills } from "./skills/loader.js";
 export type { MCPClientInfo, MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig, LLMThinkingEffort, LLMBackend } from "./llm/types.js";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";
-export type { SessionPersistence, SessionData, SessionMeta } from "./runtime/persistence.js";

@@ -68,7 +68,7 @@ function useSessionStream(session: Session) {
   return { runMetrics, streaming, thinking, showThinking, setShowThinking };
 }
 
-export function App({ session }: { session: Session }) {
+export function App({ session, persist }: { session: Session; persist: () => void }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
@@ -94,12 +94,13 @@ export function App({ session }: { session: Session }) {
   });
 
   async function handleCommand(name: string) {
-    await executeSlashCommand(name, session, exit);
+    await executeSlashCommand(name, session, exit, persist);
   }
 
   async function handlePrompt(text: string) {
     try {
       await session.prompt(text);
+      persist();
     } catch (e) {
       session.addError(toErrorMessage(e));
     }
@@ -184,6 +185,6 @@ function renderThinking(text: string, expanded: boolean): ReactNode {
   );
 }
 
-export function startApp(session: Session): ReturnType<typeof render> {
-  return render(<App session={session} />, { exitOnCtrlC: false, incrementalRendering: true });
+export function startApp(session: Session, persist: () => void): ReturnType<typeof render> {
+  return render(<App session={session} persist={persist} />, { exitOnCtrlC: false, incrementalRendering: true });
 }

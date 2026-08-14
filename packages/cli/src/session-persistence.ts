@@ -2,10 +2,18 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { type SessionMessage, type SessionMeta, type SessionPersistence, type SessionData, type Todo } from "@vietor/agent-core";
+import { type SessionMessage, type SessionState, type Todo } from "@vietor/agent-core";
 import { summarizeText } from "@vietor/agent-core/util";
 
 const MAX_TITLE_LENGTH = 75;
+
+export interface SessionMeta {
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  cwd?: string;
+}
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
@@ -20,7 +28,7 @@ function parseJsonLines<T>(text: string): T[] {
   return out;
 }
 
-export class FileSessionPersistence implements SessionPersistence {
+export class FileSessionPersistence {
   private readonly dir: string;
   private writtenCounts = new Map<string, number>();
 
@@ -36,7 +44,7 @@ export class FileSessionPersistence implements SessionPersistence {
     if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true });
   }
 
-  async load(sessionId: string): Promise<SessionData | null> {
+  async load(sessionId: string): Promise<SessionState | null> {
     const path = this.file(sessionId);
     if (!existsSync(path)) return null;
     const messages: SessionMessage[] = [];
@@ -49,7 +57,7 @@ export class FileSessionPersistence implements SessionPersistence {
     return { messages, todos };
   }
 
-  async saveAll(sessionId: string, state: SessionData): Promise<void> {
+  async saveAll(sessionId: string, state: SessionState): Promise<void> {
     this.ensureDir();
     const written = this.writtenCounts.get(sessionId) ?? 0;
     const shrink = state.messages.length < written;

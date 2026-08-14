@@ -17,6 +17,7 @@ Requires Node.js ≥ 22 (ESM only).
 - `BuiltInToolsOptions` → `BuiltinToolsOptions`.
 - Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatSeconds`, `formatCompactNumber`, `summarizeText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
 - Tool-result summaries count non-empty lines (previously every newline).
+- `SessionPersistence`/`SessionData`/`SessionMeta` removed; persistence now lives in the host via `session.exportState()`/`session.importState()`. `session.restore()`, `session.flush()`, and `SessionOptions.persistence` are removed.
 
 ---
 
@@ -61,8 +62,7 @@ const session = await createSession({
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
 | `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
-| `sessionId` | `string` | `randomUUID()` | Unique session identifier, used as key for persistence. |
-| `persistence` | `SessionPersistence` | `undefined` | Persistence backend for save/resume. When set, the session auto-saves after every turn. |
+| `sessionId` | `string` | `randomUUID()` | Unique session identifier. |
 | `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 
@@ -106,8 +106,9 @@ const session = await createSession({ systemPrompt, llm });
 | Method | Description |
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
-| `restore(): Promise<boolean>` | Reload persisted messages and todos from the `SessionPersistence` backend into the session. Returns `false` (loading nothing) when the backend has no saved state for this session. |
+| `importState(state: SessionState): void` | Replace conversation messages and todos from a previously exported `SessionState`, rebuilding the timeline. Throws `SessionBusyError` if a run is in progress. |
 | `export(): SessionMessage[]` | Return all session messages (excluding the system prompt). |
+| `exportState(): SessionState` | Return the full session state (`{ messages, todos }`) for the host to persist; `export()` returns only messages. |
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
@@ -118,7 +119,6 @@ const session = await createSession({ systemPrompt, llm });
 | Method | Description |
 |---|---|
 | `onEvent(listener: (e: SessionEvent) => void): () => void` | Subscribe to structured incremental events (streaming deltas, tool calls, errors, questions, run state). Supports multiple listeners; returns an unsubscribe function. |
-| `flush(): Promise<void>` | Resolve once all pending persistence writes for this session have settled. |
 
 #### `SessionEvent`
 
@@ -217,14 +217,14 @@ A `Session` runs one prompt/compact at a time. While a run is in progress, calli
 
 | Driver method | Behavior when busy |
 |---|---|
-| `prompt`, `compact`, `runSkill`, `clear`, `restore` | Throws `SessionBusyError`. |
+| `prompt`, `compact`, `runSkill`, `clear`, `importState` | Throws `SessionBusyError`. |
 
 These remain callable during a run (they are inputs to the running loop, or read-only/teardown):
 
 | Method | Behavior when busy |
 |---|---|
 | `abort`, `submitAnswer` | Allowed - control the running loop. |
-| `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `export`, `flush`, `dispose`, accessors | Allowed. |
+| `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `export`, `exportState`, `dispose`, accessors | Allowed. |
 
 ```ts
 import { SessionBusyError } from "@vietor/agent-core";
@@ -350,41 +350,18 @@ Both aliases are exported so hosts can reference them in their own config types.
 - `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `thinkingEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
 - `"responses"` - OpenAI Responses API (via `openai` SDK). Tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `thinkingEffort` is sent as `reasoning.effort`, and reasoning summaries are streamed via `reasoning.summary_text`.
 
-### `SessionPersistence`
+### `SessionState`
 
-Async interface for save/resume. Implement to persist session state between runs (filesystem, database, etc.).
-
-```ts
-interface SessionPersistence {
-  load(sessionId: string): Promise<SessionData | null>;
-  saveAll(sessionId: string, state: SessionData): Promise<void>;
-  listSessions(): Promise<SessionMeta[]>;
-  delete?(sessionId: string): Promise<void>;
-}
-```
-
-`SessionData` is what `load`/`saveAll` persist per session:
+The payload exchanged with a host's persistence layer — the complete state to save and the input to restore:
 
 ```ts
-interface SessionData {
+interface SessionState {
   messages: SessionMessage[];
   todos: Todo[];
 }
 ```
 
-`SessionMeta` is returned by `listSessions`. Metadata is owned by the implementation: `saveAll` only persists messages and todos, so implementations update `updatedAt` on write and set `createdAt` on first creation without core overwriting a title set elsewhere.
-
-```ts
-interface SessionMeta {
-  id: string;
-  title?: string;
-  createdAt: number;
-  updatedAt: number;
-  cwd?: string;
-}
-```
-
-Persistence writes are asynchronous and serialized per session: `saveAll` is queued internally so a run never blocks on storage. Call `session.flush()` to await any pending write (e.g. before tearing down a session).
+Core has no storage backend and never saves on its own. The host calls `session.exportState()` to snapshot the current state (e.g. after each prompt) and `session.importState(state)` to restore one — import is synchronous and rebuilds the timeline from the messages. Storage concerns (serialization, file layout, write serialization) are entirely the host's; `sessionId` is the suggested storage key.
 
 ### `Todo`
 

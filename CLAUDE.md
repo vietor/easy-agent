@@ -17,7 +17,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 
 ## Layout
 
-- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `SessionMessages`, `Timeline`, `sub-agent-runner`, `prompts`, `events.ts`, `persistence.ts`
+- `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `SessionMessages`, `Timeline`, `sub-agent-runner`, `prompts`, `events.ts`
 - `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registry, schemas, summaries, registration)
 - `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `messages.ts` (message family), `client.ts`, `base.ts`, `anthropic.ts`, `responses.ts`, `completions.ts` (wire backends)
 - `core/src/mcp/` — `manager.ts` (client-side server manager) + `client.ts` (single-server client) for stdio + Streamable HTTP
@@ -57,6 +57,7 @@ These came out of deliberate refactors; treat as final unless the user explicitl
 - **Util names must match behavior**: `countNonEmptyLines` counts non-empty lines, `summarizeText` collapses whitespace and truncates with `…`, `withTimeoutFn` is the function variant of `withTimeout`. Don't rename these back to misleading names (`countLines`, `truncateText`, `withTimeoutError`).
 - **Todo status glyphs live in consumers** (CLI), not in core types.
 - **Dead code is removed, not kept** — don't resurrect deleted code paths.
+- **Session persistence lives in the CLI** — core has no storage backend and never saves on its own; it exposes `exportState()`/`importState()` only. Don't re-add a persistence interface or save hooks to core.
 
 ## Change Conventions
 

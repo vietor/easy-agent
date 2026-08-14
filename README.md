@@ -12,7 +12,7 @@ An autonomous coding agent in the terminal — monorepo workspace.
 - **Multi-backend LLM client** — pluggable wire protocol that supports OpenAI Chat Completions (`"completions"`), Anthropic Messages API (`"anthropic"`), and OpenAI Responses API (`"responses"`) backends.
 - **Thinking effort** — configure `thinkingEffort` (`high` / `max`) to control thinking depth; displayed live in the TUI header.
 - **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
-- **Session persistence** — save/resume conversations with async `SessionPersistence` and `flush()` write-completion guarantees; CLI supports `--continue` / `--resume`.
+- **Session persistence** — the CLI saves/resumes conversations to JSONL files under `~/.easy-agent/projects/` with `--continue` / `--resume`; core exposes `exportState()` / `importState()` for hosts to build their own persistence on.
 - **Built-in tool system** — FileRead/Glob/Grep/WebFetch (read-only) plus Shell/FileWrite/Edit enabled by default; interactive tools AskUser, TodoWrite, and SubAgent (nested read-only explore/plan sub-agents) opt in via `builtinTools`, and Skill auto-registers when skills are loaded; `{ readOnly: true }` limits the session to read-only tools, `false` disables all — plus a simple `Tool` interface for custom tools.
 - **Skill system** — `SKILL.md` files in `~/.easy-agent/skills/` register as slash commands automatically, and the agent can invoke them itself via the built-in Skill tool.
 - **Context compaction** — auto-triggered LLM summarization when the conversation nears the token limit; also available as `/compact`.
@@ -53,7 +53,7 @@ easy-agent/
 ├── packages/
 │   ├── core/          # @vietor/agent-core — SDK framework (library)
 │   │   └── src/
-│   │       ├── runtime/             # Agent, Session, SessionMessages, Timeline, events, persistence, prompts, sub-agent-runner, todo-store
+│   │       ├── runtime/             # Agent, Session, SessionMessages, Timeline, events, prompts, sub-agent-runner, todo-store
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
 │   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
@@ -75,7 +75,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`AgentEvent` / `onEvent`), and async `SessionPersistence` for save/resume with `flush()` for write-completion guarantees. The `cli` package depends on `core` and provides the interactive terminal experience with session persistence (`--continue`/`--resume`) plus its own built-in slash commands and dispatcher.
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`AgentEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`) — it has no storage backend and never saves on its own. The `cli` package depends on `core` and provides the interactive terminal experience plus the JSONL session persistence (`--continue`/`--resume`) and its own built-in slash commands and dispatcher.
 
 ### Build order
 

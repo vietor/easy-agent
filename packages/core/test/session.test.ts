@@ -1,16 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Session } from "../src/runtime/session.js";
+import { Session, type SessionState } from "../src/runtime/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { waitUntil } from "./helpers.js";
-import type { SessionPersistence, SessionData } from "../src/runtime/persistence.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
-
-function memoryPersistence(state: SessionData): SessionPersistence {
-  return { load: async () => state, saveAll: async () => {}, listSessions: async () => [] };
-}
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const llm: LLMClient = {
@@ -87,7 +82,7 @@ test("a completed list re-created mid-run is cleared when the run settles", asyn
   assert.equal(session.getSnapshot().todos.length, 0);
 });
 
-test("restore replays persisted messages into the timeline", async () => {
+test("importState replays messages into the timeline", () => {
   const tools = new ToolRegistry();
   tools.register({
     name: "Echo",
@@ -96,7 +91,7 @@ test("restore replays persisted messages into the timeline", async () => {
     async execute() { return { content: "echoed" }; },
     summaryKeys: ["path"],
   });
-  const state: SessionData = {
+  const state: SessionState = {
     messages: [
       { role: "user", content: "read x" },
       {
@@ -115,9 +110,8 @@ test("restore replays persisted messages into the timeline", async () => {
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     sessionId: "s1",
-    persistence: memoryPersistence(state),
   });
-  assert.equal(await session.restore(), true);
+  session.importState(state);
   assert.equal(session.export().length, 3);
   const timeline = session.getSnapshot().timeline;
   assert.equal(timeline.filter((e) => e.type === "user").length, 1);
@@ -128,7 +122,7 @@ test("restore replays persisted messages into the timeline", async () => {
   assert.equal(tool.result, "echoed");
 });
 
-test("restore tolerates malformed persisted tool arguments", async () => {
+test("importState tolerates malformed persisted tool arguments", () => {
   const tools = new ToolRegistry();
   tools.register({
     name: "Echo",
@@ -137,7 +131,7 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     async execute() { return { content: "echoed" }; },
     summaryKeys: ["path"],
   });
-  const state: SessionData = {
+  const state: SessionState = {
     messages: [
       { role: "user", content: "go" },
       {
@@ -155,9 +149,8 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     sessionId: "s1",
-    persistence: memoryPersistence(state),
   });
-  assert.equal(await session.restore(), true);
+  session.importState(state);
   const tool = session.getSnapshot().timeline.find((e) => e.type === "tool");
   assert.ok(tool && tool.type === "tool");
   assert.equal(tool.argsSummary, "");
@@ -172,7 +165,7 @@ test("a restored session with dangling tool calls is healed before the next run"
     parameters: { type: "object", properties: {} },
     async execute() { return { content: "echoed" }; },
   });
-  const state: SessionData = {
+  const state: SessionState = {
     messages: [
       { role: "user", content: "go" },
       {
@@ -198,9 +191,8 @@ test("a restored session with dangling tool calls is healed before the next run"
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     sessionId: "s1",
-    persistence: memoryPersistence(state),
   });
-  assert.equal(await session.restore(), true);
+  session.importState(state);
   const { status } = await session.prompt("continue");
   assert.equal(status, "ok");
 });

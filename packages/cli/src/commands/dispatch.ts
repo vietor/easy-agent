@@ -5,7 +5,12 @@ import type { SlashCommandContext, SlashCommandInfo } from "./types.js";
 
 const commands = new Map(builtinCommands.map((c) => [c.name, c]));
 
-export async function executeSlashCommand(name: string, session: Session, requestExit: () => void): Promise<void> {
+export async function executeSlashCommand(
+  name: string,
+  session: Session,
+  requestExit: () => void,
+  persist: () => void
+): Promise<void> {
   const cmd = commands.get(name);
   if (cmd) {
     const ctx: SlashCommandContext = { session, message: session.addNotice, error: session.addError, requestExit };
@@ -14,10 +19,14 @@ export async function executeSlashCommand(name: string, session: Session, reques
     } catch (e) {
       ctx.error(toErrorMessage(e));
     }
+    persist();
     return;
   }
   try {
-    if (await session.runSkill(name)) return;
+    if (await session.runSkill(name)) {
+      persist();
+      return;
+    }
   } catch (e) {
     session.addError(toErrorMessage(e));
     return;
