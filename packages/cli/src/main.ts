@@ -6,7 +6,7 @@ import { loadConfig } from "./config.js";
 import { createSession, tryLoadSkills } from "@vietor/agent-core";
 import { startApp } from "./tui/app.js";
 import { getPackageInfo } from "./util/package.js";
-import { FileSessionPersistence } from "./session-store.js";
+import { FileSessionPersistence } from "./session-persistence.js";
 import { assembleSystemPrompt } from "./system-prompt.js";
 
 async function listSessions(store: FileSessionPersistence, name: string): Promise<void> {

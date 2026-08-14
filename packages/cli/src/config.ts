@@ -2,17 +2,19 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import type { LLMConfig, MCPServerConfig } from "@vietor/agent-core";
+import { DEFAULT_BACKEND, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_THINKING_EFFORT } from "@vietor/agent-core/util";
 
-const CONFIG_FILE = ".easy-agent.json";
+const CONFIG_PATH = join(".easy-agent", "config.json");
 
 const LLMConfigSchema = z.object({
   baseUrl: z.string(),
   apiKey: z.string(),
   model: z.string(),
-  thinkingEffort: z.enum(["high", "max"]).default("high"),
-  backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
-  maxInputTokens: z.number().int().positive().default(1_000_000),
-  maxOutputTokens: z.number().int().positive().default(128_000),
+  thinkingEffort: z.enum(["high", "max"]).default(DEFAULT_THINKING_EFFORT),
+  backend: z.enum(["completions", "anthropic", "responses"]).default(DEFAULT_BACKEND),
+  maxInputTokens: z.number().int().positive().default(DEFAULT_MAX_INPUT_TOKENS),
+  maxOutputTokens: z.number().int().positive().default(DEFAULT_MAX_OUTPUT_TOKENS),
 });
 
 const MCPServerConfigSchema = z.union([
@@ -36,28 +38,31 @@ const ConfigSchema = z.object({
   mcpServers: z.record(z.string(), MCPServerConfigSchema).optional(),
 });
 
-export type Config = z.infer<typeof ConfigSchema>;
+export interface Config {
+  llm: LLMConfig;
+  mcpServers?: Record<string, MCPServerConfig>;
+}
 
 export function loadConfig(): Config {
-  const path = join(homedir(), CONFIG_FILE);
+  const path = join(homedir(), CONFIG_PATH);
   let raw: string;
   try {
     raw = readFileSync(path, "utf-8");
   } catch {
-    throw new Error(`Config not found: create ~/${CONFIG_FILE} (see README for format).`);
+    throw new Error(`Config not found: create ~/${CONFIG_PATH} (see README for format).`);
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error(`Invalid JSON in ~/${CONFIG_FILE}.`);
+    throw new Error(`Invalid JSON in ~/${CONFIG_PATH}.`);
   }
   const result = ConfigSchema.safeParse(parsed);
   if (!result.success) {
     const issues = result.error.issues
       .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
       .join("\n  ");
-    throw new Error(`Invalid config ~/${CONFIG_FILE}:\n  ${issues}`);
+    throw new Error(`Invalid config ~/${CONFIG_PATH}:\n  ${issues}`);
   }
   return result.data;
 }
