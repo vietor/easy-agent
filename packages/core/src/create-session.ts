@@ -2,7 +2,7 @@ import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { ToolRegistry } from "./tools/registry.js";
 import type { BuiltinToolsOptions } from "./tools/builtins.js";
-import { MCPServers } from "./mcp/server.js";
+import { MCPServerManager } from "./mcp/manager.js";
 import { TOOL_USE_PROMPT } from "./runtime/prompts.js";
 import { DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
@@ -36,7 +36,7 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInToo
 export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llm);
   const tools = new ToolRegistry();
-  const mcp = new MCPServers(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
+  const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
 
   const session = new Session({
     ...opts,

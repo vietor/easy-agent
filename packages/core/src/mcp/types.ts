@@ -1,7 +1,9 @@
-export interface ClientInfo {
+export interface MCPClientInfo {
   name: string;
   version: string;
 }
+
+export type ServerType = "stdio" | "http";
 
 export type MCPServerConfig = StdioServerConfig | HttpServerConfig;
 
@@ -22,7 +24,7 @@ export interface HttpServerConfig {
 
 export interface MCPServerInfo {
   name: string;
-  type: "stdio" | "http";
+  type: ServerType;
   status: "pending" | "connected" | "failed" | "disabled";
   tools: string[];
   error?: string;

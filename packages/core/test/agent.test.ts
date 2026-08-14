@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { Session } from "../src/runtime/session.js";
-import { MCPServers } from "../src/mcp/server.js";
+import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { Skill } from "../src/skills/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
@@ -176,7 +176,7 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
     systemPrompt: "test",
     llm,
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
   });
   session.subscribe(() => {});
@@ -293,7 +293,7 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
     systemPrompt: "test",
     llm,
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
   });
   session.subscribe(() => {});
@@ -319,7 +319,7 @@ test("aborting during chat emits exactly one interrupted event", async () => {
     systemPrompt: "test",
     llm,
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
   });
   session.subscribe(() => {});

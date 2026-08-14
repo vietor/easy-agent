@@ -4,7 +4,7 @@ import { Session } from "../src/runtime/session.js";
 import { TimelineStore, toTimelineEntries } from "../src/runtime/timeline.js";
 import { TodoStore } from "../src/runtime/todo-store.js";
 import type { TimelineEvent } from "../src/runtime/timeline.js";
-import { MCPServers } from "../src/mcp/server.js";
+import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -116,7 +116,7 @@ test("restored timeline from persisted messages matches the live run (golden equ
     systemPrompt: "test",
     llm,
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
   });
   session.subscribe(() => {});

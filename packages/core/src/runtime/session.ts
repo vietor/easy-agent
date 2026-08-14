@@ -3,7 +3,7 @@ import type { LLMClient, LLMConfig } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { toErrorMessage } from "../util/text.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
-import type { MCPServers } from "../mcp/server.js";
+import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
@@ -11,7 +11,7 @@ import { registerBuiltinTools, type BuiltinToolsOptions } from "../tools/builtin
 import type { Todo, Tool } from "../tools/types.js";
 import { INITIAL_RUN_METRICS, type AgentEvent, type RunMetrics, type TimelineEvent } from "./events.js";
 import type { SessionPersistence, SessionData } from "./persistence.js";
-import type { ClientInfo } from "../mcp/types.js";
+import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Emitter } from "../util/emitter.js";
@@ -30,7 +30,7 @@ export interface SessionOptions {
   skills?: Skill[];
   mcpServers?: Record<string, MCPServerConfig>;
   builtInTools?: BuiltinToolsOptions | false;
-  clientInfo?: ClientInfo;
+  clientInfo?: MCPClientInfo;
   sessionId?: string;
   persistence?: SessionPersistence;
   maxTurns?: number;
@@ -40,7 +40,7 @@ export interface SessionOptions {
 export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
   llm: LLMClient;
   tools: ToolRegistry;
-  mcp: MCPServers;
+  mcp: MCPServerManager;
   contextLimit: number;
 }
 
@@ -63,7 +63,7 @@ export class SessionBusyError extends Error {
 
 export class Session {
   private agent: Agent;
-  private mcp: MCPServers;
+  private mcp: MCPServerManager;
   private skillsMap = new Map<string, Skill>();
   private resolveSkill = (name: string) => this.skillsMap.get(name);
   private timelineStore = new TimelineStore();

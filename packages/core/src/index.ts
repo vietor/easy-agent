@@ -3,7 +3,7 @@ export type { RunStatus } from "./runtime/agent.js";
 export type { SessionMessage } from "./runtime/session-messages.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus } from "./tools/types.js";
 export { toolError, type TextResult } from "./tools/types.js";
-export type { ClientInfo } from "./mcp/types.js";
+export type { MCPClientInfo } from "./mcp/types.js";
 export type { BuiltinToolsOptions } from "./tools/builtins.js";
 export type { Skill } from "./skills/types.js";
 export type { MCPServerConfig, MCPServerInfo } from "./mcp/types.js";

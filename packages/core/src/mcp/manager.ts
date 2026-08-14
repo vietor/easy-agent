@@ -1,8 +1,7 @@
 import type { Tool } from "../tools/types.js";
 import { toolError } from "../tools/types.js";
-import type { ClientInfo } from "./types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { MCPServerConfig, MCPServerInfo } from "./types.js";
+import type { MCPClientInfo, MCPServerConfig, MCPServerInfo, ServerType } from "./types.js";
 import { MCPClient } from "./client.js";
 import { withTimeout, withTimeoutError } from "../util/async.js";
 import { CALL_TIMEOUT_MS, MCP_CONNECT_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
@@ -31,8 +30,6 @@ function summaryCandidates(inputSchema: MCPTool["inputSchema"]): string[] {
   }
   return candidates;
 }
-
-type ServerType = "stdio" | "http";
 
 function extractContent(result: CallToolResult): string {
   const parts: string[] = [];
@@ -74,14 +71,14 @@ interface ServerEntry {
   error?: string;
 }
 
-export class MCPServers {
+export class MCPServerManager {
   private servers = new Map<string, ServerEntry>();
   private pending = new Set<MCPClient>();
   private disposed = false;
 
   constructor(
     private tools: ToolRegistry,
-    private clientInfo: ClientInfo,
+    private clientInfo: MCPClientInfo,
   ) {}
 
   async connect(mcpServers: Record<string, MCPServerConfig> = {}): Promise<void> {

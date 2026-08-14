@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Session } from "../src/runtime/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import { MCPServers } from "../src/mcp/server.js";
+import { MCPServerManager } from "../src/mcp/manager.js";
 import { waitUntil } from "./helpers.js";
 import type { SessionPersistence, SessionData } from "../src/runtime/persistence.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
@@ -41,7 +41,7 @@ function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>):
     systemPrompt: "test",
     llm: fakeLLM(script),
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     builtInTools: { todoWrite: true },
   });
@@ -112,7 +112,7 @@ test("restore replays persisted messages into the timeline", async () => {
     systemPrompt: "test",
     llm: fakeLLM([]),
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     sessionId: "s1",
     persistence: memoryPersistence(state),
@@ -152,7 +152,7 @@ test("restore tolerates malformed persisted tool arguments", async () => {
     systemPrompt: "test",
     llm: fakeLLM([]),
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     sessionId: "s1",
     persistence: memoryPersistence(state),
@@ -195,7 +195,7 @@ test("a restored session with dangling tool calls is healed before the next run"
       },
     ]),
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     sessionId: "s1",
     persistence: memoryPersistence(state),
@@ -211,7 +211,7 @@ test("builtInTools: false registers no built-in tools", async () => {
     systemPrompt: "test",
     llm: fakeLLM([]),
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     builtInTools: false,
   });
@@ -267,7 +267,7 @@ test("dispose resolves a pending question", async () => {
       }),
     ]),
     tools,
-    mcp: new MCPServers(tools, { name: "test", version: "0" }),
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     builtInTools: { askUser: true },
   });
