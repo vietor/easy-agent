@@ -13,7 +13,7 @@ import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/loader.js";
 import { MAX_ARGS_SUMMARY_LENGTH } from "../util/constants.js";
-import { defaultResultSummary, formatSeconds, summarizeText, toErrorMessage } from "../util/text.js";
+import { defaultResultSummary, formatDuration, summarizeText, toErrorMessage } from "../util/text.js";
 import type { TextResult } from "./types.js";
 
 export class ToolRegistry {
@@ -76,7 +76,7 @@ export class ToolRegistry {
       ? tool.summarizeResult(result)
       : defaultResultSummary(result);
     return durationMs !== undefined
-      ? `[${formatSeconds(durationMs / 1000)}] ${resultSummary}`
+      ? `[${formatDuration(durationMs / 1000)}] ${resultSummary}`
       : resultSummary;
   }
 

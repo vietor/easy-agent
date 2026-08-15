@@ -15,7 +15,7 @@ Requires Node.js ≥ 22 (ESM only).
 - `SessionOptions.mcp` → `SessionOptions.mcpServers` (the runtime getter `session.mcpServers` is unchanged).
 - `ClientInfo` → `MCPClientInfo`; internal `MCPServers` → `MCPServerManager`.
 - `BuiltInToolsOptions` → `BuiltinToolsOptions`.
-- Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatSeconds`, `formatCompactNumber`, `summarizeText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
+- Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatDuration`, `formatCompactNumber`, `summarizeText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
 - Tool-result summaries count non-empty lines (previously every newline).
 - `SessionPersistence`/`SessionData`/`SessionMeta` removed; persistence now lives in the host via `session.exportState()`/`session.importState()`. `session.restore()`, `session.flush()`, and `SessionOptions.persistence` are removed.
 
@@ -630,16 +630,18 @@ import { getTextBytes } from "@vietor/agent-core/util";
 const bytes = getTextBytes("Hello");   // 5
 ```
 
-### `formatSeconds`
+### `formatDuration`
 
-**`formatSeconds(value: number): string`**
+**`formatDuration(value: number): string`**
 
-Format a duration in seconds for display (e.g. `3.2s`). Used for tool-result summaries.
+Format a duration in seconds for display, upgrading to larger units when needed (e.g. `3.2s`, `1m 30s`, `1h 1m 5s`). Used for tool-result summaries and the CLI spinner.
 
 ```ts
-import { formatSeconds } from "@vietor/agent-core/util";
+import { formatDuration } from "@vietor/agent-core/util";
 
-formatSeconds(3.24);   // "3.24s"
+formatDuration(3.24);    // "3.24s"
+formatDuration(90.4);    // "1m 30s"
+formatDuration(3665);    // "1h 1m 5s"
 ```
 
 ### `formatCompactNumber`

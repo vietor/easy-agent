@@ -12,9 +12,20 @@ const compactNumberFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-export function formatSeconds(value: number) {
+export function formatDuration(value: number) {
   if (!value) return "0s";
-  return secondsFormatter.format(value);
+  if (value < 60) return secondsFormatter.format(value);
+  const total = Math.round(value);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const parts: string[] = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (seconds) parts.push(`${seconds}s`);
+  return parts.join(" ");
 }
 
 export function formatCompactNumber(value: number) {

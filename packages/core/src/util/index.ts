@@ -5,4 +5,4 @@ export { tryReadFileText } from "./file.js";
 export { htmlToMarkdown } from "./html.js";
 export { netFetch } from "./net.js";
 export { type ProcessResult, killProcessTree, runProcess } from "./subprocess.js";
-export { countNonEmptyLines, defaultResultSummary, formatCompactNumber, formatSeconds, getTextBytes, summaryBytes, summaryCount, summarizeText, toErrorMessage } from "./text.js";
+export { countNonEmptyLines, defaultResultSummary, formatCompactNumber, formatDuration, getTextBytes, summaryBytes, summaryCount, summarizeText, toErrorMessage } from "./text.js";
