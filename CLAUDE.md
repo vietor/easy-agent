@@ -58,6 +58,8 @@ These came out of deliberate refactors; treat as final unless the user explicitl
 - **Todo status glyphs live in consumers** (CLI), not in core types.
 - **Dead code is removed, not kept** — don't resurrect deleted code paths.
 - **Session persistence lives in the CLI** — core has no storage backend and never saves on its own; it exposes `exportState()`/`importState()` only. Don't re-add a persistence interface or save hooks to core.
+- **Core is the turnkey integration framework; CLI is the product shell** — `createSession`, the built-in toolset (file/shell/web/ask-user/todo/sub-agent/skill), the skills loader, prompts, and shared utils are the framework's integration surface for external consumers and stay in core. The CLI holds only process lifecycle, session persistence, TUI, config, and command dispatch. Don't propose further core→cli moves.
+- **The CLI passes its own client identity** — `createSession`'s `clientInfo` is set from the CLI's package name/version so MCP servers identify `easy-agent`, not the framework default.
 
 ## Change Conventions
 

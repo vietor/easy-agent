@@ -104,6 +104,7 @@ export async function main(argv: string[] = []): Promise<void> {
     },
     cwd: cwd,
     sessionId,
+    clientInfo: { name: pkg.name, version: pkg.version },
   });
 
   if (resume) {
