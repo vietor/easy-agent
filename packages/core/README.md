@@ -1,6 +1,6 @@
 # @vietor/agent-core
 
-> Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader.
+> Lightweight AI agent framework — session orchestration, tool system, MCP client, skill loader.
 
 ```bash
 npm install @vietor/agent-core
@@ -8,24 +8,65 @@ npm install @vietor/agent-core
 
 Requires Node.js ≥ 22 (ESM only).
 
-## Breaking changes (0.8)
+## Import paths
 
-- `StreamEvent` and `TimelineEvent` merged into a single `AgentEvent` union; every variant now carries a `persisted: true/false` flag. Streaming tags are snake_case: `assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`, `tool_end`, `run_metrics`.
-- `ConversationMessage` → `SessionMessage`; `Conversation` (internal) → `SessionMessages`.
-- `SessionOptions.mcp` → `SessionOptions.mcpServers` (the runtime getter `session.mcpServers` is unchanged).
-- `ClientInfo` → `MCPClientInfo`; internal `MCPServers` → `MCPServerManager`.
-- `BuiltInToolsOptions` → `BuiltinToolsOptions`.
-- Generic helpers (`tryReadFileText`, `htmlToMarkdown`, `getTextBytes`, `formatDuration`, `formatCompactNumber`, `summarizeText`, `toErrorMessage`, `MAX_SUMMARY_LENGTH`, `netFetch`, `runProcess`, `ProcessResult`) moved from the root export to `@vietor/agent-core/util`.
-- Tool-result summaries count non-empty lines (previously every newline).
-- `SessionPersistence`/`SessionData`/`SessionMeta` removed; persistence now lives in the host via `session.exportState()`/`session.importState()`. `session.restore()`, `session.flush()`, and `SessionOptions.persistence` are removed.
+The package exposes two entry points:
+
+| Import | Contents |
+|---|---|
+| `@vietor/agent-core` | `createSession`, the `Session` API, tools, skills, MCP, LLM config, shared types |
+| `@vietor/agent-core/util` | Framework utilities: async helpers, text formatting, subprocess, file/HTML/net helpers, constants |
+
+```ts
+import { createSession, type Tool } from "@vietor/agent-core";
+import { runProcess, formatDuration } from "@vietor/agent-core/util";
+```
 
 ---
+
+## Quick Start
+
+```ts
+import { createSession, tryLoadSkills } from "@vietor/agent-core";
+
+const session = await createSession({
+  systemPrompt: "You are a helpful assistant.",
+  llm: {
+    baseUrl: "https://api.deepseek.com/v1",
+    apiKey: "your-api-key",
+    model: "deepseek-v4-flash",
+    thinkingEffort: "high",
+    backend: "completions",
+    maxInputTokens: 1_000_000,
+  },
+  mcpServers: {
+    filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
+  },
+});
+
+session.onEvent((e) => {
+  if (e.type === "assistant_delta") process.stdout.write(e.text);
+  else if (e.type === "run_metrics")
+    console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
+});
+
+const result = await session.prompt("What files are in the current directory?");
+console.log(result.reply);                // final assistant reply
+
+console.log(session.getSnapshot().timeline);   // full session timeline
+console.log(session.export());     // LLM message history
+session.dispose();
+```
+
+---
+
+# API Reference — `@vietor/agent-core`
 
 ## `createSession`
 
 **`createSession(options: SessionOptions): Promise<Session>`**
 
-Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance.
+Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance. Connects the MCP servers listed in `mcpServers` before resolving.
 
 ```ts
 import { createSession } from "@vietor/agent-core";
@@ -50,7 +91,7 @@ const session = await createSession({
 });
 ```
 
-### `SessionOptions`
+## `SessionOptions`
 
 | Property | Type | Default | Description |
 |---|---|---|---|
@@ -68,8 +109,6 @@ const session = await createSession({
 
 The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`.
 
----
-
 ## `SYSTEM_PROMPT_BOUNDARY`
 
 **`SYSTEM_PROMPT_BOUNDARY: string`**
@@ -85,11 +124,9 @@ const systemPrompt = [
 ].join(SYSTEM_PROMPT_BOUNDARY);
 ```
 
----
-
 ## `Session`
 
-The main session object. Create one via `createSession()` — it wires the LLM client, tool registry, and MCP servers, and connects MCP servers listed in `mcp`:
+The main session object. Create one via `createSession()` — it wires the LLM client, tool registry, and MCP servers, and connects the MCP servers listed in `mcpServers`:
 
 ```ts
 const session = await createSession({ systemPrompt, llm });
@@ -112,7 +149,7 @@ const session = await createSession({ systemPrompt, llm });
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
-| `pendingQuestion(): Extract<TimelineEvent, { type: "question" }> \| undefined` | Return the most recent unanswered question, or `undefined` if none are pending. |
+| `pendingQuestion: Extract<TimelineEvent, { type: "question" }> \| undefined` | *(getter)* The most recent unanswered question, or `undefined` if none are pending. |
 
 ### Events
 
@@ -189,7 +226,7 @@ interface RunMetrics {
 
 `INITIAL_RUN_METRICS: RunMetrics` is the all-zero, not-running initial value.
 
-### Skills & messages
+### Skills & notices
 
 The command system lives in host code. Core exposes the primitives hosts build on:
 
@@ -198,7 +235,7 @@ The command system lives in host code. Core exposes the primitives hosts build o
 | `runSkill(name: string): Promise<boolean>` | Run a skill by name through the agent loop. Returns `false` (no error emitted) if the name is unknown; throws `SessionBusyError` if a run is in progress. |
 | `addNotice(text: string): void` | Append a notice entry to the timeline and emit a `notice` event. |
 | `addError(text: string): void` | Append an error entry to the timeline and emit an `error` event. |
-| `skills: readonly Skill[]` | All loaded skills. |
+| `skills: readonly Skill[]` | *(getter)* All loaded skills. |
 
 ### State accessors
 
@@ -207,8 +244,10 @@ The command system lives in host code. Core exposes the primitives hosts build o
 | `model` | `string` | The LLM model name (e.g. `"deepseek-v4-flash"`). |
 | `thinkingEffort` | `"high" \| "max"` | The configured thinking effort. |
 | `contextLimit` | `number` | Estimated-token threshold that triggers auto-compaction. |
-| `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `contextTokens` | `number` | Estimated token count of the current conversation. |
+| `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
+| `cwd` | `string` | The resolved working directory used by tools. |
+| `sessionId` | `string` | The unique session identifier. |
 | `running` | `boolean` | Whether a prompt/compact is in progress. Check before issuing a driver call (see Reentrancy). |
 
 ### Reentrancy
@@ -497,12 +536,6 @@ const session = await createSession({
 
 ---
 
-## Command System
-
-Slash commands are a **host-side (UI) concept** — the core package no longer ships a command system. Hosts implement their own dispatcher on top of the session primitives: `prompt()`, `runSkill()`, `addNotice()`, `addError()`, and the `skills` getter.
-
----
-
 ## Skill System
 
 ### `Skill`
@@ -586,49 +619,79 @@ interface MCPServerInfo {
 
 MCP tools are exposed to the LLM with the prefixed name `MCP__<server>__<tool>`. Connection timeout is 30 seconds per server.
 
+### `session.connectMCP`
+
+**`connectMCP(servers: Record<string, MCPServerConfig>): Promise<void>`**
+
+Connect additional MCP servers after session creation. Called internally by `createSession` when `mcpServers` is set; usable by hosts to add servers at runtime.
+
 ---
 
-## Utility Functions
+# API Reference — `@vietor/agent-core/util`
 
 All utilities below are exported from the `@vietor/agent-core/util` subpath.
 
-### `tryReadFileText`
+## Async helpers
 
-**`tryReadFileText(path: string): string | undefined`**
+### `withRetry`
 
-Read a text file, returning `undefined` on any failure (missing file, empty content, read error).
+**`withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Promise<T>`**
+
+Run `fn` with retry. On a retryable error, waits `backoff(attempt)` (abortable via `opts.signal`) and retries, up to `opts.retries` retries; the last error is rethrown.
 
 ```ts
-const content = tryReadFileText("./config.json");
-if (content) {
-  const config = JSON.parse(content);
+interface RetryOptions {
+  retries: number;                    // additional attempts after the first failure
+  retryable: (e: unknown) => boolean; // decide whether an error warrants a retry
+  backoff: (attempt: number) => number; // delay in ms before retry attempt
+  onRetry?: (attempt: number, max: number, error: unknown) => void;
+  signal?: AbortSignal;
 }
 ```
 
-### `htmlToMarkdown`
+### `withTimeout`
 
-**`htmlToMarkdown(html: string): string`**
+**`withTimeout<T>(p: Promise<T>, ms: number): Promise<T>`**
 
-Convert HTML to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Strips script, style, title, meta, head, noscript, template, link, and base elements.
+Reject the promise with `Error("timeout after Nms")` if it doesn't settle within `ms`.
 
-```ts
-import { htmlToMarkdown } from "@vietor/agent-core/util";
+### `withTimeoutFn`
 
-const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
-// "# Hello\n\nWorld"
-```
+**`withTimeoutFn<T>(fn: (signal: AbortSignal) => Promise<T>, ms: number, signal: AbortSignal | undefined, timeoutMessage: string, otherError?: (e: unknown) => unknown): Promise<T>`**
 
-### `getTextBytes`
+The function variant of `withTimeout`: calls `fn` with a signal that aborts on timeout or external abort. On timeout throws `Error(timeoutMessage)`; `otherError` optionally remaps other rejections.
 
-**`getTextBytes(content: string): number`**
+### `withAbort`
 
-Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
+**`withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?: () => T): Promise<T>`**
 
-```ts
-import { getTextBytes } from "@vietor/agent-core/util";
+Race `promise` against `signal`. On abort, resolves `onAbort()` if provided, otherwise rejects with `AbortedError`. Pass no `signal` to return the promise untouched.
 
-const bytes = getTextBytes("Hello");   // 5
-```
+### `AbortedError`
+
+**`class AbortedError extends Error`**
+
+Thrown by `withAbort` (and abortable retry sleeps) when an operation is aborted.
+
+### `isAbortError`
+
+**`isAbortError(e: unknown): boolean`**
+
+`true` for `AbortedError`, the DOM `AbortError`, or the LLM SDK's `APIUserAbortError` — use it to distinguish user aborts from real errors.
+
+### `backoffDelay`
+
+**`backoffDelay(attempt: number): number`**
+
+Exponential backoff in ms: `1000 * 2 ** attempt`. Suitable as the `backoff` field of `RetryOptions`.
+
+### `mapWithConcurrency`
+
+**`mapWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>, signal?: AbortSignal): Promise<R[]>`**
+
+Map over `items` in chunks of `limit` concurrent executions (unlike `Promise.all`, never runs more than `limit` at once). Stops scheduling new chunks once `signal` aborts; results keep input order.
+
+## Text helpers
 
 ### `formatDuration`
 
@@ -654,6 +717,18 @@ Format a number compactly (e.g. `1.2K`). Used for byte/line counts in summaries.
 import { formatCompactNumber } from "@vietor/agent-core/util";
 
 formatCompactNumber(1234);   // "1.23K"
+```
+
+### `getTextBytes`
+
+**`getTextBytes(content: string): number`**
+
+Return the UTF-8 byte length of a string (via `Buffer.byteLength`).
+
+```ts
+import { getTextBytes } from "@vietor/agent-core/util";
+
+const bytes = getTextBytes("Hello");   // 5
 ```
 
 ### `summarizeText`
@@ -682,29 +757,13 @@ toErrorMessage(new Error("boom"));   // "boom"
 toErrorMessage("oops");              // "oops"
 ```
 
-### `netFetch`
-
-**`netFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>`**
-
-A drop-in replacement for `fetch` that automatically routes through an HTTP(S) proxy when configured. Respects the standard environment variables:
-
-- `HTTPS_PROXY` / `https_proxy` — proxy URL for HTTPS requests (preferred)
-- `HTTP_PROXY` / `http_proxy` — proxy URL for HTTP requests (fallback)
-- `NO_PROXY` / `no_proxy` — comma-separated hostnames/domains to bypass the proxy
-
-```ts
-import { netFetch } from "@vietor/agent-core/util";
-
-// Same signature as fetch — automatically uses proxy if env vars are set
-const res = await netFetch("https://api.example.com/data");
-const data = await res.json();
-```
+## Subprocess
 
 ### `runProcess`
 
 **`runProcess(cmd: string, args: string[], opts?: { cwd?: string; timeout?: number }, signal?: AbortSignal): Promise<ProcessResult>`**
 
-Run a subprocess, capturing stdout and stderr (used by the built-in Shell tool). The promise never rejects — spawn failures, timeouts, and output over the 10MB cap are reported via `ProcessResult.error`. Pass a `timeout` (ms) or an `AbortSignal` to kill the process tree.
+Run a subprocess, capturing stdout and stderr (used by the built-in Shell tool). The promise never rejects — spawn failures, timeouts, and output over the 10MB cap are reported via `ProcessResult.error`. Pass a `timeout` (ms) or an `AbortSignal` to kill the process tree. Live processes are killed on process exit.
 
 ```ts
 import { runProcess } from "@vietor/agent-core/util";
@@ -728,50 +787,63 @@ interface ProcessResult {
 }
 ```
 
-### `MAX_SUMMARY_LENGTH`
+## File
 
-**`MAX_SUMMARY_LENGTH: number`** (`75`)
+### `tryReadFileText`
 
-The character cap the tool registry applies when truncating tool results into timeline summaries.
+**`tryReadFileText(path: string): string | undefined`**
 
-```ts
-import { MAX_SUMMARY_LENGTH } from "@vietor/agent-core/util";
-
-const summary = result.length > MAX_SUMMARY_LENGTH ? `${result.slice(0, MAX_SUMMARY_LENGTH)}…` : result;
-```
-
----
-
-## Full Quick Start
+Read a text file, returning `undefined` on any failure (missing file, empty content, read error).
 
 ```ts
-import { createSession, tryLoadSkills } from "@vietor/agent-core";
-
-const session = await createSession({
-  systemPrompt: "You are a helpful assistant.",
-  llm: {
-    baseUrl: "https://api.deepseek.com/v1",
-    apiKey: "your-api-key",
-    model: "deepseek-v4-flash",
-    thinkingEffort: "high",
-    backend: "completions",
-    maxInputTokens: 1_000_000,
-  },
-  mcpServers: {
-    filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
-  },
-});
-
-session.onEvent((e) => {
-  if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "run_metrics")
-    console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
-});
-
-const result = await session.prompt("What files are in the current directory?");
-console.log(result.reply);                // final assistant reply
-
-console.log(session.getSnapshot().timeline);   // full session timeline
-console.log(session.export());     // LLM message history
-session.dispose();
+const content = tryReadFileText("./config.json");
+if (content) {
+  const config = JSON.parse(content);
+}
 ```
+
+## HTML
+
+### `htmlToMarkdown`
+
+**`htmlToMarkdown(html: string): string`**
+
+Convert HTML to Markdown using [Turndown](https://github.com/mixmark-io/turndown). Strips script, style, title, meta, head, noscript, template, link, and base elements.
+
+```ts
+import { htmlToMarkdown } from "@vietor/agent-core/util";
+
+const md = htmlToMarkdown("<h1>Hello</h1><p>World</p>");
+// "# Hello\n\nWorld"
+```
+
+## Network
+
+### `netFetch`
+
+**`netFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>`**
+
+A drop-in replacement for `fetch` that automatically routes through an HTTP(S) proxy when configured. Respects the standard environment variables:
+
+- `HTTPS_PROXY` / `https_proxy` — proxy URL for HTTPS requests (preferred)
+- `HTTP_PROXY` / `http_proxy` — proxy URL for HTTP requests (fallback)
+- `NO_PROXY` / `no_proxy` — comma-separated hostnames/domains to bypass the proxy
+
+```ts
+import { netFetch } from "@vietor/agent-core/util";
+
+// Same signature as fetch — automatically uses proxy if env vars are set
+const res = await netFetch("https://api.example.com/data");
+const data = await res.json();
+```
+
+## Constants
+
+Default values mirrored by `LLMConfig` — exported so host config types can reference the same defaults.
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `DEFAULT_THINKING_EFFORT` | `"high"` | Default `LLMConfig.thinkingEffort` |
+| `DEFAULT_BACKEND` | `"completions"` | Default `LLMConfig.backend` |
+| `DEFAULT_MAX_INPUT_TOKENS` | `1_000_000` | Default `LLMConfig.maxInputTokens` |
+| `DEFAULT_MAX_OUTPUT_TOKENS` | `128_000` | Default `LLMConfig.maxOutputTokens` |
