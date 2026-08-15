@@ -64,6 +64,10 @@ class StreamBuffer {
     return this.flushThinking();
   }
 
+  discardStreamedText(): void {
+    this.streamingText = "";
+  }
+
   flushThinking(): boolean {
     if (!this.thinkingText) return false;
     this.thinkingText = "";
@@ -305,6 +309,10 @@ export class Session {
       maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
       contextLimit: deps.contextLimit,
       resolveSkill: this.resolveSkill,
+      onCompact: () => {
+        this.stream.discardStreamedText();
+        this.rebuildTimeline();
+      },
     });
     this.mcp = deps.mcp;
   }
@@ -422,12 +430,16 @@ export class Session {
     return { messages: this.conversation.export(), todos: [...this.todoStore.all] };
   }
 
+  private rebuildTimeline(): void {
+    this.timelineStore.rebuild(toTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
+    this.viewCache = null;
+  }
+
   importState(state: SessionState): void {
     this.rejectIfBusy();
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
-    this.timelineStore.rebuild(toTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
-    this.viewCache = null;
+    this.rebuildTimeline();
   }
 
   async compact(): Promise<RunStatus> {

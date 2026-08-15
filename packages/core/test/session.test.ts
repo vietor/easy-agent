@@ -228,6 +228,55 @@ test("a run that settles without streaming text returns an empty reply, not the 
   assert.equal(second.reply, "");
 });
 
+test("compact shows the streamed summary once in the timeline", async () => {
+  const session = makeSession([
+    () => ({ role: "assistant", content: "hi" }),
+    (opts) => {
+      opts.onDelta?.("SUMMARY");
+      return { role: "assistant", content: "SUMMARY" };
+    },
+  ]);
+  session.subscribe(() => {});
+  await session.prompt("hello");
+  const status = await session.compact();
+  assert.equal(status, "ok");
+  assert.deepEqual(
+    session.getSnapshot().timeline.filter((e) => e.type === "assistant").map((e) => e.text),
+    ["SUMMARY"]
+  );
+});
+
+test("auto-compact rebuilds the timeline from the compacted conversation", async () => {
+  const session = new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([
+      (opts) => {
+        assert.ok(
+          opts.messages.some((m) => typeof m.content === "string" && m.content.includes("Summarize the conversation above")),
+          "first call must be the compaction request"
+        );
+        return { role: "assistant", content: "SUMMARY" };
+      },
+      (opts) => {
+        opts.onDelta?.("done");
+        return { role: "assistant", content: "done" };
+      },
+    ]),
+    tools: new ToolRegistry(),
+    mcp: new MCPServerManager(new ToolRegistry(), { name: "test", version: "0" }),
+    contextLimit: 1000,
+  });
+  session.subscribe(() => {});
+  const { status } = await session.prompt("a".repeat(5000));
+  assert.equal(status, "ok");
+  const timeline = session.getSnapshot().timeline;
+  assert.equal(timeline.some((e) => e.type === "user"), false);
+  assert.deepEqual(
+    timeline.filter((e) => e.type === "assistant").map((e) => e.text),
+    ["SUMMARY", "done"]
+  );
+});
+
 test("abort keeps the partial reply but leaves it out of the timeline", async () => {
   const session = makeSession([
     (opts) => {

@@ -24,6 +24,7 @@ export interface AgentOptions {
   maxTurns: number;
   contextLimit: number;
   resolveSkill?: (name: string) => Skill | undefined;
+  onCompact?: () => void;
 }
 
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
@@ -40,6 +41,7 @@ export class Agent {
   readonly contextLimit: number;
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
+  private onCompact?: () => void;
   private inputTokens = 0;
   private outputTokens = 0;
 
@@ -54,6 +56,7 @@ export class Agent {
     this.maxTurns = opts.maxTurns;
     this.contextLimit = opts.contextLimit;
     this.resolveSkill = opts.resolveSkill;
+    this.onCompact = opts.onCompact;
   }
 
   get contextTokens(): number {
@@ -106,6 +109,7 @@ export class Agent {
       return "error";
     }
     this.conversation.compact(compactText);
+    this.onCompact?.();
     return "ok";
   }
 
