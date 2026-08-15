@@ -20,8 +20,8 @@ export const COMPACT_PROMPT = [
   "5. Errors/failures and how they were resolved.\n",
   "6. Current progress: what is done, verified, and in-progress state.\n",
   "7. Pending tasks, open questions, concrete next step.\n",
-  "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. Keep only what the next turn needs to continue without re-reading history.\n",
-  "Concise but thorough; keep technical specifics; use the conversation language. Target roughly 10% of the original length, capped at a few hundred tokens — technical specifics over prose. ",
+  "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. The full conversation will be replaced by this summary, so anything omitted is lost — keep only what the next turn needs to continue without re-reading history.\n",
+  "Concise but thorough; keep technical specifics; use the conversation language. Aim for roughly 500-1000 tokens — under 1% of the original length, never a generic recap; technical specifics over prose. ",
   "Start with \"Summary of conversation so far\":",
 ].join("");
 
