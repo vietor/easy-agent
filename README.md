@@ -7,21 +7,7 @@
 
 An autonomous coding agent in the terminal — monorepo workspace.
 
-## Features
-
-- **Multi-backend LLM client** — pluggable wire protocol that supports OpenAI Chat Completions (`"completions"`), Anthropic Messages API (`"anthropic"`), and OpenAI Responses API (`"responses"`) backends.
-- **Thinking effort** — configure `thinkingEffort` (`high` / `max`) to control thinking depth; displayed live in the TUI header.
-- **MCP (Model Context Protocol)** — connect stdio or Streamable HTTP MCP servers for external tools; connection status and tool list visible via `/mcp`.
-- **Session persistence** — the CLI saves/resumes conversations to JSONL files under `~/.easy-agent/projects/` with `--continue` / `--resume`; core exposes `exportState()` / `importState()` for hosts to build their own persistence on.
-- **Built-in tool system** — FileRead/Glob/Grep/WebFetch (read-only) plus Shell/FileWrite/Edit enabled by default; interactive tools AskUser, TodoWrite, and SubAgent (nested read-only explore/plan sub-agents) opt in via `builtinTools`, and Skill auto-registers when skills are loaded; `{ readOnly: true }` limits the session to read-only tools, `false` disables all — plus a simple `Tool` interface for custom tools.
-- **Skill system** — `SKILL.md` files in `~/.easy-agent/skills/` register as slash commands automatically, and the agent can invoke them itself via the built-in Skill tool.
-- **Context compaction** — auto-triggered LLM summarization when the conversation nears the token limit; also available as `/compact`.
-- **Stall & turn limits** — detects repeated identical tool calls or text-only responses while todos are incomplete (`stallThreshold`) and caps agent loop iterations (`maxTurns`), configurable per session.
-- **Transient error retry** — automatic retry of transient API failures (timeouts, rate limits, empty responses) and flaky WebFetch requests, with attempts surfaced via `retry` events.
-- **Reentrancy protection** — `SessionBusyError` guards against concurrent `prompt`/`compact` calls.
-- **Token usage tracking** — per-run `inputTokens` / `outputTokens` counters displayed in the TUI and exposed via events.
-
-This repo contains two packages:
+## Packages
 
 | Package | npm | Description |
 |---------|-----|-------------|
