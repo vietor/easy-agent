@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, execSync  } from "node:child_process";
 import { MAX_PROCESS_BUFFER_MB, mbToBytes } from "./constants.js";
 
 export interface ProcessResult {
@@ -123,5 +123,19 @@ export function runProcess(
       if (settled) return;
       settle({ ...flushOutput(), status });
     });
+  });
+}
+
+export function findCommands(commands: string[]): string[] {
+  const isWindows = process.platform === 'win32';
+
+  return commands.filter((cmd) => {
+    try {
+      const checkCmd = isWindows ? `where ${cmd}` : `command -v ${cmd}`;
+      execSync(checkCmd, { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
   });
 }

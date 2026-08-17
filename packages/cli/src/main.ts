@@ -8,6 +8,7 @@ import { tryReadFileText } from "@vietor/agent-core/util";
 import { startApp } from "./tui/app.js";
 import { getPackageInfo } from "./util/package.js";
 import { FileSessionPersistence } from "./session-persistence.js";
+import { localScriptTool } from "./tools/local-script.js";
 
 function buildSystemPromptBase(cwd: string) {
   return [
@@ -105,6 +106,7 @@ export async function main(argv: string[] = []): Promise<void> {
     cwd: cwd,
     sessionId,
     clientInfo: { name: pkg.name, version: pkg.version },
+    tools: [localScriptTool],
   });
 
   if (resume) {

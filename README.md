@@ -52,6 +52,7 @@ easy-agent/
 │           ├── tui/                 # terminal UI (app, timeline-view, todo-view, etc.)
 │           │   └── components/      # shared UI components (Markdown renderer…)
 │           ├── commands/            # built-in slash commands + dispatcher
+│           ├── tools/               # extra built-in tools (LocalScript — run throwaway JS/Python scripts)
 │           ├── session-persistence.ts # FileSessionPersistence (JSONL save/resume)
 │           ├── util/                # package info
 │           ├── config.ts            # JSON config loader (~/.easy-agent/config.json)
@@ -61,7 +62,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`AgentEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`) — it has no storage backend and never saves on its own. The `cli` package depends on `core` and provides the interactive terminal experience plus the JSONL session persistence (`--continue`/`--resume`) and its own built-in slash commands and dispatcher.
+The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`AgentEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`) — it has no storage backend and never saves on its own. The `cli` package depends on `core` and provides the interactive terminal experience plus the JSONL session persistence (`--continue`/`--resume`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
 
 ### Build order
 

@@ -787,6 +787,18 @@ interface ProcessResult {
 }
 ```
 
+### `findCommands`
+
+**`findCommands(commands: string[]): string[]`**
+
+Return the subset of commands that exist on the PATH (uses `where` on Windows, `command -v` elsewhere). Useful for picking an available interpreter, e.g. `node` vs `bun`.
+
+```ts
+import { findCommands } from "@vietor/agent-core/util";
+
+findCommands(["python", "python3"]);   // e.g. ["python"]
+```
+
 ## File
 
 ### `tryReadFileText`
@@ -839,7 +851,7 @@ const data = await res.json();
 
 ## Constants
 
-Default values mirrored by `LLMConfig` — exported so host config types can reference the same defaults.
+Default values mirrored by `LLMConfig` — exported so host config types can reference the same defaults. Tool-call timeouts and empty results also share constants here:
 
 | Constant | Value | Meaning |
 |---|---|---|
@@ -847,3 +859,5 @@ Default values mirrored by `LLMConfig` — exported so host config types can ref
 | `DEFAULT_BACKEND` | `"completions"` | Default `LLMConfig.backend` |
 | `DEFAULT_MAX_INPUT_TOKENS` | `1_000_000` | Default `LLMConfig.maxInputTokens` |
 | `DEFAULT_MAX_OUTPUT_TOKENS` | `128_000` | Default `LLMConfig.maxOutputTokens` |
+| `CALL_TIMEOUT_MS` | `300_000` | Default tool-call timeout (Shell, MCP tools) |
+| `NO_OUTPUT` | `"(no output)"` | Content placeholder for empty tool results |
