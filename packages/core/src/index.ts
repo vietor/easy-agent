@@ -5,7 +5,7 @@ export { INITIAL_RUN_METRICS, type SessionEvent, type TimelineEvent, type RunMet
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus, TextResult } from "./tools/types.js";
 export { toolError } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";
-export type { Skill } from "./skills/loader.js";
+export type { Skill } from "./skills/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
 export type { MCPClientInfo, MCPServerConfig, MCPServerInfo } from "./mcp/types.js";
 export type { LLMConfig, LLMThinkingEffort, LLMBackend } from "./llm/types.js";
