@@ -55,5 +55,5 @@ export const grepTool: Tool = {
   summarizeResult(result) {
     return ripgrepResultSummary("match", result, "Grep failed", "Found 0 matches");
   },
-  summaryKeys: ["pattern", "path", "glob"],
+  argSummaryKeys: ["pattern", "path", "glob"],
 };

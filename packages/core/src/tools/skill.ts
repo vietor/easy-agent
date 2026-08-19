@@ -18,7 +18,7 @@ export function createSkillTool(
       },
       required: ["name"],
     },
-    summaryKeys: ["name"],
+    argSummaryKeys: ["name"],
     async execute(args, _ctx) {
       const name = (args.name as string || "").trim();
       if (!name) {

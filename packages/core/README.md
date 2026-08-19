@@ -425,7 +425,7 @@ interface Tool {
   readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;   // JSON Schema object
-  summaryKeys?: string[];                // parameter keys used for display summary
+  argSummaryKeys?: string[];                // parameter keys used for display summary
   summarizeArgs?: (args: Record<string, unknown>) => string; // custom summary function
   summarizeResult?(result: TextResult): string; // result summary for timeline display
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;
@@ -436,7 +436,7 @@ interface Tool {
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
 - `execute` returns a `TextResult` (`{ content, isError? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
-- `summaryKeys` / `summarizeArgs` control what appears in the tool log entry's `argsSummary` field.
+- `argSummaryKeys` / `summarizeArgs` control what appears in the tool log entry's `argsSummary` field.
 - `summarizeResult` (optional) returns a short result summary for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default summary (byte/line count) when not defined.
 
 ### `ToolContext`

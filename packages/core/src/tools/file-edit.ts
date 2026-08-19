@@ -38,5 +38,5 @@ export const fileEditTool: Tool = {
     if (result.isError) return "Edit failed";
     return "Edit completed";
   },
-  summaryKeys: ["path"],
+  argSummaryKeys: ["path"],
 };

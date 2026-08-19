@@ -23,5 +23,5 @@ export const fileWriteTool: Tool = {
     if (result.isError) return "Write failed";
     return "Write completed";
   },
-  summaryKeys: ["path"],
+  argSummaryKeys: ["path"],
 };

@@ -90,5 +90,5 @@ export const fileReadTool: Tool = {
   summarizeResult(result) {
     return summaryBytes("Read", result, "Read failed");
   },
-  summaryKeys: ["path"],
+  argSummaryKeys: ["path"],
 };

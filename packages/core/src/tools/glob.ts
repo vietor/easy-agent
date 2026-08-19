@@ -29,5 +29,5 @@ export const globTool: Tool = {
   summarizeResult(result) {
     return ripgrepResultSummary("file", result, "Glob failed", "Found 0 files");
   },
-  summaryKeys: ["pattern", "path"],
+  argSummaryKeys: ["pattern", "path"],
 };

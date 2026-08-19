@@ -82,5 +82,5 @@ export const localScriptTool: Tool = {
       await rm(tempDir, { recursive: true, force: true });
     }
   },
-  summaryKeys: ["language"],
+  argSummaryKeys: ["language"],
 };

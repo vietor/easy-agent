@@ -137,12 +137,12 @@ export class MCPServerManager {
   }
 
   private adapt(server: string, client: MCPClient, tool: MCPTool): Tool {
-    const summaryKeys = summaryCandidates(tool.inputSchema);
+    const argSummaryKeys = summaryCandidates(tool.inputSchema);
     return {
       name: mcpToolName(server, tool.name),
       description: tool.description ?? `${server} ${tool.name}`,
       parameters: tool.inputSchema,
-      ...(summaryKeys.length ? { summaryKeys } : {}),
+      ...(argSummaryKeys.length ? { argSummaryKeys } : {}),
       async execute(args, ctx) {
         const result = await withTimeoutFn(
           (signal) => client.callTool(tool.name, args, signal),

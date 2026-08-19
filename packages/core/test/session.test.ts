@@ -89,7 +89,7 @@ test("importState replays messages into the timeline", () => {
     description: "echo",
     parameters: { type: "object", properties: { path: { type: "string" } } },
     async execute() { return { content: "echoed" }; },
-    summaryKeys: ["path"],
+    argSummaryKeys: ["path"],
   });
   const state: SessionState = {
     messages: [
@@ -129,7 +129,7 @@ test("importState tolerates malformed persisted tool arguments", () => {
     description: "echo",
     parameters: { type: "object", properties: { path: { type: "string" } } },
     async execute() { return { content: "echoed" }; },
-    summaryKeys: ["path"],
+    argSummaryKeys: ["path"],
   });
   const state: SessionState = {
     messages: [

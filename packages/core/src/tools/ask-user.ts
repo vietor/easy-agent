@@ -25,6 +25,6 @@ export function createAskUserTool(ask: (question: string, options: string[]) => 
       }
       return { content: await ask(question, options) };
     },
-    summaryKeys: ["question"],
+    argSummaryKeys: ["question"],
   };
 }

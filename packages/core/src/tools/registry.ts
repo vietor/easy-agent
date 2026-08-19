@@ -84,9 +84,9 @@ export class ToolRegistry {
     const tool = this.tools.get(name);
     if (!tool) return "";
     if (tool.summarizeArgs) return tool.summarizeArgs(args);
-    if (!tool.summaryKeys) return "";
+    if (!tool.argSummaryKeys) return "";
     const parts: string[] = [];
-    for (const k of tool.summaryKeys) {
+    for (const k of tool.argSummaryKeys) {
       const v = args[k];
       if (typeof v === "string" && v) {
         parts.push(v);

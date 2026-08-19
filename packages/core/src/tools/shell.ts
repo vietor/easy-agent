@@ -59,5 +59,5 @@ export const shellTool: Tool = {
   summarizeResult(result) {
     return summaryBytes("Command executed", result, "Command failed");
   },
-  summaryKeys: ["command"],
+  argSummaryKeys: ["command"],
 };

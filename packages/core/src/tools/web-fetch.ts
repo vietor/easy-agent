@@ -112,5 +112,5 @@ export const webFetchTool: Tool = {
   summarizeResult(result) {
     return summaryBytes("Fetched", result, "Fetch failed");
   },
-  summaryKeys: ["url"],
+  argSummaryKeys: ["url"],
 };

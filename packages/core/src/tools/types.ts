@@ -34,7 +34,7 @@ export interface Tool {
   readOnly?: boolean;
   description: string;
   parameters: Record<string, unknown>;
-  summaryKeys?: string[];
+  argSummaryKeys?: string[];
   summarizeArgs?: (args: Record<string, unknown>) => string;
   summarizeResult?(result: TextResult): string;
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;
