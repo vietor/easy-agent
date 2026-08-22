@@ -1,4 +1,4 @@
-import { ProxyAgent, type Dispatcher } from "undici";
+import { fetch, ProxyAgent } from "undici";
 
 let proxyAgent: ProxyAgent | null | undefined;
 let noProxyList: string[] | undefined;
@@ -15,10 +15,15 @@ function ensureProxy() {
   noProxyList = noProxy?.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+const undiciFetch = fetch as unknown as (
+  input: RequestInfo | URL,
+  init?: RequestInit & { dispatcher?: ProxyAgent }
+) => Promise<Response>;
+
 export async function netFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   if (!proxyInitialized) ensureProxy();
 
-  if (!proxyAgent) return fetch(input, init);
+  if (!proxyAgent) return undiciFetch(input, init);
 
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
@@ -28,8 +33,8 @@ export async function netFetch(input: RequestInfo | URL, init?: RequestInit): Pr
       if (p.startsWith(".")) return hostname.endsWith(p);
       return hostname === p || hostname.endsWith("." + p);
     });
-    if (shouldBypass) return fetch(input, init);
+    if (shouldBypass) return undiciFetch(input, init);
   }
 
-  return fetch(input, { ...init, dispatcher: proxyAgent } as RequestInit & { dispatcher: Dispatcher });
+  return undiciFetch(input, { ...init, dispatcher: proxyAgent });
 }
