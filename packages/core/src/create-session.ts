@@ -2,7 +2,7 @@ import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
-import { TOOL_USE_PROMPT } from "./runtime/prompts.js";
+import { renderToolUsePrompt } from "./runtime/prompts.js";
 import { DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
@@ -18,7 +18,7 @@ function contextLimitFor(maxInputTokens: number): number {
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number): string {
   const parts = [base];
-  const toolUseLines = [TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`];
+  const toolUseLines = [renderToolUsePrompt(maxTurns)];
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);

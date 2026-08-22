@@ -1,6 +1,6 @@
-import { SessionMessages, lastAssistantText, type SessionMessage } from "./session-messages.js";
+import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunStatus } from "./agent.js";
-import { TOOL_USE_PROMPT } from "./prompts.js";
+import { renderToolUsePrompt } from "./prompts.js";
 import type { LLMClient } from "../llm/types.js";
 import { ToolRegistry } from "../tools/registry.js";
 
@@ -21,7 +21,7 @@ export interface SubAgentRunResult {
 
 export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: string, task: string, signal?: AbortSignal) => Promise<SubAgentRunResult> {
   return async (systemPrompt, task, signal) => {
-    const conversation = new SessionMessages([systemPrompt, TOOL_USE_PROMPT, `- Turn budget: ${opts.maxTurns} tool-calling turns per run.`].join("\n\n"));
+    const conversation = new SessionMessages([systemPrompt, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
     const subTools = new ToolRegistry();
     subTools.registerAll(opts.tools.filter((t) => t.readOnly === true));
     const subAgent = new Agent({
@@ -36,8 +36,8 @@ export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: s
       contextLimit: opts.contextLimit,
     });
     const status = await subAgent.run(task, undefined, signal);
-    const messages = conversation.export();
-    const reply = lastAssistantText(messages) || `(sub-agent produced no final text; status ${status})`;
+    const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
+    const messages = status !== "ok" ? conversation.export() : [];
     return { status, reply, messages };
   };
 }

@@ -11,6 +11,10 @@ export const TOOL_USE_PROMPT = [
   "- If a tool call fails, read the error, adjust the arguments or approach, and continue; do not repeat the identical call and do not abandon the task over a single failure.",
 ].join("\n");
 
+export function renderToolUsePrompt(maxTurns: number): string {
+  return [TOOL_USE_PROMPT, `- Turn budget: ${maxTurns} tool-calling turns per run.`].join("\n");
+}
+
 export const COMPACT_PROMPT = [
   "Summarize the conversation above for context continuation. Preserve:\n",
   "1. Primary goal, sub-goals, constraints, acceptance criteria.\n",

@@ -84,11 +84,16 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
       const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, ctx.signal);
 
       if (status === "ok") return { content: reply };
-      const stallReason = status === "stalled"
-        ? [...messages].reverse()
-          .map((m) => m.content)
-          .find((c): c is string => typeof c === "string" && c.startsWith(NOT_EXECUTED_PREFIX))
-        : undefined;
+      let stallReason: string | undefined;
+      if (status === "stalled") {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const content = messages[i].content;
+          if (typeof content === "string" && content.startsWith(NOT_EXECUTED_PREFIX)) {
+            stallReason = content;
+            break;
+          }
+        }
+      }
       const suffix = stallReason ? ` ${stallReason}` : "";
       return { content: `Sub-agent "${type}" ended with status ${status}.${suffix}\n\n${reply}`, isError: true };
     },

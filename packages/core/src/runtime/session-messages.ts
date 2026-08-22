@@ -94,6 +94,10 @@ export class SessionMessages {
     return this.messages.slice();
   }
 
+  lastAssistantText(): string {
+    return lastAssistantText(this.messages);
+  }
+
   import(messages: SessionMessage[]): void {
     this.resetMessages(
       messages.slice(),
