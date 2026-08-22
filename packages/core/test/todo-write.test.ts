@@ -71,3 +71,34 @@ test("normalizes to a single inProgress and downgrades unknown statuses", async 
   assert.equal(todos[1].status, "pending");
   assert.equal(todos[2].status, "pending");
 });
+
+test("promotes the first pending to inProgress when none is inProgress", async () => {
+  const { tool, getTodos } = makeTool();
+  const result = await tool.execute(
+    {
+      todos: [
+        { content: "a", status: "pending" },
+        { content: "b", status: "pending" },
+      ],
+    },
+    { cwd: process.cwd() }
+  );
+  assert.match(result.content, /normalized 1 item/);
+  const todos = getTodos()!;
+  assert.equal(todos[0].status, "inProgress");
+  assert.equal(todos[1].status, "pending");
+});
+
+test("does not promote when every item is completed", async () => {
+  const { tool, getTodos } = makeTool();
+  await tool.execute(
+    {
+      todos: [
+        { content: "a", status: "completed" },
+        { content: "b", status: "completed" },
+      ],
+    },
+    { cwd: process.cwd() }
+  );
+  assert.equal(getTodos()?.every((t) => t.status === "completed"), true);
+});

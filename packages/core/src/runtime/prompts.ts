@@ -39,7 +39,7 @@ export function renderTodoReminder(todos: readonly Todo[]): string {
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";
   const incomplete = todos.filter(t => t.status !== "completed");
   const warning = incomplete.length > 0
-    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response — update status via TodoWrite after each task finishes.`
+    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response. Mark them complete via TodoWrite as they finish; the final update may go in the same turn as your last tool call.`
     : "";
   return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
 }
