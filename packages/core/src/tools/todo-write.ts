@@ -1,11 +1,11 @@
 import type { Tool, Todo, TodoStatus } from "./types.js";
 import { toolError } from "./types.js";
 
-export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (3+ steps), you MUST use TodoWrite: create the task list first, then update statuses as tasks complete. Never execute a multi-step task without a TodoWrite task list.";
+export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (5+ steps), you MUST use TodoWrite: create the task list first, then update statuses as tasks complete. Never execute a 5+ step task without a TodoWrite task list.";
 
 const STATUSES: TodoStatus[] = ["pending", "inProgress", "completed"];
 
-const DESCRIPTION = "Manage the task list for tasks with 3+ steps. Pass the FULL list each call; it replaces the previous list. Keep one inProgress at a time. status: pending, inProgress, completed.";
+const DESCRIPTION = "Manage the task list for tasks with 5+ steps. Pass the FULL list each call; it replaces the previous list. Keep one inProgress at a time. status: pending, inProgress, completed.";
 
 function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: number; normalized: number; error?: string } {
   const raw = args.todos;
