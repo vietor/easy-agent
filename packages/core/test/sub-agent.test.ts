@@ -51,9 +51,10 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   const tools = new ToolRegistry();
   tools.registerAll(SUB_TOOLS);
   tools.register(stub("Shell", "ok"));
-  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRunner({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, contextLimit: 750_000 })(systemPrompt, task, signal) }));
+  let parentAgent: Agent;
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRunner({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) })(systemPrompt, task, signal) }));
   const conversation = new SessionMessages("system prompt");
-  return new Agent({
+  parentAgent = new Agent({
     llm,
     conversation,
     tools,
@@ -64,6 +65,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
     maxTurns: 50,
     contextLimit: 750_000,
   });
+  return parentAgent;
 }
 
 test("nested sub-agent reply becomes the SubAgent tool result", async () => {
@@ -92,6 +94,31 @@ test("nested sub-agent reply becomes the SubAgent tool result", async () => {
       (m) => m.role === "tool" && typeof m.content === "string" && m.content.includes("file contents")
     )
   );
+});
+
+test("sub-agent usage is added to the parent agent's counters", async () => {
+  const { llm } = fakeLLM([
+    (opts) => {
+      opts.onUsage?.(0, 10, 5);
+      return toolCall("SubAgent", JSON.stringify({ type: "explore", task: "find X" }));
+    },
+    (opts) => {
+      opts.onUsage?.(15, 20, 7);
+      return toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1");
+    },
+    (opts) => {
+      opts.onUsage?.(0, 30, 3);
+      return { role: "assistant", content: "FOUND X" };
+    },
+    (opts) => {
+      opts.onUsage?.(0, 40, 9);
+      return { role: "assistant", content: "done" };
+    },
+  ]);
+  const agent = makeParentAgent(llm);
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+  assert.deepEqual(agent.usage, { cacheInputTokens: 15, missInputTokens: 100, outputTokens: 24 });
 });
 
 test("unknown sub-agent type returns an error without invoking a nested loop", async () => {

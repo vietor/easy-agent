@@ -74,7 +74,8 @@ export class ResponsesAdapter extends BaseAdapter {
       throw new Error(`Responses API error: ${detail}`);
     }
     if (finalResponse.usage) {
-      onUsage?.(finalResponse.usage.input_tokens, finalResponse.usage.output_tokens);
+      const cacheTokens = finalResponse.usage.input_tokens_details.cached_tokens;
+      onUsage?.(cacheTokens, finalResponse.usage.input_tokens, finalResponse.usage.output_tokens);
     }
 
     const textParts: string[] = [];

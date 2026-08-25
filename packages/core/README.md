@@ -47,7 +47,7 @@ const session = await createSession({
 session.onEvent((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
   else if (e.type === "run_metrics")
-    console.log(`tokens: ${e.inputTokens} prompt / ${e.outputTokens} completion`);
+    console.log(`tokens: ${e.missInputTokens} prompt / ${e.outputTokens} completion`);
 });
 
 const result = await session.prompt("What files are in the current directory?");
@@ -219,7 +219,8 @@ interface RunMetrics {
   elapsed: number;         // seconds since the current prompt started
   thinkingElapsed: number; // seconds before the first assistant text token (incl. thinking/tools)
   replyElapsed: number;    // seconds after the first assistant text token (incl. later tool rounds)
-  inputTokens: number;     // cumulative input (prompt) tokens for the current run
+  cacheInputTokens: number; // cumulative cached input (prompt) tokens for the current run
+  missInputTokens: number; // cumulative non-cached input (prompt) tokens for the current run
   outputTokens: number;    // cumulative output (completion) tokens for the current run
 }
 ```

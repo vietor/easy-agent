@@ -36,6 +36,7 @@ function useThrottledText(frameMs: number) {
 
 function useSessionStream(session: Session) {
   const [runMetrics, setRunMetrics] = useState<RunMetrics>(INITIAL_RUN_METRICS);
+  const [totalTokens, setTotalTokens] = useState({ cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
   const streaming = useThrottledText(STREAM_FRAME_MS);
   const thinking = useThrottledText(STREAM_FRAME_MS);
   const [showThinking, setShowThinking] = useState(false);
@@ -59,20 +60,28 @@ function useSessionStream(session: Session) {
           break;
         case "run_metrics":
           setRunMetrics(e);
+          if (!e.running) {
+            setTotalTokens((prev) => ({ cacheInputTokens: prev.cacheInputTokens + e.cacheInputTokens, missInputTokens: prev.missInputTokens + e.missInputTokens, outputTokens: prev.outputTokens + e.outputTokens }));
+          }
           break;
       }
     });
     return unsub;
   }, [session]);
 
-  return { runMetrics, streaming, thinking, showThinking, setShowThinking };
+  const resetMetrics = () => {
+    setRunMetrics(INITIAL_RUN_METRICS);
+    setTotalTokens({ cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
+  };
+
+  return { runMetrics, totalTokens, streaming, thinking, showThinking, setShowThinking, resetMetrics };
 }
 
 export function App({ session, persist }: { session: Session; persist: () => void }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
-  const { runMetrics, streaming, thinking, showThinking, setShowThinking } = useSessionStream(session);
+  const { runMetrics, totalTokens, streaming, thinking, showThinking, setShowThinking, resetMetrics } = useSessionStream(session);
   const allCmds = useMemo(() => slashCommandInfos(session), [session]);
   const pendingQuestion = session.pendingQuestion;
 
@@ -95,6 +104,7 @@ export function App({ session, persist }: { session: Session; persist: () => voi
 
   async function handleCommand(name: string) {
     await executeSlashCommand(name, session, exit, persist);
+    if (name === "clear") resetMetrics();
   }
 
   async function handlePrompt(text: string) {
@@ -126,7 +136,7 @@ export function App({ session, persist }: { session: Session; persist: () => voi
             </Box>
           ) : null}
           <Box marginTop={1} paddingLeft={1}>
-            <Spinner label={spinnerLabel} thinkingElapsed={runMetrics.thinkingElapsed} replyElapsed={runMetrics.replyElapsed} inputTokens={runMetrics.inputTokens} outputTokens={runMetrics.outputTokens} />
+            <Spinner label={spinnerLabel} thinkingElapsed={runMetrics.thinkingElapsed} replyElapsed={runMetrics.replyElapsed} cacheInputTokens={runMetrics.cacheInputTokens} missInputTokens={runMetrics.missInputTokens} outputTokens={runMetrics.outputTokens} />
           </Box>
         </>
       );
@@ -159,6 +169,9 @@ export function App({ session, persist }: { session: Session; persist: () => voi
         running={runMetrics.running}
         questionPending={!!pendingQuestion}
         thinkingAvailable={!!thinking.text}
+        cacheInputTokens={totalTokens.cacheInputTokens}
+        missInputTokens={totalTokens.missInputTokens}
+        outputTokens={totalTokens.outputTokens}
       />
     </Box>
   );

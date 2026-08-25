@@ -8,13 +8,15 @@ export function Spinner({
   label,
   thinkingElapsed,
   replyElapsed,
-  inputTokens,
+  cacheInputTokens,
+  missInputTokens,
   outputTokens,
 }: {
   label: string;
   thinkingElapsed: number;
   replyElapsed: number;
-  inputTokens: number;
+  cacheInputTokens: number;
+  missInputTokens: number;
   outputTokens: number;
 }) {
   const [frame, setFrame] = useState(0);
@@ -26,7 +28,7 @@ export function Spinner({
     <Text>
       <Text color="cyan">{SPINNER_FRAMES[frame]}</Text>
       <Text> {label}</Text>
-      <Text dimColor> · work {formatDuration(thinkingElapsed)} · reply {formatDuration(replyElapsed)} · ↑{formatCompactNumber(inputTokens)} · ↓{formatCompactNumber(outputTokens)}</Text>
+      <Text dimColor> · work {formatDuration(thinkingElapsed)} · reply {formatDuration(replyElapsed)} · ↑({formatCompactNumber(cacheInputTokens)} / {formatCompactNumber(missInputTokens)}) · ↓{formatCompactNumber(outputTokens)}</Text>
     </Text>
   );
 }

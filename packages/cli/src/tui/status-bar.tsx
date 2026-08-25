@@ -8,9 +8,12 @@ interface StatusBarProps {
   running: boolean;
   questionPending: boolean;
   thinkingAvailable: boolean;
+  cacheInputTokens: number;
+  missInputTokens: number;
+  outputTokens: number;
 }
 
-export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, running, questionPending, thinkingAvailable }: StatusBarProps) {
+export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, running, questionPending, thinkingAvailable, cacheInputTokens, missInputTokens, outputTokens }: StatusBarProps) {
   const { columns } = useWindowSize();
   const pct = Math.min(100, contextLimit > 0 ? Math.round((contextTokens / contextLimit) * 100) : 0);
   const filled = Math.round((pct / 100) * 10);
@@ -22,10 +25,13 @@ export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, 
   else hints = "/ commands";
   return (
     <Box width={columns} paddingX={1} flexDirection="row" justifyContent="space-between" borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray">
-      <Text>
-        <Text dimColor>{`context ${formatCompactNumber(contextTokens)} `}</Text>
-        <Text color={ctxColor}>{`▕${bar}▏ ${pct}%`}</Text>
-      </Text>
+      <Box flexDirection="row">
+        <Text>
+          <Text dimColor>{`Context ${formatCompactNumber(contextTokens)} `}</Text>
+          <Text color={ctxColor}>{`▕${bar}▏ ${pct}%`}</Text>
+        </Text>
+        <Text dimColor>  Tokens ↑({formatCompactNumber(cacheInputTokens)} / {formatCompactNumber(missInputTokens)}) · ↓{formatCompactNumber(outputTokens)}</Text>
+      </Box>
       <Text dimColor>{hints}</Text>
     </Box>
   );

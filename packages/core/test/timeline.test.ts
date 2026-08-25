@@ -88,7 +88,7 @@ test("applyEvent stores timeline entries and merges tool stream events", () => {
   store.applyEvent({ type: "assistant_delta", text: "x" });
   store.applyEvent({ type: "thinking_delta", text: "x" });
   store.applyEvent({ type: "thinking_cleared" });
-  store.applyEvent({ type: "run_metrics", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 });
+  store.applyEvent({ type: "run_metrics", running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
   assert.deepEqual(store.all, [
     { type: "user", text: "hi" },
     { type: "skill", name: "s" },

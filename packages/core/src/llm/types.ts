@@ -28,7 +28,7 @@ export interface ChatOptions {
   onDelta?: (text: string) => void;
   onThinking?: (text: string) => void;
   onRetry?: (attempt: number, max: number, error: unknown) => void;
-  onUsage?: (inputTokens: number, outputTokens: number) => void;
+  onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
   onToolCall?: () => void;
   thinking?: boolean;
   signal?: AbortSignal;

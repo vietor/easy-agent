@@ -45,7 +45,8 @@ export class CompletionsAdapter extends BaseAdapter {
 
     for await (const chunk of stream) {
       if (chunk.usage) {
-        onUsage?.(chunk.usage.prompt_tokens ?? 0, chunk.usage.completion_tokens ?? 0);
+        const cached = (chunk.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens ?? 0;
+        onUsage?.(cached, chunk.usage.prompt_tokens ?? 0, chunk.usage.completion_tokens ?? 0);
       }
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;

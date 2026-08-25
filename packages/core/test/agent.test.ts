@@ -87,6 +87,36 @@ test("tool call executes and its result is stored in the conversation", async ()
   assert.equal(toolMsg.content, "echoed");
 });
 
+test("usage accumulates across all successful calls in a run", async () => {
+  const { llm } = fakeLLM([
+    (opts) => {
+      opts.onUsage?.(60, 100, 10);
+      return toolCall("Echo");
+    },
+    (opts) => {
+      opts.onUsage?.(140, 200, 20);
+      return { role: "assistant", content: "done" };
+    },
+  ]);
+  const agent = makeAgent(llm);
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+  assert.deepEqual(agent.usage, { cacheInputTokens: 200, missInputTokens: 300, outputTokens: 30 });
+});
+
+test("a failing call's usage is not added to the counters", async () => {
+  const { llm } = fakeLLM([
+    (opts) => {
+      opts.onUsage?.(100, 10);
+      throw new Error("boom");
+    },
+  ]);
+  const agent = makeAgent(llm);
+  const status = await agent.run("go");
+  assert.equal(status, "error");
+  assert.deepEqual(agent.usage, { cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
+});
+
 test("stalls on repeated identical tool calls", async () => {
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo"), () => toolCall("Echo")]);
   const agent = makeAgent(llm);

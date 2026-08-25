@@ -61,13 +61,14 @@ export class AnthropicAdapter extends BaseAdapter {
     };
 
     const stream = this.client.messages.stream(params, { signal: opts.signal });
-    if (opts.onUsage) stream.on("streamEvent", (e) => { if (e.type === "message_start") opts.onUsage!(e.message.usage.input_tokens, 0); });
+    if (opts.onUsage) stream.on("streamEvent", (e) => { if (e.type === "message_start") opts.onUsage!(0, e.message.usage.input_tokens, 0); });
     if (opts.onDelta) stream.on("text", (delta) => opts.onDelta!(delta));
     if (opts.onThinking) stream.on("thinking", (delta) => opts.onThinking!(delta));
     if (opts.onToolCall) stream.on("contentBlock", (block) => { if (block.type === "tool_use") opts.onToolCall!(); });
 
     const final = await stream.finalMessage();
-    opts.onUsage?.(final.usage.input_tokens, final.usage.output_tokens);
+    const cacheTokens = (final.usage.cache_read_input_tokens ?? 0) + (final.usage.cache_creation_input_tokens ?? 0);
+    opts.onUsage?.(cacheTokens, final.usage.input_tokens, final.usage.output_tokens);
 
     const thinking: Array<ThinkingBlock | RedactedThinkingBlock> = [];
     let text = "";

@@ -3,11 +3,12 @@ export interface RunMetrics {
   elapsed: number;
   thinkingElapsed: number;
   replyElapsed: number;
-  inputTokens: number;
+  cacheInputTokens: number;
+  missInputTokens: number;
   outputTokens: number;
 }
 
-export const INITIAL_RUN_METRICS: RunMetrics = { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, inputTokens: 0, outputTokens: 0 };
+export const INITIAL_RUN_METRICS: RunMetrics = { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 };
 
 export type TimelineEvent =
   | { type: "user"; text: string }

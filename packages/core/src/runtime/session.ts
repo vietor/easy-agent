@@ -120,7 +120,7 @@ class RunTimer {
   }
 
   metrics(
-    usage: { inputTokens: number; outputTokens: number },
+    usage: { cacheInputTokens: number; missInputTokens: number; outputTokens: number },
     firstReplyAt: number | null,
     running: boolean
   ): RunMetrics {
@@ -294,6 +294,7 @@ export class Session {
             maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
             stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
             contextLimit: deps.contextLimit,
+            onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
           })(systemPrompt, task, signal),
       },
     });

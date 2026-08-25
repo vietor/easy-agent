@@ -11,6 +11,7 @@ export interface SubAgentRunOptions {
   maxTurns: number;
   stallThreshold: number;
   contextLimit: number;
+  onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
 }
 
 export interface SubAgentRunResult {
@@ -36,6 +37,7 @@ export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: s
       contextLimit: opts.contextLimit,
     });
     const status = await subAgent.run(task, undefined, signal);
+    opts.onUsage?.(subAgent.usage.cacheInputTokens, subAgent.usage.missInputTokens, subAgent.usage.outputTokens);
     const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
     const messages = status !== "ok" ? conversation.export() : [];
     return { status, reply, messages };

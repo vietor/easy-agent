@@ -42,7 +42,8 @@ export class Agent {
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
-  private inputTokens = 0;
+  private cacheInputTokens = 0;
+  private missInputTokens = 0;
   private outputTokens = 0;
 
   constructor(opts: AgentOptions) {
@@ -63,13 +64,20 @@ export class Agent {
     return this.conversation.getEstimatedTokens();
   }
 
-  get usage(): { inputTokens: number; outputTokens: number } {
-    return { inputTokens: this.inputTokens, outputTokens: this.outputTokens };
+  get usage(): { cacheInputTokens: number; missInputTokens: number; outputTokens: number } {
+    return { cacheInputTokens: this.cacheInputTokens, missInputTokens: this.missInputTokens, outputTokens: this.outputTokens };
   }
 
   resetUsage(): void {
-    this.inputTokens = 0;
+    this.cacheInputTokens = 0;
+    this.missInputTokens = 0;
     this.outputTokens = 0;
+  }
+
+  addUsage(cacheInputTokens: number, missInputTokens: number, outputTokens: number): void {
+    this.cacheInputTokens += cacheInputTokens;
+    this.missInputTokens += missInputTokens;
+    this.outputTokens += outputTokens;
   }
 
   get model() {
@@ -261,6 +269,7 @@ export class Agent {
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
+      let usage: { cacheInputTokens: number; missInputTokens: number; outputTokens: number } | undefined;
       const message = await withAbort(this.llm.chat({
         messages: opts.messages,
         tools: opts.tools,
@@ -268,12 +277,12 @@ export class Agent {
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error) }),
-        onUsage: (inputTokens, outputTokens) => {
-          this.inputTokens = inputTokens;
-          this.outputTokens = outputTokens;
+        onUsage: (cacheInputTokens, missInputTokens, outputTokens) => {
+          usage = { cacheInputTokens, missInputTokens, outputTokens };
         },
         signal: opts.signal,
       }), opts.signal);
+      if (usage) this.addUsage(usage.cacheInputTokens, usage.missInputTokens, usage.outputTokens);
       return { ok: true, message };
     } catch (e) {
       if (opts.signal?.aborted || isAbortError(e)) {
