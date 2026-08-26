@@ -46,8 +46,10 @@ const session = await createSession({
 
 session.onEvent((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "run_metrics")
-    console.log(`tokens: ${e.missInputTokens} prompt / ${e.outputTokens} completion`);
+  else if (e.type === "run_metrics") {
+    const inputTokens = e.cacheInputTokens + e.missInputTokens;
+    console.log(`tokens: ${inputTokens} input / ${e.outputTokens} output`);
+  }
 });
 
 const result = await session.prompt("What files are in the current directory?");
