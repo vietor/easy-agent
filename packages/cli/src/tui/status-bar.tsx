@@ -20,7 +20,7 @@ export const StatusBar = memo(function StatusBar({ contextTokens, contextLimit, 
   const bar = "█".repeat(filled) + "░".repeat(10 - filled);
   const ctxColor = pct >= 85 ? "red" : pct >= 60 ? "yellow" : "green";
   let hints: string;
-  if (questionPending) hints = "↑↓ select · enter confirm · esc skip";
+  if (questionPending) hints = "↑↓ select · tab switch · space toggle · enter confirm · esc skip";
   else if (running) hints = thinkingAvailable ? "esc stop · t thinking" : "esc stop";
   else hints = "/ commands";
   return (

@@ -8,6 +8,7 @@ import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
 import { registerBuiltinTools, type BuiltinToolsOptions, type ToolRegistry } from "../tools/registry.js";
 import type { Todo, Tool } from "../tools/types.js";
+import type { AskAnswer, AskQuestion } from "../tools/ask-user.js";
 import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineEvent } from "./events.js";
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunStatus } from "./agent.js";
@@ -85,28 +86,28 @@ class StreamBuffer {
 
 class QuestionQueue {
   private questionSeq = 0;
-  private resolvers = new Map<string, (answer: string) => void>();
+  private resolvers = new Map<string, (answers: AskAnswer[]) => void>();
 
-  ask(): { id: string; promise: Promise<string> } {
+  ask(): { id: string; promise: Promise<AskAnswer[]> } {
     const id = `q${++this.questionSeq}`;
-    const promise = new Promise<string>((resolve) => {
+    const promise = new Promise<AskAnswer[]>((resolve) => {
       this.resolvers.set(id, resolve);
     });
     return { id, promise };
   }
 
-  submit(id: string, answer: string): void {
+  submit(id: string, answers: AskAnswer[]): void {
     const resolve = this.resolvers.get(id);
     if (resolve) {
       this.resolvers.delete(id);
-      resolve(answer);
+      resolve(answers);
     }
   }
 
-  resolveAll(answer: string): string[] {
+  resolveAll(): string[] {
     const ids = [...this.resolvers.keys()];
     for (const id of ids) {
-      this.submit(id, answer);
+      this.submit(id, []);
     }
     return ids;
   }
@@ -282,7 +283,7 @@ export class Session {
     this.sessionId = deps.sessionId ?? randomUUID();
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
     registerBuiltinTools(this.tools, deps.builtInTools, {
-      ask: (q, o) => this.ask(q, o),
+      ask: (questions) => this.ask(questions),
       setTodos: (t) => this.todoStore.set(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: {
@@ -451,14 +452,14 @@ export class Session {
 
   abort(): void {
     this.abortController?.abort();
-    for (const id of this.questionQueue.resolveAll("")) {
-      this.timelineStore.setAnswer(id, "");
+    for (const id of this.questionQueue.resolveAll()) {
+      this.timelineStore.setAnswers(id, []);
     }
   }
 
-  submitAnswer(id: string, answer: string): void {
-    this.questionQueue.submit(id, answer);
-    this.timelineStore.setAnswer(id, answer);
+  submitAnswer(id: string, answers: AskAnswer[]): void {
+    this.questionQueue.submit(id, answers);
+    this.timelineStore.setAnswers(id, answers);
   }
 
   async prompt(text: string): Promise<PromptResult> {
@@ -466,9 +467,9 @@ export class Session {
     return this.start({ type: "user", text }, (signal) => this.agent.run(text, this.handleEvent, signal));
   }
 
-  private ask(text: string, options: string[]): Promise<string> {
+  private ask(questions: AskQuestion[]): Promise<AskAnswer[]> {
     const { id, promise } = this.questionQueue.ask();
-    this.emit({ type: "question", id, text, options, answer: null });
+    this.emit({ type: "question", id, questions: questions.map((q) => ({ ...q, answer: null })) });
     return promise;
   }
 }

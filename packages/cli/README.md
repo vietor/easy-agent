@@ -154,7 +154,7 @@ A status bar at the bottom shows the context token usage with a progress bar and
 - **Glob** — list files, optionally filtered by a glob pattern.
 - **Grep** — search file contents by regex with `glob`/`type` filters, context lines, case-insensitive, and `files_with_matches`/`count` output modes.
 - **WebFetch** — fetch a URL as markdown or text.
-- **AskUser** — ask the user a question and wait for their answer.
+- **AskUser** — ask the user up to 4 questions in one call, each shown as a tab page (↑↓ pick options, Tab switches questions, custom input allowed) and wait for the answers.
 - **TodoWrite** — track multi-step work as a task list (pending / inProgress / completed), shown live as a panel in the TUI.
 - **SubAgent** — delegate investigation (`explore`) or implementation-planning (`plan`) subtasks to a nested read-only sub-agent.
 

@@ -304,7 +304,7 @@ test("dispose resolves a pending question", async () => {
       () => ({
         role: "assistant",
         content: null,
-        tool_calls: [{ id: "q1", type: "function", function: { name: "AskUser", arguments: JSON.stringify({ question: "which?", options: ["a", "b"] }) } }],
+        tool_calls: [{ id: "q1", type: "function", function: { name: "AskUser", arguments: JSON.stringify({ questions: [{ question: "which?", options: [{ label: "a" }, { label: "b" }], multiSelect: false }] }) } }],
       }),
     ]),
     tools,
@@ -318,4 +318,49 @@ test("dispose resolves a pending question", async () => {
   const { status } = await run;
   assert.equal(status, "aborted");
   assert.equal(session.pendingQuestion, undefined);
+});
+
+test("submitAnswer feeds the answers back to the model as an AskUser tool result", async () => {
+  const tools = new ToolRegistry();
+  const session = new Session({
+    systemPrompt: "test",
+    llm: fakeLLM([
+      () => ({
+        role: "assistant",
+        content: null,
+        tool_calls: [{
+          id: "q1",
+          type: "function",
+          function: {
+            name: "AskUser",
+            arguments: JSON.stringify({
+              questions: [
+                { question: "env?", options: [{ label: "prod" }, { label: "dev" }], multiSelect: false },
+                { question: "method?", options: [{ label: "email" }, { label: "slack" }], multiSelect: true },
+              ],
+            }),
+          },
+        }],
+      }),
+      (opts) => {
+        const last = opts.messages.at(-1) as { role: string; content: string };
+        assert.equal(last.role, "tool");
+        assert.deepEqual(JSON.parse(last.content), { "env?": "prod", "method?": ["email", "slack"] });
+        return { role: "assistant", content: "done" };
+      },
+    ]),
+    tools,
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+    contextLimit: 750_000,
+    builtInTools: { askUser: true },
+  });
+  session.subscribe(() => {});
+  const run = session.prompt("go");
+  assert.ok(await waitUntil(() => session.pendingQuestion !== undefined, 5000), "question must become pending");
+  assert.ok(session.pendingQuestion!.questions.every((q) => q.answer === null));
+  session.submitAnswer(session.pendingQuestion!.id, ["prod", ["email", "slack"]]);
+  const { status } = await run;
+  assert.equal(status, "ok");
+  const entry = session.getSnapshot().timeline.find((e) => e.type === "question");
+  assert.deepEqual(entry?.questions.map((q) => q.answer), ["prod", ["email", "slack"]]);
 });

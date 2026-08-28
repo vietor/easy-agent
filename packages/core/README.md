@@ -150,8 +150,41 @@ const session = await createSession({ systemPrompt, llm });
 | `exportState(): SessionState` | Return the full session state (`{ messages, todos }`) for the host to persist; `export()` returns only messages. |
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
-| `submitAnswer(id: string, answer: string): void` | Supply an answer to a pending user question (from the built-in AskUser tool). |
-| `pendingQuestion: Extract<TimelineEvent, { type: "question" }> \| undefined` | *(getter)* The most recent unanswered question, or `undefined` if none are pending. |
+| `submitAnswer(id: string, answers: AskAnswer[]): void` | Supply answers to a pending user question group (from the built-in AskUser tool), one entry per question; multi-select answers are `string[]`, skipped ones `""`. |
+| `pendingQuestion: Extract<TimelineEvent, { type: "question" }> \| undefined` | *(getter)* The most recent unanswered question group, or `undefined` if none are pending. |
+
+### Asking the user
+
+The built-in **AskUser** tool takes 1-4 questions in one call; each question has an optional `header` (≤ 12 chars), 2-4 `options` with optional `description`s, and an optional `multiSelect` flag:
+
+```ts
+{
+  questions: [
+    { header: "Deploy", question: "Which environment?", options: [{ label: "prod" }, { label: "staging" }], multiSelect: false },
+    { question: "Notify on?", options: [{ label: "email" }, { label: "slack" }], multiSelect: true },
+  ],
+}
+```
+
+The session emits one `question` timeline entry (also delivered via `onEvent`) — each item is an `AskedQuestion` (an `AskQuestion` plus an `answer` field, `null` while pending) — and pauses the run until answered:
+
+```ts
+{ type: "question", id: "q1", questions: [{ question: "Which environment?", options: [...], multiSelect: false, answer: null }, ...] }
+```
+
+The host renders the questions and supplies one answer per question via `submitAnswer` — `string` for single-select, `string[]` for multi-select, `""` to skip:
+
+```ts
+session.submitAnswer("q1", ["prod", ["email", "slack"]]);
+```
+
+The tool result fed back to the LLM is JSON keyed by question text; multi-select values are arrays of selected labels, skipped questions `""`:
+
+```json
+{ "Which environment?": "prod", "Notify on?": ["email", "slack"] }
+```
+
+`abort()` (or `dispose()`) resolves any pending question group with all-`""` answers and stops the run.
 
 ### Events
 
@@ -178,7 +211,7 @@ type TimelineEvent =
   | { type: "retry"; attempt: number; max: number; reason: string }
   | { type: "error"; text: string }
   | { type: "interrupted" }
-  | { type: "question"; id: string; text: string; options: string[]; answer: string | null }
+  | { type: "question"; id: string; questions: AskedQuestion[] }
   | { type: "notice"; text: string };
 ```
 
@@ -207,7 +240,7 @@ type StreamEvent =
 | `retry` | The LLM client retries after a transient API error. | ✓ |
 | `error` | An error occurred. | ✓ |
 | `interrupted` | The current run was aborted. | ✓ |
-| `question` | The AskUser tool poses a question. | ✓ |
+| `question` | The AskUser tool poses a group of 1-4 questions. | ✓ |
 | `notice` | `session.addNotice()` is called, or the run auto-compacts context. | ✓ |
 | `run_metrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
 
@@ -349,7 +382,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 |---|---|
 | `result: string \| null` (`tool`) | `null` while the tool is running; the result text once `tool_end` arrives, or `"aborted"` if the run was interrupted. |
 | `isError?: boolean` / `resultSummary?: string` (`tool`) | Set when the tool ended with an error / a condensed summary of the result. |
-| `answer: string \| null` (`question`) | `null` until the user answers (via `submitAnswer` or `abort`). |
+| `questions: AskedQuestion[]` (`question`) | The question group; each item is an `AskQuestion` (`header?`, `question`, `options: {label, description?}[]`, `multiSelect`) with an `answer` field: `string` for single-select, `string[]` for multi-select, `""` when skipped; `null` until answered (via `submitAnswer` or `abort`). |
 
 ### `SessionMessage`
 
@@ -493,7 +526,7 @@ Interactive tools are **off by default** and registered only when explicitly ena
 
 | Tool | Description |
 |---|---|
-| **AskUser** | Ask the user a question and wait for the answer. |
+| **AskUser** | Ask the user 1-4 questions in one call (each with 2-4 options and optional multi-select) and wait for the answers. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Registered automatically whenever `skills` are provided. |
 | **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning. Sub-agents are equipped with the session's read-only tools (FileRead/Glob/Grep/WebFetch, plus any custom tools marked `readOnly`). |

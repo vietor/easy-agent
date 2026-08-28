@@ -8,6 +8,7 @@ import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { AskedQuestion } from "../src/tools/ask-user.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const llm: LLMClient = {
@@ -32,9 +33,9 @@ function toolCall(name: string, id = "t1"): LLMAssistantMessage {
   };
 }
 
-test("setAnswer is a no-op for an unknown question id", () => {
+test("setAnswers is a no-op for an unknown question id", () => {
   const store = new TimelineStore();
-  store.setAnswer("q1", "yes");
+  store.setAnswers("q1", ["yes"]);
   assert.equal(store.all.length, 0);
 });
 
@@ -46,22 +47,24 @@ test("setResult only mutates entries still pending", () => {
   assert.deepEqual(store.all, [{ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
-test("setAnswer records the answer on the question entry", () => {
+test("setAnswers records the answers on the question entry", () => {
   const store = new TimelineStore();
-  store.applyEvent({ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: null });
-  store.setAnswer("q1", "b");
-  assert.deepEqual(store.all, [{ type: "question", id: "q1", text: "pick", options: ["a", "b"], answer: "b" }]);
+  const q1: AskedQuestion = { question: "pick", options: [{ label: "a" }, { label: "b" }], multiSelect: false, answer: null };
+  const q2: AskedQuestion = { question: "how", options: [{ label: "x" }, { label: "y" }], multiSelect: true, answer: null };
+  store.applyEvent({ type: "question", id: "q1", questions: [q1, q2] });
+  store.setAnswers("q1", ["b", ["x", "y"]]);
+  assert.deepEqual(store.all, [{ type: "question", id: "q1", questions: [{ ...q1, answer: "b" }, { ...q2, answer: ["x", "y"] }] }]);
 });
 
 test("latestUnansweredQuestion tracks the most recent unanswered question", () => {
   const store = new TimelineStore();
   assert.equal(store.latestUnansweredQuestion, undefined);
-  store.applyEvent({ type: "question", id: "q1", text: "one", options: [], answer: null });
-  store.applyEvent({ type: "question", id: "q2", text: "two", options: [], answer: null });
+  store.applyEvent({ type: "question", id: "q1", questions: [{ question: "one", options: [{ label: "a" }, { label: "b" }], multiSelect: false, answer: null }] });
+  store.applyEvent({ type: "question", id: "q2", questions: [{ question: "two", options: [{ label: "a" }, { label: "b" }], multiSelect: false, answer: null }] });
   assert.equal(store.latestUnansweredQuestion?.id, "q2");
-  store.setAnswer("q2", "yes");
+  store.setAnswers("q2", ["yes"]);
   assert.equal(store.latestUnansweredQuestion?.id, "q1");
-  store.setAnswer("q1", "yes");
+  store.setAnswers("q1", ["yes"]);
   assert.equal(store.latestUnansweredQuestion, undefined);
 });
 

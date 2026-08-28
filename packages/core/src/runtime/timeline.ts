@@ -1,6 +1,7 @@
 import { parseToolArgs, toText } from "../llm/messages.js";
 import type { SessionMessage } from "./session-messages.js";
 import type { SessionEvent, TimelineEvent } from "./events.js";
+import type { AskAnswer } from "../tools/ask-user.js";
 import { Emitter } from "../util/emitter.js";
 
 export class TimelineStore {
@@ -57,20 +58,23 @@ export class TimelineStore {
     this.listeners.notify();
   }
 
-  setAnswer(id: string, answer: string): void {
+  setAnswers(id: string, answers: AskAnswer[]): void {
     const index = this.pendingQuestions.get(id);
     if (index === undefined) return;
     this.pendingQuestions.delete(id);
     const entry = this.entries[index];
-    if (entry.type !== "question" || entry.answer !== null) return;
-    this.entries[index] = { ...entry, answer };
+    if (entry.type !== "question" || entry.questions.some((q) => q.answer !== null)) return;
+    this.entries[index] = {
+      ...entry,
+      questions: entry.questions.map((q, i) => ({ ...q, answer: answers[i] ?? "" })),
+    };
     this.listeners.notify();
   }
 
   get latestUnansweredQuestion(): Extract<TimelineEvent, { type: "question" }> | undefined {
     for (let i = this.entries.length - 1; i >= 0; i--) {
       const e = this.entries[i];
-      if (e.type === "question" && e.answer === null) return e;
+      if (e.type === "question" && e.questions.some((q) => q.answer === null)) return e;
     }
     return undefined;
   }

@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/markdown.js";
-import type { TimelineEvent } from "@vietor/agent-core";
+import type { AskedQuestion, TimelineEvent } from "@vietor/agent-core";
 
 export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEvent }) {
   switch (entry.type) {
@@ -60,11 +60,15 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
         </Box>
       );
     case "question":
-      if (entry.answer === null) return null;
+      if (entry.questions.every((q) => q.answer === null)) return null;
       return (
         <Box marginTop={1} flexDirection="column">
-          <Text color="cyan">{`? ${entry.text}`}</Text>
-          <Text dimColor>{`  ⎿  ${entry.answer || "(skipped)"}`}</Text>
+          {entry.questions.map((q, i) => (
+            <Box key={i} flexDirection="column">
+              <Text color="cyan">{`? ${q.header ? `[${q.header}] ` : ""}${q.question}`}</Text>
+              <Text dimColor>{`  ⎿  ${formatAnswer(q)}`}</Text>
+            </Box>
+          ))}
         </Box>
       );
     case "notice":
@@ -75,6 +79,11 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
       );
   }
 });
+
+function formatAnswer(q: AskedQuestion): string {
+  if (Array.isArray(q.answer)) return q.answer.length ? q.answer.join(", ") : "(skipped)";
+  return q.answer || "(skipped)";
+}
 
 function ToolEntry({ entry }: { entry: Extract<TimelineEvent, { type: "tool" }> }) {
   const running = entry.result === null;

@@ -7,7 +7,7 @@ import { fileEditTool } from "./file-edit.js";
 import { globTool } from "./glob.js";
 import { grepTool } from "./grep.js";
 import { webFetchTool } from "./web-fetch.js";
-import { createAskUserTool } from "./ask-user.js";
+import { createAskUserTool, type AskAnswer, type AskQuestion } from "./ask-user.js";
 import { createSkillTool } from "./skill.js";
 import { createTodoWriteTool } from "./todo-write.js";
 import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
@@ -104,7 +104,7 @@ export interface BuiltinToolsOptions {
 }
 
 export interface BuiltinToolsDeps {
-  ask: (question: string, options: string[]) => Promise<string>;
+  ask: (questions: AskQuestion[]) => Promise<AskAnswer[]>;
   setTodos: (todos: Todo[]) => void;
   resolveSkill?: (name: string) => Skill | undefined;
   subAgent: SubAgentToolDeps;
