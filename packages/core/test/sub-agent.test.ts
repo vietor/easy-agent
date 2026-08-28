@@ -179,6 +179,16 @@ test("SubAgent tool type enum covers explore and plan", () => {
   assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
 });
 
+test("SubAgent label is capped at 50 chars and shown after the type name", () => {
+  const tool = createSubAgentTool({ runSubAgent: async () => ({ status: "ok", reply: "", messages: [] }) });
+  const params = tool.parameters as { properties: { label: { maxLength: number } } };
+  assert.equal(params.properties.label.maxLength, 50);
+  const summarize = tool.summarizeArgs!;
+  assert.equal(summarize({ type: "explore", label: "find the bug" }), "Explore find the bug");
+  assert.equal(summarize({ type: "plan" }), "Plan");
+  assert.equal(summarize({ type: "explore", label: "x".repeat(60) }), `Explore ${"x".repeat(50)}…`);
+});
+
 test("multiple SubAgent calls in one turn run concurrently", async () => {
   let inflight = 0;
   let maxInflight = 0;
