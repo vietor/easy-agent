@@ -1,6 +1,6 @@
 import { formatRipgrepOutput, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
 import { NO_MATCHES } from "../util/constants.js";
-import { resolveOptionalPath } from "../util/file.js";
+import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 
 const DESCRIPTION = "List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Skips node_modules and .git.";
@@ -18,11 +18,11 @@ export const globTool: Tool = {
     required: [],
   },
   async execute(args, ctx) {
-    const cwd = resolveOptionalPath(args, ctx.cwd);
+    const { cwd, target } = resolveSearchPath(args, ctx.cwd);
     const rgArgs = ["--files"];
     const pattern = args.pattern as string;
     if (pattern) rgArgs.push("-g", pattern);
-    rgArgs.push(".");
+    rgArgs.push(target);
     const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal);
     return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
   },

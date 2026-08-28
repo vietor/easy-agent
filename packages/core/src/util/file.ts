@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 export function tryReadFileText(path: string): string | undefined {
@@ -15,7 +15,11 @@ export function resolveRequiredPath(args: Record<string, unknown>, cwd: string):
   return resolve(cwd, path);
 }
 
-export function resolveOptionalPath(args: Record<string, unknown>, cwd: string): string {
-  return resolve(cwd, (args.path as string) || "");
+export function resolveSearchPath(args: Record<string, unknown>, cwd: string): { cwd: string; target: string } {
+  const path = resolve(cwd, (args.path as string) || "");
+  if (existsSync(path) && !statSync(path).isDirectory()) {
+    return { cwd, target: path };
+  }
+  return { cwd: path, target: "." };
 }
 
