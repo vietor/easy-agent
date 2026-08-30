@@ -1,6 +1,6 @@
 import { formatRipgrepOutput, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
 import { DEFAULT_GREP_LIMIT, NO_MATCHES } from "../util/constants.js";
-import { resolveOptionalPath } from "../util/file.js";
+import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 
 const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit.`;
@@ -13,7 +13,7 @@ export const grepTool: Tool = {
     type: "object",
     properties: {
       pattern: { type: "string" },
-      path: { type: "string", description: "root directory, defaults to cwd" },
+      path: { type: "string", description: "file or directory, defaults to cwd" },
       glob: { type: "string", description: "filter files, e.g. *.ts" },
       type: { type: "string", description: "file type, e.g. ts, js, py" },
       output_mode: { type: "string", enum: ["content", "files_with_matches", "count"], description: "defaults to content" },
@@ -28,7 +28,7 @@ export const grepTool: Tool = {
     required: ["pattern"],
   },
   async execute(args, ctx) {
-    const cwd = resolveOptionalPath(args, ctx.cwd);
+    const { cwd, target } = resolveSearchPath(args, ctx.cwd);
     const rgArgs = ["--line-number", "--with-filename", "--no-heading"];
     if (args.ignore_case) rgArgs.push("-i");
     if (args.only_matching) rgArgs.push("-o");
@@ -48,7 +48,7 @@ export const grepTool: Tool = {
     if (output_mode === "files_with_matches") rgArgs.push("-l");
     else if (output_mode === "count") rgArgs.push("-c");
     else rgArgs.push("-m", String(headLimit));
-    rgArgs.push("--", args.pattern as string, ".");
+    rgArgs.push("--", args.pattern as string, target);
     const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal, headLimit);
     return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
   },

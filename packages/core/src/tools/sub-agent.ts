@@ -1,7 +1,10 @@
 import { NOT_EXECUTED_PREFIX } from "../util/constants.js";
+import { summarizeText } from "../util/text.js";
 import type { SubAgentRunResult } from "../runtime/sub-agent-runner.js";
 import type { Tool } from "./types.js";
 import { toolError } from "./types.js";
+
+const MAX_LABEL_LENGTH = 50;
 
 export const SUB_AGENT_GUIDANCE =
   '- Consider delegating to the SubAgent tool when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. type: "explore" — read-only search agent for broad fan-out searches (state the search breadth in the task); type: "plan" — software architect producing implementation plans. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result. Issue at most 2 SubAgent calls per turn; multiple calls in the same turn run concurrently. Sub-agents are read-only and return only their final report, not intermediate steps — verify important results yourself. For large workloads with many independent items that would exceed the turn budget, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.';
@@ -65,11 +68,21 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
           enum: SUB_AGENT_DEFS.map((d) => d.type),
           description: 'The sub-agent type to invoke: "explore" (read-only fan-out search) or "plan" (implementation plan).',
         },
+        label: {
+          type: "string",
+          maxLength: MAX_LABEL_LENGTH,
+          description: `Short label (max ${MAX_LABEL_LENGTH} characters) for this sub-agent run, shown in the UI.`,
+        },
         task: { type: "string", description: "The task or question for the sub-agent, as a self-contained description." },
       },
       required: ["type", "task"],
     },
-    argSummaryKeys: ["type"],
+    summarizeArgs: (args) => {
+      const type = args.type as string;
+      const label = typeof args.label === "string" ? summarizeText(args.label, MAX_LABEL_LENGTH) : "";
+      const def = SUB_AGENT_DEFS.find((d) => d.type === type);
+      return (def?.name || type) + (label ? ` ${label}`: "");
+    },
     async execute(args, ctx) {
       const type = args.type as string;
       const task = ((args.task as string) ?? "").trim();
@@ -95,7 +108,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps): Tool {
         }
       }
       const suffix = stallReason ? ` ${stallReason}` : "";
-      return { content: `Sub-agent "${type}" ended with status ${status}.${suffix}\n\n${reply}`, isError: true };
+      return { content: `Sub-agent "${def.name}" ended with status ${status}.${suffix}\n\n${reply}`, isError: true };
     },
   };
 }

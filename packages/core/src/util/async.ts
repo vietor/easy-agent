@@ -12,7 +12,7 @@ export function isAbortError(e: unknown): boolean {
 }
 
 export function backoffDelay(attempt: number): number {
-  return 1000 * 2 ** attempt;
+  return Math.min(2000 * 2 ** attempt, 60_000);
 }
 
 export interface RetryOptions {
