@@ -147,3 +147,96 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
   store.markPendingToolsAborted();
   assert.equal((store.all.find((e) => e.type === "tool") as Extract<TimelineEvent, { type: "tool" }>).result, "aborted");
 });
+
+test("toTimelineEntries rebuilds AskUser question entries with the user's answers", () => {
+  const content = JSON.stringify({ "which mode?": "fast", "pick tags": ["a", "b"] });
+  const entries = toTimelineEntries(
+    [
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "t1",
+            type: "function",
+            function: {
+              name: "AskUser",
+              arguments: JSON.stringify({
+                questions: [
+                  { header: "Mode", question: "which mode?", options: [{ label: "fast" }, { label: "safe" }], multiSelect: false },
+                  { question: "pick tags", options: [{ label: "a" }, { label: "b" }, { label: "c" }], multiSelect: true },
+                ],
+              }),
+            },
+          },
+        ],
+      },
+      { role: "tool", tool_call_id: "t1", content },
+    ],
+    () => ""
+  );
+  assert.deepEqual(entries, [
+    { type: "user", text: "go" },
+    { type: "tool", id: "t1", name: "AskUser", argsSummary: "", result: content, isError: undefined, resultSummary: undefined },
+    {
+      type: "question",
+      id: "t1",
+      questions: [
+        {
+          header: "Mode",
+          question: "which mode?",
+          options: [{ label: "fast", description: undefined }, { label: "safe", description: undefined }],
+          multiSelect: false,
+          answer: "fast",
+        },
+        {
+          header: undefined,
+          question: "pick tags",
+          options: [{ label: "a", description: undefined }, { label: "b", description: undefined }, { label: "c", description: undefined }],
+          multiSelect: true,
+          answer: ["a", "b"],
+        },
+      ],
+    },
+  ]);
+});
+
+test("toTimelineEntries shows skipped answers when an AskUser result is unparseable", () => {
+  const entries = toTimelineEntries(
+    [
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "t1",
+            type: "function",
+            function: {
+              name: "AskUser",
+              arguments: JSON.stringify({
+                questions: [{ question: "which mode?", options: [{ label: "fast" }, { label: "safe" }], multiSelect: false }],
+              }),
+            },
+          },
+        ],
+      },
+      { role: "tool", tool_call_id: "t1", content: "(interrupted)" },
+    ],
+    () => ""
+  );
+  const question = entries.find((e) => e.type === "question");
+  assert.deepEqual(question, {
+    type: "question",
+    id: "t1",
+    questions: [
+      {
+        header: undefined,
+        question: "which mode?",
+        options: [{ label: "fast", description: undefined }, { label: "safe", description: undefined }],
+        multiSelect: false,
+        answer: "",
+      },
+    ],
+  });
+});

@@ -25,7 +25,7 @@ const MAX_HEADER_LENGTH = 12;
 
 const DESCRIPTION = "Ask the user 1-4 questions and wait for the answers. Each question has an optional header (at most 12 chars), 2-4 options with optional descriptions, and an optional multiSelect flag. Returns JSON keyed by question text; multi-select answers are arrays of selected labels; skipped questions return an empty string. Do not add an 'Other' option — the user can always type a custom answer.";
 
-function parseQuestions(args: Record<string, unknown>): { questions: AskQuestion[]; error?: string } {
+export function parseQuestions(args: Record<string, unknown>): { questions: AskQuestion[]; error?: string } {
   const raw = args.questions;
   if (!Array.isArray(raw) || raw.length === 0) {
     return { questions: [], error: `"questions" must be an array of 1-${MAX_QUESTIONS} question objects, got ${typeof raw}` };

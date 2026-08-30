@@ -452,9 +452,7 @@ export class Session {
 
   abort(): void {
     this.abortController?.abort();
-    for (const id of this.questionQueue.resolveAll()) {
-      this.timelineStore.setAnswers(id, []);
-    }
+    for (const id of this.questionQueue.resolveAll()) this.submitAnswer(id, []);
   }
 
   submitAnswer(id: string, answers: AskAnswer[]): void {

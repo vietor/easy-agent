@@ -1,7 +1,7 @@
 import { parseToolArgs, toText } from "../llm/messages.js";
 import type { SessionMessage } from "./session-messages.js";
 import type { SessionEvent, TimelineEvent } from "./events.js";
-import type { AskAnswer } from "../tools/ask-user.js";
+import { parseQuestions, type AskAnswer } from "../tools/ask-user.js";
 import { Emitter } from "../util/emitter.js";
 
 export class TimelineStore {
@@ -26,10 +26,6 @@ export class TimelineStore {
       case "tool_end":
         this.setResult(e.id, e.result, e.isError, e.resultSummary);
         break;
-      case "question":
-        this.pendingQuestions.set(e.id, this.entries.length);
-        this.append(e);
-        break;
       case "assistant_delta":
       case "thinking_delta":
       case "thinking_cleared":
@@ -44,6 +40,8 @@ export class TimelineStore {
     this.entries.push(entry);
     if (entry.type === "tool" && entry.result === null) {
       this.pendingTools.set(entry.id, this.entries.length - 1);
+    } else if (entry.type === "question") {
+      this.pendingQuestions.set(entry.id, this.entries.length - 1);
     }
     this.listeners.notify();
   }
@@ -149,6 +147,23 @@ export function toTimelineEntries(
             entries.push({ ...entry, result: result.content, isError: result.isError, resultSummary: result.resultSummary });
           } else {
             entries.push(entry);
+          }
+          if (tc.function.name === "AskUser" && parsed.ok && result) {
+            const { questions } = parseQuestions(parsed.args);
+            if (questions.length > 0) {
+              let answerMap: Record<string, AskAnswer> = {};
+              try {
+                const parsedResult: unknown = JSON.parse(result.content);
+                if (typeof parsedResult === "object" && parsedResult !== null) {
+                  answerMap = parsedResult as Record<string, AskAnswer>;
+                }
+              } catch {}
+              entries.push({
+                type: "question",
+                id: tc.id,
+                questions: questions.map((q) => ({ ...q, answer: answerMap[q.question] ?? "" })),
+              });
+            }
           }
         }
       }
