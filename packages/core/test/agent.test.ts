@@ -60,6 +60,7 @@ function makeAgent(
     getTodos: opts.getTodos ?? (() => []),
     stallThreshold: 3,
     maxTurns: opts.maxTurns ?? 50,
+    maxParallelToolCalls: 10,
     contextLimit: opts.contextLimit ?? 750_000,
     resolveSkill: opts.resolveSkill,
   });
@@ -402,6 +403,7 @@ test("a failing tool summary leaves the conversation well-formed for the next tu
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,
+    maxParallelToolCalls: 10,
     contextLimit: 750_000,
   });
   await assert.rejects(() => agent.run("go"), /summary boom/);

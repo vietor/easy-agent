@@ -108,6 +108,7 @@ const session = await createSession({
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier. |
 | `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
+| `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
 
 The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`.
 

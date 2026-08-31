@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { toErrorMessage } from "../util/text.js";
-import { DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -152,6 +152,7 @@ export interface SessionOptions {
   sessionId?: string;
   maxTurns?: number;
   stallThreshold?: number;
+  maxParallelToolCalls?: number;
 }
 
 export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
@@ -294,6 +295,7 @@ export class Session {
             cwd: this.cwd,
             maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
             stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
+            maxParallelToolCalls: deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS,
             contextLimit: deps.contextLimit,
             onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
           })(systemPrompt, task, signal),
@@ -309,6 +311,7 @@ export class Session {
       getTodos: () => this.todoStore.all,
       stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
       maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
+      maxParallelToolCalls: deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS,
       contextLimit: deps.contextLimit,
       resolveSkill: this.resolveSkill,
       onCompact: () => {

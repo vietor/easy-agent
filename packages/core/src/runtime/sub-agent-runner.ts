@@ -10,6 +10,7 @@ export interface SubAgentRunOptions {
   cwd: string;
   maxTurns: number;
   stallThreshold: number;
+  maxParallelToolCalls: number;
   contextLimit: number;
   onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
 }
@@ -34,6 +35,7 @@ export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: s
       getTodos: () => [],
       stallThreshold: opts.stallThreshold,
       maxTurns: opts.maxTurns,
+      maxParallelToolCalls: opts.maxParallelToolCalls,
       contextLimit: opts.contextLimit,
     });
     const status = await subAgent.run(task, undefined, signal);

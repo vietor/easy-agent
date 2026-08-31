@@ -1,5 +1,5 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
-import { MAX_PARALLEL_TOOL_CALLS, NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
+import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { summarizeText, toErrorMessage } from "../util/text.js";
 import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
@@ -22,6 +22,7 @@ export interface AgentOptions {
   getTodos: () => readonly Todo[];
   stallThreshold: number;
   maxTurns: number;
+  maxParallelToolCalls: number;
   contextLimit: number;
   resolveSkill?: (name: string) => Skill | undefined;
   onCompact?: () => void;
@@ -38,6 +39,7 @@ export class Agent {
   private getTodos: () => readonly Todo[];
   private stallThreshold: number;
   private maxTurns: number;
+  private maxParallelToolCalls: number;
   readonly contextLimit: number;
   private todoSnapshot: readonly Todo[] = [];
   private resolveSkill?: (name: string) => Skill | undefined;
@@ -55,6 +57,7 @@ export class Agent {
     this.getTodos = opts.getTodos;
     this.stallThreshold = opts.stallThreshold;
     this.maxTurns = opts.maxTurns;
+    this.maxParallelToolCalls = opts.maxParallelToolCalls;
     this.contextLimit = opts.contextLimit;
     this.resolveSkill = opts.resolveSkill;
     this.onCompact = opts.onCompact;
@@ -301,7 +304,7 @@ export class Agent {
   ): Promise<{ id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> }[] | null> {
     const results = await mapWithConcurrency(
       calls,
-      MAX_PARALLEL_TOOL_CALLS,
+      this.maxParallelToolCalls,
       (call) => this.executeToolCall(call, onEvent, signal),
       signal
     );

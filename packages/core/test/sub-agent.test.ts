@@ -52,7 +52,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   tools.registerAll(SUB_TOOLS);
   tools.register(stub("Shell", "ok"));
   let parentAgent: Agent;
-  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRunner({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) })(systemPrompt, task, signal) }));
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRunner({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) })(systemPrompt, task, signal) }));
   const conversation = new SessionMessages("system prompt");
   parentAgent = new Agent({
     llm,
@@ -63,6 +63,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,
+    maxParallelToolCalls: 10,
     contextLimit: 750_000,
   });
   return parentAgent;
