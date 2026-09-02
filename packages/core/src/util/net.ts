@@ -23,7 +23,10 @@ const undiciFetch = fetch as unknown as (
 export async function netFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   if (!proxyInitialized) ensureProxy();
 
-  if (!proxyAgent) return undiciFetch(input, init);
+  const headers = new Headers(init?.headers);
+  if (!headers.has("accept-encoding")) headers.set("accept-encoding", "gzip, deflate");
+
+  if (!proxyAgent) return undiciFetch(input, { ...init, headers });
 
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
@@ -33,8 +36,8 @@ export async function netFetch(input: RequestInfo | URL, init?: RequestInit): Pr
       if (p.startsWith(".")) return hostname.endsWith(p);
       return hostname === p || hostname.endsWith("." + p);
     });
-    if (shouldBypass) return undiciFetch(input, init);
+    if (shouldBypass) return undiciFetch(input, { ...init, headers });
   }
 
-  return undiciFetch(input, { ...init, dispatcher: proxyAgent });
+  return undiciFetch(input, { ...init, headers, dispatcher: proxyAgent });
 }
