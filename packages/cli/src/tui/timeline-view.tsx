@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import { Markdown } from "./components/markdown.js";
+import { summarizeText } from "@vietor/agent-core/util";
 import type { AskedQuestion, TimelineEvent } from "@vietor/agent-core";
 
 export const TimelineView = memo(function TimelineView({ entry }: { entry: TimelineEvent }) {
@@ -37,7 +38,7 @@ export const TimelineView = memo(function TimelineView({ entry }: { entry: Timel
         <Box>
           <Text>
             <Text color="yellow">↻ </Text>
-            <Text dimColor>retry {entry.attempt}/{entry.max} · {entry.reason}</Text>
+            <Text dimColor>retry {entry.attempt}/{entry.max} · {summarizeText(entry.reason, 75)}</Text>
           </Text>
         </Box>
       );
