@@ -148,9 +148,9 @@ A status bar at the bottom shows the context token usage with a progress bar and
 ### Built-in tools
 
 - **Shell** — run shell commands using this platform's native syntax.
-- **FileRead** — read a file with line numbers; supports `offset`/`limit` for paging large files.
-- **FileWrite** — create or fully overwrite a file.
-- **FileEdit** — replace exact matches in a file; `replace_all` for every occurrence.
+- **Read** — read a file with line numbers; supports `offset`/`limit` for paging large files.
+- **Write** — create or fully overwrite a file.
+- **Edit** — replace exact matches in a file; `replace_all` for every occurrence.
 - **Glob** — list files, optionally filtered by a glob pattern.
 - **Grep** — search file contents by regex with `glob`/`type` filters, context lines, case-insensitive, and `files_with_matches`/`count` output modes.
 - **WebFetch** — fetch a URL as markdown or text.

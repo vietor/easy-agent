@@ -2,10 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import type { Tool } from "./types.js";
 import { resolveRequiredPath } from "../util/file.js";
 
-const DESCRIPTION = "Replace old_string with new_string in a file. Read the file first — old_string must match exactly including whitespace/indentation. Must be unique unless replace_all is set. For full rewrites prefer FileWrite.";
+const DESCRIPTION = "Replace old_string with new_string in a file. Read the file first — old_string must match exactly including whitespace/indentation. Must be unique unless replace_all is set. For full rewrites prefer Write.";
 
 export const fileEditTool: Tool = {
-  name: "FileEdit",
+  name: "Edit",
   description: DESCRIPTION,
   parameters: {
     type: "object",
@@ -24,7 +24,7 @@ export const fileEditTool: Tool = {
     const all = args.replace_all === true;
     if (!oldStr) throw new Error("old_string is required");
     const content = await readFile(resolved, "utf-8");
-    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${args.path}; re-read the file with FileRead to get the exact current text (watch whitespace/indentation)`);
+    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${args.path}; re-read the file with Read to get the exact current text (watch whitespace/indentation)`);
     if (all) {
       await writeFile(resolved, content.split(oldStr).join(newStr), "utf-8");
       return { content: `Edited ${args.path} (replaced all)` };

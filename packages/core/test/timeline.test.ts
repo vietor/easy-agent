@@ -41,10 +41,10 @@ test("setAnswers is a no-op for an unknown question id", () => {
 
 test("setResult only mutates entries still pending", () => {
   const store = new TimelineStore();
-  store.append({ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: null });
+  store.append({ type: "tool", id: "t1", name: "Read", argsSummary: "x", result: null });
   store.setResult("t1", "ok");
   store.setResult("t1", "again");
-  assert.deepEqual(store.all, [{ type: "tool", id: "t1", name: "FileRead", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
+  assert.deepEqual(store.all, [{ type: "tool", id: "t1", name: "Read", argsSummary: "x", result: "ok", isError: undefined, resultSummary: undefined }]);
 });
 
 test("setAnswers records the answers on the question entry", () => {

@@ -103,7 +103,7 @@ const session = await createSession({
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
-| `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (FileRead/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
+| `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (Read/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier. |
 | `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
@@ -515,13 +515,13 @@ Core tools (registered by default; `builtInTools: { readOnly: true }` registers 
 
 | Tool | Description |
 |---|---|
-| **FileRead** *(read-only)* | Read files with line numbers. |
+| **Read** *(read-only)* | Read files with line numbers. |
 | **Glob** *(read-only)* | File listing by glob pattern. |
 | **Grep** *(read-only)* | Content search with regex. |
 | **WebFetch** *(read-only)* | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 | **Shell** | Run shell commands. |
-| **FileWrite** | Create or overwrite files. |
-| **FileEdit** | Surgical text replacement. |
+| **Write** | Create or overwrite files. |
+| **Edit** | Surgical text replacement. |
 
 Interactive tools are **off by default** and registered only when explicitly enabled via `builtInTools` (`askUser: true`, `todoWrite: true`, `subAgent: true`):
 
@@ -530,7 +530,7 @@ Interactive tools are **off by default** and registered only when explicitly ena
 | **AskUser** | Ask the user 1-4 questions in one call (each with 2-4 options and optional multi-select) and wait for the answers. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Registered automatically whenever `skills` are provided. |
-| **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning. Sub-agents are equipped with the session's read-only tools (FileRead/Glob/Grep/WebFetch, plus any custom tools marked `readOnly`). |
+| **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning. Sub-agents are equipped with the session's read-only tools (Read/Glob/Grep/WebFetch, plus any custom tools marked `readOnly`). |
 
 `builtInTools: false` disables all built-in tools.
 
@@ -542,7 +542,7 @@ const session = await createSession({
 });
 // Disable all built-in tools:
 // builtInTools: false
-// Read-only session (no Shell / FileWrite / FileEdit):
+// Read-only session (no Shell / Write / Edit):
 // builtInTools: { readOnly: true }
 ```
 

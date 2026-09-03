@@ -45,7 +45,7 @@ function stub(name: string, content: string, readOnly = false) {
   };
 }
 
-const SUB_TOOLS = [stub("FileRead", "file contents", true), stub("Glob", "matches", true), stub("Grep", "hits", true), stub("WebFetch", "web", true)];
+const SUB_TOOLS = [stub("Read", "file contents", true), stub("Glob", "matches", true), stub("Grep", "hits", true), stub("WebFetch", "web", true)];
 
 function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {}): Agent {
   const tools = new ToolRegistry();
@@ -72,7 +72,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
 test("nested sub-agent reply becomes the SubAgent tool result", async () => {
   const { llm, calls } = fakeLLM([
     () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "find X" })),
-    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1"),
+    () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1"),
     () => ({ role: "assistant", content: "FOUND X" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
@@ -88,8 +88,8 @@ test("nested sub-agent reply becomes the SubAgent tool result", async () => {
   assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
   assert.match(String(calls[1].messages[0].content), /Tool-Use Guidelines/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
-  assert.deepEqual(nestedTools, ["FileRead", "Glob", "Grep", "WebFetch"]);
-  assert.ok(!nestedTools.some((n) => ["SubAgent", "Shell", "FileWrite", "FileEdit", "Skill"].includes(n)));
+  assert.deepEqual(nestedTools, ["Read", "Glob", "Grep", "WebFetch"]);
+  assert.ok(!nestedTools.some((n) => ["SubAgent", "Shell", "Write", "Edit", "Skill"].includes(n)));
   assert.ok(
     calls[2].messages.some(
       (m) => m.role === "tool" && typeof m.content === "string" && m.content.includes("file contents")
@@ -105,7 +105,7 @@ test("sub-agent usage is added to the parent agent's counters", async () => {
     },
     (opts) => {
       opts.onUsage?.(15, 20, 7);
-      return toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1");
+      return toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1");
     },
     (opts) => {
       opts.onUsage?.(0, 30, 3);
@@ -141,7 +141,7 @@ test("unknown sub-agent type returns an error without invoking a nested loop", a
 test("nested maxTurns is enforced", async () => {
   const { llm } = fakeLLM([
     () => toolCall("SubAgent", JSON.stringify({ type: "plan", task: "plan X" })),
-    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1"),
+    () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1"),
     () => ({ role: "assistant", content: "done" }),
   ]);
   const agent = makeParentAgent(llm, { maxTurns: 1 });
@@ -157,9 +157,9 @@ test("nested maxTurns is enforced", async () => {
 test("stalled sub-agent reports the repeated tool call in its result", async () => {
   const { llm } = fakeLLM([
     () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "find X" })),
-    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n1"),
-    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n2"),
-    () => toolCall("FileRead", JSON.stringify({ path: "a.ts" }), "n3"),
+    () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1"),
+    () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n2"),
+    () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n3"),
     () => ({ role: "assistant", content: "done" }),
   ]);
   const agent = makeParentAgent(llm);
@@ -171,7 +171,7 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
   assert.equal(toolMsg.isError, true);
   assert.ok(String(toolMsg.content).includes("status stalled"));
   assert.ok(String(toolMsg.content).includes("repeated identical tool calls"));
-  assert.ok(String(toolMsg.content).includes("FileRead"));
+  assert.ok(String(toolMsg.content).includes("Read"));
 });
 
 test("SubAgent tool type enum covers explore and plan", () => {

@@ -3,10 +3,10 @@ import { dirname } from "node:path";
 import type { Tool } from "./types.js";
 import { resolveRequiredPath } from "../util/file.js";
 
-const DESCRIPTION = "Write content to a file, overwriting if it exists and creating parent directories. For targeted changes prefer FileEdit.";
+const DESCRIPTION = "Write content to a file, overwriting if it exists and creating parent directories. For targeted changes prefer Edit.";
 
 export const fileWriteTool: Tool = {
-  name: "FileWrite",
+  name: "Write",
   description: DESCRIPTION,
   parameters: {
     type: "object",

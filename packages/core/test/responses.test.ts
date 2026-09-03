@@ -10,7 +10,7 @@ test("a tool-call turn converts to message, function_call, and function_call_out
       role: "assistant",
       content: "on it",
       tool_calls: [
-        { id: "call_1", type: "function", function: { name: "FileRead", arguments: "{}" } },
+        { id: "call_1", type: "function", function: { name: "Read", arguments: "{}" } },
         { id: "call_2", type: "function", function: { name: "Glob", arguments: "{}" } },
       ],
     },
@@ -22,7 +22,7 @@ test("a tool-call turn converts to message, function_call, and function_call_out
     { type: "message", role: "system", content: [{ type: "input_text", text: "You are an agent." }] },
     { type: "message", role: "user", content: [{ type: "input_text", text: "read the file" }] },
     { type: "message", role: "assistant", content: [{ type: "input_text", text: "on it" }] },
-    { type: "function_call", call_id: "call_1", name: "FileRead", arguments: "{}" },
+    { type: "function_call", call_id: "call_1", name: "Read", arguments: "{}" },
     { type: "function_call", call_id: "call_2", name: "Glob", arguments: "{}" },
     { type: "function_call_output", call_id: "call_1", output: "contents" },
     { type: "function_call_output", call_id: "call_2", output: "matches" },
