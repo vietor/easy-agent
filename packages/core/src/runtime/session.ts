@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
-import { toErrorMessage } from "../util/text.js";
+import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
@@ -39,13 +39,17 @@ class StreamBuffer {
     this.lastReplyText = "";
   }
 
-  push(text: string): void {
+  push(delta: string): string {
     if (this.replyStart === null) this.replyStart = Date.now();
-    this.streamingText += text;
+    const text = this.streamingText? delta: trimLeftNewlines(delta);
+    if(text) this.streamingText += text;
+    return text;
   }
 
-  pushThinking(text: string): void {
-    this.thinkingText += text;
+  pushThinking(delta: string): string {
+    const text = this.thinkingText? delta: trimLeftNewlines(delta);
+    if(text) this.thinkingText += text;
+    return text;
   }
 
   flush(): { assistant: string | null; thinkingCleared: boolean } {
@@ -374,13 +378,18 @@ export class Session {
   }
 
   private handleEvent = (e: SessionEvent): void => {
+    let passed = false;
     switch (e.type) {
-      case "assistant_delta":
-        this.stream.push(e.text);
+      case "assistant_delta": {
+        e.text = this.stream.push(e.text);
+        passed = !e.text;
         break;
-      case "thinking_delta":
-        this.stream.pushThinking(e.text);
+      }
+      case "thinking_delta": {
+        e.text = this.stream.pushThinking(e.text);
+        passed = !e.text;
         break;
+      }
       case "retry": {
         const { thinkingCleared } = this.stream.flushForRetry();
         if (thinkingCleared) this.emit({ type: "thinking_cleared" });
@@ -394,12 +403,14 @@ export class Session {
         if (this.stream.interrupt()) this.emit({ type: "thinking_cleared" });
         break;
     }
-    this.emit(e);
+    if(!passed) this.emit(e);
+    if(e.type == "assistant_delta") this.flushThinking();
   };
 
   private flushStreaming(): void {
     const { assistant, thinkingCleared } = this.stream.flush();
-    if (assistant !== null) this.emit({ type: "assistant", text: assistant });
+    const text = trimSurroundingNewlines(assistant);
+    if (text) this.emit({ type: "assistant", text });
     if (thinkingCleared) this.emit({ type: "thinking_cleared" });
   }
 

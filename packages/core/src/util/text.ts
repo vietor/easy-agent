@@ -37,6 +37,16 @@ export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 
+export function trimLeftNewlines(content: string | null) {
+  if(!content) return '';
+  return content.replace(/^[\r\n]+/, '');
+}
+
+export function trimSurroundingNewlines(content: string | null) {
+  if(!content) return '';
+  return content.replace(/^[\r\n]+|[\r\n]+$/g, '');
+}
+
 export function countNonEmptyLines(content: string): number {
   return content.split("\n").filter((l) => l).length;
 }
