@@ -34,3 +34,47 @@ test("grep a directory still works", async () => {
     assert.match(out, /:2:beta$/);
   });
 });
+
+test("grep offset pages past the first page of results", async () => {
+  await withFile("alpha\nbeta\nalpha\nalpha\n", async (p) => {
+    const out = await grep({ pattern: "alpha", path: p, head_limit: 2, offset: 2 }, process.cwd());
+    assert.equal(out, `${p.replace(/\\/g, "/")}:4:alpha`);
+  });
+});
+
+test("grep offset across files is deterministic with sorted paths", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "grep-paging-"));
+  try {
+    await writeFile(join(dir, "a.txt"), "alpha\nalpha\n", "utf-8");
+    await writeFile(join(dir, "b.txt"), "alpha\nalpha\n", "utf-8");
+    const out = await grep({ pattern: "alpha", path: dir, head_limit: 10, offset: 1 }, process.cwd());
+    assert.equal(out, "a.txt:2:alpha\nb.txt:1:alpha\nb.txt:2:alpha");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("grep offset past the end reports no entries instead of no matches", async () => {
+  await withFile("alpha\nalpha\n", async (p) => {
+    const out = await grep({ pattern: "alpha", path: p, head_limit: 2, offset: 2 }, process.cwd());
+    assert.equal(out, "(no entries at offset 2 — end of results)");
+  });
+});
+
+test("grep rejects offset outside content mode", async () => {
+  await withFile("alpha\n", async (p) => {
+    await assert.rejects(
+      grepTool.execute({ pattern: "alpha", path: p, output_mode: "count", offset: 1 }, process.cwd()),
+      /offset is only supported with output_mode=content/
+    );
+  });
+});
+
+test("grep validates offset", async () => {
+  await withFile("alpha\n", async (p) => {
+    await assert.rejects(
+      grepTool.execute({ pattern: "alpha", path: p, offset: -1 }, process.cwd()),
+      /offset must be a non-negative integer/
+    );
+  });
+});

@@ -22,9 +22,10 @@ export function ripgrepResultSummary(word: "file" | "match", result: { content: 
 export interface RipgrepLinesResult {
   lines: string[];
   truncated: boolean;
+  exhausted: boolean;
 }
 
-export async function runRipgrepLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number): Promise<RipgrepLinesResult> {
+export async function runRipgrepLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number, offset = 0): Promise<RipgrepLinesResult> {
   const rgArgs = ["--hidden", "--path-separator", "/", "-g", "!.git/**", "-g", "!node_modules/**", ...args];
   const r = await runProcess(rgPath, rgArgs, { cwd, timeout: REQUEST_TIMEOUT_MS }, signal);
   if (!r.truncated && (r.error || (r.status !== 0 && r.status !== 1))) {
@@ -32,9 +33,19 @@ export async function runRipgrepLines(args: string[], cwd: string, signal?: Abor
   }
   let kept = r.stdout.split("\n").filter(Boolean);
   let truncated = r.truncated === true;
+  let exhausted = false;
+  if (offset > 0) {
+    if (kept.length <= offset) {
+      exhausted = true;
+      kept = [];
+      truncated = false;
+    } else {
+      kept = kept.slice(offset);
+    }
+  }
   if (limit !== undefined && kept.length > limit) {
     kept = kept.slice(0, limit);
     truncated = true;
   }
-  return { lines: kept.map((f) => f.replace(/^\.\//, "")), truncated };
+  return { lines: kept.map((f) => f.replace(/^\.\//, "")), truncated, exhausted };
 }
