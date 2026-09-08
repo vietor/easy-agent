@@ -67,8 +67,8 @@ export const saveCommand: SlashCommand = {
     const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     const file = `session-${ts}.jsonl`;
     const lines = ctx.session
-      .export()
-      .map((m) => JSON.stringify(m))
+      .exportState()
+      .messages.map((m) => JSON.stringify(m))
       .join("\n");
     writeFileSync(file, lines + "\n", "utf-8");
     ctx.message(`saved to ${file}`);

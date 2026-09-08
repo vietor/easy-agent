@@ -336,11 +336,11 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
   session.abort();
   const { status } = await run;
   assert.equal(status, "aborted");
-  const before = session.export();
+  const before = session.exportState().messages;
   release("late result");
   await sleep(50);
-  assert.deepEqual(session.export(), before);
-  assert.ok(!session.export().some((m) => m.role === "tool"));
+  assert.deepEqual(session.exportState().messages, before);
+  assert.ok(!session.exportState().messages.some((m) => m.role === "tool"));
 });
 
 test("aborting during chat emits exactly one interrupted event", async () => {

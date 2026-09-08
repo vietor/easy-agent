@@ -56,7 +56,7 @@ const result = await session.prompt("What files are in the current directory?");
 console.log(result.reply);                // final assistant reply
 
 console.log(session.getSnapshot().timeline);   // full session timeline
-console.log(session.export());     // LLM message history
+console.log(session.exportState());   // full session state: messages + todos
 session.dispose();
 ```
 
@@ -387,7 +387,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `SessionMessage`
 
-The internal message format exchanged with the agent, also returned by `session.export()`.
+The internal message format exchanged with the agent, as contained in `session.exportState().messages`.
 
 ```ts
 type SessionMessage =

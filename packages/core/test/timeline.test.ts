@@ -127,7 +127,7 @@ test("restored timeline from persisted messages matches the live run (golden equ
   assert.equal(result.status, "ok");
   const live = session.getSnapshot().timeline;
   const restored = new TimelineStore();
-  restored.rebuild(toTimelineEntries(session.export(), () => ""));
+  restored.rebuild(toTimelineEntries(session.exportState().messages, () => ""));
   assert.deepEqual(restored.all, live);
 });
 

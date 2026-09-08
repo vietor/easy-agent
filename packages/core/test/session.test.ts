@@ -112,7 +112,7 @@ test("importState replays messages into the timeline", () => {
     sessionId: "s1",
   });
   session.importState(state);
-  assert.equal(session.export().length, 3);
+  assert.equal(session.exportState().messages.length, 3);
   const timeline = session.getSnapshot().timeline;
   assert.equal(timeline.filter((e) => e.type === "user").length, 1);
   const tool = timeline.find((e) => e.type === "tool");

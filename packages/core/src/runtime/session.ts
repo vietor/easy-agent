@@ -438,10 +438,6 @@ export class Session {
     this.todoStore.set([]);
   }
 
-  export(): SessionMessage[] {
-    return this.agent.export();
-  }
-
   exportState(): SessionState {
     return { messages: this.conversation.export(), todos: [...this.todoStore.all] };
   }
