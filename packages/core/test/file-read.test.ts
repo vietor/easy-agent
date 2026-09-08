@@ -72,6 +72,13 @@ test("rejects files over the size limit", async () => {
   });
 });
 
+test("rejects binary files", async () => {
+  await withFile("", async (p) => {
+    await writeFile(p, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]));
+    await assert.rejects(() => read(p), /binary/);
+  });
+});
+
 test("pages across the 64KB chunk boundary", async () => {
   const LINE = "x".repeat(99);
   const content = Array.from({ length: 700 }, (_, i) => `${i + 1}: ${LINE}`).join("\n");

@@ -1,13 +1,13 @@
 import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
-import { resolveRequiredPath } from "../util/file.js";
+import { resolveRequiredPath, BINARY_SCAN_BYTES, isBinaryContent } from "../util/file.js";
 import { DEFAULT_FILE_READ_LIMIT, MAX_FILE_READ_MB, mbToBytes } from "../util/constants.js";
 import { formatCompactNumber, summaryBytes } from "../util/text.js";
 
 const CHUNK = 64 * 1024;
 const MAX_FILE_READ_BYTES = mbToBytes(MAX_FILE_READ_MB);
 
-const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB are rejected. Binary files may return garbled output or fail.`;
+const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB and binary files are rejected.`;
 
 interface PageRead {
   text: string | null;
@@ -71,6 +71,11 @@ export const fileReadTool: Tool = {
         throw new Error(`file is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_FILE_READ_BYTES)} read limit`);
       }
       if (size === 0) return { content: "(empty file)" };
+      const probe = Buffer.allocUnsafe(Math.min(size, BINARY_SCAN_BYTES));
+      const { bytesRead } = await handle.read(probe, 0, probe.length, 0);
+      if (isBinaryContent(probe, bytesRead)) {
+        throw new Error(`file appears to be binary — only UTF-8 text files can be read`);
+      }
       const { text, totalLines, eof } = await readPage(handle, offset, limit);
       if (text === null) {
         return { content: `(offset ${offset} is past end of file; file has ${totalLines} lines)` };

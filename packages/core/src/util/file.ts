@@ -23,3 +23,22 @@ export function resolveSearchPath(args: Record<string, unknown>, cwd: string): {
   return { cwd: path, target: "." };
 }
 
+export const BINARY_SCAN_BYTES = 8192;
+
+export function isBinaryContent(buffer: Buffer, bufferSize: number): boolean {
+  const scanSize = Math.min(buffer.length, BINARY_SCAN_BYTES, bufferSize);
+
+  let count = 0;
+  for (let i = 0; i < scanSize; i++) {
+    const byte = buffer[i];
+    if (byte === 0) {
+      return true;
+    }
+
+    if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) {
+      count++;
+    }
+  }
+
+  return count / scanSize > 0.1;
+}
