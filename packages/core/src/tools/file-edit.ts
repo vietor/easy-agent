@@ -6,6 +6,7 @@ const DESCRIPTION = "Replace old_string with new_string in a file. Read the file
 
 export const fileEditTool: Tool = {
   name: "Edit",
+  agentLevel: 2,
   description: DESCRIPTION,
   parameters: {
     type: "object",

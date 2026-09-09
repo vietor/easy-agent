@@ -459,7 +459,7 @@ type TodoStatus = "pending" | "inProgress" | "completed";
 ```ts
 interface Tool {
   name: string;
-  readOnly?: boolean;
+  agentLevel?: AgentLevel;   // 0 = never granted to sub-agents; 1 = read-only sub-agents; 2 = writable sub-agents only
   description: string;
   parameters: Record<string, unknown>;   // JSON Schema object
   argSummaryKeys?: string[];                // parameter keys used for display summary
@@ -469,7 +469,7 @@ interface Tool {
 }
 ```
 
-- `readOnly` (optional) marks the tool as read-only. Read-only tools are what `builtInTools: { readOnly: true }` registers, and what the SubAgent tool equips sub-agents with.
+- `agentLevel` (optional, default `0`) declares which sub-agents may use the tool: `0` = never granted to any sub-agent; `1` = granted to read-only sub-agents ("explore"/"plan"), which therefore also reaches writable ones; `2` = granted only to writable sub-agents ("general"). Tools with `agentLevel: 1` are what `builtInTools: { readOnly: true }` registers (Read/Glob/Grep/WebFetch). If you previously marked a custom tool `readOnly: true` to expose it to sub-agents, set `agentLevel: 1`; use `agentLevel: 2` for custom writable tools meant for the general sub-agent only. AskUser/Skill/TodoWrite/SubAgent are session-scoped and stay at `0`.
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
 - `execute` returns a `TextResult` (`{ content, isError? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
@@ -530,7 +530,7 @@ Interactive tools are **off by default** and registered only when explicitly ena
 | **AskUser** | Ask the user 1-4 questions in one call (each with 2-4 options and optional multi-select) and wait for the answers. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Registered automatically whenever `skills` are provided. |
-| **SubAgent** | Run a nested sub-agent: read-only "explore" investigation or "plan" implementation planning. Sub-agents are equipped with the session's read-only tools (Read/Glob/Grep/WebFetch, plus any custom tools marked `readOnly`). |
+| **SubAgent** | Run a nested sub-agent. Types: "explore" — read-only fan-out investigation; "plan" — read-only implementation planning; "general" — writable executor that may modify files and run shell commands, for delegating whole implementation chunks (run several in parallel for multi-task work). Tool grants follow each tool's `agentLevel`: read-only sub-agents get level-1 tools, "general" gets level 1+2; level-0 tools (AskUser/Skill/TodoWrite/SubAgent) are never delegated. When the session is built read-only (`builtInTools: { readOnly: true }`), "general" is not offered and the tool falls back to explore/plan only. Sub-agents return only their final report — verify their changes yourself. |
 
 `builtInTools: false` disables all built-in tools.
 

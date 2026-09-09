@@ -83,7 +83,7 @@ async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<s
 
 export const webFetchTool: Tool = {
   name: "WebFetch",
-  readOnly: true,
+  agentLevel: 1,
   description: DESCRIPTION,
   parameters: {
     type: "object",

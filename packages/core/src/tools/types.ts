@@ -29,9 +29,11 @@ export interface ToolSchema {
   };
 }
 
+export type AgentLevel = 0 | 1 | 2;
+
 export interface Tool {
   name: string;
-  readOnly?: boolean;
+  agentLevel?: AgentLevel;
   description: string;
   parameters: Record<string, unknown>;
   argSummaryKeys?: string[];

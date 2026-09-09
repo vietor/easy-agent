@@ -7,6 +7,7 @@ const DESCRIPTION = "Write content to a file, overwriting if it exists and creat
 
 export const fileWriteTool: Tool = {
   name: "Write",
+  agentLevel: 2,
   description: DESCRIPTION,
   parameters: {
     type: "object",

@@ -292,7 +292,7 @@ export class Session {
       setTodos: (t) => this.todoStore.set(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: {
-        runSubAgent: (systemPrompt, task, signal) =>
+        runSubAgent: (systemPrompt, task, level, signal) =>
           createSubAgentRunner({
             llm: deps.llm,
             tools: this.tools,
@@ -302,7 +302,7 @@ export class Session {
             maxParallelToolCalls: deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS,
             contextLimit: deps.contextLimit,
             onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
-          })(systemPrompt, task, signal),
+          })(systemPrompt, task, level, signal),
       },
     });
 

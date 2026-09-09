@@ -156,7 +156,7 @@ A status bar at the bottom shows the context token usage with a progress bar and
 - **WebFetch** — fetch a URL as markdown or text.
 - **AskUser** — ask the user up to 4 questions in one call, each shown as a tab page (↑↓ pick options, Tab switches questions, custom input allowed) and wait for the answers.
 - **TodoWrite** — track multi-step work as a task list (pending / inProgress / completed), shown live as a panel in the TUI.
-- **SubAgent** — delegate investigation (`explore`) or implementation-planning (`plan`) subtasks to a nested read-only sub-agent.
+- **SubAgent** — delegate subtasks to a nested sub-agent: `explore` (read-only investigation) or `plan` (read-only implementation planning) get read-only tools; `general` is a writable executor that can modify files and run shell commands — run several in one turn to parallelize independent implementation chunks. Sub-agents return only their final report, so changes they make are checked by the main agent.
 
 ### Slash commands
 

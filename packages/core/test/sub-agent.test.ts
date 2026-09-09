@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import { createSubAgentTool } from "../src/tools/sub-agent.js";
+import { createSubAgentTool, renderSubAgentGuidance } from "../src/tools/sub-agent.js";
 import { createSubAgentRunner } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -33,10 +33,10 @@ function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
   };
 }
 
-function stub(name: string, content: string, readOnly = false) {
+function stub(name: string, content: string, agentLevel = 0) {
   return {
     name,
-    readOnly,
+    agentLevel,
     description: name,
     parameters: { type: "object", properties: {} },
     async execute() {
@@ -45,12 +45,14 @@ function stub(name: string, content: string, readOnly = false) {
   };
 }
 
-const SUB_TOOLS = [stub("Read", "file contents", true), stub("Glob", "matches", true), stub("Grep", "hits", true), stub("WebFetch", "web", true)];
+const SUB_TOOLS = [stub("Read", "file contents", 1), stub("Glob", "matches", 1), stub("Grep", "hits", 1), stub("WebFetch", "web", 1)];
+const GENERAL_ONLY_TOOLS = [stub("Shell", "ok", 2), stub("Write", "written", 2), stub("Edit", "edited", 2)];
+const SESSION_SCOPED_TOOLS = [stub("AskUser", "asked"), stub("Skill", "skilled"), stub("TodoWrite", "todos")];
 
 function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {}): Agent {
   const tools = new ToolRegistry();
   tools.registerAll(SUB_TOOLS);
-  tools.register(stub("Shell", "ok"));
+  tools.registerAll([...GENERAL_ONLY_TOOLS, ...SESSION_SCOPED_TOOLS]);
   let parentAgent: Agent;
   tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRunner({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) })(systemPrompt, task, signal) }));
   const conversation = new SessionMessages("system prompt");
@@ -95,6 +97,28 @@ test("nested sub-agent reply becomes the SubAgent tool result", async () => {
       (m) => m.role === "tool" && typeof m.content === "string" && m.content.includes("file contents")
     )
   );
+});
+
+test("general sub-agent gets writable tools but not session-scoped ones", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "general", task: "implement X" })),
+    () => toolCall("Shell", JSON.stringify({ command: "true" }), "n1"),
+    () => ({ role: "assistant", content: "IMPLEMENTED X" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+
+  assert.match(String(calls[1].messages[0].content), /You are the General sub-agent/);
+  const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
+  assert.deepEqual(nestedTools, ["Read", "Glob", "Grep", "WebFetch", "Shell", "Write", "Edit"]);
+  assert.ok(!nestedTools.some((n) => ["SubAgent", "AskUser", "Skill", "TodoWrite"].includes(n)));
+
+  const toolMsg = agent.export().find((m) => m.role === "tool");
+  assert.ok(toolMsg);
+  assert.equal(toolMsg.content, "IMPLEMENTED X");
+  assert.ok(!toolMsg.isError);
 });
 
 test("sub-agent usage is added to the parent agent's counters", async () => {
@@ -174,10 +198,35 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
   assert.ok(String(toolMsg.content).includes("Read"));
 });
 
-test("SubAgent tool type enum covers explore and plan", () => {
+test("SubAgent tool type enum covers explore, plan and general", () => {
   const tool = createSubAgentTool({ runSubAgent: async () => ({ status: "ok", reply: "", messages: [] }) });
   const params = tool.parameters as { properties: { type: { enum: string[] } } };
+  assert.deepEqual(params.properties.type.enum, ["explore", "plan", "general"]);
+});
+
+test("read-only session restricts SubAgent types to explore and plan", async () => {
+  const ran: string[] = [];
+  const tool = createSubAgentTool({
+    runSubAgent: async () => {
+      ran.push("ran");
+      return { status: "ok", reply: "", messages: [] };
+    },
+  }, true);
+  const params = tool.parameters as { properties: { type: { enum: string[] } } };
   assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
+  assert.ok(!tool.description.includes('"general"'));
+  const result = await tool.execute({ type: "general", task: "x" }, { cwd: process.cwd() });
+  assert.equal(result.isError, true);
+  assert.deepEqual(ran, []);
+});
+
+test("SubAgent guidance omits general in read-only sessions", () => {
+  assert.ok(renderSubAgentGuidance(false).includes('type: "general"'));
+  assert.ok(renderSubAgentGuidance(false).includes("never mark a delegated task done on the report alone"));
+  const readOnly = renderSubAgentGuidance(true);
+  assert.ok(!readOnly.includes("general"));
+  assert.ok(readOnly.includes('type: "explore"'));
+  assert.ok(readOnly.includes("verify important results yourself"));
 });
 
 test("SubAgent label is capped at 50 chars and shown after the type name", () => {
@@ -187,6 +236,7 @@ test("SubAgent label is capped at 50 chars and shown after the type name", () =>
   const summarize = tool.summarizeArgs!;
   assert.equal(summarize({ type: "explore", label: "find the bug" }), "Explore find the bug");
   assert.equal(summarize({ type: "plan" }), "Plan");
+  assert.equal(summarize({ type: "general", label: "implement A" }), "General implement A");
   assert.equal(summarize({ type: "explore", label: "x".repeat(60) }), `Explore ${"x".repeat(50)}…`);
 });
 

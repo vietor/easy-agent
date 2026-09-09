@@ -38,6 +38,7 @@ LIMITATIONS: Blocked: direct sudo/su/doas/pkexec (best-effort; indirect invocati
 
 export const shellTool: Tool = {
   name: "Shell",
+  agentLevel: 2,
   description: isWindows? DESCRIPTION_POWERSHELL: DESCRIPTION_BASH,
   parameters: {
     type: "object",

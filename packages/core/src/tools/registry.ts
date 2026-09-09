@@ -114,12 +114,12 @@ const BUILTIN_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, s
 
 export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
   if (opts === false) return;
-  const builtins = opts?.readOnly ? BUILTIN_TOOLS.filter((t) => t.readOnly) : BUILTIN_TOOLS;
+  const builtins = opts?.readOnly ? BUILTIN_TOOLS.filter((t) => t.agentLevel === 1) : BUILTIN_TOOLS;
   for (const tool of builtins) {
     tools.register(tool);
   }
   if (opts?.askUser) tools.register(createAskUserTool(deps.ask));
   if (opts?.todoWrite) tools.register(createTodoWriteTool(deps.setTodos));
   if (deps.resolveSkill) tools.register(createSkillTool(deps.resolveSkill));
-  if (opts?.subAgent) tools.register(createSubAgentTool(deps.subAgent));
+  if (opts?.subAgent) tools.register(createSubAgentTool(deps.subAgent, opts?.readOnly === true));
 }

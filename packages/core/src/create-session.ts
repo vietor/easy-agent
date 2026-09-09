@@ -6,7 +6,7 @@ import { renderToolUsePrompt } from "./runtime/prompts.js";
 import { DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
-import { SUB_AGENT_GUIDANCE } from "./tools/sub-agent.js";
+import { renderSubAgentGuidance } from "./tools/sub-agent.js";
 import type { Skill } from "./skills/types.js";
 import type { SessionOptions } from "./runtime/session.js";
 
@@ -22,7 +22,7 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInToo
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
-    if (builtInTools.subAgent) toolUseLines.push(SUB_AGENT_GUIDANCE);
+    if (builtInTools.subAgent) toolUseLines.push(renderSubAgentGuidance(builtInTools.readOnly === true));
   }
   parts.push(toolUseLines.join("\n"));
   if (skills?.length) {
