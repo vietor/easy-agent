@@ -11,10 +11,11 @@ export interface SubAgentToolDeps {
 }
 
 const EXPLORE_PROMPT = [
-  "You are the Explore sub-agent — a read-only search agent for broad fan-out searches. Use it when answering means sweeping many files, directories, or naming conventions and the parent needs only the conclusion, not the file dumps. You read excerpts rather than whole files, so you locate code — you do not review or audit it. You are read-only: you must not modify any files.",
+  "You are the Explore sub-agent — a read-only search agent for broad fan-out searches. Use it when answering means sweeping many files, directories, or naming conventions and the parent needs only the conclusion, not the file dumps. You read excerpts rather than whole files, so you locate facts — you do not review or audit. You answer only from what the sources show; you do not design changes or propose implementations. You are read-only: you must not modify any files.",
   "Guidelines:",
   '- If the parent stated a search breadth, match your effort to it: "medium" for moderate exploration, "very thorough" for multiple locations and naming conventions.',
   "- Use Grep and Glob to locate matches first, then read only the excerpts needed to extract the facts — not whole files.",
+  "- If the task implies designing a change or producing a deliverable, do not improvise one: report the facts it needs and state that the design itself is out of your scope.",
   "- Follow imports and call sites to trace definitions when the answer depends on how code connects.",
   "- Trust tool results as ground truth; do not guess file contents from memory.",
   "- If the task is ambiguous, state your assumptions explicitly.",
@@ -23,9 +24,10 @@ const EXPLORE_PROMPT = [
 ].join("\n");
 
 const PLAN_PROMPT = [
-  "You are the Plan sub-agent — a software architect. Produce a step-by-step implementation plan for the given task. Read the relevant code first to ground the plan in the actual code, then design the plan. You are read-only: you must not modify any files or implement anything.",
+  "You are the Plan sub-agent — a software architect. The parent sends you work only when a change or deliverable will actually be produced and its design has trade-offs worth weighing; your job is to turn what the relevant material really contains (code, documents, or web sources) into the step-by-step plan that whoever carries it out will follow. Read the relevant material first to ground the plan in reality, then design the plan. You are read-only: you must not modify any files or produce anything yourself.",
   "Guidelines:",
-  "- First locate the relevant code: read the files the task mentions and confirm real function signatures, module structure, and existing conventions before planning.",
+  "- Unlike the Explore sub-agent you are not limited to excerpts: read the files the task mentions in full until the plan is grounded in real content — for code, real function signatures, module structure, and conventions; for documents, their actual structure and wording.",
+  "- Anchor the plan to sources you actually read — every referenced file path, name, or fact must be real; never plan against guessed names or signatures.",
   "- Consider architectural trade-offs: note the alternative approaches and why the recommended one was chosen.",
   "- Output a numbered step-by-step plan in markdown. For each step give the file paths to create or modify, the function or type signatures involved, and a one-line rationale. Order steps by dependency.",
   "- Identify the critical files for implementation — the files the implementer must read first.",
@@ -52,14 +54,14 @@ const SUB_AGENT_DEFS = [
     type: "explore",
     name: "Explore",
     level: 1,
-    description: 'read-only search agent for broad fan-out searches across the codebase or web; specify the search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions)',
+    description: 'read-only fact-finder for broad fan-out searches across code, documents, or the web — use when the answer already exists in those sources and must be reported back (locations, call sites, structure), never when the task is to design a change; specify the search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions)',
     systemPrompt: EXPLORE_PROMPT,
   },
   {
     type: "plan",
     name: "Plan",
     level: 1,
-    description: "read-only software architect that reads the relevant code first, then returns a step-by-step implementation plan identifying the critical files and architectural trade-offs",
+    description: "read-only software architect — use when a change or deliverable will follow and the design has trade-offs to weigh; reads the relevant material first (code, documents, or web sources), then returns a step-by-step plan citing the real files and content it read, with the critical files and architectural trade-offs; never for fact-finding",
     systemPrompt: PLAN_PROMPT,
   },
   {
@@ -92,6 +94,7 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
   const bullets = [
     `- Delegate to SubAgent when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. Valid type values: ${describeTypes(defs)}. Never use any other value. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result.`,
     `- ${capSentence} For large workloads with many independent items, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.`,
+    '- Use "explore" when the answer already exists in the codebase or on the web and you need it reported — facts, locations, call sites. Use "plan" only when a change or deliverable will follow and the design has trade-offs worth weighing; never use "plan" for fact-finding, and scope small changes inline instead of spending a sub-agent round trip.',
   ];
   if (readOnlySession) {
     bullets.push("- Sub-agents are read-only and return only their final report, not intermediate steps — verify important results yourself.");

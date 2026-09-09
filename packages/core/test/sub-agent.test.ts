@@ -221,12 +221,15 @@ test("read-only session restricts SubAgent types to explore and plan", async () 
 });
 
 test("SubAgent guidance omits general in read-only sessions", () => {
-  assert.ok(renderSubAgentGuidance(false, 10).includes('type: "general"'));
-  assert.ok(renderSubAgentGuidance(false, 10).includes("never mark a delegated task done on the report alone"));
+  const full = renderSubAgentGuidance(false, 10);
+  assert.ok(full.includes('type: "general"'));
+  assert.ok(full.includes("never mark a delegated task done on the report alone"));
+  assert.ok(full.includes('Use "explore" when the answer already exists in the codebase or on the web'));
   const readOnly = renderSubAgentGuidance(true, 10);
   assert.ok(!readOnly.includes("general"));
   assert.ok(readOnly.includes('type: "explore"'));
   assert.ok(readOnly.includes("verify important results yourself"));
+  assert.ok(readOnly.includes('never use "plan" for fact-finding'));
 });
 
 test("SubAgent guidance per-turn cap follows maxParallelToolCalls within [1, 8]", () => {
