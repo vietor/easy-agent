@@ -23,7 +23,7 @@ export function resolveSearchPath(args: Record<string, unknown>, cwd: string): {
   return { cwd: path, target: "." };
 }
 
-export const BINARY_SCAN_BYTES = 8192;
+const BINARY_SCAN_BYTES = 8 * 1024;
 
 export function isBinaryContent(buffer: Buffer, bufferSize: number): boolean {
   const scanSize = Math.min(buffer.length, BINARY_SCAN_BYTES, bufferSize);

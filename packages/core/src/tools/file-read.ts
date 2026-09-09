@@ -1,6 +1,6 @@
 import { open, type FileHandle } from "node:fs/promises";
 import type { Tool } from "./types.js";
-import { resolveRequiredPath, BINARY_SCAN_BYTES, isBinaryContent } from "../util/file.js";
+import { resolveRequiredPath, isBinaryContent } from "../util/file.js";
 import { DEFAULT_FILE_READ_LIMIT, MAX_FILE_READ_MB, mbToBytes } from "../util/constants.js";
 import { formatCompactNumber, summaryBytes } from "../util/text.js";
 
@@ -21,9 +21,16 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
   let windowStart = startLine === 0 ? 0 : -1;
   const pieces: Buffer[] = [];
   const buf = Buffer.allocUnsafe(CHUNK);
+  let binaryChecked = false;
   for (;;) {
     const { bytesRead } = await handle.read(buf, 0, CHUNK, null);
     if (bytesRead === 0) break;
+    if (!binaryChecked) {
+      if (isBinaryContent(buf, bytesRead)) {
+        throw new Error(`file appears to be binary — only UTF-8 text files can be read`);
+      }
+      binaryChecked = true;
+    }
     for (let from = 0; ; ) {
       const i = buf.indexOf(0x0a, from);
       if (i === -1 || i >= bytesRead) break;
@@ -71,11 +78,6 @@ export const fileReadTool: Tool = {
         throw new Error(`file is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_FILE_READ_BYTES)} read limit`);
       }
       if (size === 0) return { content: "(empty file)" };
-      const probe = Buffer.allocUnsafe(Math.min(size, BINARY_SCAN_BYTES));
-      const { bytesRead } = await handle.read(probe, 0, probe.length, 0);
-      if (isBinaryContent(probe, bytesRead)) {
-        throw new Error(`file appears to be binary — only UTF-8 text files can be read`);
-      }
       const { text, totalLines, eof } = await readPage(handle, offset, limit);
       if (text === null) {
         return { content: `(offset ${offset} is past end of file; file has ${totalLines} lines)` };
