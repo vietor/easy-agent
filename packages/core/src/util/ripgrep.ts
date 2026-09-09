@@ -22,7 +22,6 @@ export function ripgrepResultSummary(word: "file" | "match", result: { content: 
 export interface RipgrepLinesResult {
   lines: string[];
   truncated: boolean;
-  exhausted: boolean;
 }
 
 export async function runRipgrepLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number, offset = 0): Promise<RipgrepLinesResult> {
@@ -33,12 +32,9 @@ export async function runRipgrepLines(args: string[], cwd: string, signal?: Abor
   }
   let kept = r.stdout.split("\n").filter(Boolean);
   let truncated = r.truncated === true;
-  let exhausted = false;
   if (offset > 0) {
     if (kept.length <= offset) {
-      exhausted = true;
       kept = [];
-      truncated = false;
     } else {
       kept = kept.slice(offset);
     }
@@ -47,5 +43,5 @@ export async function runRipgrepLines(args: string[], cwd: string, signal?: Abor
     kept = kept.slice(0, limit);
     truncated = true;
   }
-  return { lines: kept.map((f) => f.replace(/^\.\//, "")), truncated, exhausted };
+  return { lines: kept.map((f) => f.replace(/^\.\//, "")), truncated };
 }

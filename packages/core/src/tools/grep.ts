@@ -58,8 +58,8 @@ export const grepTool: Tool = {
     else if (output_mode === "count") rgArgs.push("-c");
     else rgArgs.push("-m", String(offset + headLimit));
     rgArgs.push("--", args.pattern as string, target);
-    const { lines, truncated, exhausted } = await runRipgrepLines(rgArgs, cwd, ctx.signal, headLimit, offset);
-    if (exhausted) {
+    const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal, headLimit, offset);
+    if (offset > 0 && lines.length === 0) {
       return { content: `(no entries at offset ${offset} — end of results)` };
     }
     return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
