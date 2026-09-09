@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { globTool } from "../src/tools/glob.js";
 
-async function withDir(files: Array<[string, number]>, fn: (dir: string) => Promise<void>): Promise<void> {
+async function withDir(files: Array<[string, number] | string>, fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "glob-test-"));
   try {
-    for (const [name, time] of files) {
-      const path = join(dir, name);
+    for (const entry of files) {
+      const path = join(dir, typeof entry === "string" ? entry : entry[0]);
       await writeFile(path, "", "utf-8");
-      await utimes(path, time, time);
+      if (typeof entry !== "string") await utimes(path, entry[1], entry[1]);
     }
     await fn(dir);
   } finally {
@@ -32,27 +32,18 @@ test("glob sorts results by mtime, newest first", async () => {
 });
 
 test("glob caps results with a truncation marker", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "glob-cap-"));
-  try {
-    for (let i = 0; i < 155; i++) {
-      await writeFile(join(dir, `f${String(i).padStart(3, "0")}.txt`), "", "utf-8");
-    }
+  const files = Array.from({ length: 155 }, (_, i) => `f${String(i).padStart(3, "0")}.txt`);
+  await withDir(files, async (dir) => {
     const out = await glob({ path: dir }, dir);
     const lines = out.split("\n").filter(Boolean);
     assert.equal(lines.length, 151);
     assert.equal(lines[150], "(output truncated)");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
+  });
 });
 
 test("glob without matches lists nothing", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "glob-empty-"));
-  try {
-    await writeFile(join(dir, "a.ts"), "", "utf-8");
+  await withDir(["a.ts"], async (dir) => {
     const out = await glob({ path: dir, pattern: "**/*.js" }, dir);
     assert.equal(out, "(no matches)");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
+  });
 });
