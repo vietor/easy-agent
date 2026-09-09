@@ -3,7 +3,7 @@ import { DEFAULT_GREP_LIMIT, NO_MATCHES } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results (content mode only).`;
+const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content sorted by file path, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order (content mode only).`;
 
 export const grepTool: Tool = {
   name: "Grep",
@@ -39,7 +39,6 @@ export const grepTool: Tool = {
       throw new Error("offset is only supported with output_mode=content");
     }
     const rgArgs = ["--line-number", "--with-filename", "--no-heading"];
-    if (offset > 0) rgArgs.push("--sort=path");
     if (args.ignore_case) rgArgs.push("-i");
     if (args.only_matching) rgArgs.push("-o");
     if (args.multiline) rgArgs.push("-U", "--multiline-dotall");
@@ -56,7 +55,7 @@ export const grepTool: Tool = {
     const headLimit = (args.head_limit as number) || DEFAULT_GREP_LIMIT;
     if (output_mode === "files_with_matches") rgArgs.push("-l");
     else if (output_mode === "count") rgArgs.push("-c");
-    else rgArgs.push("-m", String(offset + headLimit));
+    else rgArgs.push("--sort=path", "-m", String(offset + headLimit));
     rgArgs.push("--", args.pattern as string, target);
     const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal, headLimit, offset);
     if (offset > 0 && lines.length === 0) {

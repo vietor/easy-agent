@@ -42,6 +42,18 @@ test("grep offset pages past the first page of results", async () => {
   });
 });
 
+test("grep first page sorts by path so paging stays consistent", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "grep-sorted-"));
+  try {
+    await writeFile(join(dir, "b.txt"), "alpha\n", "utf-8");
+    await writeFile(join(dir, "a.txt"), "alpha\n", "utf-8");
+    const out = await grep({ pattern: "alpha", path: dir }, process.cwd());
+    assert.equal(out, "a.txt:1:alpha\nb.txt:1:alpha");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("grep offset across files is deterministic with sorted paths", async () => {
   const dir = await mkdtemp(join(tmpdir(), "grep-paging-"));
   try {
