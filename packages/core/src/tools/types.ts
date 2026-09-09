@@ -31,6 +31,10 @@ export interface ToolSchema {
 
 export type AgentLevel = 0 | 1 | 2;
 
+export function isGrantedAtLevel(agentLevel: AgentLevel | undefined, maxLevel: AgentLevel): boolean {
+  return agentLevel !== undefined && agentLevel >= 1 && agentLevel <= maxLevel;
+}
+
 export interface Tool {
   name: string;
   agentLevel?: AgentLevel;

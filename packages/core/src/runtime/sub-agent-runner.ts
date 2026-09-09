@@ -2,7 +2,7 @@ import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunStatus } from "./agent.js";
 import { renderToolUsePrompt } from "./prompts.js";
 import type { LLMClient } from "../llm/types.js";
-import type { AgentLevel } from "../tools/types.js";
+import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";
 
 export interface SubAgentRunOptions {
@@ -26,7 +26,7 @@ export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: s
   return async (systemPrompt, task, level, signal) => {
     const conversation = new SessionMessages([systemPrompt, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
     const subTools = new ToolRegistry();
-    subTools.registerAll(opts.tools.filter((t) => (t.agentLevel ?? 0) >= 1 && (t.agentLevel ?? 0) <= level));
+    subTools.registerAll(opts.tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
     const subAgent = new Agent({
       llm: opts.llm,
       conversation,

@@ -1,7 +1,7 @@
 import { NOT_EXECUTED_PREFIX } from "../util/constants.js";
 import { summarizeText } from "../util/text.js";
 import type { SubAgentRunResult } from "../runtime/sub-agent-runner.js";
-import type { AgentLevel, Tool } from "./types.js";
+import { isGrantedAtLevel, type AgentLevel, type Tool } from "./types.js";
 import { toolError } from "./types.js";
 
 const MAX_LABEL_LENGTH = 50;
@@ -74,7 +74,7 @@ const SUB_AGENT_DEFS = [
 type SubAgentDef = (typeof SUB_AGENT_DEFS)[number];
 
 function defsForSession(readOnlySession: boolean): SubAgentDef[] {
-  return SUB_AGENT_DEFS.filter((d) => d.level <= (readOnlySession ? 1 : 2));
+  return SUB_AGENT_DEFS.filter((d) => isGrantedAtLevel(d.level, readOnlySession ? 1 : 2));
 }
 
 function describeTypes(defs: readonly SubAgentDef[]): string {
