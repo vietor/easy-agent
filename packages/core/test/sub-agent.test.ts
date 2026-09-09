@@ -221,12 +221,21 @@ test("read-only session restricts SubAgent types to explore and plan", async () 
 });
 
 test("SubAgent guidance omits general in read-only sessions", () => {
-  assert.ok(renderSubAgentGuidance(false).includes('type: "general"'));
-  assert.ok(renderSubAgentGuidance(false).includes("never mark a delegated task done on the report alone"));
-  const readOnly = renderSubAgentGuidance(true);
+  assert.ok(renderSubAgentGuidance(false, 10).includes('type: "general"'));
+  assert.ok(renderSubAgentGuidance(false, 10).includes("never mark a delegated task done on the report alone"));
+  const readOnly = renderSubAgentGuidance(true, 10);
   assert.ok(!readOnly.includes("general"));
   assert.ok(readOnly.includes('type: "explore"'));
   assert.ok(readOnly.includes("verify important results yourself"));
+});
+
+test("SubAgent guidance per-turn cap follows maxParallelToolCalls within [1, 8]", () => {
+  assert.ok(renderSubAgentGuidance(false, 3).includes("at most 3 SubAgent calls per turn"));
+  assert.ok(renderSubAgentGuidance(false, 40).includes("at most 8 SubAgent calls per turn"));
+  const serial = renderSubAgentGuidance(false, 1);
+  assert.ok(serial.includes("at most 1 SubAgent call per turn"));
+  assert.ok(!serial.includes("Multiple SubAgent calls in the same turn run concurrently"));
+  assert.ok(renderSubAgentGuidance(false, 0).includes("at most 1 SubAgent call per turn"));
 });
 
 test("SubAgent label is capped at 50 chars and shown after the type name", () => {

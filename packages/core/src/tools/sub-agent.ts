@@ -81,11 +81,17 @@ function describeTypes(defs: readonly SubAgentDef[]): string {
   return defs.map((d) => `type: "${d.type}" — ${d.description}`).join(" ");
 }
 
-export function renderSubAgentGuidance(readOnlySession: boolean): string {
+const MAX_SUB_AGENTS_PER_TURN = 8;
+
+export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number): string {
   const defs = defsForSession(readOnlySession);
+  const maxPerTurn = Math.max(1, Math.min(MAX_SUB_AGENTS_PER_TURN, maxParallelToolCalls));
+  const capSentence = maxPerTurn > 1
+    ? `Multiple SubAgent calls in the same turn run concurrently; issue at most ${maxPerTurn} SubAgent calls per turn.`
+    : "Issue at most 1 SubAgent call per turn.";
   const bullets = [
     `- Delegate to SubAgent when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. Valid type values: ${describeTypes(defs)}. Never use any other value. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not also run it yourself — wait for the result.`,
-    "- Multiple SubAgent calls in the same turn run concurrently; issue at most 8 SubAgent calls per turn. For large workloads with many independent items, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.",
+    `- ${capSentence} For large workloads with many independent items, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.`,
   ];
   if (readOnlySession) {
     bullets.push("- Sub-agents are read-only and return only their final report, not intermediate steps — verify important results yourself.");
