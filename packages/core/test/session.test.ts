@@ -364,3 +364,18 @@ test("submitAnswer feeds the answers back to the model as an AskUser tool result
   const entry = session.getSnapshot().timeline.find((e) => e.type === "question");
   assert.deepEqual(entry?.questions.map((q) => q.answer), ["prod", ["email", "slack"]]);
 });
+
+test("rejects non-positive turn, stall, and concurrency limits", () => {
+  const tools = new ToolRegistry();
+  const deps = {
+    systemPrompt: "test",
+    llm: fakeLLM([]),
+    tools,
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+    contextLimit: 750_000,
+  };
+  assert.throws(() => new Session({ ...deps, maxTurns: 0 }), /maxTurns must be a positive integer, got 0/);
+  assert.throws(() => new Session({ ...deps, maxTurns: Number.NaN }), /maxTurns must be a positive integer, got NaN/);
+  assert.throws(() => new Session({ ...deps, stallThreshold: 2.5 }), /stallThreshold must be a positive integer/);
+  assert.throws(() => new Session({ ...deps, maxParallelToolCalls: -1 }), /maxParallelToolCalls must be a positive integer/);
+});

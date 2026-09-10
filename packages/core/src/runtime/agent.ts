@@ -238,7 +238,7 @@ export class Agent {
         onEvent?.({ type: "error", text: `agent stalled: ${reason}` });
         return "stalled";
       }
-      if (++turns >= this.maxTurns) {
+      if (++turns > this.maxTurns) {
         this.resolvePendingToolCalls(msg.tool_calls, `max turns reached (${this.maxTurns})`);
         onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
         return "maxTurns";

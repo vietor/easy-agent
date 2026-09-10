@@ -188,6 +188,11 @@ export class SessionBusyError extends Error {
   }
 }
 
+function requirePositiveInt(value: number, name: string): number {
+  if (!Number.isInteger(value) || value < 1) throw new Error(`${name} must be a positive integer, got ${value}`);
+  return value;
+}
+
 export class Session {
   private agent: Agent;
   private mcp: MCPServerManager;
@@ -282,6 +287,9 @@ export class Session {
   }
 
   constructor(deps: SessionDeps) {
+    const maxTurns = requirePositiveInt(deps.maxTurns ?? DEFAULT_MAX_TURNS, "maxTurns");
+    const stallThreshold = requirePositiveInt(deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD, "stallThreshold");
+    const maxParallelToolCalls = requirePositiveInt(deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, "maxParallelToolCalls");
     this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
@@ -297,9 +305,9 @@ export class Session {
             llm: deps.llm,
             tools: this.tools,
             cwd: this.cwd,
-            maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
-            stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
-            maxParallelToolCalls: deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS,
+            maxTurns,
+            stallThreshold,
+            maxParallelToolCalls,
             contextLimit: deps.contextLimit,
             onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
           })(systemPrompt, task, level, signal),
@@ -313,9 +321,9 @@ export class Session {
       cwd: this.cwd,
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
-      stallThreshold: deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD,
-      maxTurns: deps.maxTurns ?? DEFAULT_MAX_TURNS,
-      maxParallelToolCalls: deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS,
+      stallThreshold,
+      maxTurns,
+      maxParallelToolCalls,
       contextLimit: deps.contextLimit,
       resolveSkill: this.resolveSkill,
       onCompact: () => {

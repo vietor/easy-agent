@@ -110,6 +110,8 @@ const session = await createSession({
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 | `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
 
+`maxTurns`, `stallThreshold`, and `maxParallelToolCalls` must be positive integers; `createSession` throws at construction otherwise.
+
 The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`.
 
 ## `SYSTEM_PROMPT_BOUNDARY`

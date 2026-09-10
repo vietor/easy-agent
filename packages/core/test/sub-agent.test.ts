@@ -166,6 +166,7 @@ test("nested maxTurns is enforced", async () => {
   const { llm } = fakeLLM([
     () => toolCall("SubAgent", JSON.stringify({ type: "plan", task: "plan X" })),
     () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1"),
+    () => toolCall("Glob", JSON.stringify({ pattern: "*.ts" }), "n2"),
     () => ({ role: "assistant", content: "done" }),
   ]);
   const agent = makeParentAgent(llm, { maxTurns: 1 });
