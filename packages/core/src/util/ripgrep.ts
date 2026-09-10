@@ -19,7 +19,7 @@ export function ripgrepResultSummary(word: "file" | "match", result: { content: 
   return summaryCount(word, count);
 }
 
-export interface RipgrepLinesResult {
+interface RipgrepLinesResult {
   lines: string[];
   truncated: boolean;
 }

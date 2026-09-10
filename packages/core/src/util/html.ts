@@ -6,8 +6,6 @@ const turndown = new TurndownService({
   bulletListMarker: "-",
   codeBlockStyle: "fenced",
   emDelimiter: "*",
-  strongDelimiter: "**",
-  linkStyle: "inlined",
 });
 turndown.remove(["script", "style", "title", "meta", "head", "noscript", "template", "link", "base"]);
 
