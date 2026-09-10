@@ -29,8 +29,8 @@ export function createSkillTool(
       }
       return { content: `Skill "${name}" loaded. Follow its instructions above.` };
     },
-    summarizeResult(_result) {
-      return "Successfully loaded skill";
+    summarizeResult(result) {
+      return result.isError ? "Skill failed" : "Successfully loaded skill";
     }
   };
 }
