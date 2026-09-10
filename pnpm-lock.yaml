@@ -31,9 +31,6 @@ importers:
       string-width:
         specifier: ^8.2.2
         version: 8.2.2
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^22.20.1
@@ -68,6 +65,9 @@ importers:
       undici:
         specifier: ^8.10.0
         version: 8.10.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^22.20.1

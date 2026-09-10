@@ -20,10 +20,6 @@ export const SKILL_TOOL_NAME = "Skill" as const;
 export const ASK_USER_TOOL_NAME = "AskUser" as const;
 export const LLM_MAX_RETRIES = 3;
 export const WEB_FETCH_RETRIES = 2;
-export const DEFAULT_THINKING_EFFORT = "high" as const;
-export const DEFAULT_BACKEND = "completions" as const;
-export const DEFAULT_MAX_INPUT_TOKENS = 1_000_000;
-export const DEFAULT_MAX_OUTPUT_TOKENS = 128_000;
 
 export function mbToBytes(mb: number): number {
   return mb * 1024 * 1024;

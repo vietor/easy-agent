@@ -27,7 +27,7 @@ import { runProcess, formatDuration } from "@vietor/agent-core/util";
 ## Quick Start
 
 ```ts
-import { createSession, tryLoadSkills } from "@vietor/agent-core";
+import { createSession, type LLMConfig, tryLoadSkills } from "@vietor/agent-core";
 
 const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
@@ -38,7 +38,7 @@ const session = await createSession({
     thinkingEffort: "high",
     backend: "completions",
     maxInputTokens: 1_000_000,
-  },
+  } as LLMConfig,
   mcpServers: {
     filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
   },
@@ -71,18 +71,18 @@ session.dispose();
 Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance. Connects the MCP servers listed in `mcpServers` before resolving.
 
 ```ts
-import { createSession } from "@vietor/agent-core";
+import { createSession, LLMConfigSchema } from "@vietor/agent-core";
 
 const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
-  llm: {
+  llm: LLMConfigSchema.parse({
     baseUrl: "https://api.deepseek.com/v1",
     apiKey: "your-api-key",
     model: "deepseek-v4-flash",
     thinkingEffort: "high",
     backend: "completions",
     maxInputTokens: 1_000_000,
-  },
+  }),
   tools: [myCustomTool],
   skills: tryLoadSkills("./skills") ?? [],
   mcpServers: {
@@ -98,7 +98,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
+| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). The parsed shape — build it with `LLMConfigSchema.parse()`, which requires only `baseUrl`, `apiKey`, and `model` and fills `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` with `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -412,23 +412,27 @@ type SessionMessage =
 
 ### `LLMConfig`
 
+`LLMConfigSchema` is the single source of truth (hosts compose it into their own config schema); `LLMConfig` is its parsed shape, with every default applied:
+
 ```ts
-interface LLMConfig {
-  baseUrl: string;            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com") — required
-  apiKey: string;             // API key — required
-  model: string;              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
-  thinkingEffort?: LLMThinkingEffort;  // Thinking depth; "high" for standard tasks, "max" for deeper thinking on complex tasks (default: "high")
-  backend?: LLMBackend;  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK) (default: "completions")
-  maxInputTokens?: number;    // Context window in tokens; 75% of it is used as the auto-compaction threshold (default: 1,000,000)
-  maxOutputTokens?: number;   // Max output tokens per request, capped by the model's output limit (default: 128,000)
-}
+const LLMConfigSchema = z.object({
+  baseUrl: z.string(),            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com") — required
+  apiKey: z.string(),             // API key — required
+  model: z.string(),              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
+  thinkingEffort: z.enum(["high", "max"]).default("high"),  // Thinking depth; "high" for standard tasks, "max" for deeper thinking on complex tasks
+  backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK)
+  maxInputTokens: z.int().positive().default(1_000_000),  // Context window in tokens; 75% of it is used as the auto-compaction threshold
+  maxOutputTokens: z.int().positive().default(128_000),   // Max output tokens per request, capped by the model's output limit
+});
 
-type LLMThinkingEffort = "high" | "max";
+type LLMConfig = z.infer<typeof LLMConfigSchema>;
 
-type LLMBackend = "completions" | "anthropic" | "responses";
+type LLMThinkingEffort = LLMConfig["thinkingEffort"];
+
+type LLMBackend = LLMConfig["backend"];
 ```
 
-Both aliases are exported so hosts can reference them in their own config types.
+`createSession` and `createLLM` take that parsed shape. Hosts starting from partial input — only `baseUrl`, `apiKey`, and `model` are required — either let the defaults in with `LLMConfigSchema.parse({ ... })`, or assert with `as LLMConfig`: `createSession` re-applies the schema at the boundary, so both end up with every field set. `z` is re-exported from the package root, so hosts composing these schemas into their own do not need a zod dependency of their own.
 
 `backend` selects the request/response protocol the client speaks:
 
@@ -631,24 +635,29 @@ const session = await createSession({
 
 ### `MCPServerConfig`
 
+`MCPServerConfigSchema` is the single source of truth (hosts compose it into their own config schema); `MCPServerConfig` is its parsed shape:
+
 ```ts
-type MCPServerConfig = StdioServerConfig | HttpServerConfig;
+const MCPServerConfigSchema = z.union([
+  z.object({
+    type: z.literal("stdio").default("stdio"),
+    command: z.string(),
+    args: z.array(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    enabled: z.boolean().optional(),    // set false to skip this server
+  }),
+  z.object({
+    type: z.literal("http"),
+    url: z.url(),
+    headers: z.record(z.string(), z.string()).optional(),
+    enabled: z.boolean().optional(),
+  }),
+]);
 
-interface StdioServerConfig {
-  type: "stdio";
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
-  enabled?: boolean;    // set false to skip this server
-}
-
-interface HttpServerConfig {
-  type: "http";
-  url: string;
-  headers?: Record<string, string>;
-  enabled?: boolean;
-}
+type MCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
 ```
+
+`type` is only optional when parsing (the schema defaults it to `"stdio"`); `mcpServers` on `createSession` and `connectMCP` takes the parsed shape, so it is always set there.
 
 ### `MCPServerInfo`
 
@@ -898,14 +907,10 @@ const data = await res.json();
 
 ## Constants
 
-Default values mirrored by `LLMConfig` — exported so host config types can reference the same defaults. Tool-call timeouts and empty results also share constants here:
+Tool-call timeouts, empty results, and text caps share constants here:
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `DEFAULT_THINKING_EFFORT` | `"high"` | Default `LLMConfig.thinkingEffort` |
-| `DEFAULT_BACKEND` | `"completions"` | Default `LLMConfig.backend` |
-| `DEFAULT_MAX_INPUT_TOKENS` | `1_000_000` | Default `LLMConfig.maxInputTokens` |
-| `DEFAULT_MAX_OUTPUT_TOKENS` | `128_000` | Default `LLMConfig.maxOutputTokens` |
 | `CALL_TIMEOUT_MS` | `300_000` | Default tool-call timeout (Shell, MCP tools) |
 | `NO_OUTPUT` | `"(no output)"` | Content placeholder for empty tool results |
 | `MAX_SUMMARY_LENGTH` | `75` | Default length cap for `summarizeText` |

@@ -1,9 +1,9 @@
 import { EmptyAssistantMessageError } from "./messages.js";
-import type { Adapter, LLMClient, LLMConfig, ResolvedLLMConfig } from "./types.js";
+import { LLMConfigSchema, type Adapter, type LLMClient, type LLMConfig } from "./types.js";
 import { CompletionsAdapter, ResponsesAdapter } from "./openai.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { isAbortError, withRetry, backoffDelay } from "../util/async.js";
-import { DEFAULT_BACKEND, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_THINKING_EFFORT, LLM_MAX_RETRIES } from "../util/constants.js";
+import { LLM_MAX_RETRIES } from "../util/constants.js";
 
 export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
   if (signal?.aborted || isAbortError(e)) return false;
@@ -35,13 +35,7 @@ export function withRetryChat(adapter: Adapter): LLMClient["chat"] {
 }
 
 export function createLLM(config: LLMConfig): LLMClient {
-  const cfg: ResolvedLLMConfig = {
-    ...config,
-    thinkingEffort: config.thinkingEffort ?? DEFAULT_THINKING_EFFORT,
-    backend: config.backend ?? DEFAULT_BACKEND,
-    maxInputTokens: config.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
-    maxOutputTokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-  };
+  const cfg = LLMConfigSchema.parse(config);
   let adapter: Adapter;
   switch (cfg.backend) {
     case "responses":

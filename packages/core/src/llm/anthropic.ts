@@ -8,7 +8,7 @@ import {
   type RedactedThinkingBlock,
   type ThinkingBlock,
 } from "./messages.js";
-import type { ChatOptions, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
+import type { ChatOptions, LLMConfig, LLMThinkingEffort } from "./types.js";
 import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
@@ -23,7 +23,7 @@ const THINKING_BUDGET: Record<LLMThinkingEffort, number> = {
 export class AnthropicAdapter extends BaseAdapter {
   private client: Anthropic;
 
-  constructor(config: ResolvedLLMConfig) {
+  constructor(config: LLMConfig) {
     super(config);
     this.client = new Anthropic({
       apiKey: config.apiKey,

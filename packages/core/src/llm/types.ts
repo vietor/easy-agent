@@ -1,26 +1,22 @@
+import { z } from "zod";
 import type { ToolSchema } from "../tools/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "./messages.js";
 
-export type LLMThinkingEffort = "high" | "max";
+export const LLMConfigSchema = z.object({
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  model: z.string(),
+  thinkingEffort: z.enum(["high", "max"]).default("high"),
+  backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
+  maxInputTokens: z.int().positive().default(1_000_000),
+  maxOutputTokens: z.int().positive().default(128_000),
+});
 
-export type LLMBackend = "completions" | "anthropic" | "responses";
+export type LLMConfig = z.infer<typeof LLMConfigSchema>;
 
-export interface LLMConfig {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-  thinkingEffort?: LLMThinkingEffort;
-  backend?: LLMBackend;
-  maxInputTokens?: number;
-  maxOutputTokens?: number;
-}
+export type LLMThinkingEffort = LLMConfig["thinkingEffort"];
 
-export interface ResolvedLLMConfig extends LLMConfig {
-  thinkingEffort: LLMThinkingEffort;
-  backend: LLMBackend;
-  maxInputTokens: number;
-  maxOutputTokens: number;
-}
+export type LLMBackend = LLMConfig["backend"];
 
 export interface ChatOptions {
   messages: LLMMessage[];
