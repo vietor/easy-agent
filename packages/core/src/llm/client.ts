@@ -1,8 +1,7 @@
 import { EmptyAssistantMessageError } from "./messages.js";
 import type { Adapter, LLMClient, LLMConfig, ResolvedLLMConfig } from "./types.js";
-import { CompletionsAdapter } from "./completions.js";
+import { CompletionsAdapter, ResponsesAdapter } from "./openai.js";
 import { AnthropicAdapter } from "./anthropic.js";
-import { ResponsesAdapter } from "./responses.js";
 import { isAbortError, withRetry, backoffDelay } from "../util/async.js";
 import { DEFAULT_BACKEND, DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_THINKING_EFFORT, LLM_MAX_RETRIES } from "../util/constants.js";
 

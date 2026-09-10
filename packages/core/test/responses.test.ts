@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toResponsesInput, toResponsesTool } from "../src/llm/responses.js";
+import { toResponsesInput, toResponsesTool } from "../src/llm/openai.js";
 
 test("a tool-call turn converts to message, function_call, and function_call_output items", () => {
   const items = toResponsesInput([
