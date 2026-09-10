@@ -163,6 +163,8 @@ export interface PromptResult {
   reply: string;
 }
 
+export type PendingQuestion = Extract<TimelineEvent, { type: "question" }>;
+
 export class SessionBusyError extends Error {
   constructor() {
     super("session is busy; another run is in progress");
@@ -236,7 +238,7 @@ export class Session {
     this.eventListeners.notify(e);
   };
 
-  get pendingQuestion(): Extract<TimelineEvent, { type: "question" }> | undefined {
+  get pendingQuestion(): PendingQuestion | undefined {
     return this.timelineStore.latestUnansweredQuestion;
   }
 

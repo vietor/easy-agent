@@ -1,4 +1,4 @@
-export { Session, SessionBusyError, type SessionOptions, type SessionView, type SessionState, type PromptResult } from "./runtime/session.js";
+export { Session, SessionBusyError, type SessionOptions, type SessionView, type SessionState, type PromptResult, type PendingQuestion } from "./runtime/session.js";
 export type { RunStatus } from "./runtime/agent.js";
 export type { SessionMessage } from "./runtime/session-messages.js";
 export { INITIAL_RUN_METRICS, type SessionEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";

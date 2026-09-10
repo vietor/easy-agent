@@ -359,6 +359,14 @@ interface PromptResult {
 
 `status` indicates how the run ended; `reply` is the final assistant text (may be partial or empty when `status !== "ok"`). Error details are delivered via the `error` event; subscribe to `onEvent` for the full picture.
 
+### `PendingQuestion`
+
+The `question` timeline entry returned by `session.pendingQuestion`.
+
+```ts
+type PendingQuestion = Extract<TimelineEvent, { type: "question" }>;
+```
+
 ### `RunStatus`
 
 ```ts
@@ -900,3 +908,4 @@ Default values mirrored by `LLMConfig` — exported so host config types can ref
 | `DEFAULT_MAX_OUTPUT_TOKENS` | `128_000` | Default `LLMConfig.maxOutputTokens` |
 | `CALL_TIMEOUT_MS` | `300_000` | Default tool-call timeout (Shell, MCP tools) |
 | `NO_OUTPUT` | `"(no output)"` | Content placeholder for empty tool results |
+| `MAX_SUMMARY_LENGTH` | `75` | Default length cap for `summarizeText` |
