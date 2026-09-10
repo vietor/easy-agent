@@ -16,7 +16,7 @@ export function ripgrepResultSummary(word: "file" | "match", result: { content: 
   if (result.content === NO_MATCHES) return noMatchesText;
   const lines = countNonEmptyLines(result.content);
   const count = lines - (result.content.endsWith(TRUNCATION_MARKER) ? 1 : 0);
-  return summaryCount(word, count, false, failText);
+  return summaryCount(word, count);
 }
 
 export interface RipgrepLinesResult {

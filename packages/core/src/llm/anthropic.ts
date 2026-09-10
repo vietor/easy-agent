@@ -15,7 +15,7 @@ import { netFetch } from "../util/net.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 
-export const THINKING_BUDGET: Record<LLMThinkingEffort, number> = {
+const THINKING_BUDGET: Record<LLMThinkingEffort, number> = {
   high: 16000,
   max: 32000,
 };

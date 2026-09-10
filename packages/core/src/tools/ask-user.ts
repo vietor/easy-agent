@@ -1,3 +1,4 @@
+import { ASK_USER_TOOL_NAME } from "../util/constants.js";
 import type { Tool } from "./types.js";
 import { toolError } from "./types.js";
 
@@ -59,7 +60,7 @@ export function parseQuestions(args: Record<string, unknown>): { questions: AskQ
 
 export function createAskUserTool(ask: (questions: AskQuestion[]) => Promise<AskAnswer[]>): Tool {
   return {
-    name: "AskUser",
+    name: ASK_USER_TOOL_NAME,
     description: DESCRIPTION,
     parameters: {
       type: "object",

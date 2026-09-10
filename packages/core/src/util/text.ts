@@ -1,11 +1,11 @@
+import { MAX_SUMMARY_LENGTH } from "./constants.js";
+
 const secondsFormatter = new Intl.NumberFormat("en-US", {
   style: "unit",
   unit: "second",
   unitDisplay: "narrow",
   maximumFractionDigits: 2,
 });
-
-import { MAX_SUMMARY_LENGTH } from "./constants.js";
 
 const compactNumberFormatter = new Intl.NumberFormat("en-US", {
   notation: "compact",
@@ -63,8 +63,7 @@ export function summaryBytes(prefix: string, result: { content: string; isError?
   return `${prefix} ${formatCompactNumber(getTextBytes(result.content))} bytes`;
 }
 
-export function summaryCount(word: "file" | "match", count: number, isError: boolean, failText: string): string {
-  if (isError) return failText;
+export function summaryCount(word: "file" | "match", count: number): string {
   const plural = word === "match" ? "matches" : "files";
   return `Found ${count} ${count === 1 ? word : plural}`;
 }

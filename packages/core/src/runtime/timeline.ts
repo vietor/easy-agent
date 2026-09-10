@@ -1,5 +1,6 @@
 import { parseToolArgs, toText } from "../llm/messages.js";
 import { trimSurroundingNewlines } from "../util/text.js";
+import { ASK_USER_TOOL_NAME } from "../util/constants.js";
 import type { SessionMessage } from "./session-messages.js";
 import type { SessionEvent, TimelineEvent } from "./events.js";
 import { parseQuestions, type AskAnswer } from "../tools/ask-user.js";
@@ -149,7 +150,7 @@ export function toTimelineEntries(
           } else {
             entries.push(entry);
           }
-          if (tc.function.name === "AskUser" && parsed.ok && result) {
+          if (tc.function.name === ASK_USER_TOOL_NAME && parsed.ok && result) {
             const { questions } = parseQuestions(parsed.args);
             if (questions.length > 0) {
               let answerMap: Record<string, AskAnswer> = {};
