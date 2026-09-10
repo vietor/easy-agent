@@ -42,7 +42,7 @@ easy-agent/
 │   │       ├── runtime/             # Agent, Session, SessionMessages, Timeline, events, prompts, sub-agent-runner, todo-store
 │   │       ├── tools/               # built-in tools (Shell, File*, Grep, Glob, WebFetch…)
 │   │       ├── llm/                 # LLM client — pluggable backends (OpenAI Chat Completions + Responses API + Anthropic Messages API)
-│   │       ├── mcp/                 # MCP client/server (stdio + Streamable HTTP)
+│   │       ├── mcp/                 # MCP client (stdio + Streamable HTTP)
 │   │       ├── skills/              # skill loader (SKILL.md files)
 │   │       ├── util/                # netFetch (proxy-aware fetch), ripgrep, subprocess…
 │   │       ├── create-session.ts    # createSession() factory
@@ -62,7 +62,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client/server, skill system), an event-driven interface (`AgentEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`) — it has no storage backend and never saves on its own. The `cli` package depends on `core` and provides the interactive terminal experience plus the JSONL session persistence (`--continue`/`--resume`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
+The `core` package contains the framework logic (agent loop, tools, MCP client, skill system), an event-driven interface (`SessionEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`) — it has no storage backend and never saves on its own. The `cli` package depends on `core` and provides the interactive terminal experience plus the JSONL session persistence (`--continue`/`--resume`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
 
 ### Build order
 

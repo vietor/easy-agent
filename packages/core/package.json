@@ -21,7 +21,7 @@
     "build": "tsc",
     "test": "node --import tsx --test test/*.test.ts"
   },
-  "description": "Lightweight AI agent framework — session orchestration, tool system, MCP client/server, skill loader",
+  "description": "Lightweight AI agent framework — session orchestration, tool system, MCP client, skill loader",
   "license": "MIT",
   "repository": {
     "type": "git",
