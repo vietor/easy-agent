@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Text } from "ink";
 import { formatCompactNumber, formatDuration } from "@vietor/agent-core/util";
+import { FRAME_MS } from "./constants.js";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -21,7 +22,7 @@ export function Spinner({
 }) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), 80);
+    const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length), FRAME_MS);
     return () => clearInterval(id);
   }, []);
   return (

@@ -3,6 +3,7 @@ import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
 import { INITIAL_RUN_METRICS, type RunMetrics, type Session, type SessionEvent, type SessionView } from "@vietor/agent-core";
 import { toErrorMessage } from "@vietor/agent-core/util";
 import { executeSlashCommand, slashCommandInfos } from "../commands/dispatch.js";
+import { FRAME_MS } from "./constants.js";
 import { Markdown } from "./components/markdown.js";
 import { TimelineView } from "./timeline-view.js";
 import { TodoView } from "./todo-view.js";
@@ -11,8 +12,6 @@ import { PromptOrCommandInput } from "./prompt-or-command-input.js";
 import { QuestionView } from "./question-view.js";
 import { Spinner } from "./spinner.js";
 import { StatusBar } from "./status-bar.js";
-
-const STREAM_FRAME_MS = 120;
 
 function useThrottledText(frameMs: number) {
   const [text, setText] = useState("");
@@ -37,8 +36,8 @@ function useThrottledText(frameMs: number) {
 function useSessionStream(session: Session) {
   const [runMetrics, setRunMetrics] = useState<RunMetrics>(INITIAL_RUN_METRICS);
   const [totalTokens, setTotalTokens] = useState({ cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
-  const streaming = useThrottledText(STREAM_FRAME_MS);
-  const thinking = useThrottledText(STREAM_FRAME_MS);
+  const streaming = useThrottledText(FRAME_MS);
+  const thinking = useThrottledText(FRAME_MS);
   const [showThinking, setShowThinking] = useState(false);
 
   useEffect(() => {
@@ -52,6 +51,7 @@ function useSessionStream(session: Session) {
           break;
         case "thinking_cleared":
           thinking.reset();
+          setShowThinking(false);
           break;
         case "assistant":
         case "retry":
