@@ -24,7 +24,8 @@ export interface SubAgentRunResult {
 
 export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: string, task: string, level: AgentLevel, signal?: AbortSignal) => Promise<SubAgentRunResult> {
   return async (systemPrompt, task, level, signal) => {
-    const conversation = new SessionMessages([systemPrompt, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
+    const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${opts.cwd}`;
+    const conversation = new SessionMessages([systemPrompt, environment, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
     const subTools = new ToolRegistry();
     subTools.registerAll(opts.tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
     const subAgent = new Agent({
