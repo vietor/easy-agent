@@ -3,7 +3,7 @@ import { DEFAULT_GLOB_LIMIT, NO_MATCHES } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = `List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Sorted by modification time (newest first), capped at ${DEFAULT_GLOB_LIMIT}. Skips node_modules and .git.`;
+const DESCRIPTION = `List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Sorted by modification time (newest first), capped at ${DEFAULT_GLOB_LIMIT}. Skips node_modules and .git, and does not list files excluded by .gitignore.`;
 
 export const globTool: Tool = {
   name: "Glob",

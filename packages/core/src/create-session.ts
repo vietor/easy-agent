@@ -18,7 +18,8 @@ function contextLimitFor(maxInputTokens: number): number {
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number): string {
   const parts = [base];
-  const toolUseLines = [renderToolUsePrompt(maxTurns)];
+  const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
+  const toolUseLines = [renderToolUsePrompt(maxTurns, mode)];
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);

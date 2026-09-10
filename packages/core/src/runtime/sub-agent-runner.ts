@@ -30,7 +30,7 @@ export async function runSubAgent(
   signal?: AbortSignal
 ): Promise<SubAgentRunResult> {
   const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${opts.cwd}`;
-  const conversation = new SessionMessages([systemPrompt, environment, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
+  const conversation = new SessionMessages([systemPrompt, environment, renderToolUsePrompt(opts.maxTurns, level === 1 ? "readOnly" : "full")].join("\n\n"));
   const subTools = new ToolRegistry();
   subTools.registerAll(opts.tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
   const subAgent = new Agent({

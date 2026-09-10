@@ -50,7 +50,10 @@ function messageText(msg: SessionMessage): string {
 
 function toLLMMessage(m: SessionMessage): LLMMessage {
   if (m.role === "tool") return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
-  if (m.role === "skill") return { role: "user", name: m.name, content: m.content };
+  if (m.role === "skill") {
+    const content = `Skill "${m.name}" invoked. Its instructions follow:\n\n${m.content}`;
+    return { role: "user", name: m.name, content };
+  }
   return m;
 }
 

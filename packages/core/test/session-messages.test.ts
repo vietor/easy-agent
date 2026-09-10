@@ -27,7 +27,8 @@ test("toLLM maps roles and prepends the system message", () => {
   assert.equal(llm.length, 4);
   assert.deepEqual(llm[0], { role: "system", content: SYS });
   assert.deepEqual(llm[2], { role: "tool", tool_call_id: "t1", content: "out" });
-  assert.deepEqual(llm[3], { role: "user", name: "s", content: "instructions" });
+  const skillContent = 'Skill "s" invoked. Its instructions follow:\n\ninstructions';
+  assert.deepEqual(llm[3], { role: "user", name: "s", content: skillContent });
 });
 
 test("toLLM cache stays in sync with add", () => {

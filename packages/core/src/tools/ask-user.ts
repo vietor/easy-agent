@@ -2,7 +2,7 @@ import { ASK_USER_TOOL_NAME } from "../util/constants.js";
 import type { Tool } from "./types.js";
 import { toolError } from "./types.js";
 
-export const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking. Batch related questions into a single AskUser call (up to 4 questions, 2-4 options each).";
+export const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking. Batch related questions into a single AskUser call.";
 
 export interface AskOption {
   label: string;

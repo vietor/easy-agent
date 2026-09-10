@@ -27,7 +27,7 @@ export function createSkillTool(
       if (!resolve(name)) {
         return toolError(`skill "${name}" not found`);
       }
-      return { content: `Skill "${name}" loaded. Follow its instructions above.` };
+      return { content: `Skill "${name}" loaded. Its instructions are now in the conversation — follow them.` };
     },
     summarizeResult(result) {
       return result.isError ? "Skill failed" : "Successfully loaded skill";

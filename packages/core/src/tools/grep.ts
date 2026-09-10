@@ -3,7 +3,7 @@ import { DEFAULT_GREP_LIMIT, NO_MATCHES } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 
-const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git. Returns path:line:content sorted by file path, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order (content mode only).`;
+const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git, and does not search files excluded by .gitignore. Content mode returns path:line:content sorted by file path, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order (content mode only).`;
 
 export const grepTool: Tool = {
   name: "Grep",

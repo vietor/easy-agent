@@ -4,7 +4,7 @@ import { summarizeText, toErrorMessage } from "../util/text.js";
 import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
-import { COMPACT_PROMPT, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
+import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
@@ -112,7 +112,7 @@ export class Agent {
     if (request.length === 0) return "ok";
     const todos = this.getTodos();
     if (todos.length) {
-      request.push({ role: "user", content: renderTodoReminder(todos) });
+      request.push({ role: "user", content: renderCompactTodos(todos) });
     }
     request.push({ role: "user", content: COMPACT_PROMPT });
     const chat = await this.chatOnce(
@@ -206,7 +206,7 @@ export class Agent {
       }
       const messages = this.conversation.toLLM();
       const todos = this.getTodos();
-      if (todos.length) {
+      if (todos.length && !pendingNudge) {
         messages.push({ role: "user", content: renderTodoReminder(todos) });
       }
       if (pendingNudge) {
