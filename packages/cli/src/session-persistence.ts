@@ -4,9 +4,8 @@ import { isDeepStrictEqual } from "node:util";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type SessionMessage, type SessionState, type Todo } from "@vietor/agent-core";
-import { summarizeText } from "@vietor/agent-core/util";
+import { MAX_SUMMARY_LENGTH, summarizeText } from "@vietor/agent-core/util";
 
-const MAX_TITLE_LENGTH = 75;
 const MAX_TITLE_SCAN_BYTES = 64 * 1024;
 
 export interface SessionMeta {
@@ -118,7 +117,7 @@ export class FileSessionPersistence {
   private readTitle(path: string): string | undefined {
     const first = this.readFirstUser(path);
     if (!first) return undefined;
-    return summarizeText(first, MAX_TITLE_LENGTH);
+    return summarizeText(first, MAX_SUMMARY_LENGTH);
   }
 
   private readFirstUser(path: string): string | undefined {

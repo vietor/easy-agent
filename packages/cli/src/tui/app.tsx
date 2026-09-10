@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_METRICS, type RunMetrics, type Session, type SessionEvent, type SessionView } from "@vietor/agent-core";
+import { INITIAL_RUN_METRICS, type RunMetrics, type Session, type SessionEvent } from "@vietor/agent-core";
 import { toErrorMessage } from "@vietor/agent-core/util";
 import { executeSlashCommand, slashCommandInfos } from "../commands/dispatch.js";
 import { FRAME_MS } from "./constants.js";
@@ -80,7 +80,7 @@ function useSessionStream(session: Session) {
 export function App({ session, persist }: { session: Session; persist: () => void }) {
   const { exit } = useApp();
   const { columns } = useWindowSize();
-  const view = useSyncExternalStore(session.subscribe, session.getSnapshot) as SessionView;
+  const view = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const { runMetrics, totalTokens, streaming, thinking, showThinking, setShowThinking, resetMetrics } = useSessionStream(session);
   const allCmds = useMemo(() => slashCommandInfos(session), [session]);
   const pendingQuestion = session.pendingQuestion;

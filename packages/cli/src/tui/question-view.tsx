@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
-import type { AskAnswer, TimelineEvent } from "@vietor/agent-core";
+import type { AskAnswer, PendingQuestion } from "@vietor/agent-core";
 
 interface QuestionViewProps {
-  question: Extract<TimelineEvent, { type: "question" }>;
+  question: PendingQuestion;
   onAnswer: (answers: AskAnswer[]) => void;
 }
 
