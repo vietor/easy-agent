@@ -30,6 +30,14 @@ export interface AgentOptions {
 
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
 
+interface ToolCallOutcome {
+  id: string;
+  content: string;
+  resultSummary?: string;
+  isError?: boolean;
+  args: Record<string, unknown>;
+}
+
 export class Agent {
   private llm: LLMClient;
   private conversation: SessionMessages;
@@ -100,9 +108,8 @@ export class Agent {
   }
 
   async compact(onEvent?: (e: SessionEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
-    const history = this.conversation.toLLM().slice(1);
-    if (history.length === 0) return "ok";
-    const request: LLMMessage[] = [...history];
+    const request = this.conversation.toLLM().slice(1);
+    if (request.length === 0) return "ok";
     const todos = this.getTodos();
     if (todos.length) {
       request.push({ role: "user", content: renderTodoReminder(todos) });
@@ -301,7 +308,7 @@ export class Agent {
     calls: NonNullable<LLMAssistantMessage["tool_calls"]>,
     onEvent?: (e: SessionEvent) => void,
     signal?: AbortSignal
-  ): Promise<{ id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> }[] | null> {
+  ): Promise<ToolCallOutcome[] | null> {
     const results = await mapWithConcurrency(
       calls,
       this.maxParallelToolCalls,
@@ -315,7 +322,7 @@ export class Agent {
     call: NonNullable<LLMAssistantMessage["tool_calls"]>[number],
     onEvent?: (e: SessionEvent) => void,
     signal?: AbortSignal
-  ): Promise<{ id: string; content: string; resultSummary?: string; isError?: boolean; args: Record<string, unknown> }> {
+  ): Promise<ToolCallOutcome> {
     const parsed = parseToolArgs(call.function.arguments);
     const args = parsed.ok ? parsed.args : {};
     const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);

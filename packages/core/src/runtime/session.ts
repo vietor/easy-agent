@@ -16,7 +16,7 @@ import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
-import { createSubAgentRunner } from "./sub-agent-runner.js";
+import { runSubAgent } from "./sub-agent-runner.js";
 
 class StreamBuffer {
   private streamingText = "";
@@ -52,17 +52,6 @@ class StreamBuffer {
     return text;
   }
 
-  flush(): { assistant: string | null; thinkingCleared: boolean } {
-    const assistant = this.flushAssistant();
-    const thinkingCleared = this.flushThinking();
-    return { assistant, thinkingCleared };
-  }
-
-  flushForRetry(): { thinkingCleared: boolean } {
-    this.streamingText = "";
-    return { thinkingCleared: this.flushThinking() };
-  }
-
   interrupt(): boolean {
     this.lastReplyText = this.streamingText;
     this.streamingText = "";
@@ -79,7 +68,7 @@ class StreamBuffer {
     return true;
   }
 
-  private flushAssistant(): string | null {
+  flushAssistant(): string | null {
     if (!this.streamingText) return null;
     this.lastReplyText = this.streamingText;
     const text = this.streamingText;
@@ -117,31 +106,24 @@ class QuestionQueue {
   }
 }
 
-class RunTimer {
-  private startTime = 0;
-
-  begin(): void {
-    this.startTime = Date.now();
+function runMetricsSince(
+  startedAt: number,
+  usage: { cacheInputTokens: number; missInputTokens: number; outputTokens: number },
+  firstReplyAt: number | null,
+  running: boolean
+): RunMetrics {
+  const now = Date.now();
+  const elapsed = Math.floor((now - startedAt) / 1000);
+  if (firstReplyAt === null) {
+    return { running, elapsed, thinkingElapsed: elapsed, replyElapsed: 0, ...usage };
   }
-
-  metrics(
-    usage: { cacheInputTokens: number; missInputTokens: number; outputTokens: number },
-    firstReplyAt: number | null,
-    running: boolean
-  ): RunMetrics {
-    const now = Date.now();
-    const elapsed = Math.floor((now - this.startTime) / 1000);
-    if (firstReplyAt === null) {
-      return { running, elapsed, thinkingElapsed: elapsed, replyElapsed: 0, ...usage };
-    }
-    return {
-      running,
-      elapsed,
-      thinkingElapsed: Math.floor((firstReplyAt - this.startTime) / 1000),
-      replyElapsed: Math.floor((now - firstReplyAt) / 1000),
-      ...usage,
-    };
-  }
+  return {
+    running,
+    elapsed,
+    thinkingElapsed: Math.floor((firstReplyAt - startedAt) / 1000),
+    replyElapsed: Math.floor((now - firstReplyAt) / 1000),
+    ...usage,
+  };
 }
 
 export interface SessionOptions {
@@ -203,7 +185,7 @@ export class Session {
 
   private stream = new StreamBuffer();
   private questionQueue = new QuestionQueue();
-  private runTimer = new RunTimer();
+  private runStartedAt = 0;
   private runMetrics: RunMetrics = INITIAL_RUN_METRICS;
   private abortController: AbortController | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -243,7 +225,7 @@ export class Session {
 
   runSkill = async (name: string): Promise<boolean> => {
     this.rejectIfBusy();
-    const skill = this.skillsMap.get(name);
+    const skill = this.resolveSkill(name);
     if (!skill) return false;
     await this.start({ type: "skill", name: skill.name }, (signal) => this.agent.runSkill(skill, this.handleEvent, signal));
     return true;
@@ -301,7 +283,7 @@ export class Session {
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: {
         runSubAgent: (systemPrompt, task, level, signal) =>
-          createSubAgentRunner({
+          runSubAgent({
             llm: deps.llm,
             tools: this.tools,
             cwd: this.cwd,
@@ -310,7 +292,7 @@ export class Session {
             maxParallelToolCalls,
             contextLimit: deps.contextLimit,
             onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
-          })(systemPrompt, task, level, signal),
+          }, systemPrompt, task, level, signal),
       },
     });
 
@@ -341,14 +323,14 @@ export class Session {
 
   private async run(runFn: (signal: AbortSignal) => Promise<RunStatus>): Promise<PromptResult> {
     this.stream.begin();
-    this.runTimer.begin();
+    this.runStartedAt = Date.now();
     this.abortController = new AbortController();
     this.runMetrics = { ...INITIAL_RUN_METRICS, running: true };
     this.agent.resetUsage();
     this.emitRunMetrics();
 
     this.timer = setInterval(() => {
-      this.runMetrics = this.runTimer.metrics(this.agent.usage, this.stream.firstReplyAt, true);
+      this.runMetrics = runMetricsSince(this.runStartedAt, this.agent.usage, this.stream.firstReplyAt, true);
       this.emitRunMetrics();
     }, 1000);
 
@@ -367,7 +349,7 @@ export class Session {
       this.timer = undefined;
       this.abortController = null;
       this.timelineStore.markPendingToolsAborted();
-      this.runMetrics = this.runTimer.metrics(this.agent.usage, this.stream.firstReplyAt, false);
+      this.runMetrics = runMetricsSince(this.runStartedAt, this.agent.usage, this.stream.firstReplyAt, false);
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
@@ -386,21 +368,21 @@ export class Session {
   }
 
   private handleEvent = (e: SessionEvent): void => {
-    let passed = false;
+    let suppressed = false;
     switch (e.type) {
       case "assistant_delta": {
         e.text = this.stream.push(e.text);
-        passed = !e.text;
+        suppressed = !e.text;
         break;
       }
       case "thinking_delta": {
         e.text = this.stream.pushThinking(e.text);
-        passed = !e.text;
+        suppressed = !e.text;
         break;
       }
       case "retry": {
-        const { thinkingCleared } = this.stream.flushForRetry();
-        if (thinkingCleared) this.emit({ type: "thinking_cleared" });
+        this.stream.discardStreamedText();
+        this.flushThinking();
         break;
       }
       case "tool_start":
@@ -411,15 +393,14 @@ export class Session {
         if (this.stream.interrupt()) this.emit({ type: "thinking_cleared" });
         break;
     }
-    if(!passed) this.emit(e);
+    if (!suppressed) this.emit(e);
     if(e.type == "assistant_delta") this.flushThinking();
   };
 
   private flushStreaming(): void {
-    const { assistant, thinkingCleared } = this.stream.flush();
-    const text = trimSurroundingNewlines(assistant);
+    const text = trimSurroundingNewlines(this.stream.flushAssistant());
     if (text) this.emit({ type: "assistant", text });
-    if (thinkingCleared) this.emit({ type: "thinking_cleared" });
+    this.flushThinking();
   }
 
   private flushThinking(): void {

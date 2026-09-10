@@ -20,7 +20,7 @@ function estimateTokens(text: string): number {
   return Math.round(tokens / 4);
 }
 
-export function lastAssistantText(messages: SessionMessage[]): string {
+function lastAssistantText(messages: SessionMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.role !== "assistant") continue;

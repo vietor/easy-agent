@@ -4,7 +4,7 @@ import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool, renderSubAgentGuidance } from "../src/tools/sub-agent.js";
-import { createSubAgentRunner } from "../src/runtime/sub-agent-runner.js";
+import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 
@@ -54,7 +54,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   tools.registerAll(SUB_TOOLS);
   tools.registerAll([...GENERAL_ONLY_TOOLS, ...SESSION_SCOPED_TOOLS]);
   let parentAgent: Agent;
-  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, signal) => createSubAgentRunner({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) })(systemPrompt, task, signal) }));
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level) => runSubAgent({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) }, systemPrompt, task, level) }));
   const conversation = new SessionMessages("system prompt");
   parentAgent = new Agent({
     llm,

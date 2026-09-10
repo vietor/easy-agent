@@ -22,28 +22,32 @@ export interface SubAgentRunResult {
   messages: SessionMessage[];
 }
 
-export function createSubAgentRunner(opts: SubAgentRunOptions): (systemPrompt: string, task: string, level: AgentLevel, signal?: AbortSignal) => Promise<SubAgentRunResult> {
-  return async (systemPrompt, task, level, signal) => {
-    const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${opts.cwd}`;
-    const conversation = new SessionMessages([systemPrompt, environment, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
-    const subTools = new ToolRegistry();
-    subTools.registerAll(opts.tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
-    const subAgent = new Agent({
-      llm: opts.llm,
-      conversation,
-      tools: subTools,
-      cwd: opts.cwd,
-      setTodos: () => {},
-      getTodos: () => [],
-      stallThreshold: opts.stallThreshold,
-      maxTurns: opts.maxTurns,
-      maxParallelToolCalls: opts.maxParallelToolCalls,
-      contextLimit: opts.contextLimit,
-    });
-    const status = await subAgent.run(task, undefined, signal);
-    opts.onUsage?.(subAgent.usage.cacheInputTokens, subAgent.usage.missInputTokens, subAgent.usage.outputTokens);
-    const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
-    const messages = status !== "ok" ? conversation.export() : [];
-    return { status, reply, messages };
-  };
+export async function runSubAgent(
+  opts: SubAgentRunOptions,
+  systemPrompt: string,
+  task: string,
+  level: AgentLevel,
+  signal?: AbortSignal
+): Promise<SubAgentRunResult> {
+  const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${opts.cwd}`;
+  const conversation = new SessionMessages([systemPrompt, environment, renderToolUsePrompt(opts.maxTurns)].join("\n\n"));
+  const subTools = new ToolRegistry();
+  subTools.registerAll(opts.tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
+  const subAgent = new Agent({
+    llm: opts.llm,
+    conversation,
+    tools: subTools,
+    cwd: opts.cwd,
+    setTodos: () => {},
+    getTodos: () => [],
+    stallThreshold: opts.stallThreshold,
+    maxTurns: opts.maxTurns,
+    maxParallelToolCalls: opts.maxParallelToolCalls,
+    contextLimit: opts.contextLimit,
+  });
+  const status = await subAgent.run(task, undefined, signal);
+  opts.onUsage?.(subAgent.usage.cacheInputTokens, subAgent.usage.missInputTokens, subAgent.usage.outputTokens);
+  const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
+  const messages = status !== "ok" ? conversation.export() : [];
+  return { status, reply, messages };
 }
