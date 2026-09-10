@@ -86,9 +86,10 @@ export async function mapWithConcurrency<T, R>(
   signal?: AbortSignal
 ): Promise<R[]> {
   const results: R[] = [];
-  for (let i = 0; i < items.length; i += limit) {
+  const chunkSize = Math.max(1, limit);
+  for (let i = 0; i < items.length; i += chunkSize) {
     if (signal?.aborted) break;
-    const chunk = items.slice(i, i + limit);
+    const chunk = items.slice(i, i + chunkSize);
     results.push(...(await Promise.all(chunk.map((item) => fn(item)))));
   }
   return results;
