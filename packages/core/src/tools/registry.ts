@@ -27,13 +27,8 @@ export class ToolRegistry {
   }
 
   registerAll(tools: Tool[]): this {
-    for (const t of tools) this.tools.set(t.name, t);
-    this.schemasCache = null;
+    for (const t of tools) this.register(t);
     return this;
-  }
-
-  get(name: string): Tool | undefined {
-    return this.tools.get(name);
   }
 
   filter(predicate: (t: Tool) => boolean): Tool[] {
@@ -70,14 +65,12 @@ export class ToolRegistry {
     }
   }
 
-  summarizeResult(name: string, result: TextResult, durationMs?: number): string {
+  summarizeResult(name: string, result: TextResult, durationMs: number): string {
     const tool = this.tools.get(name);
     const resultSummary = tool?.summarizeResult
       ? tool.summarizeResult(result)
       : defaultResultSummary(result);
-    return durationMs !== undefined
-      ? `[${formatDuration(durationMs / 1000)}] ${resultSummary}`
-      : resultSummary;
+    return `[${formatDuration(durationMs / 1000)}] ${resultSummary}`;
   }
 
   summarizeArgs(name: string, args: Record<string, unknown>): string {

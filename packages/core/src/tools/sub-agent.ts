@@ -91,10 +91,6 @@ function defsForSession(readOnlySession: boolean): SubAgentDef[] {
   return SUB_AGENT_DEFS.filter((d) => isGrantedAtLevel(d.level, readOnlySession ? 1 : 2));
 }
 
-function describeTypes(defs: readonly SubAgentDef[]): string {
-  return defs.map((d) => `type: "${d.type}" — ${d.description}`).join(" ");
-}
-
 const MAX_SUB_AGENTS_PER_TURN = 8;
 
 export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number): string {
@@ -122,7 +118,7 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
 
 export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = false): Tool {
   const defs = defsForSession(readOnlySession);
-  const typeList = describeTypes(defs);
+  const typeList = defs.map((d) => `type: "${d.type}" — ${d.description}`).join(" ");
   return {
     name: "SubAgent",
     description:
