@@ -98,7 +98,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
+| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`, the last two with minimums of `128_000` and `48_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -421,8 +421,8 @@ const LLMConfigSchema = z.object({
   model: z.string(),              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
   thinkingEffort: z.enum(["high", "max"]).default("high"),  // Thinking depth; "high" for standard tasks, "max" for deeper thinking on complex tasks
   backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK)
-  maxInputTokens: z.int().positive().default(1_000_000),  // Context window in tokens; 75% of it is used as the auto-compaction threshold
-  maxOutputTokens: z.int().positive().default(128_000),   // Max output tokens per request, capped by the model's output limit
+  maxInputTokens: z.int().min(128_000).default(1_000_000),  // Context window in tokens (min 128_000); 75% of it is used as the auto-compaction threshold
+  maxOutputTokens: z.int().min(48_000).default(128_000),    // Max output tokens per request (min 48_000), capped by the model's output limit
 });
 
 type LLMConfig = z.input<typeof LLMConfigSchema>;

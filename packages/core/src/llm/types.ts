@@ -8,8 +8,8 @@ export const LLMConfigSchema = z.object({
   model: z.string(),
   thinkingEffort: z.enum(["high", "max"]).default("high"),
   backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
-  maxInputTokens: z.int().positive().default(1_000_000),
-  maxOutputTokens: z.int().positive().default(128_000),
+  maxInputTokens: z.int().min(128_000).default(1_000_000),
+  maxOutputTokens: z.int().min(48_000).default(128_000),
 });
 
 export type LLMConfig = z.input<typeof LLMConfigSchema>;
