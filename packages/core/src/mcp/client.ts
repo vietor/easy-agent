@@ -5,7 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { MCPServerConfig } from "./types.js";
+import type { ResolvedMCPServerConfig } from "./types.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 export class MCPClient {
@@ -16,7 +16,7 @@ export class MCPClient {
   onClosed?: (error?: string) => void;
 
   constructor(
-    config: MCPServerConfig,
+    config: ResolvedMCPServerConfig,
     clientInfo: MCPClientInfo,
   ) {
     this.client = new Client(clientInfo, { capabilities: {} });

@@ -27,7 +27,7 @@ import { runProcess, formatDuration } from "@vietor/agent-core/util";
 ## Quick Start
 
 ```ts
-import { createSession, type LLMConfig, tryLoadSkills } from "@vietor/agent-core";
+import { createSession, tryLoadSkills } from "@vietor/agent-core";
 
 const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
@@ -38,7 +38,7 @@ const session = await createSession({
     thinkingEffort: "high",
     backend: "completions",
     maxInputTokens: 1_000_000,
-  } as LLMConfig,
+  },
   mcpServers: {
     filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
   },
@@ -98,7 +98,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
-| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). The parsed shape — build it with `LLMConfigSchema.parse()`, which requires only `baseUrl`, `apiKey`, and `model` and fills `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` with `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
+| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -412,7 +412,7 @@ type SessionMessage =
 
 ### `LLMConfig`
 
-`LLMConfigSchema` is the single source of truth (hosts compose it into their own config schema); `LLMConfig` is its parsed shape, with every default applied:
+`LLMConfigSchema` is the single source of truth (hosts compose it into their own config schema); `LLMConfig` is its input shape and `ResolvedLLMConfig` its parsed shape, with every default applied:
 
 ```ts
 const LLMConfigSchema = z.object({
@@ -425,14 +425,16 @@ const LLMConfigSchema = z.object({
   maxOutputTokens: z.int().positive().default(128_000),   // Max output tokens per request, capped by the model's output limit
 });
 
-type LLMConfig = z.infer<typeof LLMConfigSchema>;
+type LLMConfig = z.input<typeof LLMConfigSchema>;
 
-type LLMThinkingEffort = LLMConfig["thinkingEffort"];
+type ResolvedLLMConfig = z.infer<typeof LLMConfigSchema>;
 
-type LLMBackend = LLMConfig["backend"];
+type LLMThinkingEffort = ResolvedLLMConfig["thinkingEffort"];
+
+type LLMBackend = ResolvedLLMConfig["backend"];
 ```
 
-`createSession` and `createLLM` take that parsed shape. Hosts starting from partial input — only `baseUrl`, `apiKey`, and `model` are required — either let the defaults in with `LLMConfigSchema.parse({ ... })`, or assert with `as LLMConfig`: `createSession` re-applies the schema at the boundary, so both end up with every field set. `z` is re-exported from the package root, so hosts composing these schemas into their own do not need a zod dependency of their own.
+`createSession` and `createLLM` take `LLMConfig`, where only `baseUrl`, `apiKey`, and `model` are required. The schema is applied at the boundary, so every field is set on the `ResolvedLLMConfig` that reaches the client and its adapters. `z` is re-exported from the package root, so hosts composing these schemas into their own do not need a zod dependency of their own.
 
 `backend` selects the request/response protocol the client speaks:
 
@@ -635,7 +637,7 @@ const session = await createSession({
 
 ### `MCPServerConfig`
 
-`MCPServerConfigSchema` is the single source of truth (hosts compose it into their own config schema); `MCPServerConfig` is its parsed shape:
+`MCPServerConfigSchema` is the single source of truth (hosts compose it into their own config schema); `MCPServerConfig` is its input shape and `ResolvedMCPServerConfig` its parsed shape:
 
 ```ts
 const MCPServerConfigSchema = z.union([
@@ -654,10 +656,12 @@ const MCPServerConfigSchema = z.union([
   }),
 ]);
 
-type MCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
+type MCPServerConfig = z.input<typeof MCPServerConfigSchema>;
+
+type ResolvedMCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
 ```
 
-`type` is only optional when parsing (the schema defaults it to `"stdio"`); `mcpServers` on `createSession` and `connectMCP` takes the parsed shape, so it is always set there.
+`type` is optional on input for stdio servers — the schema defaults it to `"stdio"`. `mcpServers` on `createSession` and `connectMCP` take `MCPServerConfig`; the manager parses each server at connect time, so `MCPServerInfo.type` is always set and the transport is selected from the parsed shape.
 
 ### `MCPServerInfo`
 

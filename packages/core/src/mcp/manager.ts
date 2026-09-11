@@ -1,7 +1,7 @@
 import type { Tool } from "../tools/types.js";
-import { toolError } from "../tools/types.js";
+import { issueMessage, toolError } from "../tools/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { MCPClientInfo, MCPServerConfig, MCPServerInfo, ServerType } from "./types.js";
+import { MCPServerConfigSchema, type MCPClientInfo, type MCPServerConfig, type MCPServerInfo, type MCPServerType } from "./types.js";
 import { MCPClient } from "./client.js";
 import { withTimeout, withTimeoutFn } from "../util/async.js";
 import { CALL_TIMEOUT_MS, MCP_CONNECT_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
@@ -63,8 +63,8 @@ function mcpToolName(server: string, tool: string): string {
   return `MCP__${server}__${tool}`;
 }
 
-interface ServerEntry {
-  type: ServerType;
+interface MCPServerEntry {
+  type: MCPServerType;
   status: MCPServerInfo["status"];
   client?: MCPClient;
   tools: string[];
@@ -72,7 +72,7 @@ interface ServerEntry {
 }
 
 export class MCPServerManager {
-  private servers = new Map<string, ServerEntry>();
+  private servers = new Map<string, MCPServerEntry>();
   private pending = new Set<MCPClient>();
   private disposed = false;
 
@@ -89,15 +89,21 @@ export class MCPServerManager {
 
   private async connectServer(name: string, cfg: MCPServerConfig): Promise<void> {
     if (this.disposed) return;
-    const type = cfg.type;
-    if (cfg.enabled === false) {
+    const type: MCPServerType = cfg.type ?? "stdio";
+    const parsed = MCPServerConfigSchema.safeParse(cfg);
+    if (!parsed.success) {
+      this.markFailed(name, type, issueMessage(parsed.error));
+      return;
+    }
+    const config = parsed.data;
+    if (config.enabled === false) {
       this.servers.set(name, { type, status: "disabled", tools: [] });
       return;
     }
     this.servers.set(name, { type, status: "pending", tools: [] });
     let client: MCPClient;
     try {
-      client = new MCPClient(cfg, this.clientInfo);
+      client = new MCPClient(config, this.clientInfo);
     } catch (e) {
       this.markFailed(name, type, toErrorMessage(e));
       return;
@@ -121,7 +127,7 @@ export class MCPServerManager {
     }
   }
 
-  private markFailed(name: string, type: ServerType, error: string): void {
+  private markFailed(name: string, type: MCPServerType, error: string): void {
     this.servers.set(name, { type, status: "failed", tools: [], error });
   }
 

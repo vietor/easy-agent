@@ -21,13 +21,15 @@ export const MCPServerConfigSchema = z.union([
   }),
 ]);
 
-export type MCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
+export type MCPServerConfig = z.input<typeof MCPServerConfigSchema>;
 
-export type ServerType = MCPServerConfig["type"];
+export type ResolvedMCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
+
+export type MCPServerType = ResolvedMCPServerConfig["type"];
 
 export interface MCPServerInfo {
   name: string;
-  type: ServerType;
+  type: MCPServerType;
   status: "pending" | "connected" | "failed" | "disabled";
   tools: string[];
   error?: string;

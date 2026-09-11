@@ -12,11 +12,13 @@ export const LLMConfigSchema = z.object({
   maxOutputTokens: z.int().positive().default(128_000),
 });
 
-export type LLMConfig = z.infer<typeof LLMConfigSchema>;
+export type LLMConfig = z.input<typeof LLMConfigSchema>;
 
-export type LLMThinkingEffort = LLMConfig["thinkingEffort"];
+export type ResolvedLLMConfig = z.infer<typeof LLMConfigSchema>;
 
-export type LLMBackend = LLMConfig["backend"];
+export type LLMThinkingEffort = ResolvedLLMConfig["thinkingEffort"];
+
+export type LLMBackend = ResolvedLLMConfig["backend"];
 
 export interface ChatOptions {
   messages: LLMMessage[];

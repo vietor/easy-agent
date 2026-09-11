@@ -14,7 +14,7 @@ export function toToolParameters(schema: z.ZodType): Record<string, unknown> {
   return z.toJSONSchema(schema, { io: "input", target: "openapi-3.0" }) as Record<string, unknown>;
 }
 
-function issueMessage(error: z.ZodError): string {
+export function issueMessage(error: z.ZodError): string {
   return error.issues.map((i) => i.message).join("; ");
 }
 

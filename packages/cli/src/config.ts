@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { z, LLMConfigSchema, MCPServerConfigSchema, type LLMConfig, type MCPServerConfig } from "@vietor/agent-core";
+import { z, LLMConfigSchema, MCPServerConfigSchema, type ResolvedLLMConfig, type ResolvedMCPServerConfig } from "@vietor/agent-core";
 
 const CONFIG_PATH = ".easy-agent.json";
 
@@ -11,8 +11,8 @@ const ConfigSchema = z.object({
 });
 
 export interface Config {
-  llm: LLMConfig;
-  mcpServers?: Record<string, MCPServerConfig>;
+  llm: ResolvedLLMConfig;
+  mcpServers?: Record<string, ResolvedMCPServerConfig>;
 }
 
 export function loadConfig(): Config {

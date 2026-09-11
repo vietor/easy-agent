@@ -1,5 +1,5 @@
 import type { LLMAssistantMessage } from "./messages.js";
-import type { Adapter, ChatOptions, LLMConfig, LLMThinkingEffort } from "./types.js";
+import type { Adapter, ChatOptions, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
 
 export abstract class BaseAdapter implements Adapter {
   readonly model: string;
@@ -7,7 +7,7 @@ export abstract class BaseAdapter implements Adapter {
   readonly maxInputTokens: number;
   readonly maxOutputTokens: number;
 
-  protected constructor(config: LLMConfig) {
+  protected constructor(config: ResolvedLLMConfig) {
     this.model = config.model;
     this.thinkingEffort = config.thinkingEffort;
     this.maxInputTokens = config.maxInputTokens;

@@ -8,7 +8,7 @@ export { toolError, toToolParameters, tryParseToolArgs } from "./tools/types.js"
 export type { BuiltinToolsOptions } from "./tools/registry.js";
 export type { Skill } from "./skills/types.js";
 export { tryLoadSkills } from "./skills/loader.js";
-export { MCPServerConfigSchema, type MCPClientInfo, type MCPServerConfig, type MCPServerInfo } from "./mcp/types.js";
-export { LLMConfigSchema, type LLMConfig, type LLMThinkingEffort, type LLMBackend } from "./llm/types.js";
+export { MCPServerConfigSchema, type MCPClientInfo, type MCPServerConfig, type ResolvedMCPServerConfig, type MCPServerInfo } from "./mcp/types.js";
+export { LLMConfigSchema, type LLMConfig, type ResolvedLLMConfig, type LLMThinkingEffort, type LLMBackend } from "./llm/types.js";
 export { z } from "zod";
 export { createSession, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";

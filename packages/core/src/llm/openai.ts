@@ -5,12 +5,12 @@ import {
   type LLMAssistantMessage,
   type LLMMessage,
 } from "./messages.js";
-import type { ChatOptions, LLMConfig } from "./types.js";
+import type { ChatOptions, ResolvedLLMConfig } from "./types.js";
 import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 
-export function createOpenAIClient(config: LLMConfig): OpenAI {
+export function createOpenAIClient(config: ResolvedLLMConfig): OpenAI {
   return new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl || undefined,
@@ -28,7 +28,7 @@ interface ToolCallAccumulator {
 export class CompletionsAdapter extends BaseAdapter {
   private client: OpenAI;
 
-  constructor(config: LLMConfig) {
+  constructor(config: ResolvedLLMConfig) {
     super(config);
     this.client = createOpenAIClient(config);
   }
@@ -114,7 +114,7 @@ type ResponsesInputItem = OpenAI.Responses.ResponseInputItem;
 export class ResponsesAdapter extends BaseAdapter {
   private client: OpenAI;
 
-  constructor(config: LLMConfig) {
+  constructor(config: ResolvedLLMConfig) {
     super(config);
     this.client = createOpenAIClient(config);
   }
