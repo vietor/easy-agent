@@ -48,7 +48,7 @@ export class EmptyAssistantMessageError extends Error {
   }
 }
 
-export function parseToolArgs(
+export function parseToolCallArgs(
   args: string | undefined
 ): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
   if (!args) return { ok: true, args: {} };

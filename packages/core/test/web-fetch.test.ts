@@ -36,6 +36,24 @@ test("retries transient status errors and succeeds", async () => {
   });
 });
 
+test("rejects a malformed url without issuing any request", async () => {
+  let hits = 0;
+  await withServer((req, res) => {
+    hits++;
+    res.writeHead(200);
+    res.end("x");
+  }, async (port) => {
+    for (const url of ["not a url", "", `127.0.0.1:${port}/x`, "ftp://example.com/x"]) {
+      await assert.rejects(
+        () => webFetchTool.execute({ url }, { cwd: process.cwd() }),
+        /absolute http\(s\) URL|url is required/,
+        `${url} must be rejected`
+      );
+    }
+    assert.equal(hits, 0);
+  });
+});
+
 test("does not retry deterministic 4xx errors", async () => {
   let hits = 0;
   await withServer((req, res) => {

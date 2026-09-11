@@ -4,7 +4,7 @@ export type { SessionMessage } from "./runtime/session-messages.js";
 export { INITIAL_RUN_METRICS, type SessionEvent, type TimelineEvent, type RunMetrics } from "./runtime/events.js";
 export type { Tool, ToolContext, ToolSchema, Todo, TodoStatus, TextResult } from "./tools/types.js";
 export type { AskOption, AskQuestion, AskAnswer, AskedQuestion } from "./tools/ask-user.js";
-export { toolError } from "./tools/types.js";
+export { toolError, toToolParameters, tryParseToolArgs } from "./tools/types.js";
 export type { BuiltinToolsOptions } from "./tools/registry.js";
 export type { Skill } from "./skills/types.js";
 export { tryLoadSkills } from "./skills/loader.js";

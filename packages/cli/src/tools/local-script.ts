@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type Tool, toolError } from "@vietor/agent-core";
+import { z, toToolParameters, tryParseToolArgs, type Tool, toolError } from "@vietor/agent-core";
 import { runProcess, findCommands, CALL_TIMEOUT_MS, NO_OUTPUT } from "@vietor/agent-core/util";
 
 const LANGUAGE_SPECS = {
@@ -35,31 +35,22 @@ const DESCRIPTION = `Execute ${Object.keys(LANGUAGE_CONFIGS)
 
 Use this for throwaway code — quick computations, data transformation, or experiments — instead of writing files into the project or assembling a Shell one-liner. The script is saved to a temporary directory that is removed after execution, and runs with the working directory as cwd, so relative paths work. Print results to stdout; stdin is unavailable. Do not include a shebang line or interpreter flags in the script source.`;
 
+const LocalScriptArgs = z.object({
+  language: z.enum(Object.keys(LANGUAGE_CONFIGS), { error: (issue) => `unsupported language: ${String(issue.input)}` })
+    .describe("Programming language of the script"),
+  script: z.string({ error: "script argument must be a string" })
+    .describe("The source code to execute. No shebang line or interpreter flags; print results to stdout."),
+});
+
 export const localScriptTool: Tool = {
   name: "LocalScript",
   description: DESCRIPTION,
-  parameters: {
-    type: "object",
-    properties: {
-      language: {
-        type: "string",
-        enum: Object.keys(LANGUAGE_CONFIGS),
-        description: "Programming language of the script",
-      },
-      script: { type: "string", description: "The source code to execute. No shebang line or interpreter flags; print results to stdout." },
-    },
-    required: ["language", "script"],
-  },
+  parameters: toToolParameters(LocalScriptArgs),
   async execute(args, ctx) {
-    const language = args.language as string;
+    const parsed = tryParseToolArgs(LocalScriptArgs, args);
+    if (!parsed.ok) return toolError(parsed.error);
+    const { language, script } = parsed.value;
     const config = LANGUAGE_CONFIGS[language];
-    if (!config) {
-      return toolError(`unsupported language: ${language}`);
-    }
-    const script = args.script;
-    if (typeof script !== "string") {
-      return toolError("script argument must be a string");
-    }
 
     const tempDir = await mkdtemp(join(tmpdir(), "local-script-"));
     const filepath = join(tempDir, `script.${config.extension}`);

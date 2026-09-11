@@ -52,14 +52,13 @@ test("explicit empty list is a valid clear", async () => {
   assert.equal(getTodos()?.length, 0);
 });
 
-test("normalizes to a single inProgress and downgrades unknown statuses", async () => {
+test("normalizes to a single inProgress", async () => {
   const { tool, getTodos } = makeTool();
   const result = await tool.execute(
     {
       todos: [
         { content: "a", status: "inProgress" },
         { content: "b", status: "inProgress" },
-        { content: "c", status: "weird" },
       ],
     },
     { cwd: process.cwd() }
@@ -69,7 +68,24 @@ test("normalizes to a single inProgress and downgrades unknown statuses", async 
   assert.equal(todos.filter((t) => t.status === "inProgress").length, 1);
   assert.equal(todos[0].status, "inProgress");
   assert.equal(todos[1].status, "pending");
-  assert.equal(todos[2].status, "pending");
+});
+
+test("unknown status is an error and leaves the list untouched", async () => {
+  const { tool, getTodos } = makeTool();
+  await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
+  const result = await tool.execute({ todos: [{ content: "c", status: "weird" }] }, { cwd: process.cwd() }) as TextResult;
+  assert.equal(result.isError, true);
+  assert.match(result.content, /needs a "status"/);
+  assert.deepEqual(getTodos(), [{ content: "a", status: "inProgress" }]);
+});
+
+test("an entry with empty content is an error and leaves the list untouched", async () => {
+  const { tool, getTodos } = makeTool();
+  await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
+  const result = await tool.execute({ todos: [{ content: "  ", status: "pending" }] }, { cwd: process.cwd() }) as TextResult;
+  assert.equal(result.isError, true);
+  assert.match(result.content, /needs a non-empty "content"/);
+  assert.deepEqual(getTodos(), [{ content: "a", status: "inProgress" }]);
 });
 
 test("promotes the first pending to inProgress when none is inProgress", async () => {

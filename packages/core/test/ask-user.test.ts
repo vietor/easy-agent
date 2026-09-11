@@ -79,6 +79,21 @@ test("defaults and normalization", async () => {
   ]);
 });
 
+test("truncates an over-long header and drops an empty one", async () => {
+  const { tool, getReceived } = makeTool();
+  await tool.execute(
+    {
+      questions: [
+        { header: "x".repeat(20), question: "q", options: [{ label: "a" }, { label: "b" }] },
+        { header: "", question: "r", options: [{ label: "a" }, { label: "b" }] },
+      ],
+    },
+    { cwd: process.cwd() }
+  );
+  assert.equal(getReceived()?.[0].header, "x".repeat(12));
+  assert.equal(getReceived()?.[1].header, undefined);
+});
+
 test("summarizeArgs reports question count", () => {
   const { tool } = makeTool();
   assert.equal(

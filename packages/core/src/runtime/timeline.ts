@@ -1,4 +1,4 @@
-import { parseToolArgs, toText } from "../llm/messages.js";
+import { parseToolCallArgs, toText } from "../llm/messages.js";
 import { trimSurroundingNewlines } from "../util/text.js";
 import { ASK_USER_TOOL_NAME } from "../util/constants.js";
 import type { SessionMessage } from "./session-messages.js";
@@ -136,7 +136,7 @@ export function toTimelineEntries(
       if (text) entries.push({ type: "assistant", text });
       if (m.tool_calls) {
         for (const tc of m.tool_calls) {
-          const parsed = parseToolArgs(tc.function.arguments);
+          const parsed = parseToolCallArgs(tc.function.arguments);
           const entry: TimelineEvent = {
             type: "tool",
             id: tc.id,

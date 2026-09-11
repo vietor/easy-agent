@@ -18,7 +18,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 ## Layout
 
 - `core/src/runtime/` — `Session` (orchestration), `Agent` (run loop), `SessionMessages`, `Timeline`, `sub-agent-runner`, `prompts`, `events.ts`
-- `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registry, schemas, summaries, registration)
+- `core/src/tools/` — built-in tools (one file each) + `registry.ts` (registry, schemas, summaries, registration) + `types.ts` (tool types, `toolError`, the zod arg helpers)
 - `core/src/llm/` — `types.ts` (shared `LLMClient` interface), `messages.ts` (message family), `client.ts`, `base.ts`, `anthropic.ts`, `openai.ts` (wire backends)
 - `core/src/mcp/` — `manager.ts` (client-side server manager) + `client.ts` (single-server client) for stdio + Streamable HTTP
 - `core/src/skills/`, `core/src/util/` — loader; shared helpers (`async.ts`, `file.ts`, `text.ts`, `constants.ts`, `emitter.ts`)
@@ -50,7 +50,7 @@ These came out of deliberate refactors; treat as final unless the user explicitl
 
 - **A single session class is the orchestration unit** — run state and timeline replay are single-sourced. Don't re-extract a run-loop class.
 - **One shared LLM client interface** covering both Anthropic and OpenAI backends; backend-specific shapes stay in their own files.
-- **No validation libraries** — plain TS types, hand-written checks where needed (e.g. tool args must parse to a plain object).
+- **One zod schema per tool is the single source for both the provider payload and runtime validation** — `parameters` comes from `toToolParameters(schema)` (`z.toJSONSchema` with `io: "input"` and `target: "openapi-3.0"`, so no `$schema` and no `additionalProperties` leak onto the wire) and tools validate with `parseToolArgs`/`tryParseToolArgs` from `tools/types.ts`. Don't confuse the latter with `parseToolCallArgs` in `llm/messages.ts`, which only turns a tool call's `arguments` JSON string into a plain object. Only the deliberate normalizations survive: TodoWrite's single-`inProgress` rewrites and AskUser's trim/dedupe/header truncation. Config uses the same pattern (`LLMConfigSchema`, `MCPServerConfigSchema`). MCP tools are the exception — their `parameters` is the remote server's raw JSON Schema and has no zod schema.
 - **A single registration point for built-in tools**; it accepts `false` to disable all builtins, and options flags to opt into optional ones.
 - **Shared helpers have single homes**: file IO/path resolution in `util/file.ts`, string/format in `util/text.ts`, byte caps in `util/constants.ts`, abort/retry in `util/async.ts`. Don't duplicate or move them.
 - **`SessionEvent` (delivered by `onEvent`) is the union of two standalone types** — `TimelineEvent` (timeline entries: `user`, `skill`, `assistant`, `tool`, `retry`, `error`, `interrupted`, `question`, `notice`) and `StreamEvent` (transient: `assistant_delta`, `thinking_delta`, `thinking_cleared`, `tool_start`, `tool_end`, `run_metrics`) — defined independently, with no `persisted` flags and no `Extract` derivation. Timeline entry tags are single-word; stream tags are snake_case. No terminal `thinking` event exists — consumers accumulate `thinking_delta` until `thinking_cleared`.

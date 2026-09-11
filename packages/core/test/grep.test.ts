@@ -82,6 +82,15 @@ test("grep rejects offset outside content mode", async () => {
   });
 });
 
+test("grep rejects values its schema declares invalid", async () => {
+  await withFile("alpha\n", async (p) => {
+    await assert.rejects(() => grep({ pattern: "alpha", path: p, output_mode: "files" }, process.cwd()), /output_mode must be content/);
+    await assert.rejects(() => grep({ pattern: "alpha", path: p, head_limit: 0 }, process.cwd()), /head_limit must be a positive integer/);
+    await assert.rejects(() => grep({ pattern: "alpha", path: p, ignore_case: "true" }, process.cwd()), /ignore_case must be a boolean/);
+    await assert.rejects(() => grep({ path: p }, process.cwd()), /pattern is required/);
+  });
+});
+
 test("grep validates offset", async () => {
   await withFile("alpha\n", async (p) => {
     await assert.rejects(

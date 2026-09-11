@@ -1,7 +1,7 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { summarizeText, toErrorMessage } from "../util/text.js";
-import { parseToolArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
+import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
@@ -323,7 +323,7 @@ export class Agent {
     onEvent?: (e: SessionEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallOutcome> {
-    const parsed = parseToolArgs(call.function.arguments);
+    const parsed = parseToolCallArgs(call.function.arguments);
     const args = parsed.ok ? parsed.args : {};
     const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);
     const argsSummary = this.tools.summarizeArgs(call.function.name, args);

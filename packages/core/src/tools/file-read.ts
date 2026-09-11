@@ -1,6 +1,9 @@
 import { open, type FileHandle } from "node:fs/promises";
+import { resolve } from "node:path";
+import { z } from "zod";
 import type { Tool } from "./types.js";
-import { resolveRequiredPath, isBinaryContent } from "../util/file.js";
+import { parseToolArgs, toToolParameters } from "./types.js";
+import { isBinaryContent } from "../util/file.js";
 import { DEFAULT_FILE_READ_LIMIT, MAX_FILE_READ_MB, mbToBytes } from "../util/constants.js";
 import { formatCompactNumber, summaryBytes } from "../util/text.js";
 
@@ -8,6 +11,22 @@ const CHUNK = 64 * 1024;
 const MAX_FILE_READ_BYTES = mbToBytes(MAX_FILE_READ_MB);
 
 const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB and binary files are rejected.`;
+
+const PATH_ERROR = "path is required";
+const OFFSET_ERROR = "offset must be a positive integer";
+const LIMIT_ERROR = "limit must be a positive integer";
+
+const ReadArgs = z.object({
+  path: z.string({ error: PATH_ERROR }).min(1, { error: PATH_ERROR }),
+  offset: z.number({ error: OFFSET_ERROR }).min(1, { error: OFFSET_ERROR })
+    .refine(Number.isInteger, { error: OFFSET_ERROR })
+    .default(1)
+    .describe("line number to start reading from (1-indexed)"),
+  limit: z.number({ error: LIMIT_ERROR }).min(1, { error: LIMIT_ERROR })
+    .refine(Number.isInteger, { error: LIMIT_ERROR })
+    .default(DEFAULT_FILE_READ_LIMIT)
+    .describe(`number of lines to read (default ${DEFAULT_FILE_READ_LIMIT})`),
+});
 
 interface PageRead {
   text: string | null;
@@ -56,22 +75,10 @@ export const fileReadTool: Tool = {
   name: "Read",
   agentLevel: 1,
   description: DESCRIPTION,
-  parameters: {
-    type: "object",
-    properties: {
-      path: { type: "string" },
-      offset: { type: "number", description: "line number to start reading from (1-indexed)" },
-      limit: { type: "number", description: `number of lines to read (default ${DEFAULT_FILE_READ_LIMIT})` },
-    },
-    required: ["path"],
-  },
+  parameters: toToolParameters(ReadArgs),
   async execute(args, ctx) {
-    const resolved = resolveRequiredPath(args, ctx.cwd);
-    const offset = args.offset === undefined ? 1 : args.offset;
-    const limit = args.limit === undefined ? DEFAULT_FILE_READ_LIMIT : args.limit;
-    if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 1) throw new Error("offset must be a positive integer");
-    if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) throw new Error("limit must be a positive integer");
-    const handle = await open(resolved, "r");
+    const { path, offset, limit } = parseToolArgs(ReadArgs, args);
+    const handle = await open(resolve(ctx.cwd, path), "r");
     try {
       const { size } = await handle.stat();
       if (size > MAX_FILE_READ_BYTES) {

@@ -1,30 +1,30 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseToolArgs } from "../src/llm/messages.js";
+import { parseToolCallArgs } from "../src/llm/messages.js";
 import { toErrorMessage } from "../src/util/text.js";
 
 test("missing or empty arguments parse to an empty object", () => {
-  assert.deepEqual(parseToolArgs(undefined), { ok: true, args: {} });
-  assert.deepEqual(parseToolArgs(""), { ok: true, args: {} });
+  assert.deepEqual(parseToolCallArgs(undefined), { ok: true, args: {} });
+  assert.deepEqual(parseToolCallArgs(""), { ok: true, args: {} });
 });
 
 test("a valid JSON object parses, preserving nested values", () => {
   const raw = JSON.stringify({ path: "a/b", nested: { x: 1 }, list: [1, 2] });
-  const parsed = parseToolArgs(raw);
+  const parsed = parseToolCallArgs(raw);
   assert.equal(parsed.ok, true);
   if (parsed.ok) assert.deepEqual(parsed.args, { path: "a/b", nested: { x: 1 }, list: [1, 2] });
 });
 
 test("non-object JSON is rejected with an error", () => {
   for (const raw of ["null", "[]", "42", '"str"']) {
-    const parsed = parseToolArgs(raw);
+    const parsed = parseToolCallArgs(raw);
     assert.equal(parsed.ok, false);
     if (!parsed.ok) assert.ok(parsed.error, `${raw} must produce an error`);
   }
 });
 
 test("invalid JSON is rejected with the parse error", () => {
-  const parsed = parseToolArgs("{bad");
+  const parsed = parseToolCallArgs("{bad");
   assert.equal(parsed.ok, false);
   if (!parsed.ok) assert.ok(parsed.error);
 });

@@ -1,4 +1,6 @@
+import { z } from "zod";
 import type { Tool } from "./types.js";
+import { parseToolArgs, toToolParameters } from "./types.js";
 import { netFetch } from "../util/net.js";
 import { backoffDelay, isAbortError, withRetry, withTimeoutFn } from "../util/async.js";
 import { MAX_WEB_FETCH_MB, mbToBytes, REQUEST_TIMEOUT_MS, WEB_FETCH_RETRIES } from "../util/constants.js";
@@ -32,6 +34,15 @@ const REQUEST_HEADERS = {
 };
 
 const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over ${MAX_WEB_FETCH_MB}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
+
+const URL_REQUIRED_ERROR = "url is required";
+const URL_SHAPE_ERROR = "url must be an absolute http(s) URL";
+
+const WebFetchArgs = z.object({
+  url: z.string({ error: URL_REQUIRED_ERROR }).min(1, { error: URL_REQUIRED_ERROR })
+    .refine((url) => /^https?:\/\//i.test(url) && URL.canParse(url), { error: URL_SHAPE_ERROR })
+    .describe("full URL including scheme (http or https)"),
+});
 
 class WebFetchError extends Error {}
 
@@ -85,18 +96,9 @@ export const webFetchTool: Tool = {
   name: "WebFetch",
   agentLevel: 1,
   description: DESCRIPTION,
-  parameters: {
-    type: "object",
-    properties: {
-      url: {
-        type: "string",
-        description: "full URL including scheme (http or https)",
-      },
-    },
-    required: ["url"],
-  },
+  parameters: toToolParameters(WebFetchArgs),
   async execute(args, ctx) {
-    const url = args.url as string;
+    const { url } = parseToolArgs(WebFetchArgs, args);
     return {
       content: await withRetry(
         () => fetchOne(url, ctx.signal),

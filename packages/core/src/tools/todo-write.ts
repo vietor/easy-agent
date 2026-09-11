@@ -1,5 +1,6 @@
+import { z } from "zod";
 import type { Tool, Todo, TodoStatus } from "./types.js";
-import { toolError } from "./types.js";
+import { toToolParameters, toolError, tryParseToolArgs } from "./types.js";
 
 export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (5+ steps), you MUST use TodoWrite: create the task list first, then update statuses as tasks complete. Never execute a 5+ step task without a TodoWrite task list. If a step turns out to be unnecessary or cannot be done, rewrite or remove it from the list — never leave stale items pending.";
 
@@ -7,20 +8,32 @@ const STATUSES: TodoStatus[] = ["pending", "inProgress", "completed"];
 
 const DESCRIPTION = "Manage the task list for tasks with 5+ steps. Pass the FULL list each call; it replaces the previous list. Keep one inProgress at a time. status: pending, inProgress, completed.";
 
+const TODO_ARRAY_ERROR = '"todos" must be an array of {content, status} objects';
+const TODO_ITEM_ERROR = "each todo must be a {content, status} object";
+const TODO_CONTENT_ERROR = 'each todo needs a non-empty "content"';
+const TODO_STATUS_ERROR = `each todo needs a "status" of ${STATUSES.join(", ")}`;
+
+const TodoItemSchema = z.object({
+  content: z.string({ error: TODO_CONTENT_ERROR }).trim().min(1, { error: TODO_CONTENT_ERROR })
+    .describe("A short imperative description of the step."),
+  status: z.enum(STATUSES, { error: TODO_STATUS_ERROR }).describe("Current status of the step."),
+}, { error: TODO_ITEM_ERROR });
+
+const TodoWriteArgs = z.object({
+  todos: z.array(TodoItemSchema, { error: TODO_ARRAY_ERROR }).describe("The full task list, in execution order."),
+});
+
 function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: number; normalized: number; error?: string } {
-  const raw = args.todos;
-  if (!Array.isArray(raw)) {
-    return { todos: [], done: 0, normalized: 0, error: `"todos" must be an array of {content, status} objects, got ${typeof raw}` };
+  const parsed = tryParseToolArgs(TodoWriteArgs, args);
+  if (!parsed.ok) {
+    return { todos: [], done: 0, normalized: 0, error: parsed.error };
   }
   const todos: Todo[] = [];
   let done = 0;
   let normalized = 0;
   let seenInProgress = false;
-  for (const t of raw as Partial<Todo>[]) {
-    if (!t) continue;
-    const content = typeof t.content === "string" ? t.content.trim() : "";
-    if (!content) continue;
-    let status: TodoStatus = STATUSES.includes(t.status as TodoStatus) ? (t.status as TodoStatus) : "pending";
+  for (const t of parsed.value.todos) {
+    let status: TodoStatus = t.status;
     if (status === "inProgress") {
       if (seenInProgress) {
         status = "pending";
@@ -31,7 +44,7 @@ function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: numbe
     } else if (status === "completed") {
       done++;
     }
-    todos.push({ content, status });
+    todos.push({ content: t.content, status });
   }
   if (!seenInProgress) {
     const firstPending = todos.find((t) => t.status === "pending");
@@ -47,24 +60,7 @@ export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
   return {
     name: "TodoWrite",
     description: DESCRIPTION,
-    parameters: {
-      type: "object",
-      properties: {
-        todos: {
-          type: "array",
-          description: "The full task list, in execution order.",
-          items: {
-            type: "object",
-            properties: {
-              content: { type: "string", description: "A short imperative description of the step." },
-              status: { type: "string", enum: STATUSES, description: "Current status of the step." },
-            },
-            required: ["content", "status"],
-          },
-        },
-      },
-      required: ["todos"],
-    },
+    parameters: toToolParameters(TodoWriteArgs),
     summarizeArgs(args) {
       const { todos, done, error } = parseTodos(args);
       return error ? "invalid" : `${done}/${todos.length}`;

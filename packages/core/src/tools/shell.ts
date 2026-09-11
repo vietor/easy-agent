@@ -1,7 +1,8 @@
+import { z } from "zod";
 import { runProcess } from "../util/subprocess.js";
 import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
 import type { Tool } from "./types.js";
-import { toolError } from "./types.js";
+import { parseToolArgs, toToolParameters, toolError } from "./types.js";
 import { summaryBytes } from "../util/text.js";
 
 const isWindows = process.platform === "win32";
@@ -36,17 +37,19 @@ QUOTING: Always double-quote: "$FILE" not $FILE.
 LIMITATIONS: Blocked: direct sudo/su/doas/pkexec (best-effort; indirect invocation may bypass). No stdin. Long-running killed at timeout.
 `;
 
+const COMMAND_ERROR = "command is required";
+
+const ShellArgs = z.object({
+  command: z.string({ error: COMMAND_ERROR }).min(1, { error: COMMAND_ERROR }),
+});
+
 export const shellTool: Tool = {
   name: "Shell",
   agentLevel: 2,
   description: isWindows? DESCRIPTION_POWERSHELL: DESCRIPTION_BASH,
-  parameters: {
-    type: "object",
-    properties: { command: { type: "string" } },
-    required: ["command"],
-  },
+  parameters: toToolParameters(ShellArgs),
   async execute(args, ctx) {
-    const command = args.command as string;
+    const { command } = parseToolArgs(ShellArgs, args);
     if (!isWindows && PRIVILEGED_RE.test(command)) {
       return toolError("privileged commands (sudo/su/doas/pkexec) are not allowed");
     }

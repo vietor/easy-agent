@@ -9,18 +9,12 @@ export function tryReadFileText(path: string): string | undefined {
   return undefined;
 }
 
-export function resolveRequiredPath(args: Record<string, unknown>, cwd: string): string {
-  const path = args.path;
-  if (typeof path !== "string" || !path) throw new Error("path is required");
-  return resolve(cwd, path);
-}
-
-export function resolveSearchPath(args: Record<string, unknown>, cwd: string): { cwd: string; target: string } {
-  const path = resolve(cwd, (args.path as string) || "");
-  if (existsSync(path) && !statSync(path).isDirectory()) {
-    return { cwd, target: path };
+export function resolveSearchPath(path: string | undefined, cwd: string): { cwd: string; target: string } {
+  const resolved = resolve(cwd, path ?? "");
+  if (existsSync(resolved) && !statSync(resolved).isDirectory()) {
+    return { cwd, target: resolved };
   }
-  return { cwd: path, target: "." };
+  return { cwd: resolved, target: "." };
 }
 
 const BINARY_SCAN_BYTES = 8 * 1024;

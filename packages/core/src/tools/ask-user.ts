@@ -1,6 +1,7 @@
+import { z } from "zod";
 import { ASK_USER_TOOL_NAME } from "../util/constants.js";
 import type { Tool } from "./types.js";
-import { toolError } from "./types.js";
+import { toToolParameters, toolError, tryParseToolArgs } from "./types.js";
 
 export const ASK_USER_GUIDANCE = "- When a decision belongs to the user, call AskUser and wait for the answer rather than listing options in prose. Ask when there are multiple reasonable approaches, an irreversible or consequential action, or the request is ambiguous. When you have enough information to proceed, act without asking. Batch related questions into a single AskUser call.";
 
@@ -26,34 +27,45 @@ const MAX_HEADER_LENGTH = 12;
 
 const DESCRIPTION = "Ask the user 1-4 questions and wait for the answers. Each question has an optional header (at most 12 chars), 2-4 options with optional descriptions, and an optional multiSelect flag. Returns JSON keyed by question text; multi-select answers are arrays of selected labels; skipped questions return an empty string. Do not add an 'Other' option — the user can always type a custom answer.";
 
+const QUESTIONS_ERROR = `"questions" must be an array of 1-${MAX_QUESTIONS} question objects`;
+const QUESTION_ERROR = "each question needs non-empty text";
+const OPTIONS_ERROR = `each question needs 2-${MAX_OPTIONS} options`;
+const LABEL_ERROR = "each option needs a non-empty label";
+
+const AskOptionSchema = z.object({
+  label: z.string({ error: LABEL_ERROR }).trim().min(1, { error: LABEL_ERROR }).describe("The choice label."),
+  description: z.string().optional().describe("Optional detail shown under the label."),
+});
+
+const AskQuestionSchema = z.object({
+  header: z.string().overwrite((header) => header.slice(0, MAX_HEADER_LENGTH)).max(MAX_HEADER_LENGTH).optional()
+    .describe("Short label for the question, shown as a chip."),
+  question: z.string({ error: QUESTION_ERROR }).trim().min(1, { error: QUESTION_ERROR }).describe("The question text."),
+  options: z.array(AskOptionSchema, { error: OPTIONS_ERROR }).min(2, { error: OPTIONS_ERROR }).max(MAX_OPTIONS, { error: OPTIONS_ERROR })
+    .describe("2-4 mutually exclusive choices."),
+  multiSelect: z.boolean({ error: "multiSelect must be a boolean" }).default(false)
+    .describe("Whether the user may pick more than one option."),
+});
+
+const AskUserArgs = z.object({
+  questions: z.array(AskQuestionSchema, { error: QUESTIONS_ERROR }).min(1, { error: QUESTIONS_ERROR }).max(MAX_QUESTIONS, { error: QUESTIONS_ERROR })
+    .describe("1-4 questions to ask the user, answered together."),
+});
+
 export function parseQuestions(args: Record<string, unknown>): { questions: AskQuestion[]; error?: string } {
-  const raw = args.questions;
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return { questions: [], error: `"questions" must be an array of 1-${MAX_QUESTIONS} question objects, got ${typeof raw}` };
-  }
-  if (raw.length > MAX_QUESTIONS) {
-    return { questions: [], error: `"questions" must contain at most ${MAX_QUESTIONS} questions, got ${raw.length}` };
-  }
+  const parsed = tryParseToolArgs(AskUserArgs, args);
+  if (!parsed.ok) return { questions: [], error: parsed.error };
   const questions: AskQuestion[] = [];
   const seen = new Set<string>();
-  for (const q of raw as Partial<AskQuestion>[]) {
-    if (!q) return { questions: [], error: "each question must be an object" };
-    const question = typeof q.question === "string" ? q.question.trim() : "";
-    if (!question) return { questions: [], error: "each question needs non-empty text" };
-    if (seen.has(question)) return { questions: [], error: "questions must be unique" };
-    seen.add(question);
-    const options: AskOption[] = [];
-    if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > MAX_OPTIONS) {
-      return { questions: [], error: `each question needs 2-${MAX_OPTIONS} options` };
-    }
-    for (const o of q.options as Partial<AskOption>[]) {
-      if (!o) return { questions: [], error: "each option must be an object" };
-      const label = typeof o.label === "string" ? o.label.trim() : "";
-      if (!label) return { questions: [], error: "each option needs a non-empty label" };
-      options.push({ label, description: typeof o.description === "string" && o.description ? o.description : undefined });
-    }
-    const header = typeof q.header === "string" && q.header ? q.header.slice(0, MAX_HEADER_LENGTH) : undefined;
-    questions.push({ header, question, options, multiSelect: q.multiSelect === true });
+  for (const q of parsed.value.questions) {
+    if (seen.has(q.question)) return { questions: [], error: "questions must be unique" };
+    seen.add(q.question);
+    questions.push({
+      header: q.header || undefined,
+      question: q.question,
+      options: q.options.map((o) => ({ label: o.label, description: o.description || undefined })),
+      multiSelect: q.multiSelect,
+    });
   }
   return { questions };
 }
@@ -62,41 +74,7 @@ export function createAskUserTool(ask: (questions: AskQuestion[]) => Promise<Ask
   return {
     name: ASK_USER_TOOL_NAME,
     description: DESCRIPTION,
-    parameters: {
-      type: "object",
-      properties: {
-        questions: {
-          type: "array",
-          description: "1-4 questions to ask the user, answered together.",
-          minItems: 1,
-          maxItems: MAX_QUESTIONS,
-          items: {
-            type: "object",
-            properties: {
-              header: { type: "string", maxLength: MAX_HEADER_LENGTH, description: "Short label for the question, shown as a chip." },
-              question: { type: "string", description: "The question text." },
-              options: {
-                type: "array",
-                minItems: 2,
-                maxItems: MAX_OPTIONS,
-                description: "2-4 mutually exclusive choices.",
-                items: {
-                  type: "object",
-                  properties: {
-                    label: { type: "string", description: "The choice label." },
-                    description: { type: "string", description: "Optional detail shown under the label." },
-                  },
-                  required: ["label"],
-                },
-              },
-              multiSelect: { type: "boolean", description: "Whether the user may pick more than one option." },
-            },
-            required: ["question", "options"],
-          },
-        },
-      },
-      required: ["questions"],
-    },
+    parameters: toToolParameters(AskUserArgs),
     summarizeArgs(args) {
       const { questions, error } = parseQuestions(args);
       if (error) return "invalid";

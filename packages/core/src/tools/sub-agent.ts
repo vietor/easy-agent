@@ -1,10 +1,13 @@
+import { z } from "zod";
 import { NOT_EXECUTED_PREFIX } from "../util/constants.js";
 import { summarizeText } from "../util/text.js";
 import type { SubAgentRunResult } from "../runtime/sub-agent-runner.js";
 import { isGrantedAtLevel, type AgentLevel, type Tool } from "./types.js";
-import { toolError } from "./types.js";
+import { toToolParameters, toolError, tryParseToolArgs } from "./types.js";
 
 const MAX_LABEL_LENGTH = 50;
+const TASK_ERROR = "task is required";
+const LABEL_ERROR = "label must be a string";
 
 export interface SubAgentToolDeps {
   runSubAgent: (systemPrompt: string, task: string, level: AgentLevel, signal?: AbortSignal) => Promise<SubAgentRunResult>;
@@ -120,28 +123,24 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
 
 export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = false): Tool {
   const defs = defsForSession(readOnlySession);
+  const types = defs.map((d) => d.type) as [SubAgentDef["type"], ...SubAgentDef["type"][]];
+  const defByType = Object.fromEntries(defs.map((d) => [d.type, d])) as Record<SubAgentDef["type"], SubAgentDef>;
   const typeList = defs.map((d) => `type: "${d.type}" — ${d.description}`).join(" ");
+  const SubAgentArgs = z.object({
+    type: z.enum(types, { error: (issue) => `unknown sub-agent type "${String(issue.input)}". Valid types: ${types.join(", ")}` })
+      .describe(`The sub-agent type to invoke: ${typeList}.`),
+    label: z.string({ error: LABEL_ERROR })
+      .max(MAX_LABEL_LENGTH, { error: `label must be at most ${MAX_LABEL_LENGTH} characters` })
+      .optional()
+      .describe(`Short label (max ${MAX_LABEL_LENGTH} characters) for this sub-agent run, shown in the UI.`),
+    task: z.string({ error: TASK_ERROR }).trim().min(1, { error: TASK_ERROR })
+      .describe("The task or question for the sub-agent. It sees only this text and its own system prompt — never your conversation history, the files you already read, or the project's instruction files — and it has only the built-in file, shell, and web tools, never your MCP or custom tools. So make it self-contained: the background it needs, the paths or scope to work in, any project rule or convention it must follow, and the deliverable and format you want back."),
+  });
   return {
     name: "SubAgent",
     description:
       "Run a dedicated sub-agent in its own nested loop — the only result you receive is its final report as text, not intermediate steps. The type parameter lists the valid values and when to use each. Sub-agents cannot ask questions, use skills or todos, or spawn further sub-agents.",
-    parameters: {
-      type: "object",
-      properties: {
-        type: {
-          type: "string",
-          enum: defs.map((d) => d.type),
-          description: `The sub-agent type to invoke: ${typeList}.`,
-        },
-        label: {
-          type: "string",
-          maxLength: MAX_LABEL_LENGTH,
-          description: `Short label (max ${MAX_LABEL_LENGTH} characters) for this sub-agent run, shown in the UI.`,
-        },
-        task: { type: "string", description: "The task or question for the sub-agent. It sees only this text and its own system prompt — never your conversation history, the files you already read, or the project's instruction files — and it has only the built-in file, shell, and web tools, never your MCP or custom tools. So make it self-contained: the background it needs, the paths or scope to work in, any project rule or convention it must follow, and the deliverable and format you want back." },
-      },
-      required: ["type", "task"],
-    },
+    parameters: toToolParameters(SubAgentArgs),
     summarizeArgs: (args) => {
       const type = args.type as string;
       const label = typeof args.label === "string" ? summarizeText(args.label, MAX_LABEL_LENGTH) : "";
@@ -149,15 +148,10 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
       return (def?.name || type) + (label ? ` ${label}`: "");
     },
     async execute(args, ctx) {
-      const type = args.type as string;
-      const task = ((args.task as string) ?? "").trim();
-      const def = defs.find((d) => d.type === type);
-      if (!def) {
-        return toolError(`unknown sub-agent type "${type}". Valid types: ${defs.map((d) => d.type).join(", ")}`);
-      }
-      if (!task) {
-        return toolError("task is required");
-      }
+      const parsed = tryParseToolArgs(SubAgentArgs, args);
+      if (!parsed.ok) return toolError(parsed.error);
+      const { type, task } = parsed.value;
+      const def = defByType[type];
 
       const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal);
 
