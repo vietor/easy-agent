@@ -37,6 +37,18 @@ export function getTextBytes(content: string): number {
   return Buffer.byteLength(content, "utf-8");
 }
 
+const NON_ASCII = /[^\x00-\x7f]/;
+
+export function estimateTokens(text: string): number {
+  if (!text) return 0;
+  if (!NON_ASCII.test(text)) return Math.round(text.length / 4);
+  let tokens = 0;
+  for (let i = 0; i < text.length; i++) {
+    tokens += text.charCodeAt(i) < 0x80 ? 1 : 4;
+  }
+  return Math.round(tokens / 4);
+}
+
 export function trimLeftNewlines(content: string | null) {
   if(!content) return '';
   return content.replace(/^[\r\n]+/, '');

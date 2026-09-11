@@ -1,5 +1,6 @@
 import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../util/constants.js";
+import { estimateTokens } from "../util/text.js";
 
 export type SessionMessage =
   | { role: "system"; content: string }
@@ -7,18 +8,6 @@ export type SessionMessage =
   | { role: "skill"; name: string; content: string }
   | LLMAssistantMessage
   | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
-
-const NON_ASCII = /[^\x00-\x7f]/;
-
-export function estimateTokens(text: string): number {
-  if (!text) return 0;
-  if (!NON_ASCII.test(text)) return Math.round(text.length / 4);
-  let tokens = 0;
-  for (let i = 0; i < text.length; i++) {
-    tokens += text.charCodeAt(i) < 0x80 ? 1 : 4;
-  }
-  return Math.round(tokens / 4);
-}
 
 function lastAssistantText(messages: SessionMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {

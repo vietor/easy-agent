@@ -1,9 +1,9 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
-import { summarizeText, toErrorMessage } from "../util/text.js";
+import { estimateTokens, summarizeText, toErrorMessage } from "../util/text.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
-import { SessionMessages, estimateTokens, type SessionMessage } from "./session-messages.js";
+import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
