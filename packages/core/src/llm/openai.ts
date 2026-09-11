@@ -56,7 +56,7 @@ export class CompletionsAdapter extends BaseAdapter {
     for await (const chunk of stream) {
       if (chunk.usage) {
         const cached = (chunk.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens ?? 0;
-        onUsage?.(cached, chunk.usage.prompt_tokens ?? 0, chunk.usage.completion_tokens ?? 0);
+        onUsage?.(cached, (chunk.usage.prompt_tokens ?? 0) - cached, chunk.usage.completion_tokens ?? 0);
       }
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
@@ -169,7 +169,7 @@ export class ResponsesAdapter extends BaseAdapter {
     }
     if (finalResponse.usage) {
       const cacheTokens = finalResponse.usage.input_tokens_details.cached_tokens;
-      onUsage?.(cacheTokens, finalResponse.usage.input_tokens, finalResponse.usage.output_tokens);
+      onUsage?.(cacheTokens, finalResponse.usage.input_tokens - cacheTokens, finalResponse.usage.output_tokens);
     }
 
     const textParts: string[] = [];
