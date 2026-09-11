@@ -10,7 +10,7 @@ export type SessionMessage =
 
 const NON_ASCII = /[^\x00-\x7f]/;
 
-function estimateTokens(text: string): number {
+export function estimateTokens(text: string): number {
   if (!text) return 0;
   if (!NON_ASCII.test(text)) return Math.round(text.length / 4);
   let tokens = 0;

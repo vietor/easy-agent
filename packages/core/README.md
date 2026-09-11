@@ -283,7 +283,7 @@ The command system lives in host code. Core exposes the primitives hosts build o
 | `model` | `string` | The LLM model name (e.g. `"deepseek-v4-flash"`). |
 | `thinkingEffort` | `"high" \| "max"` | The configured thinking effort. |
 | `contextLimit` | `number` | Estimated-token threshold that triggers auto-compaction. |
-| `contextTokens` | `number` | Estimated token count of the current conversation. |
+| `contextTokens` | `number` | Estimated token count of the current request: conversation plus tool schemas. |
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `cwd` | `string` | The resolved working directory used by tools. |
 | `sessionId` | `string` | The unique session identifier. |

@@ -283,6 +283,23 @@ test("auto-compact fires above the threshold and the run continues", async () =>
   assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
 });
 
+test("tool schemas count toward the context limit", async () => {
+  const { llm } = fakeLLM([
+    (opts) => {
+      const hasPrompt = opts.messages.some((m) => textContent(m).includes("Summarize the conversation above"));
+      assert.ok(hasPrompt, "the tiny conversation can only be over the limit because of the tool schema");
+      return { role: "assistant", content: "SUMMARY" };
+    },
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const notices: string[] = [];
+  const agent = makeAgent(llm, { contextLimit: 20 });
+  const status = await agent.run("go", (e) => { if (e.type === "notice") notices.push(e.text); });
+  assert.equal(status, "ok");
+  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
+  assert.deepEqual(notices, ["auto-compacting context", "context still exceeds the limit after compacting"]);
+});
+
 test("a Skill tool call injects the skill prompt and emits a skill event", async () => {
   const skill: Skill = { name: "x", description: "d", prompt: "SKILL PROMPT X" };
   const { llm, calls } = fakeLLM([

@@ -3,7 +3,7 @@ import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
 import { summarizeText, toErrorMessage } from "../util/text.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
-import { SessionMessages, type SessionMessage } from "./session-messages.js";
+import { SessionMessages, estimateTokens, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
@@ -55,6 +55,7 @@ export class Agent {
   private cacheInputTokens = 0;
   private missInputTokens = 0;
   private outputTokens = 0;
+  private toolTokenCache: { schemas: ToolSchema[]; tokens: number } | null = null;
 
   constructor(opts: AgentOptions) {
     this.llm = opts.llm;
@@ -72,7 +73,15 @@ export class Agent {
   }
 
   get contextTokens(): number {
-    return this.conversation.getEstimatedTokens();
+    return this.conversation.getEstimatedTokens() + this.estimateToolTokens();
+  }
+
+  private estimateToolTokens(): number {
+    const schemas = this.tools.schemas();
+    if (this.toolTokenCache?.schemas !== schemas) {
+      this.toolTokenCache = { schemas, tokens: estimateTokens(JSON.stringify(schemas)) };
+    }
+    return this.toolTokenCache.tokens;
   }
 
   get usage(): { cacheInputTokens: number; missInputTokens: number; outputTokens: number } {
@@ -195,14 +204,19 @@ export class Agent {
     let turns = 0;
     let textOnlyStreak = 0;
     let pendingNudge = "";
+    let compactionFutile = false;
     while (true) {
-      if (this.conversation.getEstimatedTokens() > this.contextLimit) {
+      if (!compactionFutile && this.contextTokens > this.contextLimit) {
         onEvent?.({ type: "notice", text: "auto-compacting context" });
         const compactStatus = await this.compact(
           (e) => { if (e.type === "error") onEvent?.(e); },
           signal
         );
         if (compactStatus !== "ok") return compactStatus;
+        if (this.contextTokens > this.contextLimit) {
+          compactionFutile = true;
+          onEvent?.({ type: "notice", text: "context still exceeds the limit after compacting" });
+        }
       }
       const messages = this.conversation.toLLM();
       const todos = this.getTodos();
