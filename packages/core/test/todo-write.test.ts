@@ -79,6 +79,23 @@ test("unknown status is an error and leaves the list untouched", async () => {
   assert.deepEqual(getTodos(), [{ content: "a", status: "inProgress" }]);
 });
 
+test("normalizes snake_case, spaced, and capitalized status spellings", async () => {
+  const { tool, getTodos } = makeTool();
+  const result = await tool.execute(
+    {
+      todos: [
+        { content: "a", status: "in_progress" },
+        { content: "b", status: "Completed" },
+      ],
+    },
+    { cwd: process.cwd() }
+  );
+  assert.match(result.content, /2 items, 1 done/);
+  const todos = getTodos()!;
+  assert.equal(todos[0].status, "inProgress");
+  assert.equal(todos[1].status, "completed");
+});
+
 test("an entry with empty content is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
