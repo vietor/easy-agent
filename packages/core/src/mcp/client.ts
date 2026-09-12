@@ -55,9 +55,8 @@ export class MCPClient {
     this.closing = true;
     this.connectReject?.(new AbortedError());
     this.connectReject = undefined;
+    const pid = this.transport instanceof StdioClientTransport ? this.transport.pid : null;
     this.client.close().catch(() => {});
-    if (this.transport instanceof StdioClientTransport) {
-      killProcessTree(this.transport.pid);
-    }
+    killProcessTree(pid);
   }
 }
