@@ -5,10 +5,11 @@ import { SessionMessages } from "../src/runtime/session-messages.js";
 import { Session } from "../src/runtime/session.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
+import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Skill } from "../src/skills/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
-import type { Todo } from "../src/tools/types.js";
+import type { Tool, Todo } from "../src/tools/types.js";
 import type { TextResult } from "../src/tools/types.js";
 import { sleep, waitUntil } from "./helpers.js";
 
@@ -39,7 +40,7 @@ function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
 
 function makeAgent(
   llm: LLMClient,
-  opts: { maxTurns?: number; contextLimit?: number; getTodos?: () => readonly Todo[]; resolveSkill?: (name: string) => Skill | undefined } = {}
+  opts: { maxTurns?: number; contextLimit?: number; getTodos?: () => readonly Todo[]; tools?: Tool[]; resolveSkill?: (name: string) => Skill | undefined } = {}
 ): Agent {
   const tools = new ToolRegistry();
   tools.register({
@@ -50,6 +51,7 @@ function makeAgent(
       return { content: "echoed" };
     },
   });
+  if (opts.tools) tools.registerAll(opts.tools);
   const conversation = new SessionMessages("system prompt");
   return new Agent({
     llm,
@@ -164,16 +166,18 @@ test("maxTurns run records placeholder results for the pending tool calls", asyn
 
 test("text-only stall with incomplete todos: nudge is sent but never stored", async () => {
   const { llm, calls } = fakeLLM([
+    () => toolCall("TodoWrite", JSON.stringify({ todos: [{ content: "t", status: "pending" }] })),
     () => ({ role: "assistant", content: "thinking..." }),
     () => ({ role: "assistant", content: "still thinking" }),
     () => ({ role: "assistant", content: "done-ish" }),
   ]);
-  const agent = makeAgent(llm, { getTodos: () => [{ content: "t", status: "pending" }] });
+  let todos: readonly Todo[] = [];
+  const agent = makeAgent(llm, { getTodos: () => todos, tools: [createTodoWriteTool((t) => { todos = t; })] });
   const status = await agent.run("work");
   assert.equal(status, "stalled");
   const texts = agent.export().map((m) => (typeof m.content === "string" ? m.content : ""));
   assert.ok(!texts.some((t) => t.includes("STOP!")));
-  assert.ok(calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("STOP!")));
+  assert.ok(calls[2].messages.some((m) => m.role === "user" && textContent(m).includes("STOP!")));
 });
 
 test("maxTurns aborts after the configured limit of tool-call turns", async () => {

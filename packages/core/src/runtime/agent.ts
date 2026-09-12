@@ -1,5 +1,5 @@
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
-import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME } from "../util/constants.js";
+import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME, TODO_WRITE_TOOL_NAME } from "../util/constants.js";
 import { estimateTokens, summarizeText, toErrorMessage } from "../util/text.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
@@ -50,6 +50,7 @@ export class Agent {
   private maxParallelToolCalls: number;
   readonly contextLimit: number;
   private todoSnapshot: readonly Todo[] = [];
+  private todoDeclared = false;
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
   private cacheInputTokens = 0;
@@ -164,6 +165,7 @@ export class Agent {
     this.conversation.add(msg);
     this.conversation.createSnapshot();
     this.todoSnapshot = this.getTodos();
+    this.todoDeclared = false;
 
     let aborted = false;
     const onAbort = () => {
@@ -221,7 +223,7 @@ export class Agent {
       const messages = this.conversation.toLLM();
       const cachePrefixLen = messages.length;
       const todos = this.getTodos();
-      if (todos.length && !pendingNudge) {
+      if (this.todoDeclared && todos.length && !pendingNudge) {
         messages.push({ role: "user", content: renderTodoReminder(todos) });
       }
       if (pendingNudge) {
@@ -238,7 +240,7 @@ export class Agent {
       this.conversation.add(msg);
       this.conversation.collapseSkills();
       if (!msg.tool_calls?.length) {
-        if (todos.length > 0 && todos.some(t => t.status !== "completed")) {
+        if (this.todoDeclared && todos.length > 0 && todos.some(t => t.status !== "completed")) {
           if (++textOnlyStreak >= this.stallThreshold) {
             onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks` });
             return "stalled";
@@ -272,6 +274,7 @@ export class Agent {
       }
       for (let i = 0; i < msg.tool_calls.length; i++) {
         const tc = msg.tool_calls[i];
+        if (tc.function.name === TODO_WRITE_TOOL_NAME && !results[i].isError) this.todoDeclared = true;
         if (tc.function.name !== SKILL_TOOL_NAME) continue;
         const name = results[i].args.name;
         if (typeof name !== "string" || !name) continue;

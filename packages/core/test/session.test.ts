@@ -82,6 +82,45 @@ test("a completed list re-created mid-run is cleared when the run settles", asyn
   assert.equal(session.getSnapshot().todos.length, 0);
 });
 
+test("enforces the todo list the run declared itself", async () => {
+  const session = makeSession([
+    () => todoCall([{ content: "a", status: "completed" }, { content: "b", status: "pending" }], "t1"),
+    (opts) => {
+      assert.equal(opts.messages.some((m) => typeof m.content === "string" && m.content.includes("<system-reminder>Tasks:")), true);
+      return { role: "assistant", content: "one" };
+    },
+    () => ({ role: "assistant", content: "two" }),
+    () => ({ role: "assistant", content: "three" }),
+  ]);
+  session.subscribe(() => {});
+
+  const result = await session.prompt("plan it");
+  assert.equal(result.status, "stalled");
+});
+
+test("does not enforce a todo list inherited from a previous run", async () => {
+  const session = makeSession([
+    () => todoCall([{ content: "a", status: "completed" }, { content: "b", status: "pending" }], "t1"),
+    () => ({ role: "assistant", content: "one" }),
+    () => ({ role: "assistant", content: "two" }),
+    () => ({ role: "assistant", content: "three" }),
+    (opts) => {
+      assert.equal(session.getSnapshot().todos.length, 2);
+      assert.equal(opts.messages.some((m) => typeof m.content === "string" && m.content.includes("<system-reminder>Tasks:")), false);
+      return { role: "assistant", content: "unrelated answer" };
+    },
+  ]);
+  session.subscribe(() => {});
+
+  const first = await session.prompt("plan it");
+  assert.equal(first.status, "stalled");
+  assert.equal(session.getSnapshot().todos.length, 2);
+
+  const second = await session.prompt("answer something else");
+  assert.equal(second.status, "ok");
+  assert.equal(session.getSnapshot().todos.length, 2);
+});
+
 test("importState replays messages into the timeline", () => {
   const tools = new ToolRegistry();
   tools.register({

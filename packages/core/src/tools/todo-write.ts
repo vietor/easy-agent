@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TODO_WRITE_TOOL_NAME } from "../util/constants.js";
 import type { Tool, Todo, TodoStatus } from "./types.js";
 import { toToolParameters, toolError, tryParseToolArgs } from "./types.js";
 
@@ -76,7 +77,7 @@ function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: numbe
 
 export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
   return {
-    name: "TodoWrite",
+    name: TODO_WRITE_TOOL_NAME,
     description: DESCRIPTION,
     parameters: toToolParameters(TodoWriteArgs),
     summarizeArgs(args) {

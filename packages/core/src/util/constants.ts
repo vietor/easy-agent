@@ -18,6 +18,7 @@ export const DEFAULT_GLOB_LIMIT = 150;
 export const DEFAULT_MAX_PARALLEL_TOOL_CALLS = 10;
 export const SKILL_TOOL_NAME = "Skill" as const;
 export const ASK_USER_TOOL_NAME = "AskUser" as const;
+export const TODO_WRITE_TOOL_NAME = "TodoWrite" as const;
 export const LLM_MAX_RETRIES = 3;
 export const WEB_FETCH_RETRIES = 2;
 
