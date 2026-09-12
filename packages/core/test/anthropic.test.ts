@@ -88,6 +88,18 @@ test("a reminder merged into the last user message leaves the prefix unmarked", 
   assert.deepEqual(messages, [{ role: "user", content: "go\n<system-reminder>Tasks: ..." }]);
 });
 
+test("tool call arguments render as parsed input", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "Write", arguments: '{"path":"a.txt","content":"x"}' } }] },
+    ],
+    true
+  );
+  const block = messages[1].content[0] as { input: unknown };
+  assert.deepEqual(block.input, { path: "a.txt", content: "x" });
+});
+
 test("a leading assistant message folded into the system keeps the prefix aligned", () => {
   const { system, messages } = toAnthropicMessages(
     [
