@@ -41,7 +41,7 @@ export class CompletionsAdapter extends BaseAdapter {
     const useThinking = thinking !== false;
     const params: Record<string, unknown> = {
       model: this.model,
-      max_tokens: this.maxOutputTokens,
+      ...(useThinking ? { max_completion_tokens: this.maxOutputTokens } : { max_tokens: this.maxOutputTokens }),
       messages,
       stream: true,
       stream_options: { include_usage: true },
@@ -129,8 +129,7 @@ export class ResponsesAdapter extends BaseAdapter {
       stream: true,
       ...(tools.length > 0 && { tools: tools.map(toResponsesTool) }),
       ...(useThinking && {
-        reasoning: { effort: this.thinkingEffort },
-        include: ["reasoning.summary_text"],
+        reasoning: { effort: this.thinkingEffort, summary: "auto" },
       }),
     };
     const stream = await this.client.responses.create(
