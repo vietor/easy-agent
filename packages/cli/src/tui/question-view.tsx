@@ -38,7 +38,10 @@ export function QuestionView({ question, onAnswer }: QuestionViewProps) {
 
   const submitWith = (next: AskAnswer[], nextConfirmed: boolean[]): void => {
     if (nextConfirmed.every(Boolean)) onAnswer(next);
-    else setFocus(nextUnconfirmed(focus, nextConfirmed));
+    else {
+      setFocus(nextUnconfirmed(focus, nextConfirmed));
+      setSelected(0);
+    }
   };
 
   const confirmCurrent = (next: AskAnswer[]): void => {
@@ -60,16 +63,19 @@ export function QuestionView({ question, onAnswer }: QuestionViewProps) {
       setSelected((i) => (i <= 0 ? itemCount - 1 : i - 1));
     } else if (key.downArrow) {
       setSelected((i) => (i >= itemCount - 1 ? 0 : i + 1));
-    } else if (key.tab || key.rightArrow) {
-      setFocus((f) => (f + 1) % question.questions.length);
-      setSelected(0);
     } else if ((key.tab && key.shift) || key.leftArrow) {
       setFocus((f) => (f <= 0 ? question.questions.length - 1 : f - 1));
+      setSelected(0);
+    } else if (key.tab || key.rightArrow) {
+      setFocus((f) => (f + 1) % question.questions.length);
       setSelected(0);
     } else if (key.return) {
       if (confirmed[focus]) {
         if (confirmed.every(Boolean)) onAnswer(answers);
-        else setFocus(nextUnconfirmed(focus, confirmed));
+        else {
+          setFocus(nextUnconfirmed(focus, confirmed));
+          setSelected(0);
+        }
       } else if (selected === q.options.length) {
         if (customText[focus] !== null) {
           const answer = q.multiSelect
