@@ -66,11 +66,11 @@ test("compact replaces the conversation with the summary", () => {
   assert.equal(c.getEstimatedTokens(), 1 + Math.round("summary text".length / 4));
 });
 
-test("collapseSkills replaces skill content and invalidates the LLM cache", () => {
+test("collapseSkills replaces skill content and patches the LLM cache in place", () => {
   const c = new SessionMessages(SYS);
   c.add({ role: "skill", name: "test-skill", content: "do X and Y and Z" });
   const before = c.getEstimatedTokens();
-  c.toLLM();
+  const cached = c.toLLM();
   c.collapseSkills();
   const m = c.export()[0];
   assert.equal(m.role, "skill");
@@ -82,6 +82,8 @@ test("collapseSkills replaces skill content and invalidates the LLM cache", () =
   assert.equal(c.getEstimatedTokens(), before - Math.round("do X and Y and Z".length / 4) + Math.round(collapsed.length / 4));
   const llm = c.toLLM();
   assert.ok((llm[1].content as string).includes("its instructions were followed above"));
+  assert.equal(llm[0], cached[0]);
+  assert.notEqual(llm[1], cached[1]);
 });
 
 test("import restores messages and token estimate", () => {

@@ -160,7 +160,7 @@ export class SessionMessages {
     const collapsed = `<skill "${m.name}" invoked - its instructions were followed above>`;
     this.messages[index] = { ...m, content: collapsed };
     this.estimatedTokens += estimateTokens(collapsed) - before;
-    this.llmCache = null;
+    if (this.llmCache) this.llmCache[index + 1] = toLLMMessage(this.messages[index]);
   }
 
   createSnapshot(): void {
