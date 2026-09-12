@@ -29,14 +29,12 @@ export const fileEditTool: Tool = {
     const all = replace_all === true;
     const content = await readFile(resolved, "utf-8");
     if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}; re-read the file with Read to get the exact current text (watch whitespace/indentation)`);
-    if (all) {
-      await writeFile(resolved, content.split(oldStr).join(newStr), "utf-8");
-      return { content: `Edited ${path} (replaced all)` };
+    if (!all) {
+      const count = content.split(oldStr).length - 1;
+      if (count > 1) throw new Error(`old_string appears ${count} times in ${path}, must be unique (or set replace_all)`);
     }
-    const count = content.split(oldStr).length - 1;
-    if (count > 1) throw new Error(`old_string appears ${count} times in ${path}, must be unique (or set replace_all)`);
-    await writeFile(resolved, content.replace(oldStr, newStr), "utf-8");
-    return { content: `Edited ${path}` };
+    await writeFile(resolved, content.split(oldStr).join(newStr), "utf-8");
+    return { content: all ? `Edited ${path} (replaced all)` : `Edited ${path}` };
   },
   summarizeResult(result) {
     if (result.isError) return "Edit failed";

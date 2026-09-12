@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import type { SlashCommand } from "./types.js";
+import { toMessageLine, toTodoLine } from "../session-persistence.js";
 
 export const clearCommand: SlashCommand = {
   name: "clear",
@@ -66,10 +67,8 @@ export const saveCommand: SlashCommand = {
     const pad = (n: number) => String(n).padStart(2, "0");
     const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     const file = `session-${ts}.jsonl`;
-    const lines = ctx.session
-      .exportState()
-      .messages.map((m) => JSON.stringify(m))
-      .join("\n");
+    const { messages, todos } = ctx.session.exportState();
+    const lines = [...messages.map((m) => toMessageLine(m)), toTodoLine(todos)].join("\n");
     writeFileSync(file, lines + "\n", "utf-8");
     ctx.message(`saved to ${file}`);
   },

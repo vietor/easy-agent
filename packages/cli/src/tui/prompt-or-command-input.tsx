@@ -64,9 +64,8 @@ export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOr
       }
       return;
     }
-    const first = text.split(/\s+/)[0];
-    if (commands.some((c) => c.name === first)) {
-      onCommand(first);
+    if (commands.some((c) => c.name === text)) {
+      onCommand(text);
       return;
     }
     onPrompt(text);

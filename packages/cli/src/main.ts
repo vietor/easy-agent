@@ -87,6 +87,10 @@ export async function main(argv: string[] = []): Promise<void> {
     resume = true;
   }
   if (!sessionId) sessionId = randomUUID();
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessionId)) {
+    console.error(`Invalid session id: ${sessionId}`);
+    process.exit(1);
+  }
 
   const globalSkills =
     tryLoadSkills(join(homedir(), ".easy-agent", "skills")) ?? tryLoadSkills(join(homedir(), ".claude", "skills"));
@@ -113,6 +117,7 @@ export async function main(argv: string[] = []): Promise<void> {
     const state = await store.load(sessionId);
     if (!state) {
       console.error(`Session not found: ${sessionId}`);
+      session.dispose();
       process.exit(1);
     }
     session.importState(state);
@@ -129,6 +134,7 @@ export async function main(argv: string[] = []): Promise<void> {
     if (shuttingDown) process.exit(1);
     shuttingDown = true;
     session.dispose();
+    persist();
     saveChain.catch(() => {}).finally(() => process.exit(0));
   };
   process.once("SIGINT", shutdown);

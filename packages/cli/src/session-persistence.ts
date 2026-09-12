@@ -1,4 +1,4 @@
-import { appendFile, writeFile } from "node:fs/promises";
+import { appendFile, rename, writeFile } from "node:fs/promises";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, readSync, statSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { homedir } from "node:os";
@@ -27,6 +27,14 @@ function parseJsonLines<T>(text: string): T[] {
     try { out.push(JSON.parse(line) as T); } catch { /* skip malformed lines */ }
   }
   return out;
+}
+
+export function toMessageLine(m: SessionMessage): string {
+  return JSON.stringify({ t: "message", m });
+}
+
+export function toTodoLine(todos: Todo[]): string {
+  return JSON.stringify({ t: "todo", todos });
 }
 
 function readFilePrefix(path: string, maxBytes: number): string {
@@ -75,17 +83,17 @@ export class FileSessionPersistence {
     this.ensureDir();
     const written = this.writtenCounts.get(sessionId) ?? 0;
     const shrink = state.messages.length < written;
-    const lines = state.messages
-      .slice(shrink ? 0 : written)
-      .map((m) => JSON.stringify({ t: "message", m }));
+    const lines = state.messages.slice(shrink ? 0 : written).map((m) => toMessageLine(m));
     const lastTodos = this.writtenTodos.get(sessionId);
     if (shrink || lastTodos === undefined || !isDeepStrictEqual(lastTodos, state.todos)) {
-      lines.push(JSON.stringify({ t: "todo", todos: state.todos }));
+      lines.push(toTodoLine(state.todos));
     }
     if (lines.length === 0) return;
     const path = this.file(sessionId);
     if (shrink) {
-      await writeFile(path, lines.join("\n") + "\n", "utf-8");
+      const rewritten = `${path}.tmp`;
+      await writeFile(rewritten, lines.join("\n") + "\n", "utf-8");
+      await rename(rewritten, path);
     } else {
       await appendFile(path, lines.join("\n") + "\n", "utf-8");
     }

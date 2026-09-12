@@ -58,7 +58,7 @@ export class CompletionsAdapter extends BaseAdapter {
         const cached = (chunk.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens ?? 0;
         onUsage?.(cached, (chunk.usage.prompt_tokens ?? 0) - cached, chunk.usage.completion_tokens ?? 0);
       }
-      const delta = chunk.choices[0]?.delta;
+      const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
       if (delta.content) {
         content += delta.content;
@@ -168,7 +168,7 @@ export class ResponsesAdapter extends BaseAdapter {
       throw new Error(`Responses API error: ${detail}`);
     }
     if (finalResponse.usage) {
-      const cacheTokens = finalResponse.usage.input_tokens_details.cached_tokens;
+      const cacheTokens = finalResponse.usage.input_tokens_details?.cached_tokens ?? 0;
       onUsage?.(cacheTokens, finalResponse.usage.input_tokens - cacheTokens, finalResponse.usage.output_tokens);
     }
 
