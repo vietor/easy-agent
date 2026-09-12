@@ -65,18 +65,28 @@ export class FileSessionPersistence {
     if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true });
   }
 
-  async load(sessionId: string): Promise<SessionState | null> {
-    const path = this.file(sessionId);
-    if (!existsSync(path)) return null;
+  private parseState(text: string): SessionState {
     const messages: SessionMessage[] = [];
     let todos: Todo[] = [];
-    for (const r of parseJsonLines<{ t?: string; m?: SessionMessage; todos?: Todo[] }>(readFileSync(path, "utf-8"))) {
+    for (const r of parseJsonLines<{ t?: string; m?: SessionMessage; todos?: Todo[] }>(text)) {
       if (r.t === "message" && r.m) messages.push(r.m);
       else if (r.t === "todo" && r.todos) todos = r.todos;
     }
-    this.writtenCounts.set(sessionId, messages.length);
-    this.writtenTodos.set(sessionId, todos);
     return { messages, todos };
+  }
+
+  async load(sessionId: string): Promise<SessionState | null> {
+    const path = this.file(sessionId);
+    if (!existsSync(path)) return null;
+    const state = this.parseState(readFileSync(path, "utf-8"));
+    this.writtenCounts.set(sessionId, state.messages.length);
+    this.writtenTodos.set(sessionId, state.todos);
+    return state;
+  }
+
+  async loadFile(path: string): Promise<SessionState | null> {
+    if (!existsSync(path)) return null;
+    return this.parseState(readFileSync(path, "utf-8"));
   }
 
   async saveAll(sessionId: string, state: SessionState): Promise<void> {

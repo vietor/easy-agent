@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
-import { createSession, SYSTEM_PROMPT_BOUNDARY, tryLoadSkills } from "@vietor/agent-core";
+import { createSession, SYSTEM_PROMPT_BOUNDARY, type SessionState, tryLoadSkills } from "@vietor/agent-core";
 import { tryReadFileText } from "@vietor/agent-core/util";
 import { startApp } from "./tui/app.js";
 import { getPackageInfo } from "./util/package.js";
@@ -60,12 +60,18 @@ export async function main(argv: string[] = []): Promise<void> {
     .description("Terminal-based AI agent CLI with conversational TUI")
     .option("-c, --continue", "Continue the most recent session")
     .option("-r, --resume [id]", "Resume a session by ID (omit to list sessions)")
+    .option("--import <file>", "Import a session from a saved JSONL file")
     .parse(argv, { from: "user" });
 
-  const opts = program.opts() as { continue?: boolean; resume?: string | boolean };
+  const opts = program.opts() as { continue?: boolean; resume?: string | boolean; import?: string };
 
   const cwd = process.cwd();
   const store = new FileSessionPersistence(cwd);
+
+  if (opts.import && (opts.continue || opts.resume !== undefined)) {
+    console.error("--import cannot be combined with --continue or --resume");
+    process.exit(1);
+  }
 
   if (opts.resume !== undefined && typeof opts.resume !== "string") {
     await listSessions(store, program.name());
@@ -76,7 +82,20 @@ export async function main(argv: string[] = []): Promise<void> {
 
   let sessionId: string | undefined;
   let resume = false;
-  if (opts.continue) {
+  let imported: SessionState | null = null;
+  if (opts.import) {
+    const path = resolve(opts.import);
+    imported = await store.loadFile(path);
+    if (!imported) {
+      console.error(`Import file not found: ${path}`);
+      process.exit(1);
+    }
+    if (!imported.messages.length) {
+      console.error(`No session messages found in: ${path}`);
+      process.exit(1);
+    }
+    sessionId = basename(path, ".jsonl");
+  } else if (opts.continue) {
     const sessions = await store.listSessions();
     if (sessions.length) {
       sessionId = sessions[0].id;
@@ -89,6 +108,10 @@ export async function main(argv: string[] = []): Promise<void> {
   if (!sessionId) sessionId = randomUUID();
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessionId)) {
     console.error(`Invalid session id: ${sessionId}`);
+    process.exit(1);
+  }
+  if (imported && (await store.load(sessionId))) {
+    console.error(`Session already exists: ${sessionId} (use --resume ${sessionId})`);
     process.exit(1);
   }
 
@@ -121,6 +144,8 @@ export async function main(argv: string[] = []): Promise<void> {
       process.exit(1);
     }
     session.importState(state);
+  } else if (imported) {
+    session.importState(imported);
   }
 
   let saveChain: Promise<void> = Promise.resolve();
@@ -128,6 +153,8 @@ export async function main(argv: string[] = []): Promise<void> {
     const state = session.exportState();
     saveChain = saveChain.catch(() => {}).then(() => store.saveAll(sessionId, state));
   };
+
+  if (imported) persist();
 
   let shuttingDown = false;
   const shutdown = () => {

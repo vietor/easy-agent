@@ -137,7 +137,10 @@ easy-agent          # start a new session
 easy-agent --continue  # resume the most recent session
 easy-agent --resume <id>  # resume a specific session by ID
 easy-agent --resume      # list all saved sessions for this directory
+easy-agent --import <file>  # import a saved JSONL file as a session of its own
 ```
+
+`--import` adopts the file name (minus `.jsonl`) as the session ID, so the imported session shows up in `--resume` and can be resumed by that ID afterwards.
 
 Type a prompt and press Enter. The agent streams its reply and calls tools as needed, showing each tool call and a one-line summary of its result. It iterates until the task is done (capped at 50 tool rounds per turn).
 
@@ -166,7 +169,7 @@ A status bar at the bottom shows the context token usage with a progress bar and
 | `/clear` | Reset the conversation |
 | `/compact` | Compress the conversation into a summary to free context |
 | `/skill` | List available skills |
-| `/save` | Save the current session to `session-{timestamp}.jsonl` |
+| `/save` | Save the current session to `session-{timestamp}.jsonl` (reopen it later with `--import`) |
 | `/exit` | Leave the app |
 
 ## Build from source
