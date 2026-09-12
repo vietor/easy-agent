@@ -58,3 +58,59 @@ test("a follow-up user text message stays separate from tool results", () => {
   assert.equal(messages[idx + 2].content, "<system-reminder>Tasks: ...");
 });
 
+test("the cacheable prefix is marked and the appended reminder is not", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "Echo", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "call_1", content: "echoed" },
+      { role: "user", content: "<system-reminder>Tasks: ..." },
+    ],
+    true,
+    3
+  );
+  const toolResult = messages.find((m) => Array.isArray(m.content) && m.content.some((b) => b.type === "tool_result"));
+  assert.deepEqual(toolResult?.content, [
+    { type: "tool_result", tool_use_id: "call_1", content: "echoed", cache_control: { type: "ephemeral" } },
+  ]);
+  assert.equal(messages[messages.length - 1].content, "<system-reminder>Tasks: ...");
+});
+
+test("a reminder merged into the last user message leaves the prefix unmarked", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "user", content: "<system-reminder>Tasks: ..." },
+    ],
+    true,
+    1
+  );
+  assert.deepEqual(messages, [{ role: "user", content: "go\n<system-reminder>Tasks: ..." }]);
+});
+
+test("a leading assistant message folded into the system keeps the prefix aligned", () => {
+  const { system, messages } = toAnthropicMessages(
+    [
+      { role: "assistant", content: "Summary of conversation so far: ..." },
+      { role: "user", content: "go" },
+    ],
+    true,
+    2
+  );
+  assert.equal(system, "Summary of conversation so far: ...");
+  assert.deepEqual(messages, [
+    { role: "user", content: [{ type: "text", text: "go", cache_control: { type: "ephemeral" } }] },
+  ]);
+});
+
+test("a long prefix is marked again every window", () => {
+  const history = Array.from({ length: 20 }, (_, i) =>
+    i % 2 === 0 ? { role: "user" as const, content: `u${i}` } : { role: "assistant" as const, content: `a${i}` }
+  );
+  const { messages } = toAnthropicMessages(history, true, history.length);
+  const marked = messages
+    .map((m, i) => (Array.isArray(m.content) && m.content.some((b) => "cache_control" in b) ? i : -1))
+    .filter((i) => i >= 0);
+  assert.deepEqual(marked, [4, 19]);
+});
+

@@ -14,6 +14,8 @@ import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
+const CACHE_BREAKPOINT_WINDOW = 15;
+const MAX_MESSAGE_CACHE_BREAKPOINTS = 3;
 
 export class AnthropicAdapter extends BaseAdapter {
   private client: Anthropic;
@@ -30,7 +32,7 @@ export class AnthropicAdapter extends BaseAdapter {
 
   async stream(opts: ChatOptions): Promise<LLMAssistantMessage> {
     const useThinking = opts.thinking !== false;
-    const { system, messages } = toAnthropicMessages(opts.messages, useThinking);
+    const { system, messages } = toAnthropicMessages(opts.messages, useThinking, opts.cachePrefixLen);
     const tools = opts.tools.map(toAnthropicTool);
 
     const cacheControl = { type: "ephemeral" as const };
@@ -109,16 +111,20 @@ function toAnthropicTool(schema: ToolSchema): Anthropic.Tool {
 
 export function toAnthropicMessages(
   messages: LLMMessage[],
-  includeThinking: boolean
+  includeThinking: boolean,
+  cachePrefixLen?: number
 ): { system: string | undefined; messages: Anthropic.MessageParam[] } {
   let system: string | undefined;
   const rest: LLMMessage[] = [];
-  for (const m of messages) {
+  let restPrefixLen = 0;
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
     if (m.role === "system") {
       const text = toText(m.content);
       system = system ? `${system}\n\n${text}` : text;
     } else {
       rest.push(m);
+      if (i < (cachePrefixLen ?? 0)) restPrefixLen = rest.length;
     }
   }
 
@@ -130,11 +136,13 @@ export function toAnthropicMessages(
     const text = toText((rest[0] as LLMAssistantMessage).content);
     if (text) system = system ? `${system}\n\n${text}` : text;
     rest.shift();
+    restPrefixLen--;
   }
 
   const out: Anthropic.MessageParam[] = [];
-  for (const m of rest) {
-    const param = toMessageParam(m, includeThinking);
+  let cacheSlot = -1;
+  for (let i = 0; i < rest.length; i++) {
+    const param = toMessageParam(rest[i], includeThinking);
     const last = out[out.length - 1];
     if (last && last.role === param.role) {
       const merged = mergeContent(last.content, param.content);
@@ -143,13 +151,44 @@ export function toAnthropicMessages(
     } else {
       out.push(param);
     }
+    if (i < restPrefixLen) cacheSlot = out.length - 1;
+    else if (out.length - 1 === cacheSlot) cacheSlot = -1;
   }
+
+  if (cacheSlot >= 0) applyCacheBreakpoints(out, cacheSlot);
 
   if (out.length === 0 || out[0].role === "assistant") {
     out.unshift({ role: "user", content: CONTINUE_CUE });
   }
 
   return { system, messages: out };
+}
+
+function markCacheBreakpoint(message: Anthropic.MessageParam): void {
+  const control = { type: "ephemeral" as const };
+  if (typeof message.content === "string") {
+    message.content = [{ type: "text", text: message.content, cache_control: control }];
+    return;
+  }
+  const last = message.content[message.content.length - 1];
+  if (last.type === "text" || last.type === "tool_use" || last.type === "tool_result") {
+    last.cache_control = control;
+  }
+}
+
+function applyCacheBreakpoints(out: Anthropic.MessageParam[], boundary: number): void {
+  markCacheBreakpoint(out[boundary]);
+  let blocks = 0;
+  let marks = 1;
+  for (let i = boundary - 1; i >= 0 && marks < MAX_MESSAGE_CACHE_BREAKPOINTS; i--) {
+    const content = out[i + 1].content;
+    blocks += typeof content === "string" ? 1 : content.length;
+    if (blocks >= CACHE_BREAKPOINT_WINDOW) {
+      markCacheBreakpoint(out[i]);
+      marks++;
+      blocks = 0;
+    }
+  }
 }
 
 function toMessageParam(m: LLMMessage, includeThinking: boolean): Anthropic.MessageParam {

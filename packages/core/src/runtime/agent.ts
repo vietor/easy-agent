@@ -219,6 +219,7 @@ export class Agent {
         }
       }
       const messages = this.conversation.toLLM();
+      const cachePrefixLen = messages.length;
       const todos = this.getTodos();
       if (todos.length && !pendingNudge) {
         messages.push({ role: "user", content: renderTodoReminder(todos) });
@@ -228,7 +229,7 @@ export class Agent {
         pendingNudge = "";
       }
       const chat = await this.chatOnce(
-        { messages, tools: this.tools.schemas(), onEvent, signal },
+        { messages, tools: this.tools.schemas(), cachePrefixLen, onEvent, signal },
         () => {}
       );
       if (!chat.ok) return chat.status;
@@ -289,7 +290,7 @@ export class Agent {
   }
 
   private async chatOnce(
-    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; onEvent?: (e: SessionEvent) => void; signal?: AbortSignal },
+    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; cachePrefixLen?: number; onEvent?: (e: SessionEvent) => void; signal?: AbortSignal },
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
@@ -298,6 +299,7 @@ export class Agent {
         messages: opts.messages,
         tools: opts.tools,
         thinking: opts.thinking,
+        cachePrefixLen: opts.cachePrefixLen,
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error) }),

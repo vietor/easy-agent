@@ -29,6 +29,7 @@ export interface ChatOptions {
   onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
   onToolCall?: () => void;
   thinking?: boolean;
+  cachePrefixLen?: number;
   signal?: AbortSignal;
 }
 
