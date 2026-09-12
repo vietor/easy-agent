@@ -151,7 +151,7 @@ export async function main(argv: string[] = []): Promise<void> {
   let saveChain: Promise<void> = Promise.resolve();
   const persist = (): void => {
     const state = session.exportState();
-    saveChain = saveChain.catch(() => {}).then(() => store.saveAll(sessionId, state));
+    saveChain = saveChain.catch(() => {}).then(() => store.saveAll(sessionId, state)).catch(() => {});
   };
 
   if (imported) persist();

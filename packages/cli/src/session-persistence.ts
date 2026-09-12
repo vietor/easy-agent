@@ -37,6 +37,11 @@ export function toTodoLine(todos: Todo[]): string {
   return JSON.stringify({ t: "todo", todos });
 }
 
+function lastMessageLine(messages: SessionMessage[]): string {
+  const last = messages[messages.length - 1];
+  return last ? toMessageLine(last) : "";
+}
+
 function readFilePrefix(path: string, maxBytes: number): string {
   const fd = openSync(path, "r");
   try {
@@ -52,6 +57,7 @@ export class FileSessionPersistence {
   private readonly dir: string;
   private writtenCounts = new Map<string, number>();
   private writtenTodos = new Map<string, Todo[]>();
+  private writtenTails = new Map<string, string>();
 
   constructor(private cwd: string) {
     this.dir = join(homedir(), ".easy-agent", "projects", encodeCwd(cwd));
@@ -81,6 +87,7 @@ export class FileSessionPersistence {
     const state = this.parseState(readFileSync(path, "utf-8"));
     this.writtenCounts.set(sessionId, state.messages.length);
     this.writtenTodos.set(sessionId, state.todos);
+    this.writtenTails.set(sessionId, lastMessageLine(state.messages));
     return state;
   }
 
@@ -92,15 +99,16 @@ export class FileSessionPersistence {
   async saveAll(sessionId: string, state: SessionState): Promise<void> {
     this.ensureDir();
     const written = this.writtenCounts.get(sessionId) ?? 0;
-    const shrink = state.messages.length < written;
-    const lines = state.messages.slice(shrink ? 0 : written).map((m) => toMessageLine(m));
+    const tail = written > 0 && written <= state.messages.length ? toMessageLine(state.messages[written - 1]) : undefined;
+    const rewrite = tail === undefined || tail !== this.writtenTails.get(sessionId);
+    const lines = state.messages.slice(rewrite ? 0 : written).map((m) => toMessageLine(m));
     const lastTodos = this.writtenTodos.get(sessionId);
-    if (shrink || lastTodos === undefined || !isDeepStrictEqual(lastTodos, state.todos)) {
+    if (rewrite || lastTodos === undefined || !isDeepStrictEqual(lastTodos, state.todos)) {
       lines.push(toTodoLine(state.todos));
     }
     if (lines.length === 0) return;
     const path = this.file(sessionId);
-    if (shrink) {
+    if (rewrite) {
       const rewritten = `${path}.tmp`;
       await writeFile(rewritten, lines.join("\n") + "\n", "utf-8");
       await rename(rewritten, path);
@@ -109,6 +117,7 @@ export class FileSessionPersistence {
     }
     this.writtenCounts.set(sessionId, state.messages.length);
     this.writtenTodos.set(sessionId, state.todos);
+    this.writtenTails.set(sessionId, lastMessageLine(state.messages));
   }
 
   async listSessions(): Promise<SessionMeta[]> {
