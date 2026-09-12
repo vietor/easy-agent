@@ -8,17 +8,12 @@ import {
   type RedactedThinkingBlock,
   type ThinkingBlock,
 } from "./messages.js";
-import type { ChatOptions, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
+import type { ChatOptions, ResolvedLLMConfig } from "./types.js";
 import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
-
-const THINKING_BUDGET: Record<LLMThinkingEffort, number> = {
-  high: 16000,
-  max: 32000,
-};
 
 export class AnthropicAdapter extends BaseAdapter {
   private client: Anthropic;
@@ -35,7 +30,6 @@ export class AnthropicAdapter extends BaseAdapter {
 
   async stream(opts: ChatOptions): Promise<LLMAssistantMessage> {
     const useThinking = opts.thinking !== false;
-    const budget = THINKING_BUDGET[this.thinkingEffort];
     const { system, messages } = toAnthropicMessages(opts.messages, useThinking);
     const tools = opts.tools.map(toAnthropicTool);
 
@@ -54,7 +48,7 @@ export class AnthropicAdapter extends BaseAdapter {
       messages,
       ...(systemCached && { system: systemCached }),
       ...(useThinking && {
-        thinking: { type: "enabled" as const, budget_tokens: Math.min(budget, this.maxOutputTokens - 1) },
+        thinking: { type: "adaptive" as const },
         output_config: { effort: this.thinkingEffort },
       }),
       ...(tools.length > 0 && { tools: toolsCached ?? tools }),
@@ -69,6 +63,9 @@ export class AnthropicAdapter extends BaseAdapter {
     const final = await stream.finalMessage();
     const cacheTokens = (final.usage.cache_read_input_tokens ?? 0) + (final.usage.cache_creation_input_tokens ?? 0);
     opts.onUsage?.(cacheTokens, final.usage.input_tokens, final.usage.output_tokens);
+    if (final.stop_reason === "refusal") {
+      throw new Error("model declined the request (stop_reason: refusal)");
+    }
 
     const thinking: Array<ThinkingBlock | RedactedThinkingBlock> = [];
     let text = "";
