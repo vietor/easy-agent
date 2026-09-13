@@ -16,7 +16,7 @@ const COLORS: Record<TodoStatus, string> = {
 
 export const TodoView = memo(function TodoView({ todos }: { todos: readonly Todo[] }) {
   const done = todos.filter((t) => t.status === "completed").length;
-  const headerColor = done === todos.length ? "green" : "cyan";
+  const headerColor = todos.length > 0 && done === todos.length ? "green" : "cyan";
   return (
     <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
       <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false} borderColor="gray" />
