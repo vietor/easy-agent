@@ -7,7 +7,7 @@ export const TODO_WRITE_GUIDANCE = "- For multi-step tasks (5+ steps), you MUST 
 
 const STATUSES: TodoStatus[] = ["pending", "inProgress", "completed"];
 
-const STATUS_BY_KEY: Record<string, TodoStatus> = Object.fromEntries(STATUSES.map((s) => [s.toLowerCase(), s]));
+const STATUS_BY_KEY = new Map<string, TodoStatus>(STATUSES.map((s) => [s.toLowerCase(), s]));
 
 const DESCRIPTION = "Manage the task list for tasks with 5+ steps. Pass the FULL list each call; it replaces the previous list. Keep one inProgress at a time. status: pending, inProgress, completed.";
 
@@ -28,7 +28,7 @@ const TodoWriteArgs = z.object({
 
 function normalizeStatus(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  return STATUS_BY_KEY[value.trim().toLowerCase().replace(/[^a-z]/g, "")] ?? value;
+  return STATUS_BY_KEY.get(value.trim().toLowerCase().replace(/[^a-z]/g, "")) ?? value;
 }
 
 function normalizeArgs(args: Record<string, unknown>): Record<string, unknown> {
@@ -42,21 +42,21 @@ function normalizeArgs(args: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
-function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: number; normalized: number; error?: string } {
+function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: number; note: string; error?: string } {
   const parsed = tryParseToolArgs(TodoWriteArgs, normalizeArgs(args));
   if (!parsed.ok) {
-    return { todos: [], done: 0, normalized: 0, error: parsed.error };
+    return { todos: [], done: 0, note: "", error: parsed.error };
   }
   const todos: Todo[] = [];
   let done = 0;
-  let normalized = 0;
+  let demoted = 0;
   let seenInProgress = false;
   for (const t of parsed.value.todos) {
     let status: TodoStatus = t.status;
     if (status === "inProgress") {
       if (seenInProgress) {
         status = "pending";
-        normalized++;
+        demoted++;
       } else {
         seenInProgress = true;
       }
@@ -65,14 +65,15 @@ function parseTodos(args: Record<string, unknown>): { todos: Todo[]; done: numbe
     }
     todos.push({ content: t.content, status });
   }
+  let note = demoted ? ` (reset ${demoted} extra inProgress item${demoted === 1 ? "" : "s"} to pending)` : "";
   if (!seenInProgress) {
     const firstPending = todos.find((t) => t.status === "pending");
     if (firstPending) {
       firstPending.status = "inProgress";
-      normalized++;
+      note = " (marked the first pending item inProgress)";
     }
   }
-  return { todos, done, normalized };
+  return { todos, done, note };
 }
 
 export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
@@ -85,10 +86,9 @@ export function createTodoWriteTool(setTodos: (todos: Todo[]) => void): Tool {
       return error ? "invalid" : `${done}/${todos.length}`;
     },
     async execute(args, _ctx) {
-      const { todos, done, normalized, error } = parseTodos(args);
+      const { todos, done, note, error } = parseTodos(args);
       if (error) return toolError(error);
       setTodos(todos);
-      const note = normalized ? ` (normalized ${normalized} item${normalized === 1 ? "" : "s"} to one inProgress)` : "";
       return { content: `Updated task list (${todos.length} item${todos.length === 1 ? "" : "s"}, ${done} done)${note}.` };
     },
   };

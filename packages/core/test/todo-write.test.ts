@@ -63,7 +63,7 @@ test("normalizes to a single inProgress", async () => {
     },
     { cwd: process.cwd() }
   );
-  assert.match(result.content, /normalized 1 item/);
+  assert.match(result.content, /reset 1 extra inProgress item to pending/);
   const todos = getTodos()!;
   assert.equal(todos.filter((t) => t.status === "inProgress").length, 1);
   assert.equal(todos[0].status, "inProgress");
@@ -116,7 +116,7 @@ test("promotes the first pending to inProgress when none is inProgress", async (
     },
     { cwd: process.cwd() }
   );
-  assert.match(result.content, /normalized 1 item/);
+  assert.match(result.content, /marked the first pending item inProgress/);
   const todos = getTodos()!;
   assert.equal(todos[0].status, "inProgress");
   assert.equal(todos[1].status, "pending");
