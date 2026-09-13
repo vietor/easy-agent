@@ -51,8 +51,7 @@ export class SessionMessages {
 
   private messages: SessionMessage[] = [];
   private estimatedTokens = 0;
-  private collapsedCount = 0;
-  private snapshot?: { messages: SessionMessage[]; estimatedTokens: number; collapsedCount: number };
+  private snapshot?: { messages: SessionMessage[]; estimatedTokens: number };
   private llmCache: LLMMessage[] | null = null;
 
   constructor(private system: string) {
@@ -142,32 +141,23 @@ export class SessionMessages {
   private resetMessages(messages: SessionMessage[], extraTokens: number, keepSnapshot = false): void {
     this.messages = messages;
     this.estimatedTokens = this.systemEstimateTokens + extraTokens;
-    this.collapsedCount = 0;
     if (!keepSnapshot) this.clearSnapshot();
     this.llmCache = null;
   }
 
-  collapseSkills(): void {
-    for (let i = this.collapsedCount; i < this.messages.length; i++) {
-      const m = this.messages[i];
-      if (m.role === "skill") this.collapseOne(i, m);
-    }
-    this.collapsedCount = this.messages.length;
-  }
-
-  private collapseOne(index: number, m: Extract<SessionMessage, { role: "skill" }>): void {
-    const before = estimateTokens(messageText(m));
-    const collapsed = `<skill "${m.name}" invoked - its instructions were followed above>`;
-    this.messages[index] = { ...m, content: collapsed };
-    this.estimatedTokens += estimateTokens(collapsed) - before;
-    if (this.llmCache) this.llmCache[index + 1] = toLLMMessage(this.messages[index]);
+  skillMessage(name: string, content: string): Extract<SessionMessage, { role: "skill" }> {
+    const known = this.messages.some((m) => m.role === "skill" && m.name === name && m.content === content);
+    return {
+      role: "skill",
+      name,
+      content: known ? `<skill "${name}" invoked - its instructions are already in context above>` : content,
+    };
   }
 
   createSnapshot(): void {
     this.snapshot = {
       messages: this.messages.slice(),
       estimatedTokens: this.estimatedTokens,
-      collapsedCount: this.collapsedCount,
     };
   }
 
@@ -176,7 +166,6 @@ export class SessionMessages {
     if (snap) {
       this.messages = snap.messages.slice();
       this.estimatedTokens = snap.estimatedTokens;
-      this.collapsedCount = snap.collapsedCount;
       this.clearSnapshot();
       this.llmCache = null;
     }

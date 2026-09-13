@@ -319,9 +319,26 @@ test("a Skill tool call injects the skill prompt and emits a skill event", async
   const skillMsg = agent.export().find((m) => m.role === "skill");
   assert.ok(skillMsg, "skill message must be in the conversation");
   assert.equal((skillMsg as { name?: string }).name, "x");
-  assert.equal(skillMsg.content, '<skill "x" invoked - its instructions were followed above>');
+  assert.equal(skillMsg.content, "SKILL PROMPT X");
   assert.deepEqual(events.filter((t) => t === "skill"), ["skill"]);
   assert.ok(calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT X")));
+});
+
+test("a repeated Skill tool call notes the loaded prompt instead of duplicating it", async () => {
+  const skill: Skill = { name: "x", description: "d", prompt: "SKILL PROMPT X" };
+  const { llm, calls } = fakeLLM([
+    () => toolCall("Skill", JSON.stringify({ name: "x" })),
+    () => toolCall("Skill", JSON.stringify({ name: "x" })),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeAgent(llm, { resolveSkill: (n) => (n === "x" ? skill : undefined) });
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+  assert.deepEqual(
+    agent.export().filter((m) => m.role === "skill").map((m) => m.content),
+    ["SKILL PROMPT X", '<skill "x" invoked - its instructions are already in context above>']
+  );
+  assert.equal(calls[2].messages.filter((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT X")).length, 1);
 });
 
 test("malformed Skill arguments are tolerated as a tool error", async () => {

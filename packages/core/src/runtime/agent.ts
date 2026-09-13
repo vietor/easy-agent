@@ -154,7 +154,7 @@ export class Agent {
     onEvent?: (e: SessionEvent) => void,
     signal?: AbortSignal
   ): Promise<RunStatus> {
-    return this.runTurn({ role: "skill", name: skill.name, content: skill.prompt }, onEvent, signal);
+    return this.runTurn(this.conversation.skillMessage(skill.name, skill.prompt), onEvent, signal);
   }
 
   private async runTurn(
@@ -193,7 +193,6 @@ export class Agent {
       this.conversation.clearSnapshot();
       this.todoSnapshot = [];
       this.conversation.normalizeInterruptedToolCalls();
-      this.conversation.collapseSkills();
     }
   }
 
@@ -238,7 +237,6 @@ export class Agent {
       if (signal?.aborted) return "aborted";
       const msg = chat.message;
       this.conversation.add(msg);
-      this.conversation.collapseSkills();
       if (!msg.tool_calls?.length) {
         if (this.todoDeclared && todos.length > 0 && todos.some(t => t.status !== "completed")) {
           if (++textOnlyStreak >= this.stallThreshold) {
@@ -280,7 +278,7 @@ export class Agent {
         if (typeof name !== "string" || !name) continue;
         const skill = this.resolveSkill?.(name);
         if (!skill) continue;
-        this.conversation.add({ role: "skill", name: skill.name, content: skill.prompt });
+        this.conversation.add(this.conversation.skillMessage(skill.name, skill.prompt));
         onEvent?.({ type: "skill", name: skill.name });
       }
     }

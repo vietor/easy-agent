@@ -66,24 +66,28 @@ test("compact replaces the conversation with the summary", () => {
   assert.equal(c.getEstimatedTokens(), 1 + Math.round("summary text".length / 4));
 });
 
-test("collapseSkills replaces skill content and patches the LLM cache in place", () => {
+test("skillMessage keeps the prompt the first time and only notes it afterwards", () => {
   const c = new SessionMessages(SYS);
-  c.add({ role: "skill", name: "test-skill", content: "do X and Y and Z" });
-  const before = c.getEstimatedTokens();
-  const cached = c.toLLM();
-  c.collapseSkills();
-  const m = c.export()[0];
-  assert.equal(m.role, "skill");
-  assert.equal(
-    m.content,
-    '<skill "test-skill" invoked - its instructions were followed above>'
-  );
-  const collapsed = c.export()[0].content as string;
-  assert.equal(c.getEstimatedTokens(), before - Math.round("do X and Y and Z".length / 4) + Math.round(collapsed.length / 4));
-  const llm = c.toLLM();
-  assert.ok((llm[1].content as string).includes("its instructions were followed above"));
-  assert.equal(llm[0], cached[0]);
-  assert.notEqual(llm[1], cached[1]);
+  const first = c.skillMessage("test-skill", "do X and Y and Z");
+  assert.equal(first.content, "do X and Y and Z");
+  c.add(first);
+  const second = c.skillMessage("test-skill", "do X and Y and Z");
+  assert.equal(second.role, "skill");
+  assert.equal(second.content, '<skill "test-skill" invoked - its instructions are already in context above>');
+});
+
+test("skillMessage distinguishes by name and by content", () => {
+  const c = new SessionMessages(SYS);
+  c.add(c.skillMessage("a", "instructions"));
+  assert.equal(c.skillMessage("b", "instructions").content, "instructions");
+  assert.equal(c.skillMessage("a", "other instructions").content, "other instructions");
+});
+
+test("skillMessage reloads the prompt after the conversation is compacted", () => {
+  const c = new SessionMessages(SYS);
+  c.add(c.skillMessage("test-skill", "do X and Y and Z"));
+  c.compact("summary");
+  assert.equal(c.skillMessage("test-skill", "do X and Y and Z").content, "do X and Y and Z");
 });
 
 test("import restores messages and token estimate", () => {
