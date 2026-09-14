@@ -7,14 +7,19 @@ interface PromptOrCommandInputProps {
   commands: SlashCommandInfo[];
   onCommand: (name: string) => void;
   onPrompt: (value: string) => void;
+  onMenuOpenChange: (open: boolean) => void;
 }
 
 const MAX_ITEMS = 4;
 
-export function PromptOrCommandInput({ commands, onCommand, onPrompt }: PromptOrCommandInputProps) {
+export function PromptOrCommandInput({ commands, onCommand, onPrompt, onMenuOpenChange }: PromptOrCommandInputProps) {
   const [input, setInput] = useState("");
   const showMenu = input.startsWith("/");
   const prefix = showMenu ? input.slice(1).split(/\s+/)[0] : "";
+
+  useEffect(() => {
+    onMenuOpenChange(showMenu);
+  }, [showMenu, onMenuOpenChange]);
 
   const filtered = useMemo(() => {
     if (!showMenu) return [];

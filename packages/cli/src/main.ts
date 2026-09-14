@@ -93,7 +93,6 @@ export async function main(argv: string[] = []): Promise<void> {
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
 
-  process.stdout.write("\x1b[2J\x1b[H");
   const app = startApp(session, persist);
   await app.waitUntilExit().finally(async () => {
     session.dispose();
