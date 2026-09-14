@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { Box, Text } from "ink";
-import { Markdown } from "./components/markdown.js";
+import { Markdown } from "./markdown.js";
 import { MAX_SUMMARY_LENGTH, summarizeText } from "@vietor/agent-core/util";
 import type { AskedQuestion, TimelineEvent } from "@vietor/agent-core";
 

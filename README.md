@@ -49,14 +49,17 @@ easy-agent/
 │   │       └── index.ts             # public API exports
 │   └── cli/           # @vietor/easy-agent — CLI application (Ink/React TUI)
 │       └── src/
-│           ├── tui/                 # terminal UI (app, timeline-view, todo-view, etc.)
-│           │   └── components/      # shared UI components (Markdown renderer…)
+│           ├── tui/                 # terminal UI (app, hooks, timeline-view, markdown, etc.)
 │           ├── commands/            # built-in slash commands + dispatcher
 │           ├── tools/               # extra built-in tools (LocalScript — run throwaway JS/Python scripts)
+│           ├── prompts.ts           # system prompt assembly (base + AGENTS.md/CLAUDE.md)
+│           ├── session-format.ts    # JSONL codec (message/todo line encode + decode)
+│           ├── session-resolution.ts # resolve CLI options into a session (continue/resume/import)
 │           ├── session-persistence.ts # FileSessionPersistence (JSONL save/resume)
 │           ├── util/                # package info
 │           ├── config.ts            # JSON config loader (~/.easy-agent/config.json)
-│           └── main.ts              # bin entry (shebang) — parses args, wires session, starts TUI
+│           ├── index.ts             # bin entry (shebang)
+│           └── main.ts              # parses args, wires the session and starts the TUI
 ├── package.json       # workspace root (private)
 ├── pnpm-workspace.yaml
 └── tsconfig.json      # base TypeScript config

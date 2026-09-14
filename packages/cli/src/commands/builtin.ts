@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import type { SlashCommand } from "./types.js";
-import { toMessageLine, toTodoLine } from "../session-persistence.js";
+import { toMessageLine, toTodoLine } from "../session-format.js";
 
 export const clearCommand: SlashCommand = {
   name: "clear",

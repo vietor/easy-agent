@@ -1,81 +1,18 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Box, render, Text, useApp, useInput, useWindowSize } from "ink";
-import { INITIAL_RUN_METRICS, type RunMetrics, type Session, type SessionEvent } from "@vietor/agent-core";
+import { useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { Box, render, useApp, useInput, useWindowSize } from "ink";
+import { type Session } from "@vietor/agent-core";
 import { toErrorMessage } from "@vietor/agent-core/util";
 import { executeSlashCommand, slashCommandInfos } from "../commands/dispatch.js";
-import { FRAME_MS } from "./constants.js";
-import { Markdown } from "./components/markdown.js";
+import { Markdown } from "./markdown.js";
+import { useSessionStream } from "./hooks.js";
 import { TimelineView } from "./timeline-view.js";
 import { TodoView } from "./todo-view.js";
+import { ThinkingView } from "./thinking-view.js";
 import { AppHeader } from "./app-header.js";
 import { PromptOrCommandInput } from "./prompt-or-command-input.js";
 import { QuestionView } from "./question-view.js";
 import { Spinner } from "./spinner.js";
 import { StatusBar } from "./status-bar.js";
-
-function useThrottledText(frameMs: number) {
-  const [text, setText] = useState("");
-  const bufRef = useRef("");
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const append = (t: string) => {
-    bufRef.current += t;
-    if (timerRef.current === undefined) {
-      timerRef.current = setTimeout(() => {
-        timerRef.current = undefined;
-        setText(bufRef.current);
-      }, frameMs);
-    }
-  };
-  const reset = () => {
-    bufRef.current = "";
-    setText("");
-  };
-  return { text, append, reset };
-}
-
-function useSessionStream(session: Session) {
-  const [runMetrics, setRunMetrics] = useState<RunMetrics>(INITIAL_RUN_METRICS);
-  const [totalTokens, setTotalTokens] = useState({ cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
-  const streaming = useThrottledText(FRAME_MS);
-  const thinking = useThrottledText(FRAME_MS);
-  const [showThinking, setShowThinking] = useState(false);
-
-  useEffect(() => {
-    const unsub = session.onEvent((e: SessionEvent) => {
-      switch (e.type) {
-        case "assistant_delta":
-          streaming.append(e.text);
-          break;
-        case "thinking_delta":
-          thinking.append(e.text);
-          break;
-        case "thinking_cleared":
-          thinking.reset();
-          setShowThinking(false);
-          break;
-        case "assistant":
-        case "retry":
-        case "interrupted":
-          streaming.reset();
-          break;
-        case "run_metrics":
-          setRunMetrics(e);
-          if (!e.running) {
-            setTotalTokens((prev) => ({ cacheInputTokens: prev.cacheInputTokens + e.cacheInputTokens, missInputTokens: prev.missInputTokens + e.missInputTokens, outputTokens: prev.outputTokens + e.outputTokens }));
-          }
-          break;
-      }
-    });
-    return unsub;
-  }, [session]);
-
-  const resetMetrics = () => {
-    setRunMetrics(INITIAL_RUN_METRICS);
-    setTotalTokens({ cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
-  };
-
-  return { runMetrics, totalTokens, streaming, thinking, showThinking, setShowThinking, resetMetrics };
-}
 
 export function App({ session, persist }: { session: Session; persist: () => void }) {
   const { exit } = useApp();
@@ -129,7 +66,7 @@ export function App({ session, persist }: { session: Session; persist: () => voi
       const spinnerLabel = streaming.text ? "replying" : "working";
       runningView = (
         <>
-          {thinking.text ? renderThinking(thinking.text, showThinking) : null}
+          {thinking.text ? <ThinkingView text={thinking.text} expanded={showThinking} /> : null}
           {streaming.text ? (
             <Box marginTop={1} paddingLeft={1} paddingRight={1}>
               <Markdown>{streaming.text}</Markdown>
@@ -173,27 +110,6 @@ export function App({ session, persist }: { session: Session; persist: () => voi
         missInputTokens={totalTokens.missInputTokens}
         outputTokens={totalTokens.outputTokens}
       />
-    </Box>
-  );
-}
-
-function renderThinking(text: string, expanded: boolean): ReactNode {
-  const lines = text.split("\n");
-  const firstLine = (lines[0] ?? "").slice(0, 80);
-  if (expanded) {
-    return (
-      <Box marginTop={1} paddingLeft={1} flexDirection="column">
-        <Text dimColor>┊ thinking (t to collapse)</Text>
-        <Box paddingLeft={1}>
-          <Text dimColor>{text}</Text>
-        </Box>
-      </Box>
-    );
-  }
-  const extra = lines.length > 1 ? ` …+${lines.length - 1} lines` : "";
-  return (
-    <Box marginTop={1} paddingLeft={1}>
-      <Text dimColor>┊ {firstLine}{extra} (t to expand)</Text>
     </Box>
   );
 }

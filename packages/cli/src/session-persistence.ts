@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { type SessionMessage, type SessionState, type Todo } from "@vietor/agent-core";
 import { MAX_SUMMARY_LENGTH, summarizeText } from "@vietor/agent-core/util";
+import { parseJsonLines, parseSessionState, toMessageLine, toTodoLine } from "./session-format.js";
 
 const MAX_TITLE_SCAN_BYTES = 64 * 1024;
 
@@ -18,23 +19,6 @@ export interface SessionMeta {
 
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[\/\\:]/g, "-");
-}
-
-function parseJsonLines<T>(text: string): T[] {
-  const out: T[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try { out.push(JSON.parse(line) as T); } catch { /* skip malformed lines */ }
-  }
-  return out;
-}
-
-export function toMessageLine(m: SessionMessage): string {
-  return JSON.stringify({ t: "message", m });
-}
-
-export function toTodoLine(todos: Todo[]): string {
-  return JSON.stringify({ t: "todo", todos });
 }
 
 function lastMessageLine(messages: SessionMessage[]): string {
@@ -71,20 +55,10 @@ export class FileSessionPersistence {
     if (!existsSync(this.dir)) mkdirSync(this.dir, { recursive: true });
   }
 
-  private parseState(text: string): SessionState {
-    const messages: SessionMessage[] = [];
-    let todos: Todo[] = [];
-    for (const r of parseJsonLines<{ t?: string; m?: SessionMessage; todos?: Todo[] }>(text)) {
-      if (r.t === "message" && r.m) messages.push(r.m);
-      else if (r.t === "todo" && r.todos) todos = r.todos;
-    }
-    return { messages, todos };
-  }
-
   async load(sessionId: string): Promise<SessionState | null> {
     const path = this.file(sessionId);
     if (!existsSync(path)) return null;
-    const state = this.parseState(readFileSync(path, "utf-8"));
+    const state = parseSessionState(readFileSync(path, "utf-8"));
     this.writtenCounts.set(sessionId, state.messages.length);
     this.writtenTodos.set(sessionId, state.todos);
     this.writtenTails.set(sessionId, lastMessageLine(state.messages));
@@ -93,7 +67,7 @@ export class FileSessionPersistence {
 
   async loadFile(path: string): Promise<SessionState | null> {
     if (!existsSync(path)) return null;
-    return this.parseState(readFileSync(path, "utf-8"));
+    return parseSessionState(readFileSync(path, "utf-8"));
   }
 
   async saveAll(sessionId: string, state: SessionState): Promise<void> {
