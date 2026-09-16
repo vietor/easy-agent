@@ -65,6 +65,10 @@ export class ToolRegistry {
     }
   }
 
+  truncateDirection(name: string): "head" | "tail" {
+    return this.tools.get(name)?.truncate ?? "head";
+  }
+
   summarizeResult(name: string, result: TextResult, durationMs: number): string {
     const tool = this.tools.get(name);
     const resultSummary = tool?.summarizeResult

@@ -2,7 +2,7 @@ import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
-import { renderToolUsePrompt } from "./runtime/prompts.js";
+import { renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
@@ -16,10 +16,11 @@ function contextLimitFor(maxInputTokens: number): number {
   return Math.floor(maxInputTokens * 0.75);
 }
 
-function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number): string {
+function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, toolSpoolDir: string | undefined): string {
   const parts = [base];
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
   const toolUseLines = [renderToolUsePrompt(maxTurns, mode)];
+  if (toolSpoolDir && mode !== "none") toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
@@ -40,7 +41,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
 
   const session = new Session({
     ...opts,
-    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS),
+    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, opts.toolSpoolDir),
     llm,
     tools,
     mcp,

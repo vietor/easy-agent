@@ -1,6 +1,17 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
-import { NOT_EXECUTED_PREFIX, SKILL_TOOL_NAME, TODO_WRITE_TOOL_NAME } from "../util/constants.js";
-import { estimateTokens, summarizeText, toErrorMessage } from "../util/text.js";
+import {
+  MAX_TOOL_OUTPUT_BYTES,
+  MAX_TOOL_OUTPUT_LINES,
+  NOT_EXECUTED_PREFIX,
+  PRUNE_TRIGGER_RATIO,
+  SKILL_TOOL_NAME,
+  TODO_WRITE_TOOL_NAME,
+} from "../util/constants.js";
+import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, truncateOutput } from "../util/text.js";
+import { cleanupSpoolDir } from "../util/spool.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -26,9 +37,12 @@ export interface AgentOptions {
   contextLimit: number;
   resolveSkill?: (name: string) => Skill | undefined;
   onCompact?: () => void;
+  toolSpoolDir?: string;
 }
 
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
+
+const sweptDirs = new Set<string>();
 
 interface ToolCallOutcome {
   id: string;
@@ -53,6 +67,8 @@ export class Agent {
   private todoDeclared = false;
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
+  private readonly toolSpoolDir?: string;
+  private readonly maxToolOutputBytes: number;
   private cacheInputTokens = 0;
   private missInputTokens = 0;
   private outputTokens = 0;
@@ -71,6 +87,8 @@ export class Agent {
     this.contextLimit = opts.contextLimit;
     this.resolveSkill = opts.resolveSkill;
     this.onCompact = opts.onCompact;
+    this.toolSpoolDir = opts.toolSpoolDir;
+    this.maxToolOutputBytes = Math.min(MAX_TOOL_OUTPUT_BYTES, Math.floor(opts.contextLimit / 2));
   }
 
   get contextTokens(): number {
@@ -207,6 +225,10 @@ export class Agent {
     let pendingNudge = "";
     let compactionFutile = false;
     while (true) {
+      if (this.toolSpoolDir && this.contextTokens > this.contextLimit * PRUNE_TRIGGER_RATIO) {
+        const freed = this.conversation.pruneToolOutputs();
+        if (freed > 0) onEvent?.({ type: "notice", text: `cleared ${formatCompactNumber(freed)} tokens of old tool output` });
+      }
       if (!compactionFutile && this.contextTokens > this.contextLimit) {
         onEvent?.({ type: "notice", text: "auto-compacting context" });
         const compactStatus = await this.compact(
@@ -349,8 +371,36 @@ export class Agent {
     const start = performance.now();
     const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
-    const resultSummary = this.tools.summarizeResult(call.function.name, result, duration);
-    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: result.content, isError: result.isError, resultSummary });
-    return { id: call.id, content: result.content, resultSummary, isError: result.isError, args };
+    const summary = this.tools.summarizeResult(call.function.name, result, duration);
+    const captured = await this.captureLargeOutput(call.function.name, result.content);
+    const resultSummary = captured.outputPath ? `${summary} · truncated, full output: ${captured.outputPath}` : summary;
+    if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: captured.content, isError: result.isError, resultSummary });
+    return { id: call.id, content: captured.content, resultSummary, isError: result.isError, args };
+  }
+
+  private async captureLargeOutput(name: string, content: string): Promise<{ content: string; outputPath?: string }> {
+    if (!this.toolSpoolDir) return { content };
+    const tail = this.tools.truncateDirection(name) === "tail";
+    const cut = truncateOutput(content, tail ? "tail" : "head", this.maxToolOutputBytes, MAX_TOOL_OUTPUT_LINES);
+    if (!cut.truncated) return { content };
+    if (!sweptDirs.has(this.toolSpoolDir)) {
+      sweptDirs.add(this.toolSpoolDir);
+      void cleanupSpoolDir(this.toolSpoolDir);
+    }
+    let outputPath: string;
+    try {
+      await mkdir(this.toolSpoolDir, { recursive: true });
+      outputPath = join(this.toolSpoolDir, `${randomUUID()}.txt`);
+      await writeFile(outputPath, content, "utf-8");
+    } catch {
+      return { content };
+    }
+    const notice = [
+      `...output truncated: showing the ${tail ? "last" : "first"} ${cut.keptLines} of ${cut.totalLines} lines (${formatCompactNumber(cut.totalBytes)} bytes total)...`,
+      "",
+      `Full output saved to: ${outputPath}`,
+      "Use Read with offset/limit to view specific sections, or Grep to search the full file.",
+    ].join("\n");
+    return { content: tail ? `${notice}\n\n${cut.text}` : `${cut.text}\n\n${notice}`, outputPath };
   }
 }

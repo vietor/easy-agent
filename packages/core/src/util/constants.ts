@@ -1,4 +1,4 @@
-export const MAX_PROCESS_BUFFER_MB = 10;
+export const DEFAULT_PROCESS_BUFFER_MB = 10;
 export const MAX_WEB_FETCH_MB = 10;
 export const MAX_FILE_READ_MB = 20;
 export const CALL_TIMEOUT_MS = 300_000;
@@ -21,6 +21,15 @@ export const ASK_USER_TOOL_NAME = "AskUser" as const;
 export const TODO_WRITE_TOOL_NAME = "TodoWrite" as const;
 export const LLM_MAX_RETRIES = 3;
 export const WEB_FETCH_RETRIES = 2;
+export const MAX_TOOL_OUTPUT_BYTES = 50 * 1024;
+export const MAX_TOOL_OUTPUT_LINES = 2000;
+export const MAX_SHELL_OUTPUT_MB = 20;
+export const PRUNE_PROTECT_TOKENS = 40_000;
+export const PRUNE_MIN_CLEAR_TOKENS = 20_000;
+export const PRUNE_TRIGGER_RATIO = 0.8;
+export const SPOOL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+export const SPOOL_MAX_BYTES = 200 * 1024 * 1024;
+export const TOOL_OUTPUT_CLEARED_PREFIX = "(output cleared: ";
 
 export function mbToBytes(mb: number): number {
   return mb * 1024 * 1024;

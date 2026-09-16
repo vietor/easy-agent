@@ -65,6 +65,7 @@ export interface Tool {
   description: string;
   parameters: Record<string, unknown>;
   argSummaryKeys?: string[];
+  truncate?: "head" | "tail";
   summarizeArgs?: (args: Record<string, unknown>) => string;
   summarizeResult?(result: TextResult): string;
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;

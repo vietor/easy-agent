@@ -180,3 +180,38 @@ test("import normalizes dangling tool calls", () => {
   c.import([{ role: "user", content: "go" }, assistantToolCall("t1")]);
   assert.deepEqual(c.export()[2], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
 });
+
+function addToolOutput(c: SessionMessages, id: string, chars: number, summary?: string): void {
+  c.add({ role: "tool", tool_call_id: id, content: "a".repeat(chars), resultSummary: summary });
+}
+
+test("pruneToolOutputs clears old tool output, protects the recent window, and fixes token accounting", () => {
+  const c = new SessionMessages(SYS);
+  for (const id of ["t1", "t2", "t3", "t4"]) addToolOutput(c, id, 100_000, "Command executed 100000 bytes");
+  c.createSnapshot();
+  c.toLLM();
+  const before = c.getEstimatedTokens();
+
+  const freed = c.pruneToolOutputs();
+  assert.ok(freed > 20_000, "prune must report the tokens it freed");
+  assert.equal(c.getEstimatedTokens(), before - freed);
+
+  const msgs = c.export();
+  assert.match(msgs[0].content, /^\(output cleared: Command executed 100000 bytes\)$/);
+  assert.match(msgs[2].content, /^\(output cleared: /);
+  assert.equal(msgs[3].content, "a".repeat(100_000), "the most recent tool output must survive");
+  assert.equal(c.toLLM()[1].content, msgs[0].content, "the LLM cache must be rebuilt");
+
+  c.restoreFromSnapshot();
+  assert.equal(c.getEstimatedTokens(), before - freed, "snapshot tokens must stay in sync");
+});
+
+test("pruneToolOutputs leaves history intact when the reclaimable amount is below the minimum", () => {
+  const c = new SessionMessages(SYS);
+  for (let i = 0; i < 41; i++) addToolOutput(c, `t${i}`, 4_000);
+  const before = c.getEstimatedTokens();
+
+  assert.equal(c.pruneToolOutputs(), 0);
+  assert.equal(c.getEstimatedTokens(), before);
+  assert.equal(c.export()[0].content, "a".repeat(4_000));
+});

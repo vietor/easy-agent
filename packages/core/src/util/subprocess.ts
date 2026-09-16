@@ -1,5 +1,5 @@
 import { spawn, spawnSync, execSync  } from "node:child_process";
-import { MAX_PROCESS_BUFFER_MB, mbToBytes } from "./constants.js";
+import { DEFAULT_PROCESS_BUFFER_MB, mbToBytes } from "./constants.js";
 
 export interface ProcessResult {
   stdout: string;
@@ -10,7 +10,6 @@ export interface ProcessResult {
 }
 
 const KILL_GRACE_MS = 2000;
-const MAX_PROCESS_BUFFER = mbToBytes(MAX_PROCESS_BUFFER_MB);
 
 const liveProcesses = new Set<number>();
 process.on("exit", () => {
@@ -46,9 +45,11 @@ function scheduleSIGKILL(pid: number): void {
 export function runProcess(
   cmd: string,
   args: string[],
-  opts: { cwd?: string; timeout?: number } = {},
+  opts: { cwd?: string; timeout?: number; maxOutputMB?: number } = {},
   signal?: AbortSignal
 ): Promise<ProcessResult> {
+  const maxOutputMB = opts.maxOutputMB ?? DEFAULT_PROCESS_BUFFER_MB;
+  const maxOutputBytes = mbToBytes(maxOutputMB);
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
@@ -82,12 +83,12 @@ export function runProcess(
       if (settled) return;
       chunks.push(c);
       size += c.length;
-      if (size > MAX_PROCESS_BUFFER) {
+      if (size > maxOutputBytes) {
         kill();
         settle({
           ...flushOutput(),
           status: null,
-          error: new Error(`Command output exceeded ${MAX_PROCESS_BUFFER_MB}MB`),
+          error: new Error(`Command output exceeded ${maxOutputMB}MB`),
           truncated: true,
         });
       }

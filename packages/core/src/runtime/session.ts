@@ -139,6 +139,7 @@ export interface SessionOptions {
   maxTurns?: number;
   stallThreshold?: number;
   maxParallelToolCalls?: number;
+  toolSpoolDir?: string;
 }
 
 export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
@@ -293,6 +294,7 @@ export class Session {
             stallThreshold,
             maxParallelToolCalls,
             contextLimit: deps.contextLimit,
+            toolSpoolDir: deps.toolSpoolDir,
             onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
           }, systemPrompt, task, level, signal),
       },
@@ -309,6 +311,7 @@ export class Session {
       maxTurns,
       maxParallelToolCalls,
       contextLimit: deps.contextLimit,
+      toolSpoolDir: deps.toolSpoolDir,
       resolveSkill: this.resolveSkill,
       onCompact: () => {
         this.stream.discardStreamedText();

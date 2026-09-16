@@ -63,6 +63,63 @@ export function countNonEmptyLines(content: string): number {
   return content.split("\n").filter((l) => l).length;
 }
 
+function countAllLines(content: string): number {
+  let lines = 1;
+  for (let i = content.indexOf("\n"); i !== -1; i = content.indexOf("\n", i + 1)) lines++;
+  return lines;
+}
+
+function nthNewline(text: string, n: number): number {
+  let index = -1;
+  for (let i = 0; i < n; i++) index = text.indexOf("\n", index + 1);
+  return index;
+}
+
+export interface TruncateResult {
+  text: string;
+  truncated: boolean;
+  totalBytes: number;
+  totalLines: number;
+  keptLines: number;
+}
+
+export function truncateOutput(
+  content: string,
+  direction: "head" | "tail",
+  maxBytes: number,
+  maxLines: number
+): TruncateResult {
+  const totalBytes = getTextBytes(content);
+  const totalLines = countAllLines(content);
+  if (totalBytes <= maxBytes && totalLines <= maxLines) {
+    return { text: content, truncated: false, totalBytes, totalLines, keptLines: totalLines };
+  }
+
+  const buf = Buffer.from(direction === "head" ? content.slice(0, maxBytes) : content.slice(-maxBytes), "utf-8");
+  let start = 0;
+  let end = buf.length;
+  if (direction === "head") {
+    if (end > maxBytes) {
+      end = maxBytes;
+      while (end > 0 && (buf[end] & 0xc0) === 0x80) end--;
+      const boundary = buf.lastIndexOf(0x0a, end);
+      if (boundary > 0) end = boundary;
+    }
+  } else if (buf.length > maxBytes) {
+    start = buf.length - maxBytes;
+    while (start < buf.length && (buf[start] & 0xc0) === 0x80) start++;
+    const boundary = buf.indexOf(0x0a, start);
+    if (boundary >= 0) start = boundary + 1;
+  }
+  let text = buf.subarray(start, end).toString("utf-8");
+  const lines = countAllLines(text);
+  if (lines > maxLines) {
+    const cut = nthNewline(text, direction === "head" ? maxLines : lines - maxLines);
+    text = direction === "head" ? text.slice(0, cut) : text.slice(cut + 1);
+  }
+  return { text, truncated: true, totalBytes, totalLines, keptLines: Math.min(lines, maxLines) };
+}
+
 export function summarizeText(content: string, length: number, showChars?: boolean) {
   const text = content.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   if (text.length <= length) return text;

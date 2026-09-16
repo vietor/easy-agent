@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type SessionMessage, type SessionState, type Todo } from "@vietor/agent-core";
-import { MAX_SUMMARY_LENGTH, summarizeText } from "@vietor/agent-core/util";
+import { cleanupSpoolDir, MAX_SUMMARY_LENGTH, summarizeText } from "@vietor/agent-core/util";
 import { parseJsonLines, parseSessionState, toMessageLine, toTodoLine } from "./session-format.js";
 
 const MAX_TITLE_SCAN_BYTES = 64 * 1024;
@@ -49,6 +49,14 @@ export class FileSessionPersistence {
 
   private file(sessionId: string): string {
     return join(this.dir, `${sessionId}.jsonl`);
+  }
+
+  get toolSpoolDir(): string {
+    return join(this.dir, "tool-output");
+  }
+
+  async cleanupSessions(keepId?: string): Promise<void> {
+    await cleanupSpoolDir(this.dir, keepId ? `${keepId}.jsonl` : undefined);
   }
 
   private ensureDir(): void {

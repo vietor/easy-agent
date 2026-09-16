@@ -40,6 +40,7 @@ export async function main(argv: string[] = []): Promise<void> {
   const config = loadConfig();
 
   const { sessionId, resume, imported } = await resolveSession(store, opts);
+  await store.cleanupSessions(sessionId);
 
   const globalSkills =
     tryLoadSkills(join(homedir(), ".easy-agent", "skills")) ?? tryLoadSkills(join(homedir(), ".claude", "skills"));
@@ -58,6 +59,7 @@ export async function main(argv: string[] = []): Promise<void> {
     },
     cwd: cwd,
     sessionId,
+    toolSpoolDir: store.toolSpoolDir,
     clientInfo: { name: pkg.name, version: pkg.version },
     tools: [localScriptTool],
   });

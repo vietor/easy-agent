@@ -1,5 +1,10 @@
 import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
-import { INTERRUPTED_TOOL_CONTENT } from "../util/constants.js";
+import {
+  INTERRUPTED_TOOL_CONTENT,
+  PRUNE_MIN_CLEAR_TOKENS,
+  PRUNE_PROTECT_TOKENS,
+  TOOL_OUTPUT_CLEARED_PREFIX,
+} from "../util/constants.js";
 import { estimateTokens } from "../util/text.js";
 
 export type SessionMessage =
@@ -8,6 +13,12 @@ export type SessionMessage =
   | { role: "skill"; name: string; content: string }
   | LLMAssistantMessage
   | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
+
+type ToolMessage = Extract<SessionMessage, { role: "tool" }>;
+
+function clearedContent(message: ToolMessage): string {
+  return `${TOOL_OUTPUT_CLEARED_PREFIX}${message.resultSummary ?? "tool output"})`;
+}
 
 function lastAssistantText(messages: SessionMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -128,6 +139,28 @@ export class SessionMessages {
       this.estimatedTokens += addedTokens;
       this.llmCache = null;
     }
+  }
+
+  pruneToolOutputs(): number {
+    const candidates: ToolMessage[] = [];
+    let total = 0;
+    let freed = 0;
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const m = this.messages[i];
+      if (m.role !== "tool") continue;
+      const tokens = estimateTokens(m.content);
+      total += tokens;
+      if (total <= PRUNE_PROTECT_TOKENS) continue;
+      freed += tokens - estimateTokens(clearedContent(m));
+      candidates.push(m);
+    }
+    if (freed <= PRUNE_MIN_CLEAR_TOKENS) return 0;
+
+    for (const message of candidates) message.content = clearedContent(message);
+    this.estimatedTokens -= freed;
+    if (this.snapshot) this.snapshot.estimatedTokens -= freed;
+    this.llmCache = null;
+    return freed;
   }
 
   clear(): void {

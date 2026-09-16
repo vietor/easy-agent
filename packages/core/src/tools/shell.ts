@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runProcess } from "../util/subprocess.js";
-import { CALL_TIMEOUT_MS, NO_OUTPUT } from "../util/constants.js";
+import { CALL_TIMEOUT_MS, MAX_SHELL_OUTPUT_MB, NO_OUTPUT } from "../util/constants.js";
 import type { Tool } from "./types.js";
 import { parseToolArgs, toToolParameters, toolError } from "./types.js";
 import { summaryBytes } from "../util/text.js";
@@ -46,6 +46,7 @@ const ShellArgs = z.object({
 export const shellTool: Tool = {
   name: "Shell",
   agentLevel: 2,
+  truncate: "tail",
   description: isWindows? DESCRIPTION_POWERSHELL: DESCRIPTION_BASH,
   parameters: toToolParameters(ShellArgs),
   async execute(args, ctx) {
@@ -53,7 +54,12 @@ export const shellTool: Tool = {
     if (!isWindows && PRIVILEGED_RE.test(command)) {
       return toolError("privileged commands (sudo/su/doas/pkexec) are not allowed");
     }
-    const r = await runProcess(shell, [...shellArgs, commandPrefix + command], { cwd: ctx.cwd, timeout: CALL_TIMEOUT_MS }, ctx.signal);
+    const r = await runProcess(
+      shell,
+      [...shellArgs, commandPrefix + command],
+      { cwd: ctx.cwd, timeout: CALL_TIMEOUT_MS, maxOutputMB: MAX_SHELL_OUTPUT_MB },
+      ctx.signal
+    );
     if (r.status === 0 && !r.error) {
       return { content: r.stdout || NO_OUTPUT };
     }
