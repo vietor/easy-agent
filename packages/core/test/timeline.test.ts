@@ -181,7 +181,7 @@ test("toTimelineEntries rebuilds AskUser question entries with the user's answer
     { type: "tool", id: "t1", name: "AskUser", argsSummary: "", result: content, isError: undefined, resultSummary: undefined },
     {
       type: "question",
-      id: "t1",
+      id: "q1",
       questions: [
         {
           header: "Mode",
@@ -228,7 +228,7 @@ test("toTimelineEntries shows skipped answers when an AskUser result is unparsea
   const question = entries.find((e) => e.type === "question");
   assert.deepEqual(question, {
     type: "question",
-    id: "t1",
+    id: "q1",
     questions: [
       {
         header: undefined,

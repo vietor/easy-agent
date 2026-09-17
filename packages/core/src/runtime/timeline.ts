@@ -126,6 +126,7 @@ export function toTimelineEntries(
     }
   }
   const entries: TimelineEvent[] = [];
+  let questionSeq = 0;
   for (const m of messages) {
     if (m.role === "user") {
       entries.push({ type: "user", text: m.content });
@@ -162,7 +163,7 @@ export function toTimelineEntries(
               } catch {}
               entries.push({
                 type: "question",
-                id: tc.id,
+                id: `q${++questionSeq}`,
                 questions: questions.map((q) => ({ ...q, answer: answerMap[q.question] ?? "" })),
               });
             }

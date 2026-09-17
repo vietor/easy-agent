@@ -196,6 +196,97 @@ test("importState tolerates malformed persisted tool arguments", () => {
   assert.equal(tool.result, "(interrupted)");
 });
 
+test("importState replays a completed run into the same timeline", async () => {
+  const makeEchoSession = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => {
+    const tools = new ToolRegistry();
+    tools.register({
+      name: "Echo",
+      description: "echo",
+      parameters: { type: "object", properties: { path: { type: "string" } } },
+      async execute() { return { content: "echoed" }; },
+      argSummaryKeys: ["path"],
+    });
+    return new Session({
+      systemPrompt: "test",
+      llm: fakeLLM(script),
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionId: "s1",
+    });
+  };
+
+  const session = makeEchoSession([
+    (opts) => {
+      opts.onDelta?.("checking");
+      return {
+        role: "assistant",
+        content: "checking",
+        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
+      };
+    },
+    (opts) => {
+      opts.onDelta?.("done");
+      return { role: "assistant", content: "done" };
+    },
+  ]);
+  session.subscribe(() => {});
+  assert.equal((await session.prompt("go")).status, "ok");
+
+  const live = [...session.getSnapshot().timeline];
+  const restored = makeEchoSession([]);
+  restored.importState(session.exportState());
+
+  assert.deepEqual([...restored.getSnapshot().timeline], live);
+});
+
+test("importState replays an answered question into the same timeline", async () => {
+  const makeAskSession = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => {
+    const tools = new ToolRegistry();
+    return new Session({
+      systemPrompt: "test",
+      llm: fakeLLM(script),
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      builtInTools: { askUser: true },
+      sessionId: "s1",
+    });
+  };
+
+  const session = makeAskSession([
+    () => ({
+      role: "assistant",
+      content: null,
+      tool_calls: [{
+        id: "call_7",
+        type: "function",
+        function: {
+          name: "AskUser",
+          arguments: JSON.stringify({
+            questions: [{ question: "env?", options: [{ label: "prod" }, { label: "dev" }], multiSelect: false }],
+          }),
+        },
+      }],
+    }),
+    (opts) => {
+      opts.onDelta?.("done");
+      return { role: "assistant", content: "done" };
+    },
+  ]);
+  session.subscribe(() => {});
+  const run = session.prompt("go");
+  assert.ok(await waitUntil(() => session.pendingQuestion !== undefined, 5000), "question must become pending");
+  session.submitAnswer(session.pendingQuestion!.id, ["prod"]);
+  assert.equal((await run).status, "ok");
+
+  const live = [...session.getSnapshot().timeline];
+  const restored = makeAskSession([]);
+  restored.importState(session.exportState());
+
+  assert.deepEqual([...restored.getSnapshot().timeline], live);
+});
+
 test("a restored session with dangling tool calls is healed before the next run", async () => {
   const tools = new ToolRegistry();
   tools.register({
