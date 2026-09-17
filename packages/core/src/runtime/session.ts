@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
+import { cleanupSpoolDir } from "../util/spool.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServerManager } from "../mcp/manager.js";
@@ -359,6 +360,7 @@ export class Session {
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
+      if (this.limits.toolSpoolDir) void cleanupSpoolDir(this.limits.toolSpoolDir);
     }
     return { status, reply: this.stream.reply };
   }

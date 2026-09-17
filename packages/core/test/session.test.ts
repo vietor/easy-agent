@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Session, type SessionState } from "../src/runtime/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
+import { SPOOL_RETENTION_MS } from "../src/util/constants.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { waitUntil } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
@@ -30,7 +34,7 @@ function todoCall(todos: unknown, id: string): LLMAssistantMessage {
   };
 }
 
-function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>): Session {
+function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>, toolSpoolDir?: string): Session {
   const tools = new ToolRegistry();
   return new Session({
     systemPrompt: "test",
@@ -39,6 +43,7 @@ function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>):
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     builtInTools: { todoWrite: true },
+    toolSpoolDir,
   });
 }
 
@@ -493,6 +498,24 @@ test("submitAnswer feeds the answers back to the model as an AskUser tool result
   assert.equal(status, "ok");
   const entry = session.getSnapshot().timeline.find((e) => e.type === "question");
   assert.deepEqual(entry?.questions.map((q) => q.answer), ["prod", ["email", "slack"]]);
+});
+
+test("a finished run sweeps the tool spool directory", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "session-spool-"));
+  try {
+    const stale = join(dir, "stale.txt");
+    await writeFile(stale, "old", "utf-8");
+    const past = new Date(Date.now() - SPOOL_RETENTION_MS - 60_000);
+    await utimes(stale, past, past);
+    await writeFile(join(dir, "fresh.txt"), "new", "utf-8");
+    const session = makeSession([() => ({ role: "assistant", content: "ok" })], dir);
+
+    await session.prompt("hi");
+    assert.ok(await waitUntil(async () => !(await readdir(dir)).includes("stale.txt"), 5000));
+    assert.deepEqual(await readdir(dir), ["fresh.txt"]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("rejects non-positive turn, stall, and concurrency limits", () => {
