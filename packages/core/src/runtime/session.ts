@@ -11,7 +11,7 @@ import type { Todo, Tool } from "../tools/types.js";
 import type { AskAnswer, AskQuestion } from "../tools/ask-user.js";
 import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineEvent } from "./events.js";
 import type { MCPClientInfo } from "../mcp/types.js";
-import { Agent, type RunStatus } from "./agent.js";
+import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
@@ -178,6 +178,16 @@ function requirePositiveInt(value: number, name: string): number {
   return value;
 }
 
+function resolveRunLimits(deps: SessionDeps): RunLimits {
+  return {
+    maxTurns: requirePositiveInt(deps.maxTurns ?? DEFAULT_MAX_TURNS, "maxTurns"),
+    stallThreshold: requirePositiveInt(deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD, "stallThreshold"),
+    maxParallelToolCalls: requirePositiveInt(deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, "maxParallelToolCalls"),
+    contextLimit: deps.contextLimit,
+    toolSpoolDir: deps.toolSpoolDir,
+  };
+}
+
 export class Session {
   private agent: Agent;
   private mcp: MCPServerManager;
@@ -195,6 +205,7 @@ export class Session {
 
   private conversation: SessionMessages;
   private tools: ToolRegistry;
+  private limits: RunLimits;
   readonly cwd: string;
   readonly sessionId: string;
 
@@ -272,9 +283,7 @@ export class Session {
   }
 
   constructor(deps: SessionDeps) {
-    const maxTurns = requirePositiveInt(deps.maxTurns ?? DEFAULT_MAX_TURNS, "maxTurns");
-    const stallThreshold = requirePositiveInt(deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD, "stallThreshold");
-    const maxParallelToolCalls = requirePositiveInt(deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, "maxParallelToolCalls");
+    this.limits = resolveRunLimits(deps);
     this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
@@ -290,11 +299,7 @@ export class Session {
             llm: deps.llm,
             tools: this.tools,
             cwd: this.cwd,
-            maxTurns,
-            stallThreshold,
-            maxParallelToolCalls,
-            contextLimit: deps.contextLimit,
-            toolSpoolDir: deps.toolSpoolDir,
+            ...this.limits,
             onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
           }, systemPrompt, task, level, signal),
       },
@@ -307,11 +312,7 @@ export class Session {
       cwd: this.cwd,
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
-      stallThreshold,
-      maxTurns,
-      maxParallelToolCalls,
-      contextLimit: deps.contextLimit,
-      toolSpoolDir: deps.toolSpoolDir,
+      ...this.limits,
       resolveSkill: this.resolveSkill,
       onCompact: () => {
         this.stream.discardStreamedText();

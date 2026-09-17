@@ -24,20 +24,23 @@ import { toolError, type TextResult } from "../tools/types.js";
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
 
-export interface AgentOptions {
+export interface RunLimits {
+  maxTurns: number;
+  stallThreshold: number;
+  maxParallelToolCalls: number;
+  contextLimit: number;
+  toolSpoolDir?: string;
+}
+
+export interface AgentOptions extends RunLimits {
   llm: LLMClient;
   conversation: SessionMessages;
   tools: ToolRegistry;
   cwd: string;
   setTodos: (todos: Todo[]) => void;
   getTodos: () => readonly Todo[];
-  stallThreshold: number;
-  maxTurns: number;
-  maxParallelToolCalls: number;
-  contextLimit: number;
   resolveSkill?: (name: string) => Skill | undefined;
   onCompact?: () => void;
-  toolSpoolDir?: string;
 }
 
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };

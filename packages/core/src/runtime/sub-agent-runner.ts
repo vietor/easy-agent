@@ -1,19 +1,14 @@
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
-import { Agent, type RunStatus } from "./agent.js";
+import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
 import type { LLMClient } from "../llm/types.js";
 import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";
 
-export interface SubAgentRunOptions {
+export interface SubAgentRunOptions extends RunLimits {
   llm: LLMClient;
   tools: ToolRegistry;
   cwd: string;
-  maxTurns: number;
-  stallThreshold: number;
-  maxParallelToolCalls: number;
-  contextLimit: number;
-  toolSpoolDir?: string;
   onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
 }
 
@@ -30,27 +25,24 @@ export async function runSubAgent(
   level: AgentLevel,
   signal?: AbortSignal
 ): Promise<SubAgentRunResult> {
-  const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${opts.cwd}`;
-  const prompt = [systemPrompt, environment, renderToolUsePrompt(opts.maxTurns, level === 1 ? "readOnly" : "full")];
-  if (opts.toolSpoolDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
+  const { llm, tools, cwd, onUsage, ...limits } = opts;
+  const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${cwd}`;
+  const prompt = [systemPrompt, environment, renderToolUsePrompt(limits.maxTurns, level === 1 ? "readOnly" : "full")];
+  if (limits.toolSpoolDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
   const conversation = new SessionMessages(prompt.join("\n\n"));
   const subTools = new ToolRegistry();
-  subTools.registerAll(opts.tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
+  subTools.registerAll(tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));
   const subAgent = new Agent({
-    llm: opts.llm,
+    llm,
     conversation,
     tools: subTools,
-    cwd: opts.cwd,
+    cwd,
     setTodos: () => {},
     getTodos: () => [],
-    stallThreshold: opts.stallThreshold,
-    maxTurns: opts.maxTurns,
-    maxParallelToolCalls: opts.maxParallelToolCalls,
-    contextLimit: opts.contextLimit,
-    toolSpoolDir: opts.toolSpoolDir,
+    ...limits,
   });
   const status = await subAgent.run(task, undefined, signal);
-  opts.onUsage?.(subAgent.usage.cacheInputTokens, subAgent.usage.missInputTokens, subAgent.usage.outputTokens);
+  onUsage?.(subAgent.usage.cacheInputTokens, subAgent.usage.missInputTokens, subAgent.usage.outputTokens);
   const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
   const messages = status !== "ok" ? conversation.export() : [];
   return { status, reply, messages };
