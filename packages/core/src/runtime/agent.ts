@@ -11,7 +11,6 @@ import {
   TODO_WRITE_TOOL_NAME,
 } from "../util/constants.js";
 import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, truncateOutput } from "../util/text.js";
-import { cleanupSpoolDir } from "../util/spool.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -44,8 +43,6 @@ export interface AgentOptions extends RunLimits {
 }
 
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
-
-const sweptDirs = new Set<string>();
 
 interface ToolCallOutcome {
   id: string;
@@ -386,10 +383,6 @@ export class Agent {
     const tail = this.tools.truncateDirection(name) === "tail";
     const cut = truncateOutput(content, tail ? "tail" : "head", this.maxToolOutputBytes, MAX_TOOL_OUTPUT_LINES);
     if (!cut.truncated) return { content };
-    if (!sweptDirs.has(this.toolSpoolDir)) {
-      sweptDirs.add(this.toolSpoolDir);
-      void cleanupSpoolDir(this.toolSpoolDir);
-    }
     let outputPath: string;
     try {
       await mkdir(this.toolSpoolDir, { recursive: true });

@@ -57,6 +57,7 @@ export class FileSessionPersistence {
 
   async cleanupSessions(keepId?: string): Promise<void> {
     await cleanupSpoolDir(this.dir, keepId ? `${keepId}.jsonl` : undefined);
+    await cleanupSpoolDir(this.toolSpoolDir);
   }
 
   private ensureDir(): void {
