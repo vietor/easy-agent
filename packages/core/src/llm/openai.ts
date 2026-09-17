@@ -10,7 +10,7 @@ import { BaseAdapter } from "./base.js";
 import type { ToolSchema } from "../tools/types.js";
 import { netFetch } from "../util/net.js";
 
-export function createOpenAIClient(config: ResolvedLLMConfig): OpenAI {
+function createOpenAIClient(config: ResolvedLLMConfig): OpenAI {
   return new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl || undefined,

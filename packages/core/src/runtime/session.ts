@@ -41,14 +41,14 @@ class StreamBuffer {
 
   push(delta: string): string {
     if (this.replyStart === null) this.replyStart = Date.now();
-    const text = this.streamingText? delta: trimLeftNewlines(delta);
-    if(text) this.streamingText += text;
+    const text = this.streamingText ? delta : trimLeftNewlines(delta);
+    if (text) this.streamingText += text;
     return text;
   }
 
   pushThinking(delta: string): string {
-    const text = this.thinkingText? delta: trimLeftNewlines(delta);
-    if(text) this.thinkingText += text;
+    const text = this.thinkingText ? delta : trimLeftNewlines(delta);
+    if (text) this.thinkingText += text;
     return text;
   }
 
@@ -399,7 +399,7 @@ export class Session {
         break;
     }
     if (!suppressed) this.emit(e);
-    if(e.type == "assistant_delta") this.flushThinking();
+    if (e.type === "assistant_delta") this.flushThinking();
   };
 
   private flushStreaming(): void {

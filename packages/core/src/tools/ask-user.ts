@@ -38,7 +38,7 @@ const AskOptionSchema = z.object({
 });
 
 const AskQuestionSchema = z.object({
-  header: z.string().overwrite((header) => header.slice(0, MAX_HEADER_LENGTH)).max(MAX_HEADER_LENGTH).optional()
+  header: z.string().overwrite((header) => header.slice(0, MAX_HEADER_LENGTH)).optional()
     .describe("Short label for the question, shown as a chip."),
   question: z.string({ error: QUESTION_ERROR }).trim().min(1, { error: QUESTION_ERROR }).describe("The question text."),
   options: z.array(AskOptionSchema, { error: OPTIONS_ERROR }).min(2, { error: OPTIONS_ERROR }).max(MAX_OPTIONS, { error: OPTIONS_ERROR })

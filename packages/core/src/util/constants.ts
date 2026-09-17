@@ -27,6 +27,7 @@ export const MAX_SHELL_OUTPUT_MB = 20;
 export const PRUNE_PROTECT_TOKENS = 40_000;
 export const PRUNE_MIN_CLEAR_TOKENS = 20_000;
 export const PRUNE_TRIGGER_RATIO = 0.8;
+export const CONTEXT_LIMIT_RATIO = 0.75;
 export const SPOOL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const SPOOL_MAX_BYTES = 200 * 1024 * 1024;
 export const TOOL_OUTPUT_CLEARED_PREFIX = "(output cleared: ";

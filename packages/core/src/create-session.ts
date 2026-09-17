@@ -3,7 +3,7 @@ import { Session } from "./runtime/session.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
-import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
+import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { renderSubAgentGuidance } from "./tools/sub-agent.js";
@@ -13,7 +13,7 @@ import type { SessionOptions } from "./runtime/session.js";
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
 
 function contextLimitFor(maxInputTokens: number): number {
-  return Math.floor(maxInputTokens * 0.75);
+  return Math.floor(maxInputTokens * CONTEXT_LIMIT_RATIO);
 }
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, toolSpoolDir: string | undefined): string {
