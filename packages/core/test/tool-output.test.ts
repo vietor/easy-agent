@@ -134,7 +134,7 @@ test("old tool output is cleared once the context approaches its limit", async (
     script.push(() => ({ role: "assistant", content: "done" }));
     const { llm } = fakeLLM(script);
     const notices: string[] = [];
-    const agent = makeAgent(llm, [stub("Big", BIG)], dir, 100_000);
+    const agent = makeAgent(llm, [stub("Big", BIG)], dir, 60_000);
 
     assert.equal(await agent.run("go", (e) => { if (e.type === "notice") notices.push(e.text); }), "ok");
     assert.match(notices.join("\n"), /cleared .* tokens of old tool output/);

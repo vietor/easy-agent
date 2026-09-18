@@ -12,8 +12,8 @@ import type { SessionOptions } from "./runtime/session.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
 
-function contextLimitFor(maxInputTokens: number): number {
-  return Math.floor(maxInputTokens * CONTEXT_LIMIT_RATIO);
+function contextLimitFor(maxInputTokens: number, maxOutputTokens: number): number {
+  return Math.floor(Math.min(maxInputTokens * CONTEXT_LIMIT_RATIO, maxInputTokens - maxOutputTokens));
 }
 
 function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, toolSpoolDir: string | undefined): string {
@@ -45,7 +45,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     llm,
     tools,
     mcp,
-    contextLimit: contextLimitFor(llm.maxInputTokens),
+    contextLimit: contextLimitFor(llm.maxInputTokens, llm.maxOutputTokens),
   });
 
   if (opts.tools) {

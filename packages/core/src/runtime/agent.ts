@@ -6,13 +6,13 @@ import {
   MAX_TOOL_OUTPUT_BYTES,
   MAX_TOOL_OUTPUT_LINES,
   NOT_EXECUTED_PREFIX,
-  PRUNE_TRIGGER_RATIO,
+  PRUNE_MIN_CLEAR_RATIO,
   SKILL_TOOL_NAME,
   TODO_WRITE_TOOL_NAME,
 } from "../util/constants.js";
 import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, truncateOutput } from "../util/text.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
-import type { LLMClient } from "../llm/types.js";
+import type { LLMClient, LLMToolChoice } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
@@ -138,13 +138,22 @@ export class Agent {
   async compact(onEvent?: (e: SessionEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
     const request = this.conversation.toLLM().slice(1);
     if (request.length === 0) return "ok";
+    const cachePrefixLen = request.length;
     const todos = this.getTodos();
     if (todos.length) {
       request.push({ role: "user", content: renderCompactTodos(todos) });
     }
     request.push({ role: "user", content: COMPACT_PROMPT });
     const chat = await this.chatOnce(
-      { messages: request, tools: [], thinking: false, onEvent, signal },
+      {
+        messages: request,
+        tools: this.tools.schemas(),
+        thinking: false,
+        toolChoice: "none",
+        cachePrefixLen,
+        onEvent,
+        signal,
+      },
       () => onEvent?.({ type: "interrupted" })
     );
     if (!chat.ok) return chat.status;
@@ -225,8 +234,8 @@ export class Agent {
     let pendingNudge = "";
     let compactionFutile = false;
     while (true) {
-      if (this.toolSpoolDir && this.contextTokens > this.contextLimit * PRUNE_TRIGGER_RATIO) {
-        const freed = this.conversation.pruneToolOutputs();
+      if (this.toolSpoolDir && this.contextTokens > this.contextLimit) {
+        const freed = this.conversation.pruneToolOutputs(Math.floor(this.contextTokens * PRUNE_MIN_CLEAR_RATIO));
         if (freed > 0) onEvent?.({ type: "notice", text: `cleared ${formatCompactNumber(freed)} tokens of old tool output` });
       }
       if (!compactionFutile && this.contextTokens > this.contextLimit) {
@@ -313,7 +322,7 @@ export class Agent {
   }
 
   private async chatOnce(
-    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; cachePrefixLen?: number; onEvent?: (e: SessionEvent) => void; signal?: AbortSignal },
+    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; toolChoice?: LLMToolChoice; cachePrefixLen?: number; onEvent?: (e: SessionEvent) => void; signal?: AbortSignal },
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
@@ -322,6 +331,7 @@ export class Agent {
         messages: opts.messages,
         tools: opts.tools,
         thinking: opts.thinking,
+        toolChoice: opts.toolChoice,
         cachePrefixLen: opts.cachePrefixLen,
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),

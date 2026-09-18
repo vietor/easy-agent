@@ -37,7 +37,8 @@ export class ToolRegistry {
 
   schemas(): ToolSchema[] {
     if (!this.schemasCache) {
-      this.schemasCache = [...this.tools.values()].map((t) => ({
+      const ordered = [...this.tools.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      this.schemasCache = ordered.map((t) => ({
         type: "function" as const,
         function: {
           name: t.name,

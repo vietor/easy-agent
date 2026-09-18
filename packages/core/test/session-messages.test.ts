@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
+import { INTERRUPTED_TOOL_CONTENT, PRUNE_MIN_CLEAR_RATIO } from "../src/util/constants.js";
 
 const SYS = "sys";
 
@@ -192,8 +192,8 @@ test("pruneToolOutputs clears old tool output, protects the recent window, and f
   c.toLLM();
   const before = c.getEstimatedTokens();
 
-  const freed = c.pruneToolOutputs();
-  assert.ok(freed > 20_000, "prune must report the tokens it freed");
+  const freed = c.pruneToolOutputs(PRUNE_MIN_CLEAR_RATIO * before);
+  assert.ok(freed > PRUNE_MIN_CLEAR_RATIO * before, "prune must report the tokens it freed");
   assert.equal(c.getEstimatedTokens(), before - freed);
 
   const msgs = c.export();
@@ -208,10 +208,10 @@ test("pruneToolOutputs clears old tool output, protects the recent window, and f
 
 test("pruneToolOutputs leaves history intact when the reclaimable amount is below the minimum", () => {
   const c = new SessionMessages(SYS);
-  for (let i = 0; i < 41; i++) addToolOutput(c, `t${i}`, 4_000);
+  for (let i = 0; i < 10; i++) addToolOutput(c, `t${i}`, 4_000);
   const before = c.getEstimatedTokens();
 
-  assert.equal(c.pruneToolOutputs(), 0);
+  assert.equal(c.pruneToolOutputs(0.5 * before), 0);
   assert.equal(c.getEstimatedTokens(), before);
   assert.equal(c.export()[0].content, "a".repeat(4_000));
 });

@@ -16,6 +16,7 @@ import { netFetch } from "../util/net.js";
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 const CACHE_BREAKPOINT_WINDOW = 15;
 const MAX_MESSAGE_CACHE_BREAKPOINTS = 3;
+const CACHE_CONTROL = { type: "ephemeral" as const, ttl: "1h" as const };
 
 export class AnthropicAdapter extends BaseAdapter {
   private client: Anthropic;
@@ -35,13 +36,12 @@ export class AnthropicAdapter extends BaseAdapter {
     const { system, messages } = toAnthropicMessages(opts.messages, useThinking, opts.cachePrefixLen);
     const tools = opts.tools.map(toAnthropicTool);
 
-    const cacheControl = { type: "ephemeral" as const };
     const systemCached = system
-      ? [{ type: "text" as const, text: system, cache_control: cacheControl }]
+      ? [{ type: "text" as const, text: system, cache_control: CACHE_CONTROL }]
       : undefined;
     const toolsCached =
       tools.length > 0 && !system
-        ? [...tools.slice(0, -1), { ...tools[tools.length - 1], cache_control: cacheControl }]
+        ? [...tools.slice(0, -1), { ...tools[tools.length - 1], cache_control: CACHE_CONTROL }]
         : undefined;
 
     const params: Anthropic.MessageStreamParams = {
@@ -54,6 +54,7 @@ export class AnthropicAdapter extends BaseAdapter {
         output_config: { effort: this.thinkingEffort },
       }),
       ...(tools.length > 0 && { tools: toolsCached ?? tools }),
+      ...(opts.toolChoice && { tool_choice: { type: opts.toolChoice } }),
     };
 
     const stream = this.client.messages.stream(params, { signal: opts.signal });
@@ -165,14 +166,13 @@ export function toAnthropicMessages(
 }
 
 function markCacheBreakpoint(message: Anthropic.MessageParam): void {
-  const control = { type: "ephemeral" as const };
   if (typeof message.content === "string") {
-    message.content = [{ type: "text", text: message.content, cache_control: control }];
+    message.content = [{ type: "text", text: message.content, cache_control: CACHE_CONTROL }];
     return;
   }
   const last = message.content[message.content.length - 1];
   if (last.type === "text" || last.type === "tool_use" || last.type === "tool_result") {
-    last.cache_control = control;
+    last.cache_control = CACHE_CONTROL;
   }
 }
 

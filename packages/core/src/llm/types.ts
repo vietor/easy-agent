@@ -20,6 +20,8 @@ export type LLMThinkingEffort = ResolvedLLMConfig["thinkingEffort"];
 
 export type LLMBackend = ResolvedLLMConfig["backend"];
 
+export type LLMToolChoice = "none" | "auto";
+
 export interface ChatOptions {
   messages: LLMMessage[];
   tools: ToolSchema[];
@@ -29,6 +31,7 @@ export interface ChatOptions {
   onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
   onToolCall?: () => void;
   thinking?: boolean;
+  toolChoice?: LLMToolChoice;
   cachePrefixLen?: number;
   signal?: AbortSignal;
 }

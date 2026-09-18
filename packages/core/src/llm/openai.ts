@@ -34,7 +34,7 @@ export class CompletionsAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<LLMAssistantMessage> {
-    const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, signal } = opts;
+    const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, toolChoice, signal } = opts;
     let content = "";
     let refusal = "";
     const calls = new Map<number, ToolCallAccumulator>();
@@ -46,6 +46,7 @@ export class CompletionsAdapter extends BaseAdapter {
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
+      ...(toolChoice && { tool_choice: toolChoice }),
       ...(useThinking && { reasoning_effort: this.thinkingEffort })
     };
     const stream = await this.client.chat.completions.create(
@@ -120,7 +121,7 @@ export class ResponsesAdapter extends BaseAdapter {
   }
 
   async stream(opts: ChatOptions): Promise<LLMAssistantMessage> {
-    const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, signal } = opts;
+    const { messages, tools, onDelta, onThinking, onUsage, onToolCall, thinking, toolChoice, signal } = opts;
     const useThinking = thinking !== false;
     const params: Record<string, unknown> = {
       model: this.model,
@@ -128,6 +129,7 @@ export class ResponsesAdapter extends BaseAdapter {
       max_output_tokens: this.maxOutputTokens,
       stream: true,
       ...(tools.length > 0 && { tools: tools.map(toResponsesTool) }),
+      ...(toolChoice && { tool_choice: toolChoice }),
       ...(useThinking && {
         reasoning: { effort: this.thinkingEffort, summary: "auto" },
       }),

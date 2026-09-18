@@ -90,7 +90,7 @@ test("nested sub-agent reply becomes the SubAgent tool result", async () => {
   assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
   assert.match(String(calls[1].messages[0].content), /Tool-Use Guidelines/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
-  assert.deepEqual(nestedTools, ["Read", "Glob", "Grep", "WebFetch"]);
+  assert.deepEqual(nestedTools, ["Glob", "Grep", "Read", "WebFetch"]);
   assert.ok(!nestedTools.some((n) => ["SubAgent", "Shell", "Write", "Edit", "Skill"].includes(n)));
   assert.ok(
     calls[2].messages.some(
@@ -112,7 +112,7 @@ test("general sub-agent gets writable tools but not session-scoped ones", async 
 
   assert.match(String(calls[1].messages[0].content), /You are the General sub-agent/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
-  assert.deepEqual(nestedTools, ["Read", "Glob", "Grep", "WebFetch", "Shell", "Write", "Edit"]);
+  assert.deepEqual(nestedTools, ["Edit", "Glob", "Grep", "Read", "Shell", "WebFetch", "Write"]);
   assert.ok(!nestedTools.some((n) => ["SubAgent", "AskUser", "Skill", "TodoWrite"].includes(n)));
 
   const toolMsg = agent.export().find((m) => m.role === "tool");

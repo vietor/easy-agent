@@ -71,7 +71,7 @@ test("the cacheable prefix is marked and the appended reminder is not", () => {
   );
   const toolResult = messages.find((m) => Array.isArray(m.content) && m.content.some((b) => b.type === "tool_result"));
   assert.deepEqual(toolResult?.content, [
-    { type: "tool_result", tool_use_id: "call_1", content: "echoed", cache_control: { type: "ephemeral" } },
+    { type: "tool_result", tool_use_id: "call_1", content: "echoed", cache_control: { type: "ephemeral", ttl: "1h" } },
   ]);
   assert.equal(messages[messages.length - 1].content, "<system-reminder>Tasks: ...");
 });
@@ -111,7 +111,7 @@ test("a leading assistant message folded into the system keeps the prefix aligne
   );
   assert.equal(system, "Summary of conversation so far: ...");
   assert.deepEqual(messages, [
-    { role: "user", content: [{ type: "text", text: "go", cache_control: { type: "ephemeral" } }] },
+    { role: "user", content: [{ type: "text", text: "go", cache_control: { type: "ephemeral", ttl: "1h" } }] },
   ]);
 });
 

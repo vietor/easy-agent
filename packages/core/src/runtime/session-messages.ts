@@ -1,7 +1,6 @@
 import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import {
   INTERRUPTED_TOOL_CONTENT,
-  PRUNE_MIN_CLEAR_TOKENS,
   PRUNE_PROTECT_TOKENS,
   TOOL_OUTPUT_CLEARED_PREFIX,
 } from "../util/constants.js";
@@ -141,7 +140,7 @@ export class SessionMessages {
     }
   }
 
-  pruneToolOutputs(): number {
+  pruneToolOutputs(minFreedTokens: number): number {
     const candidates: ToolMessage[] = [];
     let total = 0;
     let freed = 0;
@@ -154,7 +153,7 @@ export class SessionMessages {
       freed += tokens - estimateTokens(clearedContent(m));
       candidates.push(m);
     }
-    if (freed <= PRUNE_MIN_CLEAR_TOKENS) return 0;
+    if (freed <= minFreedTokens) return 0;
 
     for (const message of candidates) message.content = clearedContent(message);
     this.estimatedTokens -= freed;
