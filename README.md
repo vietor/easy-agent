@@ -53,11 +53,9 @@ easy-agent/
 │           ├── commands/            # built-in slash commands + dispatcher
 │           ├── tools/               # extra built-in tools (LocalScript — run throwaway JS/Python scripts)
 │           ├── prompts.ts           # system prompt assembly (base + AGENTS.md/CLAUDE.md)
-│           ├── session-format.ts    # JSONL codec (message/todo line encode + decode)
 │           ├── session-resolution.ts # resolve CLI options into a session (continue/resume/import)
-│           ├── session-persistence.ts # FileSessionPersistence (JSONL save/resume)
 │           ├── util/                # package info
-│           ├── config.ts            # JSON config loader (~/.easy-agent/config.json)
+│           ├── config.ts            # JSON config loader (~/.easy-agent.json)
 │           ├── index.ts             # bin entry (shebang)
 │           └── main.ts              # parses args, wires the session and starts the TUI
 ├── package.json       # workspace root (private)
@@ -65,7 +63,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client, skill system), an event-driven interface (`SessionEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`) — it has no storage backend and never saves on its own. The `cli` package depends on `core` and provides the interactive terminal experience plus the JSONL session persistence (`--continue`/`--resume`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
+The `core` package contains the framework logic (agent loop, tools, MCP client, skill system), an event-driven interface (`SessionEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`). With `sessionDir` set it also owns JSONL session persistence itself — the file format, incremental writes, listing, and sweeping. The `cli` package depends on `core` and provides the interactive terminal experience plus session resolution (`--continue`/`--resume`/`--import`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
 
 ### Build order
 

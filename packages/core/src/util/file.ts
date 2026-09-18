@@ -1,5 +1,13 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+
+export function notesFileName(id: string): string {
+  return `${id}.notes.md`;
+}
+
+export function notesFilePath(dir: string, id: string): string {
+  return join(dir, notesFileName(id));
+}
 
 export function tryReadFileText(path: string): string | undefined {
   if (existsSync(path)) {

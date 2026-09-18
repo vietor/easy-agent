@@ -106,13 +106,14 @@ const session = await createSession({
 | `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (Read/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier. |
-| `maxTurns` | `number` | `50` | Maximum agent turns (LLM calls with tool calls) per prompt before the run errors out. |
+| `maxTurns` | `number` | `50` | Tool-calling turns allowed per prompt. Once the last 20% is left the run warns the model in-band, and the turn after the budget is spent is reserved for the final answer with tools disabled. |
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 | `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
+| `sessionDir` | `string` | `undefined` | Directory for the session's JSONL file, written as `<sessionDir>/<sessionId>.jsonl`. When unset, core keeps no storage. |
 
 `maxTurns`, `stallThreshold`, and `maxParallelToolCalls` must be positive integers; `createSession` throws at construction otherwise.
 
-The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`.
+The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`. Compaction replaces the history with a summary *plus the most recent messages verbatim* (up to 15% of `contextLimit`), so the latest exchange survives without being re-read. When `toolSpoolDir` is set, the prompt also directs the model to keep a running notes file at `<toolSpoolDir>/<sessionId>.notes.md` and to re-read it after a compaction instead of re-exploring.
 
 ## `SYSTEM_PROMPT_BOUNDARY`
 
@@ -150,8 +151,9 @@ const session = await createSession({ systemPrompt, llm });
 | `clear(): void` | Reset the conversation and log. |
 | `importState(state: SessionState): void` | Replace conversation messages and todos from a previously exported `SessionState`, rebuilding the timeline. Throws `SessionBusyError` if a run is in progress. |
 | `export(): SessionMessage[]` | Return all session messages (excluding the system prompt). |
-| `exportState(): SessionState` | Return the full session state (`{ messages, todos }`) for the host to persist; `export()` returns only messages. |
-| `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a single summary message. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
+| `exportState(): SessionState` | Return the full session state (`{ messages, todos }`); `export()` returns only messages. |
+| `save(): Promise<void>` | Flush the current state to disk. Resolves immediately when `sessionDir` is not configured. |
+| `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a summary message followed by the retained recent messages. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
 | `submitAnswer(id: string, answers: AskAnswer[]): void` | Supply answers to a pending user question group (from the built-in AskUser tool), one entry per question; multi-select answers are `string[]`, skipped ones `""`. |
 | `pendingQuestion: Extract<TimelineEvent, { type: "question" }> \| undefined` | *(getter)* The most recent unanswered question group, or `undefined` if none are pending. |
@@ -287,6 +289,7 @@ The command system lives in host code. Core exposes the primitives hosts build o
 | `mcpServers` | `readonly MCPServerInfo[]` | Status and tool list of connected MCP servers. |
 | `cwd` | `string` | The resolved working directory used by tools. |
 | `sessionId` | `string` | The unique session identifier. |
+| `filePath` | `string \| undefined` | Path of this session's JSONL file, or `undefined` when `sessionDir` is not configured. |
 | `running` | `boolean` | Whether a prompt/compact is in progress. Check before issuing a driver call (see Reentrancy). |
 
 ### Reentrancy
@@ -302,7 +305,7 @@ These remain callable during a run (they are inputs to the running loop, or read
 | Method | Behavior when busy |
 |---|---|
 | `abort`, `submitAnswer` | Allowed - control the running loop. |
-| `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `export`, `exportState`, `dispose`, accessors | Allowed. |
+| `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `export`, `exportState`, `save`, `dispose`, accessors | Allowed. |
 
 ```ts
 import { SessionBusyError } from "@vietor/agent-core";
@@ -379,7 +382,7 @@ type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
 | `aborted` | The run was aborted via `abort()`. |
 | `error` | The run ended due to an LLM/API error. |
 | `stalled` | The agent stalled past `stallThreshold`: repeated identical tool calls, or repeated text-only responses while todos are incomplete. |
-| `maxTurns` | The agent exceeded `maxTurns`. |
+| `maxTurns` | The model called a tool on the reserved final turn. The conversation is intact, so a new prompt resumes with a fresh budget. |
 
 Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted, `"error"` on failure).
 
@@ -453,7 +456,19 @@ interface SessionState {
 }
 ```
 
-Core has no storage backend and never saves on its own. The host calls `session.exportState()` to snapshot the current state (e.g. after each prompt) and `session.importState(state)` to restore one — import is synchronous and rebuilds the timeline from the messages. Storage concerns (serialization, file layout, write serialization) are entirely the host's; `sessionId` is the suggested storage key.
+With `sessionDir` set, core persists the state itself as JSONL at `<sessionDir>/<sessionId>.jsonl` (a leading session record, one record per message, plus a trailing todo record) and keeps it current: a save runs at the end of every run — awaited, so the file is on disk before `prompt()`/`compact()`/`runSkill()` resolves — and on `clear()` and `importState()`. Saves are serialized, an append-only delta while messages are only added and a rewrite whenever existing history changed or was replaced (compaction, clear, import, in-place tool-output pruning), and a failed save emits an `error` event without failing the run.
+
+`createSession` also sweeps the directories it was given — `sessionDir` and `toolSpoolDir` — dropping files past the retention age or over the total size cap while keeping the current session's own `<sessionId>.jsonl` and `<sessionId>.notes.md`; the run loop re-sweeps the spool directory at every run boundary.
+
+Without `sessionDir`, core never touches the filesystem. The host drives persistence itself: `session.exportState()` snapshots the state, `session.importState(state)` restores one (synchronous, rebuilding the timeline from the messages), and `session.save()` flushes on demand — it resolves immediately when no `sessionDir` is configured. The JSONL format itself stays internal; a host with its own storage only ever handles the plain `SessionState` object.
+
+Session files are also reachable without a `Session`:
+
+| Function | Description |
+|---|---|
+| `sessionFilePath(dir, sessionId)` | The JSONL path for a session in `dir`. |
+| `loadSessionState(path)` | Read one session file back into a `SessionState`, or `null` if it does not exist. |
+| `listSessions(dir)` | Every session in `dir` as `SessionMeta` (`{ id, title?, createdAt, updatedAt }`), most recently updated first. The title is the first user message, summarized; a session that never had one is untitled. `createdAt` comes from the file's leading session record, falling back to its birth time for files written before that record existed. |
 
 ### `Todo`
 
@@ -532,8 +547,8 @@ Core tools (registered by default; `builtInTools: { readOnly: true }` registers 
 | Tool | Description |
 |---|---|
 | **Read** *(read-only)* | Read files with line numbers. |
-| **Glob** *(read-only)* | File listing by glob pattern. |
-| **Grep** *(read-only)* | Content search with regex. |
+| **Glob** *(read-only)* | File listing by glob pattern. A capped listing reports the total match count and the per-directory distribution. |
+| **Grep** *(read-only)* | Content search with regex. A capped result reports the total count, plus the per-directory distribution in `files_with_matches` mode. |
 | **WebFetch** *(read-only)* | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 | **Shell** | Run shell commands. |
 | **Write** | Create or overwrite files. |

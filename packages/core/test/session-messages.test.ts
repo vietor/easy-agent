@@ -60,10 +60,34 @@ test("snapshot/restore rolls back messages and token estimate", () => {
 test("compact replaces the conversation with the summary", () => {
   const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "history" });
-  c.compact("summary text");
+  c.compact("summary text", 0);
   assert.equal(c.export().length, 1);
   assert.equal(c.export()[0].role, "assistant");
   assert.equal(c.getEstimatedTokens(), 1 + Math.round("summary text".length / 4));
+});
+
+test("compact keeps the most recent messages verbatim within the tail budget", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "user", content: "old ".repeat(100) });
+  c.add({ role: "user", content: "recent" });
+  c.add({ role: "assistant", content: "reply" });
+  c.compact("summary text", Math.round("recent".length / 4) + Math.round("reply".length / 4));
+  assert.deepEqual(c.export().map((m) => m.content), ["summary text", "recent", "reply"]);
+  assert.equal(
+    c.getEstimatedTokens(),
+    1 + Math.round("summary text".length / 4) + Math.round("recent".length / 4) + Math.round("reply".length / 4)
+  );
+  assert.equal(c.toLLM().length, 4);
+});
+
+test("compact never leaves a tool result whose tool call was dropped", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add(assistantToolCall("t1"));
+  c.add({ role: "tool", tool_call_id: "t1", content: "x".repeat(400) });
+  c.compact("summary", 50);
+  assert.deepEqual(c.export().map((m) => m.role), ["assistant"]);
+  assert.equal(c.getEstimatedTokens(), 1 + Math.round("summary".length / 4));
 });
 
 test("skillMessage keeps the prompt the first time and only notes it afterwards", () => {

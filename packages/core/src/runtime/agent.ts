@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import {
+  COMPACT_TAIL_RATIO,
   MAX_TOOL_OUTPUT_BYTES,
   MAX_TOOL_OUTPUT_LINES,
   NOT_EXECUTED_PREFIX,
@@ -14,7 +15,7 @@ import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, tru
 import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import type { LLMClient, LLMToolChoice } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
-import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge } from "./prompts.js";
+import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge, renderTurnBudget } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
@@ -163,7 +164,7 @@ export class Agent {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
       return "error";
     }
-    this.conversation.compact(compactText);
+    this.conversation.compact(compactText, Math.floor(this.contextLimit * COMPACT_TAIL_RATIO));
     this.onCompact?.();
     return "ok";
   }
@@ -232,13 +233,13 @@ export class Agent {
     let turns = 0;
     let textOnlyStreak = 0;
     let pendingNudge = "";
-    let compactionFutile = false;
+    let nextCompactAbove = 0;
     while (true) {
       if (this.toolSpoolDir && this.contextTokens > this.contextLimit) {
         const freed = this.conversation.pruneToolOutputs(Math.floor(this.contextTokens * PRUNE_MIN_CLEAR_RATIO));
         if (freed > 0) onEvent?.({ type: "notice", text: `cleared ${formatCompactNumber(freed)} tokens of old tool output` });
       }
-      if (!compactionFutile && this.contextTokens > this.contextLimit) {
+      if (this.contextTokens > this.contextLimit && this.contextTokens > nextCompactAbove) {
         onEvent?.({ type: "notice", text: "auto-compacting context" });
         const compactStatus = await this.compact(
           (e) => { if (e.type === "error") onEvent?.(e); },
@@ -246,22 +247,25 @@ export class Agent {
         );
         if (compactStatus !== "ok") return compactStatus;
         if (this.contextTokens > this.contextLimit) {
-          compactionFutile = true;
+          nextCompactAbove = this.contextTokens + this.contextLimit;
           onEvent?.({ type: "notice", text: "context still exceeds the limit after compacting" });
         }
       }
+      const finalTurn = turns >= this.maxTurns;
       const messages = this.conversation.toLLM();
       const cachePrefixLen = messages.length;
       const todos = this.getTodos();
       if (this.todoDeclared && todos.length && !pendingNudge) {
         messages.push({ role: "user", content: renderTodoReminder(todos) });
       }
-      if (pendingNudge) {
+      if (pendingNudge && !finalTurn) {
         messages.push({ role: "user", content: pendingNudge });
         pendingNudge = "";
       }
+      const budget = renderTurnBudget(turns, this.maxTurns);
+      if (budget) messages.push({ role: "user", content: budget });
       const chat = await this.chatOnce(
-        { messages, tools: this.tools.schemas(), cachePrefixLen, onEvent, signal },
+        { messages, tools: this.tools.schemas(), toolChoice: finalTurn ? "none" : undefined, cachePrefixLen, onEvent, signal },
         () => {}
       );
       if (!chat.ok) return chat.status;
@@ -269,7 +273,7 @@ export class Agent {
       const msg = chat.message;
       this.conversation.add(msg);
       if (!msg.tool_calls?.length) {
-        if (this.todoDeclared && todos.length > 0 && todos.some(t => t.status !== "completed")) {
+        if (!finalTurn && this.todoDeclared && todos.length > 0 && todos.some(t => t.status !== "completed")) {
           if (++textOnlyStreak >= this.stallThreshold) {
             onEvent?.({ type: "error", text: `agent stalled: ${textOnlyStreak} text-only responses with incomplete tasks` });
             return "stalled";
@@ -293,7 +297,7 @@ export class Agent {
       }
       if (++turns > this.maxTurns) {
         this.resolvePendingToolCalls(msg.tool_calls, `max turns reached (${this.maxTurns})`);
-        onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns})` });
+        onEvent?.({ type: "error", text: `agent exceeded max turns (${this.maxTurns}) despite the tools being disabled; the conversation is intact — send another message to resume with a fresh budget` });
         return "maxTurns";
       }
       const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formatRipgrepOutput, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
+import { directoryBreakdown, formatRipgrepOutput, overflowNotice, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
 import { DEFAULT_GLOB_LIMIT, NO_MATCHES } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
@@ -23,8 +23,9 @@ export const globTool: Tool = {
     const rgArgs = ["--files", "--sortr=modified"];
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(target);
-    const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal, DEFAULT_GLOB_LIMIT);
-    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
+    const { lines, truncated, all } = await runRipgrepLines(rgArgs, cwd, ctx.signal, DEFAULT_GLOB_LIMIT);
+    const overflow = truncated ? overflowNotice(all, lines.length, "file", directoryBreakdown(all)) : undefined;
+    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES, overflow) };
   },
   summarizeResult(result) {
     return ripgrepResultSummary("file", result, "Glob failed", "Found 0 files");

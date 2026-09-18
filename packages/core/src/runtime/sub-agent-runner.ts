@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
+import { notesFilePath } from "../util/file.js";
 import type { LLMClient } from "../llm/types.js";
 import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";
@@ -27,7 +29,9 @@ export async function runSubAgent(
 ): Promise<SubAgentRunResult> {
   const { llm, tools, cwd, onUsage, ...limits } = opts;
   const environment = `Environment:\n- Platform: ${process.platform}\n- Working directory: ${cwd}`;
-  const prompt = [systemPrompt, environment, renderToolUsePrompt(limits.maxTurns, level === 1 ? "readOnly" : "full")];
+  const mode = level === 1 ? "readOnly" : "full";
+  const notesPath = mode === "full" && limits.toolSpoolDir ? notesFilePath(limits.toolSpoolDir, randomUUID()) : undefined;
+  const prompt = [systemPrompt, environment, renderToolUsePrompt(limits.maxTurns, mode, notesPath)];
   if (limits.toolSpoolDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
   const conversation = new SessionMessages(prompt.join("\n\n"));
   const subTools = new ToolRegistry();

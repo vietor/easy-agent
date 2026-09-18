@@ -63,10 +63,15 @@ export class SessionMessages {
   private estimatedTokens = 0;
   private snapshot?: { messages: SessionMessage[]; estimatedTokens: number };
   private llmCache: LLMMessage[] | null = null;
+  private revisions = 0;
 
   constructor(private system: string) {
     this.systemEstimateTokens = estimateTokens(system);
     this.estimatedTokens = this.systemEstimateTokens;
+  }
+
+  get revision(): number {
+    return this.revisions;
   }
 
   getEstimatedTokens(): number {
@@ -137,6 +142,7 @@ export class SessionMessages {
       this.messages = out;
       this.estimatedTokens += addedTokens;
       this.llmCache = null;
+      this.revisions++;
     }
   }
 
@@ -159,6 +165,7 @@ export class SessionMessages {
     this.estimatedTokens -= freed;
     if (this.snapshot) this.snapshot.estimatedTokens -= freed;
     this.llmCache = null;
+    this.revisions++;
     return freed;
   }
 
@@ -166,8 +173,22 @@ export class SessionMessages {
     this.resetMessages([], 0);
   }
 
-  compact(summary: string): void {
-    this.resetMessages([{ role: "assistant", content: summary }], estimateTokens(summary), true);
+  compact(summary: string, keepTokens: number): void {
+    let start = this.messages.length;
+    let tokens = 0;
+    while (start > 0 && tokens < keepTokens) {
+      start--;
+      tokens += estimateTokens(messageText(this.messages[start]));
+    }
+    while (start < this.messages.length && this.messages[start].role === "tool") {
+      tokens -= estimateTokens(messageText(this.messages[start]));
+      start++;
+    }
+    this.resetMessages(
+      [{ role: "assistant", content: summary }, ...this.messages.slice(start)],
+      estimateTokens(summary) + tokens,
+      true
+    );
   }
 
   private resetMessages(messages: SessionMessage[], extraTokens: number, keepSnapshot = false): void {
@@ -175,6 +196,7 @@ export class SessionMessages {
     this.estimatedTokens = this.systemEstimateTokens + extraTokens;
     if (!keepSnapshot) this.clearSnapshot();
     this.llmCache = null;
+    this.revisions++;
   }
 
   skillMessage(name: string, content: string): Extract<SessionMessage, { role: "skill" }> {
@@ -200,6 +222,7 @@ export class SessionMessages {
       this.estimatedTokens = snap.estimatedTokens;
       this.clearSnapshot();
       this.llmCache = null;
+      this.revisions++;
     }
   }
 

@@ -4,6 +4,7 @@ import { isAbortError } from "../util/async.js";
 import { cleanupSpoolDir } from "../util/spool.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { notesFileName } from "../util/file.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -14,6 +15,7 @@ import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineE
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
+import { SessionPersistence } from "./session-persistence.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
@@ -141,6 +143,7 @@ export interface SessionOptions {
   stallThreshold?: number;
   maxParallelToolCalls?: number;
   toolSpoolDir?: string;
+  sessionDir?: string;
 }
 
 export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
@@ -207,6 +210,8 @@ export class Session {
   private conversation: SessionMessages;
   private tools: ToolRegistry;
   private limits: RunLimits;
+  private persistence?: SessionPersistence;
+  private saveChain: Promise<void> = Promise.resolve();
   readonly cwd: string;
   readonly sessionId: string;
 
@@ -275,6 +280,10 @@ export class Session {
     return this.agent.contextLimit;
   }
 
+  get filePath(): string | undefined {
+    return this.persistence?.path;
+  }
+
   get mcpServers(): readonly MCPServerInfo[] {
     return this.mcp.list();
   }
@@ -289,6 +298,7 @@ export class Session {
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
     this.sessionId = deps.sessionId ?? randomUUID();
+    this.persistence = deps.sessionDir ? new SessionPersistence(deps.sessionDir, this.sessionId) : undefined;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
     registerBuiltinTools(this.tools, deps.builtInTools, {
       ask: (questions) => this.ask(questions),
@@ -360,9 +370,21 @@ export class Session {
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
-      if (this.limits.toolSpoolDir) void cleanupSpoolDir(this.limits.toolSpoolDir);
+      if (this.limits.toolSpoolDir) void cleanupSpoolDir(this.limits.toolSpoolDir, notesFileName(this.sessionId));
+      await this.save();
     }
     return { status, reply: this.stream.reply };
+  }
+
+  save(): Promise<void> {
+    const persistence = this.persistence;
+    if (!persistence) return Promise.resolve();
+    const state = this.exportState();
+    const revision = this.conversation.revision;
+    this.saveChain = this.saveChain.then(() => persistence.save(state, revision)).catch((e) => {
+      this.emit({ type: "error", text: `session save failed: ${toErrorMessage(e)}` });
+    });
+    return this.saveChain;
   }
 
   private clearCompletedTodos(): void {
@@ -433,6 +455,7 @@ export class Session {
     this.agent.clear();
     this.timelineStore.clear();
     this.todoStore.set([]);
+    void this.save();
   }
 
   exportState(): SessionState {
@@ -449,6 +472,8 @@ export class Session {
     this.conversation.import(state.messages);
     this.todoStore.set(state.todos);
     this.rebuildTimeline();
+    this.persistence?.seed(this.exportState(), this.conversation.revision);
+    void this.save();
   }
 
   async compact(): Promise<RunStatus> {

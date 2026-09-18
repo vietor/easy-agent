@@ -1,6 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { copyFileSync } from "node:fs";
 import type { SlashCommand } from "./types.js";
-import { toMessageLine, toTodoLine } from "../session-format.js";
 
 export const clearCommand: SlashCommand = {
   name: "clear",
@@ -63,13 +62,17 @@ export const saveCommand: SlashCommand = {
   name: "save",
   description: "Save the session to a JSONL file",
   async execute(ctx) {
+    const source = ctx.session.filePath;
+    if (!source) {
+      ctx.error("session persistence is not configured");
+      return;
+    }
+    await ctx.session.save();
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     const file = `session-${ts}.jsonl`;
-    const { messages, todos } = ctx.session.exportState();
-    const lines = [...messages.map((m) => toMessageLine(m)), toTodoLine(todos)].join("\n");
-    writeFileSync(file, lines + "\n", "utf-8");
+    copyFileSync(source, file);
     ctx.message(`saved to ${file}`);
   },
 };

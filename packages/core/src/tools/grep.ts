@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formatRipgrepOutput, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
+import { directoryBreakdown, formatRipgrepOutput, overflowNotice, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
 import { DEFAULT_GREP_LIMIT, NO_MATCHES } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
@@ -61,11 +61,15 @@ export const grepTool: Tool = {
     else if (output_mode === "count") rgArgs.push("-c");
     else rgArgs.push("--sort=path", "-m", String(offset + head_limit));
     rgArgs.push("--", pattern, target);
-    const { lines, truncated } = await runRipgrepLines(rgArgs, cwd, ctx.signal, head_limit, offset);
+    const { lines, truncated, all } = await runRipgrepLines(rgArgs, cwd, ctx.signal, head_limit, offset);
     if (offset > 0 && lines.length === 0) {
       return { content: `(no entries at offset ${offset} — end of results)` };
     }
-    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES) };
+    const listed = output_mode === "files_with_matches";
+    const overflow = truncated
+      ? overflowNotice(all, lines.length, listed ? "file" : "match", listed ? directoryBreakdown(all) : undefined)
+      : undefined;
+    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES, overflow) };
   },
   summarizeResult(result) {
     return ripgrepResultSummary("match", result, "Grep failed", "Found 0 matches");

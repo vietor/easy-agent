@@ -19,7 +19,7 @@ const LIVE_ITEM = { live: true } as const;
 
 type Item = TimelineEvent | typeof LIVE_ITEM;
 
-export function App({ session, persist }: { session: Session; persist: () => void }) {
+export function App({ session }: { session: Session }) {
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
   const view = useSyncExternalStore(session.subscribe, session.getSnapshot);
@@ -96,7 +96,7 @@ export function App({ session, persist }: { session: Session; persist: () => voi
   });
 
   async function handleCommand(name: string) {
-    await executeSlashCommand(name, session, exit, persist);
+    await executeSlashCommand(name, session, exit);
     if (name === "clear") {
       setAnchor(null);
       resetMetrics();
@@ -106,7 +106,6 @@ export function App({ session, persist }: { session: Session; persist: () => voi
   async function handlePrompt(text: string) {
     try {
       await session.prompt(text);
-      persist();
     } catch (e) {
       session.addError(toErrorMessage(e));
     }
@@ -179,6 +178,6 @@ export function App({ session, persist }: { session: Session; persist: () => voi
   );
 }
 
-export function startApp(session: Session, persist: () => void): ReturnType<typeof render> {
-  return render(<App session={session} persist={persist} />, { exitOnCtrlC: false, incrementalRendering: true, alternateScreen: true });
+export function startApp(session: Session): ReturnType<typeof render> {
+  return render(<App session={session} />, { exitOnCtrlC: false, incrementalRendering: true, alternateScreen: true });
 }

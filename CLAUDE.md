@@ -23,7 +23,7 @@ pnpm --filter @vietor/easy-agent dev   # TUI dev mode (tsx)
 - `core/src/mcp/` — `manager.ts` (client-side server manager) + `client.ts` (single-server client) for stdio + Streamable HTTP
 - `core/src/skills/`, `core/src/util/` — loader; shared helpers (`async.ts`, `file.ts`, `text.ts`, `constants.ts`, `emitter.ts`)
 - `core/src/create-session.ts`, `core/src/index.ts` — factory; public API re-exports (`@vietor/agent-core` root + `@vietor/agent-core/util` subpath via `util/index.ts`)
-- `cli/src/` — `index.ts`, `main.ts`, `config.ts`, `session-persistence.ts`, `commands/`, `tui/`
+- `cli/src/` — `index.ts`, `main.ts`, `config.ts`, `session-resolution.ts`, `commands/`, `tui/`
 
 ## Code Style (no linter/prettier config — conventions only)
 
@@ -57,8 +57,8 @@ These came out of deliberate refactors; treat as final unless the user explicitl
 - **Util names must match behavior**: `countNonEmptyLines` counts non-empty lines, `summarizeText` collapses whitespace and truncates with `…`, `withTimeoutFn` is the function variant of `withTimeout`. Don't rename these back to misleading names (`countLines`, `truncateText`, `withTimeoutError`).
 - **Todo status glyphs live in consumers** (CLI), not in core types.
 - **Dead code is removed, not kept** — don't resurrect deleted code paths.
-- **Session persistence lives in the CLI** — core has no storage backend and never saves on its own; it exposes `exportState()`/`importState()` only. Don't re-add a persistence interface or save hooks to core.
-- **Core is the turnkey integration framework; CLI is the product shell** — `createSession`, the built-in toolset (file/shell/web/ask-user/todo/sub-agent/skill), the skills loader, prompts, and shared utils are the framework's integration surface for external consumers and stay in core. The CLI holds only process lifecycle, session persistence, TUI, config, and command dispatch. Don't propose further core→cli moves.
+- **Session persistence is split by concern, not by layer** — core owns everything that touches the session files when `sessionDir` is set: the JSONL format, the incremental writer (`session-persistence.ts`), auto-save at run boundaries plus `clear()`/`importState()`, reading, listing, and sweeping (`createSession` sweeps both directories at construction). It exposes `save()`, `loadSessionState()`, `listSessions()`, `sessionFilePath()`, and `exportState()`/`importState()`. The CLI only computes the directories (`~/.easy-agent/sessions/<encodedCwd>` and `~/.easy-agent/tool-output/<encodedCwd>`), resolves `--resume`/`--import`, and prints the session list. Don't move the directory layout into core, and don't add a storage *backend* abstraction (pluggable stores, adapters) — `sessionDir` is the whole extension point.
+- **Core is the turnkey integration framework; CLI is the product shell** — `createSession`, the built-in toolset (file/shell/web/ask-user/todo/sub-agent/skill), the skills loader, prompts, and shared utils are the framework's integration surface for external consumers and stay in core. The CLI holds only process lifecycle, TUI, config, and command dispatch. Don't propose further core→cli moves.
 - **The CLI passes its own client identity** — `createSession`'s `clientInfo` is set from the CLI's package name/version so MCP servers identify `easy-agent`, not the framework default.
 
 ## Change Conventions

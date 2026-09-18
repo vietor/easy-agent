@@ -30,6 +30,15 @@ function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   return { llm, calls };
 }
 
+const bigTool: Tool = {
+  name: "Big",
+  description: "big",
+  parameters: { type: "object", properties: {} },
+  async execute() {
+    return { content: "b".repeat(12_000) };
+  },
+};
+
 function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
   return {
     role: "assistant",
@@ -194,6 +203,33 @@ test("maxTurns aborts after the configured limit of tool-call turns", async () =
   assert.equal(results.filter((r) => !r.isError).length, 2);
 });
 
+test("the turn budget warns before the end and reserves the last turn for the final answer", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("Echo", '{"n":1}'),
+    () => toolCall("Echo", '{"n":2}'),
+    () => ({ role: "assistant", content: "final report" }),
+  ]);
+  const agent = makeAgent(llm, { maxTurns: 2 });
+  assert.equal(await agent.run("go"), "ok");
+  assert.equal(agent.export().at(-1)?.content, "final report");
+  assert.equal(calls[0].messages.at(-1)?.content, "go", "no budget reminder while the budget is comfortable");
+  assert.match(textContent(calls[1].messages.at(-1)!), /Turns used: 1\/2 \(1 left\)\. Wrap up now/);
+  assert.equal(calls[1].toolChoice, undefined);
+  assert.match(textContent(calls[2].messages.at(-1)!), /Turn budget exhausted/);
+  assert.equal(calls[2].toolChoice, "none");
+});
+
+test("a final answer is kept even when tasks are still open", async () => {
+  const { llm } = fakeLLM([
+    () => toolCall("TodoWrite", JSON.stringify({ todos: [{ content: "t", status: "inProgress" }] })),
+    () => ({ role: "assistant", content: "final report" }),
+  ]);
+  let todos: readonly Todo[] = [];
+  const agent = makeAgent(llm, { maxTurns: 1, getTodos: () => todos, tools: [createTodoWriteTool((t) => { todos = t; })] });
+  assert.equal(await agent.run("work"), "ok");
+  assert.equal(agent.export().at(-1)?.content, "final report");
+});
+
 test("abort rolls the conversation back to the pre-run snapshot", async () => {
   const controller = new AbortController();
   const { llm } = fakeLLM([
@@ -284,7 +320,11 @@ test("auto-compact fires above the threshold and the run continues", async () =>
   const agent = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000));
   assert.equal(status, "ok");
-  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
+  const messages = agent.export();
+  assert.deepEqual(messages.map((m) => m.role), ["assistant", "user", "assistant"]);
+  assert.equal(messages[0].content, "SUMMARY");
+  assert.equal(messages[1].content, "a".repeat(5000));
+  assert.equal(messages[2].content, "done");
 });
 
 test("tool schemas count toward the context limit", async () => {
@@ -300,8 +340,25 @@ test("tool schemas count toward the context limit", async () => {
   const agent = makeAgent(llm, { contextLimit: 20 });
   const status = await agent.run("go", (e) => { if (e.type === "notice") notices.push(e.text); });
   assert.equal(status, "ok");
-  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "done"]);
+  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "go", "done"]);
   assert.deepEqual(notices, ["auto-compacting context", "context still exceeds the limit after compacting"]);
+});
+
+test("auto-compaction retries once the context has grown past a futile compaction", async () => {
+  const { llm } = fakeLLM([
+    () => ({ role: "assistant", content: "SUMMARY" }),
+    () => toolCall("Big", "{}", "t1"),
+    () => ({ role: "assistant", content: "SUMMARY" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const notices: string[] = [];
+  const agent = makeAgent(llm, { contextLimit: 2000, tools: [bigTool] });
+  assert.equal(await agent.run("a".repeat(20_000), (e) => { if (e.type === "notice") notices.push(e.text); }), "ok");
+  assert.deepEqual(notices, [
+    "auto-compacting context",
+    "context still exceeds the limit after compacting",
+    "auto-compacting context",
+  ]);
 });
 
 test("a Skill tool call injects the skill prompt and emits a skill event", async () => {

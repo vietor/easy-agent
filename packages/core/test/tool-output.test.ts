@@ -197,6 +197,40 @@ test("sub-agents inherit the spool directory", async () => {
     );
     assert.equal(result.status, "ok");
     assert.match(system, /Oversized tool output is truncated/);
+    const notesPath = system.match(/[^\s`]+\.notes\.md/)?.[0];
+    assert.ok(notesPath, "the notes file must be named in the prompt");
+    assert.ok(notesPath.startsWith(dir), "the notes file must live in the spool directory");
     assert.equal((await readdir(dir)).filter((name) => name.endsWith(".txt")).length, 1);
+  });
+});
+
+test("read-only sub-agents are not told to keep a notes file", async () => {
+  await withToolSpoolDir(async (dir) => {
+    let system = "";
+    const { llm } = fakeLLM([
+      (opts) => {
+        system = String(opts.messages[0].content);
+        return { role: "assistant", content: "done" };
+      },
+    ]);
+    const tools = new ToolRegistry();
+    tools.registerAll([stub("Big", BIG)]);
+    const result = await runSubAgent(
+      {
+        llm,
+        tools,
+        cwd: process.cwd(),
+        maxTurns: 50,
+        stallThreshold: 3,
+        maxParallelToolCalls: 10,
+        contextLimit: 750_000,
+        toolSpoolDir: dir,
+      },
+      "system prompt",
+      "task",
+      1
+    );
+    assert.equal(result.status, "ok");
+    assert.ok(!system.includes(".notes.md"), "a read-only agent cannot write notes");
   });
 });

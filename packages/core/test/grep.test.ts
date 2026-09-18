@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { grepTool } from "../src/tools/grep.js";
@@ -89,6 +89,28 @@ test("grep rejects values its schema declares invalid", async () => {
     await assert.rejects(() => grep({ pattern: "alpha", path: p, ignore_case: "true" }, process.cwd()), /ignore_case must be a boolean/);
     await assert.rejects(() => grep({ path: p }, process.cwd()), /pattern is required/);
   });
+});
+
+test("grep reports the total when results are capped", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "grep-capped-"));
+  try {
+    await mkdir(join(dir, "a"), { recursive: true });
+    await mkdir(join(dir, "b"), { recursive: true });
+    await writeFile(join(dir, "a", "f.txt"), "alpha\nbeta\n", "utf-8");
+    await writeFile(join(dir, "b", "f.txt"), "alpha\n", "utf-8");
+
+    const content = await grep({ pattern: "alpha", path: dir, head_limit: 1 }, process.cwd());
+    assert.equal(content, "a/f.txt:1:alpha\n(output truncated) 2 matches in total, showing the first 1");
+    assert.equal(grepTool.summarizeResult!({ content }, 0), "Found 1 match");
+
+    const files = (await grep({ pattern: "alpha", path: dir, output_mode: "files_with_matches", head_limit: 1 }, process.cwd())).split("\n");
+    assert.match(files[0], /^[ab]\/f\.txt$/);
+    assert.equal(files[1], "(output truncated) 2 files in total, showing the first 1");
+    assert.match(files[2], /^by directory: /);
+    assert.ok(files[2].includes("a = 1") && files[2].includes("b = 1"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("grep validates offset", async () => {

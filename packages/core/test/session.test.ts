@@ -377,7 +377,7 @@ test("compact shows the streamed summary once in the timeline", async () => {
   assert.equal(status, "ok");
   assert.deepEqual(
     session.getSnapshot().timeline.filter((e) => e.type === "assistant").map((e) => e.text),
-    ["SUMMARY"]
+    ["SUMMARY", "hi"]
   );
 });
 
@@ -405,7 +405,10 @@ test("auto-compact rebuilds the timeline from the compacted conversation", async
   const { status } = await session.prompt("a".repeat(5000));
   assert.equal(status, "ok");
   const timeline = session.getSnapshot().timeline;
-  assert.equal(timeline.some((e) => e.type === "user"), false);
+  assert.deepEqual(
+    timeline.filter((e) => e.type === "assistant" || e.type === "user").map((e) => e.type),
+    ["assistant", "user", "assistant"]
+  );
   assert.deepEqual(
     timeline.filter((e) => e.type === "assistant").map((e) => e.text),
     ["SUMMARY", "done"]

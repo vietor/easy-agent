@@ -8,8 +8,7 @@ const commands = new Map(builtinCommands.map((c) => [c.name, c]));
 export async function executeSlashCommand(
   name: string,
   session: Session,
-  requestExit: () => void,
-  persist: () => void
+  requestExit: () => void
 ): Promise<void> {
   const cmd = commands.get(name);
   if (cmd) {
@@ -19,12 +18,10 @@ export async function executeSlashCommand(
     } catch (e) {
       ctx.error(toErrorMessage(e));
     }
-    persist();
     return;
   }
   try {
     if (await session.runSkill(name)) {
-      persist();
       return;
     }
   } catch (e) {

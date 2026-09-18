@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { basename, resolve } from "node:path";
-import { type SessionState } from "@vietor/agent-core";
-import type { FileSessionPersistence } from "./session-persistence.js";
+import { listSessions, loadSessionState, sessionFilePath, type SessionState } from "@vietor/agent-core";
 
 export interface CliOptions {
   continue?: boolean;
@@ -15,8 +14,8 @@ export interface ResolvedSession {
   imported: SessionState | null;
 }
 
-export async function listSessions(store: FileSessionPersistence, name: string): Promise<void> {
-  const sessions = await store.listSessions();
+export function printSessions(sessionDir: string, name: string): void {
+  const sessions = listSessions(sessionDir);
   if (!sessions.length) {
     console.log("No previous sessions found in this directory.");
     return;
@@ -29,13 +28,13 @@ export async function listSessions(store: FileSessionPersistence, name: string):
   console.log(`\nResume with: ${name} --resume <id>`);
 }
 
-export async function resolveSession(store: FileSessionPersistence, opts: CliOptions): Promise<ResolvedSession> {
+export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSession {
   let sessionId: string | undefined;
   let resume = false;
   let imported: SessionState | null = null;
   if (opts.import) {
     const path = resolve(opts.import);
-    imported = await store.loadFile(path);
+    imported = loadSessionState(path);
     if (!imported) {
       console.error(`Import file not found: ${path}`);
       process.exit(1);
@@ -46,7 +45,7 @@ export async function resolveSession(store: FileSessionPersistence, opts: CliOpt
     }
     sessionId = basename(path, ".jsonl");
   } else if (opts.continue) {
-    const sessions = await store.listSessions();
+    const sessions = listSessions(sessionDir);
     if (sessions.length) {
       sessionId = sessions[0].id;
       resume = true;
@@ -60,7 +59,7 @@ export async function resolveSession(store: FileSessionPersistence, opts: CliOpt
     console.error(`Invalid session id: ${sessionId}`);
     process.exit(1);
   }
-  if (imported && (await store.load(sessionId))) {
+  if (imported && loadSessionState(sessionFilePath(sessionDir, sessionId))) {
     console.error(`Session already exists: ${sessionId} (use --resume ${sessionId})`);
     process.exit(1);
   }
