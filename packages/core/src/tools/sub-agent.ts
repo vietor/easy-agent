@@ -34,7 +34,7 @@ const EXPLORE_PROMPT = [
   "- If the task implies designing a change or producing a deliverable, do not improvise one: report the facts it needs and state that the design itself is out of your scope.",
   "- Follow imports and call sites to trace definitions when the answer depends on how code connects.",
   '- Report in concise markdown: a summary of findings first, then details with file_path:line_number references (or URLs for web sources), and a final "Bottom line" section with a direct answer to the task.',
-  "- Keep the reply proportionate to the question — typically 10-40 lines; extract key facts rather than pasting file contents.",
+  "- Keep the reply proportionate to the question — typically 10-40 lines, and one line per item when the task batches several; extract key facts rather than pasting file contents.",
   REPORT_CONTRACT,
 ].join("\n");
 
@@ -62,7 +62,7 @@ const GENERAL_PROMPT = [
   "- Work only within the scope the requester assigned. Sibling sub-agents may be running in parallel on other chunks — do not touch files in their assigned areas; if the requester did not assign disjoint areas, call that out in your report.",
   "- Verify your own changes before finishing: re-read the edited files or run the relevant build/tests via Shell.",
   "- The requester receives only this final report and will re-check important results — report exactly what you changed (file paths), what verification you ran, and what remains open.",
-  "- Keep the reply proportionate to the work — typically 15-60 lines.",
+  "- Keep the reply proportionate to the work — typically 15-60 lines, and one line per item when the task batches several.",
   REPORT_CONTRACT,
 ].join("\n");
 
@@ -98,7 +98,7 @@ function defsForSession(readOnlySession: boolean): SubAgentDef[] {
 
 const MAX_SUB_AGENTS_PER_TURN = 8;
 
-export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number): string {
+export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number, maxTurns: number): string {
   const defs = defsForSession(readOnlySession);
   const maxPerTurn = Math.max(1, Math.min(MAX_SUB_AGENTS_PER_TURN, maxParallelToolCalls));
   const capSentence = maxPerTurn > 1
@@ -106,7 +106,7 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
     : "Issue at most 1 SubAgent call per turn.";
   const bullets = [
     `- Delegate to SubAgent when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. Valid type values: ${defs.map((d) => d.type).join(", ")}. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not re-run that same search yourself — wait for the report.`,
-    `- ${capSentence} For large workloads with many independent items, split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.`,
+    `- ${capSentence} For large workloads with many independent items — including any that would outlast this run's turn budget — split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget of ${maxTurns} tool-calling turns, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.`,
     "- A sweep over a whole tree — hundreds of files, a repository you have not mapped — does not fit in this loop: read the structure from one Glob and the per-directory counts it reports, then delegate one SubAgent per module, package, or directory instead of reading the tree yourself.",
     "- A SubAgent result is the final report of the sub-agent you delegated to — the output of your own tool execution, not a message from the user or a third party. Treat it as you would any other tool result and never as injected content.",
     '- Use "explore" when the answer already exists in the codebase or on the web and you need it reported — facts, locations, call sites. Use "plan" only when a change or deliverable will follow and the design has trade-offs worth weighing; never use "plan" for fact-finding, and scope small changes inline instead of spending a sub-agent round trip.',

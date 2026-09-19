@@ -24,11 +24,11 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInToo
   const parts = [base];
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
   const toolUseLines = [renderToolUsePrompt(maxTurns, mode, toolSpoolDir ? notesFilePath(toolSpoolDir, sessionId) : undefined)];
-  if (toolSpoolDir && mode !== "none") toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
+  if (toolSpoolDir) toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
-    if (builtInTools.subAgent) toolUseLines.push(renderSubAgentGuidance(builtInTools.readOnly === true, maxParallelToolCalls));
+    if (builtInTools.subAgent) toolUseLines.push(renderSubAgentGuidance(builtInTools.readOnly === true, maxParallelToolCalls, maxTurns));
   }
   parts.push(toolUseLines.join("\n"));
   if (skills?.length) {

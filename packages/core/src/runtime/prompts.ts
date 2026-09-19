@@ -7,7 +7,7 @@ const TOOL_USE_HEADER = [
   "",
   "- Prefer emitting independent tool calls together in one turn so they run concurrently (2-8 calls per turn is normal); do not batch calls that depend on a prior result or that modify the same file or resource.",
   "- Scale planning: when a task involves many independent items (queries, reads, searches), estimate the count up front and pick a strategy: a few — do them directly; more — spread over a few turns with several calls per turn; a whole repository — map its structure before reading anything, then work module by module instead of file by file.",
-  "- A run has a limited budget of tool-calling turns. If a task needs far more turns than the budget, do not work item-by-item in the main loop: delegate chunks to sub-agents where that is possible, otherwise finish the highest-value items and report what remains — never silently narrow the scope.",
+  "- A run has a limited budget of tool-calling turns. If a task needs far more turns than the budget, do not work item-by-item in the main loop: finish the highest-value items and report what remains — never silently narrow the scope.",
 ];
 
 const FILE_TOOLS_LINE = "- For file operations (Read/Write/Edit/Glob/Grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.";

@@ -222,11 +222,11 @@ test("read-only session restricts SubAgent types to explore and plan", async () 
 });
 
 test("SubAgent guidance omits general in read-only sessions", () => {
-  const full = renderSubAgentGuidance(false, 10);
+  const full = renderSubAgentGuidance(false, 10, 50);
   assert.ok(full.includes("Valid type values: explore, plan, general"));
   assert.ok(full.includes("never mark a delegated task done on the report alone"));
   assert.ok(full.includes('Use "explore" when the answer already exists in the codebase or on the web'));
-  const readOnly = renderSubAgentGuidance(true, 10);
+  const readOnly = renderSubAgentGuidance(true, 10, 50);
   assert.ok(!readOnly.includes("general"));
   assert.ok(readOnly.includes("Valid type values: explore, plan"));
   assert.ok(readOnly.includes("verify important results yourself"));
@@ -234,12 +234,46 @@ test("SubAgent guidance omits general in read-only sessions", () => {
 });
 
 test("SubAgent guidance per-turn cap follows maxParallelToolCalls within [1, 8]", () => {
-  assert.ok(renderSubAgentGuidance(false, 3).includes("at most 3 SubAgent calls per turn"));
-  assert.ok(renderSubAgentGuidance(false, 40).includes("at most 8 SubAgent calls per turn"));
-  const serial = renderSubAgentGuidance(false, 1);
+  assert.ok(renderSubAgentGuidance(false, 3, 50).includes("at most 3 SubAgent calls per turn"));
+  assert.ok(renderSubAgentGuidance(false, 40, 50).includes("at most 8 SubAgent calls per turn"));
+  const serial = renderSubAgentGuidance(false, 1, 50);
   assert.ok(serial.includes("at most 1 SubAgent call per turn"));
   assert.ok(!serial.includes("Multiple SubAgent calls in the same turn run concurrently"));
-  assert.ok(renderSubAgentGuidance(false, 0).includes("at most 1 SubAgent call per turn"));
+  assert.ok(renderSubAgentGuidance(false, 0, 50).includes("at most 1 SubAgent call per turn"));
+});
+
+test("SubAgent guidance states the loop budget each sub-agent gets", () => {
+  assert.ok(renderSubAgentGuidance(false, 10, 25).includes("its own loop budget of 25 tool-calling turns"));
+  assert.ok(renderSubAgentGuidance(true, 10, 25).includes("its own loop budget of 25 tool-calling turns"));
+});
+
+test("a sub-agent is never told to delegate to sub-agents", async () => {
+  let system = "";
+  const { llm } = fakeLLM([
+    (opts) => {
+      system = String(opts.messages[0].content);
+      return { role: "assistant", content: "done" };
+    },
+  ]);
+  const tools = new ToolRegistry();
+  tools.registerAll([...SUB_TOOLS, ...GENERAL_ONLY_TOOLS]);
+  const result = await runSubAgent(
+    {
+      llm,
+      tools,
+      cwd: process.cwd(),
+      maxTurns: 50,
+      stallThreshold: 3,
+      maxParallelToolCalls: 10,
+      contextLimit: 750_000,
+    },
+    "You are the General sub-agent.",
+    "task",
+    2
+  );
+  assert.equal(result.status, "ok");
+  assert.ok(system.includes("Tool-Use Guidelines:"), "the header must still be present");
+  assert.ok(!system.includes("delegate chunks to sub-agents"), "a sub-agent cannot spawn sub-agents");
 });
 
 test("SubAgent label is capped at 50 chars and shown after the type name", () => {
