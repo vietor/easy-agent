@@ -1,4 +1,5 @@
-import type { Tool, ToolContext, ToolSchema, Todo } from "./types.js";
+import type { Tool, ToolContext, Todo } from "./types.js";
+import type { ToolSchema } from "../llm/types.js";
 import { isGrantedAtLevel, toolError } from "./types.js";
 import { shellTool } from "./shell.js";
 import { fileReadTool } from "./file-read.js";

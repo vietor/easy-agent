@@ -5,9 +5,8 @@ import {
   type LLMAssistantMessage,
   type LLMMessage,
 } from "./messages.js";
-import type { ChatOptions, ResolvedLLMConfig } from "./types.js";
-import { BaseAdapter } from "./base.js";
-import type { ToolSchema } from "../tools/types.js";
+import type { ChatOptions, ResolvedLLMConfig, ToolSchema } from "./types.js";
+import { BaseLLMAdapter } from "./base.js";
 import { netFetch } from "../util/net.js";
 
 function createOpenAIClient(config: ResolvedLLMConfig): OpenAI {
@@ -25,7 +24,7 @@ interface ToolCallAccumulator {
   arguments: string;
 }
 
-export class CompletionsAdapter extends BaseAdapter {
+export class CompletionsAdapter extends BaseLLMAdapter {
   private client: OpenAI;
 
   constructor(config: ResolvedLLMConfig) {
@@ -57,7 +56,7 @@ export class CompletionsAdapter extends BaseAdapter {
     for await (const chunk of stream) {
       if (chunk.usage) {
         const cached = (chunk.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens ?? 0;
-        onUsage?.(cached, (chunk.usage.prompt_tokens ?? 0) - cached, chunk.usage.completion_tokens ?? 0);
+        onUsage?.({ cacheInputTokens: cached, missInputTokens: (chunk.usage.prompt_tokens ?? 0) - cached, outputTokens: chunk.usage.completion_tokens ?? 0 });
       }
       const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
@@ -112,7 +111,7 @@ export class CompletionsAdapter extends BaseAdapter {
 
 type ResponsesInputItem = OpenAI.Responses.ResponseInputItem;
 
-export class ResponsesAdapter extends BaseAdapter {
+export class ResponsesAdapter extends BaseLLMAdapter {
   private client: OpenAI;
 
   constructor(config: ResolvedLLMConfig) {
@@ -170,7 +169,7 @@ export class ResponsesAdapter extends BaseAdapter {
     }
     if (finalResponse.usage) {
       const cacheTokens = finalResponse.usage.input_tokens_details?.cached_tokens ?? 0;
-      onUsage?.(cacheTokens, finalResponse.usage.input_tokens - cacheTokens, finalResponse.usage.output_tokens);
+      onUsage?.({ cacheInputTokens: cacheTokens, missInputTokens: finalResponse.usage.input_tokens - cacheTokens, outputTokens: finalResponse.usage.output_tokens });
     }
 
     const textParts: string[] = [];

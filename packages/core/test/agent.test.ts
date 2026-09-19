@@ -102,11 +102,11 @@ test("tool call executes and its result is stored in the conversation", async ()
 test("usage accumulates across all successful calls in a run", async () => {
   const { llm } = fakeLLM([
     (opts) => {
-      opts.onUsage?.(60, 100, 10);
+      opts.onUsage?.({ cacheInputTokens: 60, missInputTokens: 100, outputTokens: 10 });
       return toolCall("Echo");
     },
     (opts) => {
-      opts.onUsage?.(140, 200, 20);
+      opts.onUsage?.({ cacheInputTokens: 140, missInputTokens: 200, outputTokens: 20 });
       return { role: "assistant", content: "done" };
     },
   ]);
@@ -119,7 +119,7 @@ test("usage accumulates across all successful calls in a run", async () => {
 test("a failing call's usage is not added to the counters", async () => {
   const { llm } = fakeLLM([
     (opts) => {
-      opts.onUsage?.(100, 10);
+      opts.onUsage?.({ cacheInputTokens: 100, missInputTokens: 10, outputTokens: 0 });
       throw new Error("boom");
     },
   ]);

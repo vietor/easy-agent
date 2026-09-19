@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LLMClient, LLMConfig } from "../llm/types.js";
+import type { LLMClient, LLMConfig, LLMUsage } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { cleanupSpoolDir } from "../util/spool.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
@@ -111,7 +111,7 @@ class QuestionQueue {
 
 function runMetricsSince(
   startedAt: number,
-  usage: { cacheInputTokens: number; missInputTokens: number; outputTokens: number },
+  usage: LLMUsage,
   firstReplyAt: number | null,
   running: boolean
 ): RunMetrics {
@@ -311,7 +311,7 @@ export class Session {
             tools: this.tools,
             cwd: this.cwd,
             ...this.limits,
-            onUsage: (cacheInputTokens, missInputTokens, outputTokens) => this.agent.addUsage(cacheInputTokens, missInputTokens, outputTokens),
+            onUsage: (usage) => this.agent.addUsage(usage),
           }, systemPrompt, task, level, signal),
       },
     });

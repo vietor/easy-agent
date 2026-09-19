@@ -12,14 +12,14 @@ import {
   TODO_WRITE_TOOL_NAME,
 } from "../util/constants.js";
 import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, truncateOutput } from "../util/text.js";
-import { parseToolCallArgs, toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
-import type { LLMClient, LLMToolChoice } from "../llm/types.js";
+import { parseToolCallArgs, toText, type LLMAssistantMessage } from "../llm/messages.js";
+import type { ChatOptions, LLMClient, LLMUsage, ToolSchema } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge, renderTurnBudget } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
-import type { ToolContext, ToolSchema, Todo } from "../tools/types.js";
+import type { ToolContext, Todo } from "../tools/types.js";
 import { toolError, type TextResult } from "../tools/types.js";
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
@@ -104,7 +104,7 @@ export class Agent {
     return this.toolTokenCache.tokens;
   }
 
-  get usage(): { cacheInputTokens: number; missInputTokens: number; outputTokens: number } {
+  get usage(): LLMUsage {
     return { cacheInputTokens: this.cacheInputTokens, missInputTokens: this.missInputTokens, outputTokens: this.outputTokens };
   }
 
@@ -114,10 +114,10 @@ export class Agent {
     this.outputTokens = 0;
   }
 
-  addUsage(cacheInputTokens: number, missInputTokens: number, outputTokens: number): void {
-    this.cacheInputTokens += cacheInputTokens;
-    this.missInputTokens += missInputTokens;
-    this.outputTokens += outputTokens;
+  addUsage(usage: LLMUsage): void {
+    this.cacheInputTokens += usage.cacheInputTokens;
+    this.missInputTokens += usage.missInputTokens;
+    this.outputTokens += usage.outputTokens;
   }
 
   get model() {
@@ -326,11 +326,11 @@ export class Agent {
   }
 
   private async chatOnce(
-    opts: { messages: LLMMessage[]; tools: ToolSchema[]; thinking?: boolean; toolChoice?: LLMToolChoice; cachePrefixLen?: number; onEvent?: (e: SessionEvent) => void; signal?: AbortSignal },
+    opts: Pick<ChatOptions, "messages" | "tools" | "thinking" | "toolChoice" | "cachePrefixLen" | "signal"> & { onEvent?: (e: SessionEvent) => void },
     onAbort: () => void
   ): Promise<ChatResult> {
     try {
-      let usage: { cacheInputTokens: number; missInputTokens: number; outputTokens: number } | undefined;
+      let usage: LLMUsage | undefined;
       const message = await withAbort(this.llm.chat({
         messages: opts.messages,
         tools: opts.tools,
@@ -340,12 +340,12 @@ export class Agent {
         onDelta: (text) => opts.onEvent?.({ type: "assistant_delta", text }),
         onThinking: (text) => opts.onEvent?.({ type: "thinking_delta", text }),
         onRetry: (attempt, max, error) => opts.onEvent?.({ type: "retry", attempt, max, reason: toErrorMessage(error) }),
-        onUsage: (cacheInputTokens, missInputTokens, outputTokens) => {
-          usage = { cacheInputTokens, missInputTokens, outputTokens };
+        onUsage: (u) => {
+          usage = u;
         },
         signal: opts.signal,
       }), opts.signal);
-      if (usage) this.addUsage(usage.cacheInputTokens, usage.missInputTokens, usage.outputTokens);
+      if (usage) this.addUsage(usage);
       return { ok: true, message };
     } catch (e) {
       if (opts.signal?.aborted || isAbortError(e)) {

@@ -54,7 +54,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {
   tools.registerAll(SUB_TOOLS);
   tools.registerAll([...GENERAL_ONLY_TOOLS, ...SESSION_SCOPED_TOOLS]);
   let parentAgent: Agent;
-  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level) => runSubAgent({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (cacheInputTokens, missInputTokens, outputTokens) => parentAgent.addUsage(cacheInputTokens, missInputTokens, outputTokens) }, systemPrompt, task, level) }));
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level) => runSubAgent({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (usage) => parentAgent.addUsage(usage) }, systemPrompt, task, level) }));
   const conversation = new SessionMessages("system prompt");
   parentAgent = new Agent({
     llm,
@@ -124,19 +124,19 @@ test("general sub-agent gets writable tools but not session-scoped ones", async 
 test("sub-agent usage is added to the parent agent's counters", async () => {
   const { llm } = fakeLLM([
     (opts) => {
-      opts.onUsage?.(0, 10, 5);
+      opts.onUsage?.({ cacheInputTokens: 0, missInputTokens: 10, outputTokens: 5 });
       return toolCall("SubAgent", JSON.stringify({ type: "explore", task: "find X" }));
     },
     (opts) => {
-      opts.onUsage?.(15, 20, 7);
+      opts.onUsage?.({ cacheInputTokens: 15, missInputTokens: 20, outputTokens: 7 });
       return toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1");
     },
     (opts) => {
-      opts.onUsage?.(0, 30, 3);
+      opts.onUsage?.({ cacheInputTokens: 0, missInputTokens: 30, outputTokens: 3 });
       return { role: "assistant", content: "FOUND X" };
     },
     (opts) => {
-      opts.onUsage?.(0, 40, 9);
+      opts.onUsage?.({ cacheInputTokens: 0, missInputTokens: 40, outputTokens: 9 });
       return { role: "assistant", content: "done" };
     },
   ]);

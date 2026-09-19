@@ -3,7 +3,7 @@ import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
 import { notesFilePath } from "../util/file.js";
-import type { LLMClient } from "../llm/types.js";
+import type { LLMClient, LLMUsage } from "../llm/types.js";
 import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";
 
@@ -11,7 +11,7 @@ export interface SubAgentRunOptions extends RunLimits {
   llm: LLMClient;
   tools: ToolRegistry;
   cwd: string;
-  onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
+  onUsage?: (usage: LLMUsage) => void;
 }
 
 export interface SubAgentRunResult {
@@ -46,7 +46,7 @@ export async function runSubAgent(
     ...limits,
   });
   const status = await subAgent.run(task, undefined, signal);
-  onUsage?.(subAgent.usage.cacheInputTokens, subAgent.usage.missInputTokens, subAgent.usage.outputTokens);
+  onUsage?.(subAgent.usage);
   const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
   const messages = status !== "ok" ? conversation.export() : [];
   return { status, reply, messages };

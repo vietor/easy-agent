@@ -8,9 +8,8 @@ import {
   type RedactedThinkingBlock,
   type ThinkingBlock,
 } from "./messages.js";
-import type { ChatOptions, ResolvedLLMConfig } from "./types.js";
-import { BaseAdapter } from "./base.js";
-import type { ToolSchema } from "../tools/types.js";
+import type { ChatOptions, ResolvedLLMConfig, ToolSchema } from "./types.js";
+import { BaseLLMAdapter } from "./base.js";
 import { netFetch } from "../util/net.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
@@ -18,7 +17,7 @@ const CACHE_BREAKPOINT_WINDOW = 15;
 const MAX_MESSAGE_CACHE_BREAKPOINTS = 3;
 const CACHE_CONTROL = { type: "ephemeral" as const, ttl: "1h" as const };
 
-export class AnthropicAdapter extends BaseAdapter {
+export class AnthropicAdapter extends BaseLLMAdapter {
   private client: Anthropic;
 
   constructor(config: ResolvedLLMConfig) {
@@ -58,14 +57,14 @@ export class AnthropicAdapter extends BaseAdapter {
     };
 
     const stream = this.client.messages.stream(params, { signal: opts.signal });
-    if (opts.onUsage) stream.on("streamEvent", (e) => { if (e.type === "message_start") opts.onUsage!(0, e.message.usage.input_tokens, 0); });
+    if (opts.onUsage) stream.on("streamEvent", (e) => { if (e.type === "message_start") opts.onUsage!({ cacheInputTokens: 0, missInputTokens: e.message.usage.input_tokens, outputTokens: 0 }); });
     if (opts.onDelta) stream.on("text", (delta) => opts.onDelta!(delta));
     if (opts.onThinking) stream.on("thinking", (delta) => opts.onThinking!(delta));
     if (opts.onToolCall) stream.on("contentBlock", (block) => { if (block.type === "tool_use") opts.onToolCall!(); });
 
     const final = await stream.finalMessage();
     const cacheTokens = (final.usage.cache_read_input_tokens ?? 0) + (final.usage.cache_creation_input_tokens ?? 0);
-    opts.onUsage?.(cacheTokens, final.usage.input_tokens, final.usage.output_tokens);
+    opts.onUsage?.({ cacheInputTokens: cacheTokens, missInputTokens: final.usage.input_tokens, outputTokens: final.usage.output_tokens });
     if (final.stop_reason === "refusal") {
       throw new Error("model declined the request (stop_reason: refusal)");
     }

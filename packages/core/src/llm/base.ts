@@ -1,7 +1,7 @@
 import type { LLMAssistantMessage } from "./messages.js";
-import type { Adapter, ChatOptions, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
+import type { ChatOptions, LLMAdapter, LLMThinkingEffort, ResolvedLLMConfig } from "./types.js";
 
-export abstract class BaseAdapter implements Adapter {
+export abstract class BaseLLMAdapter implements LLMAdapter {
   readonly model: string;
   readonly thinkingEffort: LLMThinkingEffort;
   readonly maxInputTokens: number;

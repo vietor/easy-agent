@@ -44,15 +44,6 @@ export interface ToolContext {
   signal?: AbortSignal;
 }
 
-export interface ToolSchema {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
 export type AgentLevel = 0 | 1 | 2;
 
 export function isGrantedAtLevel(agentLevel: AgentLevel | undefined, maxLevel: AgentLevel): boolean {

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { ToolSchema } from "../tools/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "./messages.js";
 
 export const LLMConfigSchema = z.object({
@@ -22,13 +21,28 @@ export type LLMBackend = ResolvedLLMConfig["backend"];
 
 export type LLMToolChoice = "none" | "auto";
 
+export interface ToolSchema {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+export interface LLMUsage {
+  cacheInputTokens: number;
+  missInputTokens: number;
+  outputTokens: number;
+}
+
 export interface ChatOptions {
   messages: LLMMessage[];
   tools: ToolSchema[];
   onDelta?: (text: string) => void;
   onThinking?: (text: string) => void;
   onRetry?: (attempt: number, max: number, error: unknown) => void;
-  onUsage?: (cacheInputTokens: number, missInputTokens: number, outputTokens: number) => void;
+  onUsage?: (usage: LLMUsage) => void;
   onToolCall?: () => void;
   thinking?: boolean;
   toolChoice?: LLMToolChoice;
@@ -44,6 +58,6 @@ export interface LLMClient {
   chat(opts: ChatOptions): Promise<LLMAssistantMessage>;
 }
 
-export interface Adapter extends Omit<LLMClient, "chat"> {
+export interface LLMAdapter extends Omit<LLMClient, "chat"> {
   stream(opts: ChatOptions): Promise<LLMAssistantMessage>;
 }

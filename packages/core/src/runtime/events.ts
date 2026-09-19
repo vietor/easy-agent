@@ -1,13 +1,11 @@
 import type { AskedQuestion } from "../tools/ask-user.js";
+import type { LLMUsage } from "../llm/types.js";
 
-export interface RunMetrics {
+export interface RunMetrics extends LLMUsage {
   running: boolean;
   elapsed: number;
   thinkingElapsed: number;
   replyElapsed: number;
-  cacheInputTokens: number;
-  missInputTokens: number;
-  outputTokens: number;
 }
 
 export const INITIAL_RUN_METRICS: RunMetrics = { running: false, elapsed: 0, thinkingElapsed: 0, replyElapsed: 0, cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 };

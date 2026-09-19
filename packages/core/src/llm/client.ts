@@ -1,5 +1,5 @@
 import { EmptyAssistantMessageError } from "./messages.js";
-import { LLMConfigSchema, type Adapter, type LLMClient, type LLMConfig } from "./types.js";
+import { LLMConfigSchema, type LLMAdapter, type LLMClient, type LLMConfig } from "./types.js";
 import { CompletionsAdapter, ResponsesAdapter } from "./openai.js";
 import { AnthropicAdapter } from "./anthropic.js";
 import { isAbortError, withRetry, backoffDelay } from "../util/async.js";
@@ -15,7 +15,7 @@ export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { //
   return false;
 }
 
-export function withRetryChat(adapter: Adapter): LLMClient["chat"] {
+export function withRetryChat(adapter: LLMAdapter): LLMClient["chat"] {
   return (opts) => {
     let sawToolCall = false;
     return withRetry(
@@ -36,7 +36,7 @@ export function withRetryChat(adapter: Adapter): LLMClient["chat"] {
 
 export function createLLM(config: LLMConfig): LLMClient {
   const cfg = LLMConfigSchema.parse(config);
-  let adapter: Adapter;
+  let adapter: LLMAdapter;
   switch (cfg.backend) {
     case "responses":
       adapter = new ResponsesAdapter(cfg);
