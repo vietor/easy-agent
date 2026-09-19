@@ -28,7 +28,7 @@ export const fileEditTool: Tool = {
     const resolved = resolve(ctx.cwd, path);
     const all = replace_all === true;
     const content = await readFile(resolved, "utf-8");
-    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}; re-read the file with Read to get the exact current text (watch whitespace/indentation)`);
+    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}; re-read the file with Read to get the exact current text (watch whitespace/indentation, and use CRLF if the file has CRLF line endings)`);
     if (!all) {
       const count = content.split(oldStr).length - 1;
       if (count > 1) throw new Error(`old_string appears ${count} times in ${path}, must be unique (or set replace_all)`);

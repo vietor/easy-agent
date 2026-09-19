@@ -33,7 +33,7 @@ const REQUEST_HEADERS = {
   "Cache-Control": "no-cache",
 };
 
-const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown. Rejects binary content and bodies over ${MAX_WEB_FETCH_MB}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
+const DESCRIPTION = `Fetch a URL via HTTP GET. Returns raw text for JSON/XML/text; converts HTML to markdown, but does not execute JavaScript, so client-rendered content may be missing. Rejects binary content and bodies over ${MAX_WEB_FETCH_MB}MB. Retries transient failures (network, timeouts, 429/5xx) up to ${WEB_FETCH_RETRIES + 1} attempts. GET only; no custom headers or request body. Follows redirects.`;
 
 const URL_REQUIRED_ERROR = "url is required";
 const URL_SHAPE_ERROR = "url must be an absolute http(s) URL";

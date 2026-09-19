@@ -27,14 +27,14 @@ WARNING — four common mistakes:
 
 QUOTING: '...' literal. "..." expands $var, $env:NAME, $(...).
 SYNTAX: Conditional: if ($?) { }. No heredocs (<<), no background jobs.
-LIMITATIONS: No stdin. Long-running killed at timeout.
+LIMITATIONS: No stdin. Killed after ${CALL_TIMEOUT_MS / 60_000} minutes, or when output exceeds ${MAX_SHELL_OUTPUT_MB}MB — redirect large output to a file and read that instead.
 `;
 
 const DESCRIPTION_BASH = `
 Execute a bash command.
 
 QUOTING: Always double-quote: "$FILE" not $FILE.
-LIMITATIONS: Blocked: direct sudo/su/doas/pkexec. No stdin. Long-running killed at timeout.
+LIMITATIONS: Blocked: direct sudo/su/doas/pkexec. No stdin. Killed after ${CALL_TIMEOUT_MS / 60_000} minutes, or when output exceeds ${MAX_SHELL_OUTPUT_MB}MB — redirect large output to a file and read that instead.
 `;
 
 const COMMAND_ERROR = "command is required";
