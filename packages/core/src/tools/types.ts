@@ -3,6 +3,7 @@ import { z } from "zod";
 export interface TextResult {
   content: string;
   isError?: boolean;
+  structured?: unknown;
 }
 
 export function toolError(msg: string): TextResult {
@@ -57,6 +58,7 @@ export interface Tool {
   parameters: Record<string, unknown>;
   argSummaryKeys?: string[];
   truncate?: "head" | "tail";
+  persist?: boolean;
   summarizeArgs?: (args: Record<string, unknown>) => string;
   summarizeResult?(result: TextResult): string;
   execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;

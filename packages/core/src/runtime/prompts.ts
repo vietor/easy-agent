@@ -51,7 +51,7 @@ export function renderPostCompactNotice(notesPath: string): string {
 }
 
 export const TOOL_OUTPUT_GUIDANCE =
-  "- Oversized tool output is truncated and the full text is saved to a file; the truncation notice names the path. Search that file with Grep, or Read it with an explicit small limit — reading it in large chunks just truncates it again. Do not re-run the command through head/tail or another shell truncation to see more; the saved file already holds the complete output.";
+  "- Oversized tool output is truncated and the full text is saved to a file; structured output keeps only a shape summary inline, and the notice names the path. Search that file with Grep or jq, or Read it with an explicit small limit — reading it in large chunks just truncates it again. Do not re-run the command through head/tail or another shell truncation to see more; the saved file already holds the complete output.";
 
 export const COMPACT_PROMPT = [
   "Summarize the conversation above for context continuation. Preserve:",

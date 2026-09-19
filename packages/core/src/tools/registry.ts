@@ -71,6 +71,10 @@ export class ToolRegistry {
     return this.tools.get(name)?.truncate ?? "head";
   }
 
+  persistOutput(name: string): boolean {
+    return this.tools.get(name)?.persist !== false;
+  }
+
   summarizeResult(name: string, result: TextResult, durationMs: number): string {
     const tool = this.tools.get(name);
     const resultSummary = tool?.summarizeResult

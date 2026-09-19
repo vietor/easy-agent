@@ -157,9 +157,11 @@ export class MCPServerManager {
           `MCP tool call timed out (${CALL_TIMEOUT_MS / 1000}s)`
         );
         const text = extractContent(result);
-        return result.isError
-          ? toolError(text)
-          : { content: text || NO_OUTPUT };
+        if (result.isError) return toolError(text);
+        const content = text || NO_OUTPUT;
+        return result.structuredContent === undefined
+          ? { content }
+          : { content, structured: result.structuredContent };
       },
     };
   }

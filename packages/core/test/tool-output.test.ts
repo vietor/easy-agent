@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
+import { fileReadTool } from "../src/tools/file-read.js";
 import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
@@ -36,7 +37,7 @@ function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
   };
 }
 
-function stub(name: string, content: string, truncate?: "head" | "tail"): Tool {
+function stub(name: string, content: string, truncate?: "head" | "tail", structured?: unknown): Tool {
   return {
     name,
     agentLevel: 2,
@@ -44,7 +45,7 @@ function stub(name: string, content: string, truncate?: "head" | "tail"): Tool {
     parameters: { type: "object", properties: {} },
     truncate,
     async execute() {
-      return { content };
+      return structured === undefined ? { content } : { content, structured };
     },
   };
 }
@@ -82,8 +83,8 @@ function toolMessage(agent: Agent) {
   return message;
 }
 
-async function runWith(tool: Tool, scratchDir?: string) {
-  const { llm } = fakeLLM([() => toolCall(tool.name), () => ({ role: "assistant", content: "done" })]);
+async function runWith(tool: Tool, scratchDir?: string, args = "{}") {
+  const { llm } = fakeLLM([() => toolCall(tool.name, args), () => ({ role: "assistant", content: "done" })]);
   const agent = makeAgent(llm, [tool], scratchDir);
   assert.equal(await agent.run("go"), "ok");
   return toolMessage(agent);
@@ -232,5 +233,57 @@ test("read-only sub-agents are not told to keep a notes file", async () => {
     );
     assert.equal(result.status, "ok");
     assert.ok(!system.includes(".notes.md"), "a read-only agent cannot write notes");
+  });
+});
+
+test("oversized structured output is summarized as a shape instead of being inlined", async () => {
+  await withScratchDir(async (dir) => {
+    const payload = Array.from({ length: 5000 }, (_, i) => ({ id: i, name: `file-${i}.ts`, size: i }));
+    const message = await runWith(stub("MCP__fs__list", BIG, undefined, payload), dir);
+
+    assert.match(
+      message.content,
+      /^JSON output not inlined: [^\n]* items\.\nShape: \[\{id: number, name: string, size: number\}\]/
+    );
+    assert.match(message.content, /Sample: \{"id":0,"name":"file-0\.ts","size":0\}/);
+    assert.match(message.content, /Full output saved to: /);
+    assert.ok(!message.content.includes("line 9999"), "the raw payload must not reach the conversation");
+    assert.match(message.resultSummary ?? "", /truncated, full output: /);
+
+    const saved = (await readdir(dir)).filter((name) => name.endsWith(".txt"));
+    assert.equal(saved.length, 1, "exactly one saved file");
+    assert.deepEqual(JSON.parse(await readFile(join(dir, saved[0]), "utf-8")), payload);
+  });
+});
+
+test("structured output with an object root reports bytes without an item count", async () => {
+  await withScratchDir(async (dir) => {
+    const payload = { title: "files", items: Array.from({ length: 5000 }, (_, i) => ({ id: i, name: `file-${i}.ts` })) };
+    const message = await runWith(stub("MCP__fs__list", BIG, undefined, payload), dir);
+
+    assert.match(message.content, /^JSON output not inlined: [^\n]* bytes\.\n/);
+    assert.match(message.content, /Shape: \{title: string, items: \[\{id: number, name: string\}\]\}/);
+  });
+});
+
+test("structured output under the limit is inlined unchanged", async () => {
+  await withScratchDir(async (dir) => {
+    const message = await runWith(stub("MCP__fs__get", "small text", undefined, { id: 1 }), dir);
+    assert.equal(message.content, "small text");
+  });
+});
+
+test("a truncated Read result points back at the file instead of saving a copy", async () => {
+  await withScratchDir(async (dir) => {
+    const source = join(dir, "big.log");
+    await writeFile(source, BIG, "utf-8");
+    const message = await runWith(fileReadTool, dir, `{"path": ${JSON.stringify(source)}}`);
+
+    assert.match(message.content, /^ +1\tline 0 /);
+    assert.match(message.content, /\.\.\.output truncated: showing the first \d+ of 2001 lines/);
+    assert.match(message.content, /Use Read with offset\/limit to page through the file\./);
+    assert.ok(!message.content.includes("Full output saved to: "), "Read must not save a scratch copy");
+    assert.ok(!message.resultSummary?.includes("full output: "), "the summary must not name a saved copy");
+    assert.equal((await readdir(dir)).filter((name) => name.endsWith(".txt")).length, 0, "no scratch file");
   });
 });

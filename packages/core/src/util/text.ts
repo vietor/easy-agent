@@ -1,4 +1,9 @@
-import { MAX_SUMMARY_LENGTH } from "./constants.js";
+import {
+  JSON_SHAPE_MAX_DEPTH,
+  JSON_SHAPE_MAX_KEYS,
+  MAX_JSON_SAMPLE_BYTES,
+  MAX_SUMMARY_LENGTH,
+} from "./constants.js";
 
 const secondsFormatter = new Intl.NumberFormat("en-US", {
   style: "unit",
@@ -118,6 +123,33 @@ export function truncateOutput(
     text = direction === "head" ? text.slice(0, cut) : text.slice(cut + 1);
   }
   return { text, truncated: true, totalBytes, totalLines, keptLines: Math.min(lines, maxLines) };
+}
+
+function describeShape(value: unknown, depth: number): string {
+  if (Array.isArray(value)) {
+    return value.length ? `[${describeShape(value[0], depth)}]` : "[]";
+  }
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (!entries.length) return "{}";
+    if (depth <= 0) return "{…}";
+    const shown = entries
+      .slice(0, JSON_SHAPE_MAX_KEYS)
+      .map(([key, item]) => `${key}: ${describeShape(item, depth - 1)}`);
+    if (entries.length > JSON_SHAPE_MAX_KEYS) shown.push("…");
+    return `{${shown.join(", ")}}`;
+  }
+  return value === null ? "null" : typeof value;
+}
+
+export function jsonShape(value: unknown): string {
+  return describeShape(value, JSON_SHAPE_MAX_DEPTH);
+}
+
+export function jsonSample(value: unknown): string | undefined {
+  if (!Array.isArray(value) || !value.length) return undefined;
+  const sample = JSON.stringify(value[0]);
+  return getTextBytes(sample) <= MAX_JSON_SAMPLE_BYTES ? sample : undefined;
 }
 
 export function summarizeText(content: string, length: number, showChars?: boolean) {

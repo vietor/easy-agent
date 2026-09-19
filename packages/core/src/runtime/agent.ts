@@ -11,7 +11,16 @@ import {
   SKILL_TOOL_NAME,
   TODO_WRITE_TOOL_NAME,
 } from "../util/constants.js";
-import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, truncateOutput } from "../util/text.js";
+import {
+  estimateTokens,
+  formatCompactNumber,
+  getTextBytes,
+  jsonSample,
+  jsonShape,
+  summarizeText,
+  toErrorMessage,
+  truncateOutput,
+} from "../util/text.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage } from "../llm/messages.js";
 import type { ChatOptions, LLMClient, LLMUsage, ToolSchema } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -395,31 +404,55 @@ export class Agent {
     const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
     const summary = this.tools.summarizeResult(call.function.name, result, duration);
-    const captured = await this.captureLargeOutput(call.function.name, result.content);
-    const resultSummary = captured.outputPath ? `${summary} · truncated, full output: ${captured.outputPath}` : summary;
+    const captured = await this.captureLargeOutput(call.function.name, result);
+    const resultSummary = captured.truncated
+      ? `${summary} · truncated${captured.outputPath ? `, full output: ${captured.outputPath}` : ""}`
+      : summary;
     if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: captured.content, isError: result.isError, resultSummary });
     return { id: call.id, content: captured.content, resultSummary, isError: result.isError, args };
   }
 
-  private async captureLargeOutput(name: string, content: string): Promise<{ content: string; outputPath?: string }> {
+  private async captureLargeOutput(
+    name: string,
+    result: TextResult
+  ): Promise<{ content: string; outputPath?: string; truncated?: boolean }> {
+    const { content, structured } = result;
     if (!this.scratchDir) return { content };
     const tail = this.tools.truncateDirection(name) === "tail";
     const cut = truncateOutput(content, tail ? "tail" : "head", this.maxToolOutputBytes, MAX_TOOL_OUTPUT_LINES);
     if (!cut.truncated) return { content };
-    let outputPath: string;
-    try {
-      await mkdir(this.scratchDir, { recursive: true });
-      outputPath = join(this.scratchDir, `${randomUUID()}.txt`);
-      await writeFile(outputPath, content, "utf-8");
-    } catch {
-      return { content };
+    const json = structured === undefined ? undefined : JSON.stringify(structured, null, 2);
+    let outputPath: string | undefined;
+    if (this.tools.persistOutput(name)) {
+      try {
+        await mkdir(this.scratchDir, { recursive: true });
+        outputPath = join(this.scratchDir, `${randomUUID()}.txt`);
+        await writeFile(outputPath, json ?? content, "utf-8");
+      } catch {
+        return { content };
+      }
     }
-    const notice = [
+    if (json !== undefined && outputPath) {
+      const count = Array.isArray(structured) ? `, ${formatCompactNumber(structured.length)} items` : "";
+      const notice = [
+        `JSON output not inlined: ${formatCompactNumber(getTextBytes(json))} bytes${count}.`,
+        `Shape: ${jsonShape(structured)}`,
+      ];
+      const sample = jsonSample(structured);
+      if (sample) notice.push(`Sample: ${sample}`);
+      notice.push(`Full output saved to: ${outputPath}`, "Use Shell with jq, or Read with offset/limit, to query specific fields.");
+      return { content: notice.join("\n"), outputPath, truncated: true };
+    }
+    const lines = [
       `...output truncated: showing the ${tail ? "last" : "first"} ${cut.keptLines} of ${cut.totalLines} lines (${formatCompactNumber(cut.totalBytes)} bytes total)...`,
       "",
-      `Full output saved to: ${outputPath}`,
-      "Use Read with offset/limit to view specific sections, or Grep to search the full file.",
-    ].join("\n");
-    return { content: tail ? `${notice}\n\n${cut.text}` : `${cut.text}\n\n${notice}`, outputPath };
+    ];
+    if (outputPath) {
+      lines.push(`Full output saved to: ${outputPath}`, "Use Read with offset/limit to view specific sections, or Grep to search the full file.");
+    } else {
+      lines.push("Use Read with offset/limit to page through the file.");
+    }
+    const notice = lines.join("\n");
+    return { content: tail ? `${notice}\n\n${cut.text}` : `${cut.text}\n\n${notice}`, outputPath, truncated: true };
   }
 }

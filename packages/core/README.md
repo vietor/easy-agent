@@ -110,7 +110,7 @@ const session = await createSession({
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 | `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
 | `sessionDir` | `string` | `undefined` | Directory for the session's JSONL file, written as `<sessionDir>/<sessionId>.jsonl`. When unset, core keeps no storage. |
-| `scratchDir` | `string` | `undefined` | Directory for the session's working files: the model's notes at `<scratchDir>/<sessionId>.notes.md`, and oversized tool output saved in full as `<scratchDir>/<uuid>.txt`. When unset, oversized output is truncated without being saved. |
+| `scratchDir` | `string` | `undefined` | Directory for the session's working files: the model's notes at `<scratchDir>/<sessionId>.notes.md`, and oversized tool output saved in full as `<scratchDir>/<uuid>.txt` — structured output is summarized as a shape rather than inlined, and Read pages the original file instead of saving a copy. When unset, oversized output is truncated without being saved. |
 
 `maxTurns`, `stallThreshold`, and `maxParallelToolCalls` must be positive integers; `createSession` throws at construction otherwise.
 
