@@ -11,7 +11,7 @@ const TOOL_USE_HEADER = [
 ];
 
 const FILE_TOOLS_LINE = "- For file operations (Read/Write/Edit/Glob/Grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.";
-const READ_ONLY_TOOLS_LINE = "- For reading files (Read/Glob/Grep) and fetching URLs, use the dedicated tool. This session is read-only: no available tool can modify files or run Shell.";
+const READ_ONLY_TOOLS_LINE = "- For reading files (Read/Glob/Grep) and fetching URLs, use the dedicated tool. The built-in tools that modify files or run Shell are disabled in this session; do not reach for another tool to work around that.";
 const TOOL_FAILURE_LINE = "- If a tool call fails, read the error, adjust the arguments or approach, and continue; do not repeat the identical call and do not abandon the task over a single failure.";
 
 export function renderToolUsePrompt(maxTurns: number, mode: "full" | "readOnly" | "none" = "full", notesPath?: string): string {
@@ -21,7 +21,7 @@ export function renderToolUsePrompt(maxTurns: number, mode: "full" | "readOnly" 
   if (mode === "full" && notesPath) lines.push(renderNotesLine(notesPath));
   lines.push(
     TOOL_FAILURE_LINE,
-    `- Turn budget: ${maxTurns} tool-calling turns per run. You are warned in-band once only a few are left, and the turn after the budget is spent is reserved for your final answer, with all tools disabled.`
+    `- Turn budget: ${maxTurns} tool-calling turns per run. You are warned in-band each turn once only a few are left, and the turn after the budget is spent is reserved for your final answer, with all tools disabled.`
   );
   return lines.join("\n");
 }
@@ -54,8 +54,8 @@ export const COMPACT_PROMPT = [
   "5. Errors/failures and how they were resolved.",
   "6. Current progress: what is done, verified, and in-progress state.",
   "7. Pending tasks, open questions, concrete next step.",
-  "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. The full conversation will be replaced by this summary, so anything omitted is lost — keep only what the next turn needs to continue without re-reading history.",
-  "Concise but thorough; keep technical specifics; use the conversation language. Aim for 500-1000 tokens, and never more than 1% of the conversation. Never a generic recap — technical specifics over prose.",
+  "Discard: completed small talk, verbose tool outputs already absorbed, resolved dead ends. The most recent messages are kept verbatim; everything before them is replaced by this summary, so anything omitted there is lost — keep only what the next turn needs to continue without re-reading history.",
+  "Concise but thorough; keep technical specifics; use the conversation language. Aim for 500-1000 tokens. Never a generic recap — technical specifics over prose.",
   'Start with "Summary of conversation so far":',
 ].join("\n");
 
@@ -73,7 +73,7 @@ export function renderTodoReminder(todos: readonly Todo[]): string {
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";
   const incomplete = todos.filter(t => t.status !== "completed");
   const warning = incomplete.length > 0
-    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response. Mark them complete via TodoWrite as they finish; the final update may go in the same turn as your last tool call.`
+    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response. Mark them complete via TodoWrite as they finish — never mark one complete that you have not verified; the final update may go in the same turn as your last tool call.`
     : "";
   return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
 }
@@ -81,7 +81,7 @@ export function renderTodoReminder(todos: readonly Todo[]): string {
 export function renderIncompleteTodoNudge(todos: readonly Todo[]): string {
   const incomplete = todos.filter(t => t.status !== "completed");
   const names = incomplete.map(t => `"${t.content}"`).join(", ");
-  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to complete them. Call TodoWrite to mark each one completed before your final text response.</system-reminder>`;
+  return `<system-reminder>STOP! You have ${incomplete.length} incomplete task(s): ${names}. Use tools to finish them, or rewrite the list to what actually remains — never mark work completed that you have not verified.</system-reminder>`;
 }
 
 export function renderCompactTodos(todos: readonly Todo[]): string {

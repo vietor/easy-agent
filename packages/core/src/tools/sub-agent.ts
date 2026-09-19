@@ -135,7 +135,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
       .optional()
       .describe(`Short label (max ${MAX_LABEL_LENGTH} characters) for this sub-agent run, shown in the UI.`),
     task: z.string({ error: TASK_ERROR }).trim().min(1, { error: TASK_ERROR })
-      .describe("The task or question for the sub-agent. It sees only this text and its own system prompt — never your conversation history, the files you already read, or the project's instruction files — and it has only the built-in file, shell, and web tools, never your MCP or custom tools. So make it self-contained: the background it needs, the paths or scope to work in, any project rule or convention it must follow, and the deliverable and format you want back."),
+      .describe("The task or question for the sub-agent. It sees only this text and its own system prompt — never your conversation history, the files you already read, or the project's instruction files — and it gets only the tools that opt in to sub-agent use: the built-in file, shell, and web tools it is allowed, plus any custom tool tagged with an agent level; MCP tools are never shared with it. So make it self-contained: the background it needs, the paths or scope to work in, any project rule or convention it must follow, and the deliverable and format you want back."),
   });
   return {
     name: "SubAgent",

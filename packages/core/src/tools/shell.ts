@@ -26,7 +26,7 @@ WARNING — four common mistakes:
 - Use $env:NAME, not $NAME
 
 QUOTING: '...' literal. "..." expands $var, $env:NAME, $(...).
-SYNTAX: Conditional: if ($?) { }. No heredocs (<<) or background (&).
+SYNTAX: Conditional: if ($?) { }. No heredocs (<<), no background jobs.
 LIMITATIONS: No stdin. Long-running killed at timeout.
 `;
 
@@ -34,7 +34,7 @@ const DESCRIPTION_BASH = `
 Execute a bash command.
 
 QUOTING: Always double-quote: "$FILE" not $FILE.
-LIMITATIONS: Blocked: direct sudo/su/doas/pkexec (best-effort; indirect invocation may bypass). No stdin. Long-running killed at timeout.
+LIMITATIONS: Blocked: direct sudo/su/doas/pkexec. No stdin. Long-running killed at timeout.
 `;
 
 const COMMAND_ERROR = "command is required";
