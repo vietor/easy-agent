@@ -46,6 +46,10 @@ export function renderTurnBudget(used: number, maxTurns: number): string | undef
   return `<system-reminder>Turns used: ${used}/${maxTurns} (${remaining} left). Wrap up now: stop opening new lines of investigation, record what you found, and finish the deliverable.</system-reminder>`;
 }
 
+export function renderPostCompactNotice(notesPath: string): string {
+  return `<system-reminder>Context was compacted — the older messages were replaced by a summary. The facts you recorded are in \`${notesPath}\`; re-read that file instead of re-exploring.</system-reminder>`;
+}
+
 export const TOOL_OUTPUT_GUIDANCE =
   "- Oversized tool output is truncated and the full text is saved to a file; the truncation notice names the path. Search that file with Grep, or Read it with an explicit small limit — reading it in large chunks just truncates it again. Do not re-run the command through head/tail or another shell truncation to see more; the saved file already holds the complete output.";
 

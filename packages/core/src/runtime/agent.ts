@@ -15,7 +15,7 @@ import { estimateTokens, formatCompactNumber, summarizeText, toErrorMessage, tru
 import { parseToolCallArgs, toText, type LLMAssistantMessage } from "../llm/messages.js";
 import type { ChatOptions, LLMClient, LLMUsage, ToolSchema } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
-import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge, renderTurnBudget } from "./prompts.js";
+import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge, renderPostCompactNotice, renderTurnBudget } from "./prompts.js";
 import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
@@ -41,6 +41,7 @@ export interface AgentOptions extends RunLimits {
   getTodos: () => readonly Todo[];
   resolveSkill?: (name: string) => Skill | undefined;
   onCompact?: () => void;
+  notesPath?: string;
 }
 
 type ChatResult = { ok: true; message: LLMAssistantMessage } | { ok: false; status: RunStatus };
@@ -68,6 +69,8 @@ export class Agent {
   private todoDeclared = false;
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
+  private notesPath?: string;
+  private pendingCompactNotice = "";
   private readonly toolSpoolDir?: string;
   private readonly maxToolOutputBytes: number;
   private cacheInputTokens = 0;
@@ -88,6 +91,7 @@ export class Agent {
     this.contextLimit = opts.contextLimit;
     this.resolveSkill = opts.resolveSkill;
     this.onCompact = opts.onCompact;
+    this.notesPath = opts.notesPath;
     this.toolSpoolDir = opts.toolSpoolDir;
     this.maxToolOutputBytes = Math.min(MAX_TOOL_OUTPUT_BYTES, Math.floor(opts.contextLimit / 2));
   }
@@ -165,6 +169,7 @@ export class Agent {
       return "error";
     }
     this.conversation.compact(compactText, Math.floor(this.contextLimit * COMPACT_TAIL_RATIO));
+    if (this.notesPath) this.pendingCompactNotice = renderPostCompactNotice(this.notesPath);
     this.onCompact?.();
     return "ok";
   }
@@ -261,6 +266,10 @@ export class Agent {
       if (pendingNudge && !finalTurn) {
         messages.push({ role: "user", content: pendingNudge });
         pendingNudge = "";
+      }
+      if (this.pendingCompactNotice) {
+        messages.push({ role: "user", content: this.pendingCompactNotice });
+        this.pendingCompactNotice = "";
       }
       const budget = renderTurnBudget(turns, this.maxTurns);
       if (budget) messages.push({ role: "user", content: budget });

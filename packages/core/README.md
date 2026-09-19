@@ -113,7 +113,7 @@ const session = await createSession({
 
 `maxTurns`, `stallThreshold`, and `maxParallelToolCalls` must be positive integers; `createSession` throws at construction otherwise.
 
-The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`. Compaction replaces the history with a summary *plus the most recent messages verbatim* (up to 15% of `contextLimit`), so the latest exchange survives without being re-read. When `toolSpoolDir` is set, the prompt also directs the model to keep a running notes file at `<toolSpoolDir>/<sessionId>.notes.md` and to re-read it after a compaction instead of re-exploring.
+The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`. Compaction replaces the history with a summary *plus the most recent messages verbatim* (up to 15% of `contextLimit`), so the latest exchange survives without being re-read. When `toolSpoolDir` is set, the prompt also directs the model to keep a running notes file at `<toolSpoolDir>/<sessionId>.notes.md` and to re-read it after a compaction instead of re-exploring; the turn after a compaction carries an in-band reminder naming that file.
 
 ## `SYSTEM_PROMPT_BOUNDARY`
 

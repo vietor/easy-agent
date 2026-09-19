@@ -49,7 +49,7 @@ function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
 
 function makeAgent(
   llm: LLMClient,
-  opts: { maxTurns?: number; contextLimit?: number; getTodos?: () => readonly Todo[]; tools?: Tool[]; resolveSkill?: (name: string) => Skill | undefined } = {}
+  opts: { maxTurns?: number; contextLimit?: number; getTodos?: () => readonly Todo[]; tools?: Tool[]; resolveSkill?: (name: string) => Skill | undefined; notesPath?: string } = {}
 ): Agent {
   const tools = new ToolRegistry();
   tools.register({
@@ -74,6 +74,7 @@ function makeAgent(
     maxParallelToolCalls: 10,
     contextLimit: opts.contextLimit ?? 750_000,
     resolveSkill: opts.resolveSkill,
+    notesPath: opts.notesPath,
   });
 }
 
@@ -325,6 +326,28 @@ test("auto-compact fires above the threshold and the run continues", async () =>
   assert.equal(messages[0].content, "SUMMARY");
   assert.equal(messages[1].content, "a".repeat(5000));
   assert.equal(messages[2].content, "done");
+});
+
+test("the turn after a compaction points the model back at its notes file", async () => {
+  const { llm, calls } = fakeLLM([
+    () => ({ role: "assistant", content: "SUMMARY" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeAgent(llm, { contextLimit: 1000, notesPath: "/spool/notes.md" });
+  assert.equal(await agent.run("a".repeat(5000)), "ok");
+  const texts = calls[1].messages.map(textContent);
+  assert.equal(texts.filter((t) => t.includes("/spool/notes.md")).length, 1, "the notes file must be named exactly once");
+  assert.ok(texts.some((t) => t.includes("Context was compacted")), "the model must be told its context was compacted");
+});
+
+test("a compaction without a notes file adds no notice", async () => {
+  const { llm, calls } = fakeLLM([
+    () => ({ role: "assistant", content: "SUMMARY" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeAgent(llm, { contextLimit: 1000 });
+  assert.equal(await agent.run("a".repeat(5000)), "ok");
+  assert.ok(!calls[1].messages.map(textContent).some((t) => t.includes("Context was compacted")));
 });
 
 test("tool schemas count toward the context limit", async () => {

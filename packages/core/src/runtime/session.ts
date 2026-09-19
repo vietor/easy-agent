@@ -4,7 +4,7 @@ import { isAbortError } from "../util/async.js";
 import { cleanupSpoolDir } from "../util/spool.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
-import { notesFileName } from "../util/file.js";
+import { notesFileName, notesFilePath } from "../util/file.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -324,6 +324,7 @@ export class Session {
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
       ...this.limits,
+      notesPath: this.limits.toolSpoolDir ? notesFilePath(this.limits.toolSpoolDir, this.sessionId) : undefined,
       resolveSkill: this.resolveSkill,
       onCompact: () => {
         this.stream.discardStreamedText();

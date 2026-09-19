@@ -43,6 +43,7 @@ export async function runSubAgent(
     setTodos: () => {},
     getTodos: () => [],
     ...limits,
+    notesPath,
   });
   const status = await subAgent.run(task, undefined, signal);
   onUsage?.(subAgent.usage);
