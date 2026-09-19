@@ -26,7 +26,7 @@ export async function main(argv: string[] = []): Promise<void> {
   const cwd = process.cwd();
   const projectName = cwd.replace(/[\/\\:]/g, "-");
   const sessionDir = join(homedir(), ".easy-agent", "sessions", projectName);
-  const toolSpoolDir = join(homedir(), ".easy-agent", "tool-output", projectName);
+  const scratchDir = join(homedir(), ".easy-agent", "scratch", projectName);
 
   if (opts.import && (opts.continue || opts.resume !== undefined)) {
     console.error("--import cannot be combined with --continue or --resume");
@@ -60,7 +60,7 @@ export async function main(argv: string[] = []): Promise<void> {
     cwd: cwd,
     sessionId,
     sessionDir,
-    toolSpoolDir,
+    scratchDir,
     clientInfo: { name: pkg.name, version: pkg.version },
     tools: [localScriptTool],
   });

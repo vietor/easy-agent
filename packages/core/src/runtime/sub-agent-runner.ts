@@ -29,9 +29,9 @@ export async function runSubAgent(
 ): Promise<SubAgentRunResult> {
   const { llm, tools, cwd, onUsage, ...limits } = opts;
   const mode = level === 1 ? "readOnly" : "full";
-  const notesPath = mode === "full" && limits.toolSpoolDir ? notesFilePath(limits.toolSpoolDir, randomUUID()) : undefined;
+  const notesPath = mode === "full" && limits.scratchDir ? notesFilePath(limits.scratchDir, randomUUID()) : undefined;
   const prompt = [systemPrompt, renderEnvironment(cwd), renderToolUsePrompt(limits.maxTurns, mode, notesPath)];
-  if (limits.toolSpoolDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
+  if (limits.scratchDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
   const conversation = new SessionMessages(prompt.join("\n\n"));
   const subTools = new ToolRegistry();
   subTools.registerAll(tools.filter((t) => isGrantedAtLevel(t.agentLevel, level)));

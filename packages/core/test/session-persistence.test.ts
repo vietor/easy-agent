@@ -182,7 +182,7 @@ test("a pruned tool output replaces its on-disk copy instead of staying behind",
 
 test("listSessions reports the session files newest first, titled by their first user message", async () => {
   await withDir(async (dir) => {
-    await mkdir(join(dir, "tool-output"), { recursive: true });
+    await mkdir(join(dir, "scratch"), { recursive: true });
     await writeFile(join(dir, "old.jsonl"), toMessageLine({ role: "user", content: "the first task" }) + "\n", "utf-8");
     await writeFile(join(dir, "new.jsonl"), toMessageLine({ role: "user", content: "the latest task" }) + "\n", "utf-8");
     await writeFile(join(dir, "notes.txt"), "x", "utf-8");

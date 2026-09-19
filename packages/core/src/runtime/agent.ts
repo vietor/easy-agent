@@ -29,7 +29,7 @@ export interface RunLimits {
   stallThreshold: number;
   maxParallelToolCalls: number;
   contextLimit: number;
-  toolSpoolDir?: string;
+  scratchDir?: string;
 }
 
 export interface AgentOptions extends RunLimits {
@@ -71,7 +71,7 @@ export class Agent {
   private onCompact?: () => void;
   private notesPath?: string;
   private pendingCompactNotice = "";
-  private readonly toolSpoolDir?: string;
+  private readonly scratchDir?: string;
   private readonly maxToolOutputBytes: number;
   private cacheInputTokens = 0;
   private missInputTokens = 0;
@@ -92,7 +92,7 @@ export class Agent {
     this.resolveSkill = opts.resolveSkill;
     this.onCompact = opts.onCompact;
     this.notesPath = opts.notesPath;
-    this.toolSpoolDir = opts.toolSpoolDir;
+    this.scratchDir = opts.scratchDir;
     this.maxToolOutputBytes = Math.min(MAX_TOOL_OUTPUT_BYTES, Math.floor(opts.contextLimit / 2));
   }
 
@@ -240,7 +240,7 @@ export class Agent {
     let pendingNudge = "";
     let nextCompactAbove = 0;
     while (true) {
-      if (this.toolSpoolDir && this.contextTokens > this.contextLimit) {
+      if (this.scratchDir && this.contextTokens > this.contextLimit) {
         const freed = this.conversation.pruneToolOutputs(Math.floor(this.contextTokens * PRUNE_MIN_CLEAR_RATIO));
         if (freed > 0) onEvent?.({ type: "notice", text: `cleared ${formatCompactNumber(freed)} tokens of old tool output` });
       }
@@ -402,14 +402,14 @@ export class Agent {
   }
 
   private async captureLargeOutput(name: string, content: string): Promise<{ content: string; outputPath?: string }> {
-    if (!this.toolSpoolDir) return { content };
+    if (!this.scratchDir) return { content };
     const tail = this.tools.truncateDirection(name) === "tail";
     const cut = truncateOutput(content, tail ? "tail" : "head", this.maxToolOutputBytes, MAX_TOOL_OUTPUT_LINES);
     if (!cut.truncated) return { content };
     let outputPath: string;
     try {
-      await mkdir(this.toolSpoolDir, { recursive: true });
-      outputPath = join(this.toolSpoolDir, `${randomUUID()}.txt`);
+      await mkdir(this.scratchDir, { recursive: true });
+      outputPath = join(this.scratchDir, `${randomUUID()}.txt`);
       await writeFile(outputPath, content, "utf-8");
     } catch {
       return { content };

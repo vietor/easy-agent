@@ -110,10 +110,11 @@ const session = await createSession({
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 | `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
 | `sessionDir` | `string` | `undefined` | Directory for the session's JSONL file, written as `<sessionDir>/<sessionId>.jsonl`. When unset, core keeps no storage. |
+| `scratchDir` | `string` | `undefined` | Directory for the session's working files: the model's notes at `<scratchDir>/<sessionId>.notes.md`, and oversized tool output saved in full as `<scratchDir>/<uuid>.txt`. When unset, oversized output is truncated without being saved. |
 
 `maxTurns`, `stallThreshold`, and `maxParallelToolCalls` must be positive integers; `createSession` throws at construction otherwise.
 
-The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`. Compaction replaces the history with a summary *plus the most recent messages verbatim* (up to 15% of `contextLimit`), so the latest exchange survives without being re-read. When `toolSpoolDir` is set, the prompt also directs the model to keep a running notes file at `<toolSpoolDir>/<sessionId>.notes.md` and to re-read it after a compaction instead of re-exploring; the turn after a compaction carries an in-band reminder naming that file.
+The auto-compaction threshold is not configurable — it's derived internally as 75% of `llm.maxInputTokens` and exposed via `session.contextLimit`. Compaction replaces the history with a summary *plus the most recent messages verbatim* (up to 15% of `contextLimit`), so the latest exchange survives without being re-read. When `scratchDir` is set, the prompt also directs the model to keep a running notes file at `<scratchDir>/<sessionId>.notes.md` and to re-read it after a compaction instead of re-exploring; the turn after a compaction carries an in-band reminder naming that file.
 
 ## `SYSTEM_PROMPT_BOUNDARY`
 
@@ -458,7 +459,7 @@ interface SessionState {
 
 With `sessionDir` set, core persists the state itself as JSONL at `<sessionDir>/<sessionId>.jsonl` (a leading session record, one record per message, plus a trailing todo record) and keeps it current: a save runs at the end of every run — awaited, so the file is on disk before `prompt()`/`compact()`/`runSkill()` resolves — and on `clear()` and `importState()`. Saves are serialized, an append-only delta while messages are only added and a rewrite whenever existing history changed or was replaced (compaction, clear, import, in-place tool-output pruning), and a failed save emits an `error` event without failing the run.
 
-`createSession` also sweeps the directories it was given — `sessionDir` and `toolSpoolDir` — dropping files past the retention age or over the total size cap while keeping the current session's own `<sessionId>.jsonl` and `<sessionId>.notes.md`; the run loop re-sweeps the spool directory at every run boundary.
+`createSession` also sweeps the directories it was given — `sessionDir` and `scratchDir` — dropping files past the retention age or over the total size cap while keeping the current session's own `<sessionId>.jsonl` and `<sessionId>.notes.md`; the run loop re-sweeps the scratch directory at every run boundary.
 
 Without `sessionDir`, core never touches the filesystem. The host drives persistence itself: `session.exportState()` snapshots the state, `session.importState(state)` restores one (synchronous, rebuilding the timeline from the messages), and `session.save()` flushes on demand — it resolves immediately when no `sessionDir` is configured. The JSONL format itself stays internal; a host with its own storage only ever handles the plain `SessionState` object.
 

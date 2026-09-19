@@ -49,7 +49,7 @@ function stub(name: string, content: string, truncate?: "head" | "tail"): Tool {
   };
 }
 
-function makeAgent(llm: LLMClient, tools: Tool[], toolSpoolDir?: string, contextLimit = 750_000): Agent {
+function makeAgent(llm: LLMClient, tools: Tool[], scratchDir?: string, contextLimit = 750_000): Agent {
   const registry = new ToolRegistry();
   registry.registerAll(tools);
   return new Agent({
@@ -63,12 +63,12 @@ function makeAgent(llm: LLMClient, tools: Tool[], toolSpoolDir?: string, context
     maxTurns: 50,
     maxParallelToolCalls: 10,
     contextLimit,
-    toolSpoolDir,
+    scratchDir,
   });
 }
 
-async function withToolSpoolDir(fn: (dir: string) => Promise<void>): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "tool-output-"));
+async function withScratchDir(fn: (dir: string) => Promise<void>): Promise<void> {
+  const dir = await mkdtemp(join(tmpdir(), "scratch-"));
   try {
     await fn(dir);
   } finally {
@@ -82,21 +82,21 @@ function toolMessage(agent: Agent) {
   return message;
 }
 
-async function runWith(tool: Tool, toolSpoolDir?: string) {
+async function runWith(tool: Tool, scratchDir?: string) {
   const { llm } = fakeLLM([() => toolCall(tool.name), () => ({ role: "assistant", content: "done" })]);
-  const agent = makeAgent(llm, [tool], toolSpoolDir);
+  const agent = makeAgent(llm, [tool], scratchDir);
   assert.equal(await agent.run("go"), "ok");
   return toolMessage(agent);
 }
 
-test("oversized output passes through untouched when no spool directory is configured", async () => {
+test("oversized output passes through untouched when no scratch directory is configured", async () => {
   const message = await runWith(stub("Big", BIG));
   assert.equal(message.content, BIG);
   assert.ok(!message.resultSummary?.includes("truncated"));
 });
 
-test("oversized output is truncated and the spooled file holds the complete text", async () => {
-  await withToolSpoolDir(async (dir) => {
+test("oversized output is truncated and the saved file holds the complete text", async () => {
+  await withScratchDir(async (dir) => {
     const message = await runWith(stub("Big", BIG), dir);
     assert.ok(message.content.length < BIG.length, "content must be truncated");
     assert.match(message.content, /^line 0 /, "head truncation keeps the start");
@@ -104,13 +104,13 @@ test("oversized output is truncated and the spooled file holds the complete text
     assert.match(message.resultSummary ?? "", /truncated, full output: /);
 
     const saved = (await readdir(dir)).filter((name) => name.endsWith(".txt"));
-    assert.equal(saved.length, 1, "exactly one spool file");
+    assert.equal(saved.length, 1, "exactly one saved file");
     assert.equal(await readFile(join(dir, saved[0]), "utf-8"), BIG);
   });
 });
 
-test("a failing spool write degrades to an untruncated result", async () => {
-  await withToolSpoolDir(async (dir) => {
+test("a failing scratch write degrades to an untruncated result", async () => {
+  await withScratchDir(async (dir) => {
     const blocked = join(dir, "blocked");
     await writeFile(blocked, "not a directory", "utf-8");
     const message = await runWith(stub("Big", BIG), blocked);
@@ -120,7 +120,7 @@ test("a failing spool write degrades to an untruncated result", async () => {
 });
 
 test("shell output keeps its tail rather than its head", async () => {
-  await withToolSpoolDir(async (dir) => {
+  await withScratchDir(async (dir) => {
     const content = `START_MARKER\n${"y".repeat(BIG.length)}\nEND_MARKER`;
     const message = await runWith(stub("Shell", content, "tail"), dir);
     assert.match(message.content, /END_MARKER/);
@@ -129,7 +129,7 @@ test("shell output keeps its tail rather than its head", async () => {
 });
 
 test("old tool output is cleared once the context approaches its limit", async () => {
-  await withToolSpoolDir(async (dir) => {
+  await withScratchDir(async (dir) => {
     const script = Array.from({ length: 10 }, (_, i) => () => toolCall("Big", `{"n":${i}}`, `t${i}`));
     script.push(() => ({ role: "assistant", content: "done" }));
     const { llm } = fakeLLM(script);
@@ -145,7 +145,7 @@ test("old tool output is cleared once the context approaches its limit", async (
 });
 
 test("the line cap truncates even when the byte cap would not", async () => {
-  await withToolSpoolDir(async (dir) => {
+  await withScratchDir(async (dir) => {
     const lines = Array.from({ length: 3000 }, (_, i) => `L${i}`).join("\n");
     assert.ok(lines.length < 50 * 1024, "fixture must stay under the byte cap");
 
@@ -158,7 +158,7 @@ test("the line cap truncates even when the byte cap would not", async () => {
 });
 
 test("the line cap keeps the final lines for a tail-truncated tool", async () => {
-  await withToolSpoolDir(async (dir) => {
+  await withScratchDir(async (dir) => {
     const lines = Array.from({ length: 3000 }, (_, i) => `L${i}`).join("\n");
 
     const message = await runWith(stub("Big", lines, "tail"), dir);
@@ -168,8 +168,8 @@ test("the line cap keeps the final lines for a tail-truncated tool", async () =>
   });
 });
 
-test("sub-agents inherit the spool directory", async () => {
-  await withToolSpoolDir(async (dir) => {
+test("sub-agents inherit the scratch directory", async () => {
+  await withScratchDir(async (dir) => {
     let system = "";
     const { llm } = fakeLLM([
       (opts) => {
@@ -189,7 +189,7 @@ test("sub-agents inherit the spool directory", async () => {
         stallThreshold: 3,
         maxParallelToolCalls: 10,
         contextLimit: 750_000,
-        toolSpoolDir: dir,
+        scratchDir: dir,
       },
       "system prompt",
       "task",
@@ -199,13 +199,13 @@ test("sub-agents inherit the spool directory", async () => {
     assert.match(system, /Oversized tool output is truncated/);
     const notesPath = system.match(/[^\s`]+\.notes\.md/)?.[0];
     assert.ok(notesPath, "the notes file must be named in the prompt");
-    assert.ok(notesPath.startsWith(dir), "the notes file must live in the spool directory");
+    assert.ok(notesPath.startsWith(dir), "the notes file must live in the scratch directory");
     assert.equal((await readdir(dir)).filter((name) => name.endsWith(".txt")).length, 1);
   });
 });
 
 test("read-only sub-agents are not told to keep a notes file", async () => {
-  await withToolSpoolDir(async (dir) => {
+  await withScratchDir(async (dir) => {
     let system = "";
     const { llm } = fakeLLM([
       (opts) => {
@@ -224,7 +224,7 @@ test("read-only sub-agents are not told to keep a notes file", async () => {
         stallThreshold: 3,
         maxParallelToolCalls: 10,
         contextLimit: 750_000,
-        toolSpoolDir: dir,
+        scratchDir: dir,
       },
       "system prompt",
       "task",

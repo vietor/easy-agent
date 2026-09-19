@@ -7,7 +7,7 @@ import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { notesFileName, notesFilePath } from "./util/file.js";
-import { cleanupSpoolDir } from "./util/spool.js";
+import { cleanupScratchDir } from "./util/scratch.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { renderSubAgentGuidance } from "./tools/sub-agent.js";
@@ -20,11 +20,11 @@ function contextLimitFor(maxInputTokens: number, maxOutputTokens: number): numbe
   return Math.floor(Math.min(maxInputTokens * CONTEXT_LIMIT_RATIO, maxInputTokens - maxOutputTokens));
 }
 
-function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, toolSpoolDir: string | undefined, sessionId: string): string {
+function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, scratchDir: string | undefined, sessionId: string): string {
   const parts = [base];
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
-  const toolUseLines = [renderToolUsePrompt(maxTurns, mode, toolSpoolDir ? notesFilePath(toolSpoolDir, sessionId) : undefined)];
-  if (toolSpoolDir) toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
+  const toolUseLines = [renderToolUsePrompt(maxTurns, mode, scratchDir ? notesFilePath(scratchDir, sessionId) : undefined)];
+  if (scratchDir) toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
@@ -44,15 +44,15 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
   const sessionId = opts.sessionId ?? randomUUID();
   const cwd = opts.cwd ?? process.cwd();
-  if (opts.sessionDir) await cleanupSpoolDir(opts.sessionDir, sessionFileName(sessionId));
-  if (opts.toolSpoolDir) await cleanupSpoolDir(opts.toolSpoolDir, notesFileName(sessionId));
+  if (opts.sessionDir) await cleanupScratchDir(opts.sessionDir, sessionFileName(sessionId));
+  if (opts.scratchDir) await cleanupScratchDir(opts.scratchDir, notesFileName(sessionId));
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
   const session = new Session({
     ...opts,
     sessionId,
     cwd,
-    systemPrompt: buildSystemPrompt(base, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, opts.toolSpoolDir, sessionId),
+    systemPrompt: buildSystemPrompt(base, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, opts.scratchDir, sessionId),
     llm,
     tools,
     mcp,

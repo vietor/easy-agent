@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Session, type SessionState } from "../src/runtime/session.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import { SPOOL_RETENTION_MS } from "../src/util/constants.js";
+import { SCRATCH_RETENTION_MS } from "../src/util/constants.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { waitUntil } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
@@ -34,7 +34,7 @@ function todoCall(todos: unknown, id: string): LLMAssistantMessage {
   };
 }
 
-function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>, toolSpoolDir?: string): Session {
+function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>, scratchDir?: string): Session {
   const tools = new ToolRegistry();
   return new Session({
     systemPrompt: "test",
@@ -43,7 +43,7 @@ function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>, 
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     builtInTools: { todoWrite: true },
-    toolSpoolDir,
+    scratchDir,
   });
 }
 
@@ -503,12 +503,12 @@ test("submitAnswer feeds the answers back to the model as an AskUser tool result
   assert.deepEqual(entry?.questions.map((q) => q.answer), ["prod", ["email", "slack"]]);
 });
 
-test("a finished run sweeps the tool spool directory", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "session-spool-"));
+test("a finished run sweeps the scratch directory", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "session-scratch-"));
   try {
     const stale = join(dir, "stale.txt");
     await writeFile(stale, "old", "utf-8");
-    const past = new Date(Date.now() - SPOOL_RETENTION_MS - 60_000);
+    const past = new Date(Date.now() - SCRATCH_RETENTION_MS - 60_000);
     await utimes(stale, past, past);
     await writeFile(join(dir, "fresh.txt"), "new", "utf-8");
     const session = makeSession([() => ({ role: "assistant", content: "ok" })], dir);

@@ -1,6 +1,6 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { SPOOL_MAX_BYTES, SPOOL_RETENTION_MS } from "./constants.js";
+import { SCRATCH_MAX_BYTES, SCRATCH_RETENTION_MS } from "./constants.js";
 
 interface Entry {
   path: string;
@@ -8,14 +8,14 @@ interface Entry {
   size: number;
 }
 
-export async function cleanupSpoolDir(dir: string, keep?: string): Promise<void> {
+export async function cleanupScratchDir(dir: string, keep?: string): Promise<void> {
   let names: string[];
   try {
     names = await readdir(dir);
   } catch {
     return;
   }
-  const cutoff = Date.now() - SPOOL_RETENTION_MS;
+  const cutoff = Date.now() - SCRATCH_RETENTION_MS;
   const kept: Entry[] = [];
   let total = 0;
   for (const name of names) {
@@ -32,10 +32,10 @@ export async function cleanupSpoolDir(dir: string, keep?: string): Promise<void>
       total += info.size;
     } catch {}
   }
-  if (total <= SPOOL_MAX_BYTES) return;
+  if (total <= SCRATCH_MAX_BYTES) return;
   kept.sort((a, b) => a.mtime - b.mtime);
   for (const entry of kept) {
-    if (total <= SPOOL_MAX_BYTES) return;
+    if (total <= SCRATCH_MAX_BYTES) return;
     try {
       await unlink(entry.path);
       total -= entry.size;

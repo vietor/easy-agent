@@ -29,8 +29,8 @@ export const PRUNE_PROTECT_TOKENS = 40_000;
 export const PRUNE_MIN_CLEAR_RATIO = 0.3;
 export const CONTEXT_LIMIT_RATIO = 0.75;
 export const COMPACT_TAIL_RATIO = 0.15;
-export const SPOOL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-export const SPOOL_MAX_BYTES = 200 * 1024 * 1024;
+export const SCRATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+export const SCRATCH_MAX_BYTES = 200 * 1024 * 1024;
 export const TOOL_OUTPUT_CLEARED_PREFIX = "(output cleared: ";
 
 export function mbToBytes(mb: number): number {

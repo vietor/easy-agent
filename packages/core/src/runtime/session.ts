@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig, LLMUsage } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
-import { cleanupSpoolDir } from "../util/spool.js";
+import { cleanupScratchDir } from "../util/scratch.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import { notesFileName, notesFilePath } from "../util/file.js";
@@ -142,7 +142,7 @@ export interface SessionOptions {
   maxTurns?: number;
   stallThreshold?: number;
   maxParallelToolCalls?: number;
-  toolSpoolDir?: string;
+  scratchDir?: string;
   sessionDir?: string;
 }
 
@@ -188,7 +188,7 @@ function resolveRunLimits(deps: SessionDeps): RunLimits {
     stallThreshold: requirePositiveInt(deps.stallThreshold ?? DEFAULT_STALL_THRESHOLD, "stallThreshold"),
     maxParallelToolCalls: requirePositiveInt(deps.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, "maxParallelToolCalls"),
     contextLimit: deps.contextLimit,
-    toolSpoolDir: deps.toolSpoolDir,
+    scratchDir: deps.scratchDir,
   };
 }
 
@@ -324,7 +324,7 @@ export class Session {
       setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
       ...this.limits,
-      notesPath: this.limits.toolSpoolDir ? notesFilePath(this.limits.toolSpoolDir, this.sessionId) : undefined,
+      notesPath: this.limits.scratchDir ? notesFilePath(this.limits.scratchDir, this.sessionId) : undefined,
       resolveSkill: this.resolveSkill,
       onCompact: () => {
         this.stream.discardStreamedText();
@@ -371,7 +371,7 @@ export class Session {
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
-      if (this.limits.toolSpoolDir) void cleanupSpoolDir(this.limits.toolSpoolDir, notesFileName(this.sessionId));
+      if (this.limits.scratchDir) void cleanupScratchDir(this.limits.scratchDir, notesFileName(this.sessionId));
       await this.save();
     }
     return { status, reply: this.stream.reply };

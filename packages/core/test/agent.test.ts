@@ -333,10 +333,10 @@ test("the turn after a compaction points the model back at its notes file", asyn
     () => ({ role: "assistant", content: "SUMMARY" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeAgent(llm, { contextLimit: 1000, notesPath: "/spool/notes.md" });
+  const agent = makeAgent(llm, { contextLimit: 1000, notesPath: "/scratch/notes.md" });
   assert.equal(await agent.run("a".repeat(5000)), "ok");
   const texts = calls[1].messages.map(textContent);
-  assert.equal(texts.filter((t) => t.includes("/spool/notes.md")).length, 1, "the notes file must be named exactly once");
+  assert.equal(texts.filter((t) => t.includes("/scratch/notes.md")).length, 1, "the notes file must be named exactly once");
   assert.ok(texts.some((t) => t.includes("Context was compacted")), "the model must be told its context was compacted");
 });
 
