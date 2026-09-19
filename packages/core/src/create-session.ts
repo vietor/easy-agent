@@ -4,7 +4,7 @@ import { Session } from "./runtime/session.js";
 import { sessionFileName } from "./runtime/session-persistence.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
-import { renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
+import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { notesFileName, notesFilePath } from "./util/file.js";
 import { cleanupSpoolDir } from "./util/spool.js";
@@ -43,13 +43,16 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const tools = new ToolRegistry();
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
   const sessionId = opts.sessionId ?? randomUUID();
+  const cwd = opts.cwd ?? process.cwd();
   if (opts.sessionDir) await cleanupSpoolDir(opts.sessionDir, sessionFileName(sessionId));
   if (opts.toolSpoolDir) await cleanupSpoolDir(opts.toolSpoolDir, notesFileName(sessionId));
 
+  const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
   const session = new Session({
     ...opts,
     sessionId,
-    systemPrompt: buildSystemPrompt(opts.systemPrompt, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, opts.toolSpoolDir, sessionId),
+    cwd,
+    systemPrompt: buildSystemPrompt(base, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, opts.toolSpoolDir, sessionId),
     llm,
     tools,
     mcp,

@@ -30,6 +30,10 @@ function renderNotesLine(notesPath: string): string {
   return `- Long investigations: record each confirmed fact (file paths, signatures, decisions, open questions) as a line in \`${notesPath}\` in the same turn you learn it. Automatic compaction replaces the conversation with a summary, so after one, re-read that file instead of re-exploring.`;
 }
 
+export function renderEnvironment(cwd: string): string {
+  return `Environment:\n- Platform: ${process.platform}\n- Working directory: ${cwd}`;
+}
+
 export function renderTurnBudget(used: number, maxTurns: number): string | undefined {
   const remaining = maxTurns - used;
   if (remaining > Math.ceil(maxTurns * TURN_BUDGET_WARN_RATIO)) return undefined;

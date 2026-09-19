@@ -97,7 +97,7 @@ const session = await createSession({
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `systemPrompt` | `string` | *(required)* | System prompt for the LLM. |
+| `systemPrompt` | `string` | *(required)* | System prompt for the LLM. `createSession` appends the environment block and the tool-use guidelines after it (plus the skill list when skills are loaded). |
 | `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`, the last two with minimums of `128_000` and `48_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
@@ -119,7 +119,7 @@ The auto-compaction threshold is not configurable — it's derived internally as
 
 **`SYSTEM_PROMPT_BOUNDARY: string`**
 
-A constant separator that `createSession` appends between the user-provided `systemPrompt` and the auto-generated tool-use/behavior guidelines. Also exported so callers can use it when composing their own system prompt from multiple segments:
+A constant separator that `createSession` appends between the user-provided `systemPrompt` and the auto-generated sections (environment, tool-use guidelines, and the skill list). Also exported so callers can use it when composing their own system prompt from multiple segments:
 
 ```ts
 import { SYSTEM_PROMPT_BOUNDARY } from "@vietor/agent-core";
