@@ -71,14 +71,14 @@ const SUB_AGENT_DEFS = [
     type: "explore",
     name: "Explore",
     level: 1,
-    description: 'read-only fact-finder for broad fan-out searches across code, documents, or the web — use when the answer already exists in those sources and must be reported back (locations, call sites, structure), never when the task is to design a change; specify the search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions)',
+    description: 'read-only fact-finder for broad fan-out searches across code, documents, or the web; returns the locations, call sites, and structure it found rather than file dumps; specify the search breadth in the task ("medium" for moderate exploration, "very thorough" for multiple locations and naming conventions)',
     systemPrompt: EXPLORE_PROMPT,
   },
   {
     type: "plan",
     name: "Plan",
     level: 1,
-    description: "read-only software architect — use when a change or deliverable will follow and the design has trade-offs to weigh; reads the relevant material first (code, documents, or web sources), then returns a step-by-step plan citing the real files and content it read, with the critical files and architectural trade-offs; never for fact-finding",
+    description: "read-only software architect; reads the relevant material first (code, documents, or web sources), then returns a step-by-step plan citing the real files and content it read, with the critical files and architectural trade-offs",
     systemPrompt: PLAN_PROMPT,
   },
   {
