@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { basename, resolve } from "node:path";
-import { listSessions, loadSessionState, sessionFilePath, type SessionState } from "@vietor/agent-core";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { listSessions, loadSessionState, sessionFilePath } from "@vietor/agent-core";
 
 export interface CliOptions {
   continue?: boolean;
@@ -10,8 +11,7 @@ export interface CliOptions {
 
 export interface ResolvedSession {
   sessionId: string;
-  resume: boolean;
-  imported: SessionState | null;
+  importPath?: string;
 }
 
 export function printSessions(sessionDir: string, name: string): void {
@@ -31,19 +31,19 @@ export function printSessions(sessionDir: string, name: string): void {
 export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSession {
   let sessionId: string | undefined;
   let resume = false;
-  let imported: SessionState | null = null;
+  let importPath: string | undefined;
   if (opts.import) {
     const path = resolve(opts.import);
-    imported = loadSessionState(path);
-    if (!imported) {
+    const state = loadSessionState(path);
+    if (!state) {
       console.error(`Import file not found: ${path}`);
       process.exit(1);
     }
-    if (!imported.messages.length) {
+    if (!state.messages.length) {
       console.error(`No session messages found in: ${path}`);
       process.exit(1);
     }
-    sessionId = basename(path, ".jsonl");
+    importPath = path;
   } else if (opts.continue) {
     const sessions = listSessions(sessionDir);
     if (sessions.length) {
@@ -59,9 +59,9 @@ export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSe
     console.error(`Invalid session id: ${sessionId}`);
     process.exit(1);
   }
-  if (imported && loadSessionState(sessionFilePath(sessionDir, sessionId))) {
-    console.error(`Session already exists: ${sessionId} (use --resume ${sessionId})`);
+  if (resume && !existsSync(sessionFilePath(sessionDir, sessionId))) {
+    console.error(`Session not found: ${sessionId}`);
     process.exit(1);
   }
-  return { sessionId, resume, imported };
+  return { sessionId, importPath };
 }

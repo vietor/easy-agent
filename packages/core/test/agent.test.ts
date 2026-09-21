@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { Session } from "../src/runtime/session.js";
+import { loadSessionState } from "../src/runtime/session-persistence.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createTodoWriteTool } from "../src/tools/todo-write.js";
@@ -11,7 +12,7 @@ import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { Tool, Todo } from "../src/tools/types.js";
 import type { TextResult } from "../src/tools/types.js";
-import { sleep, waitUntil } from "./helpers.js";
+import { sleep, waitUntil, withTempDir } from "./helpers.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const calls: ChatOptions[] = [];
@@ -439,37 +440,42 @@ test("malformed Skill arguments are tolerated as a tool error", async () => {
 });
 
 test("a tool resolving after the run settles cannot mutate the conversation", async () => {
-  const tools = new ToolRegistry();
-  let release!: (content: string) => void;
-  const gate = new Promise<string>((r) => { release = r; });
-  tools.register({
-    name: "Slow",
-    description: "slow",
-    parameters: { type: "object", properties: {} },
-    execute: () => gate,
+  await withTempDir(async (dir) => {
+    const tools = new ToolRegistry();
+    let release!: (content: string) => void;
+    const gate = new Promise<string>((r) => { release = r; });
+    tools.register({
+      name: "Slow",
+      description: "slow",
+      parameters: { type: "object", properties: {} },
+      execute: () => gate,
+    });
+    const { llm } = fakeLLM([() => toolCall("Slow")]);
+    const session = new Session({
+      systemPrompt: "test",
+      llm,
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionDir: dir,
+    });
+    session.subscribe(() => {});
+    const run = session.prompt("go");
+    assert.ok(
+      await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool"), 5000),
+      "tool entry must appear before the run settles"
+    );
+    session.abort();
+    const { status } = await run;
+    assert.equal(status, "aborted");
+    const before = loadSessionState(session.filePath!)!.messages;
+    release("late result");
+    await sleep(50);
+    await session.save();
+    const after = loadSessionState(session.filePath!)!.messages;
+    assert.deepEqual(after, before);
+    assert.ok(!after.some((m) => m.role === "tool"));
   });
-  const { llm } = fakeLLM([() => toolCall("Slow")]);
-  const session = new Session({
-    systemPrompt: "test",
-    llm,
-    tools,
-    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
-    contextLimit: 750_000,
-  });
-  session.subscribe(() => {});
-  const run = session.prompt("go");
-  assert.ok(
-    await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool"), 5000),
-    "tool entry must appear before the run settles"
-  );
-  session.abort();
-  const { status } = await run;
-  assert.equal(status, "aborted");
-  const before = session.exportState().messages;
-  release("late result");
-  await sleep(50);
-  assert.deepEqual(session.exportState().messages, before);
-  assert.ok(!session.exportState().messages.some((m) => m.role === "tool"));
 });
 
 test("aborting during chat emits exactly one interrupted event", async () => {

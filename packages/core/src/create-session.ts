@@ -7,7 +7,7 @@ import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { notesFileName, notesFilePath } from "./util/file.js";
-import { cleanupScratchDir } from "./util/scratch.js";
+import { sweepDir } from "./util/sweep.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { renderSubAgentGuidance } from "./tools/sub-agent.js";
@@ -44,8 +44,8 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
   const sessionId = opts.sessionId ?? randomUUID();
   const cwd = opts.cwd ?? process.cwd();
-  if (opts.sessionDir) await cleanupScratchDir(opts.sessionDir, sessionFileName(sessionId));
-  if (opts.scratchDir) await cleanupScratchDir(opts.scratchDir, notesFileName(sessionId));
+  if (opts.sessionDir) await sweepDir(opts.sessionDir, sessionFileName(sessionId));
+  if (opts.scratchDir) await sweepDir(opts.scratchDir, notesFileName(sessionId));
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
   const session = new Session({

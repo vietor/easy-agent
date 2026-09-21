@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Session } from "../src/runtime/session.js";
+import { loadSessionState } from "../src/runtime/session-persistence.js";
 import { TimelineStore, toTimelineEntries } from "../src/runtime/timeline.js";
 import { TodoStore } from "../src/runtime/todo-store.js";
 import type { TimelineEvent } from "../src/runtime/timeline.js";
@@ -9,6 +10,7 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { AskedQuestion } from "../src/tools/ask-user.js";
+import { withTempDir } from "./helpers.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const llm: LLMClient = {
@@ -105,30 +107,33 @@ test("applyEvent stores timeline entries and merges tool stream events", () => {
 });
 
 test("restored timeline from persisted messages matches the live run (golden equivalence)", async () => {
-  const llm = fakeLLM([() => toolCall("Echo"), () => ({ role: "assistant", content: null })]);
-  const tools = new ToolRegistry();
-  tools.register({
-    name: "Echo",
-    description: "echo",
-    parameters: { type: "object", properties: {} },
-    async execute() {
-      return { content: "echoed" };
-    },
+  await withTempDir(async (dir) => {
+    const llm = fakeLLM([() => toolCall("Echo"), () => ({ role: "assistant", content: null })]);
+    const tools = new ToolRegistry();
+    tools.register({
+      name: "Echo",
+      description: "echo",
+      parameters: { type: "object", properties: {} },
+      async execute() {
+        return { content: "echoed" };
+      },
+    });
+    const session = new Session({
+      systemPrompt: "test",
+      llm,
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionDir: dir,
+    });
+    session.subscribe(() => {});
+    const result = await session.prompt("go");
+    assert.equal(result.status, "ok");
+    const live = session.getSnapshot().timeline;
+    const restored = new TimelineStore();
+    restored.rebuild(toTimelineEntries(loadSessionState(session.filePath!)!.messages, () => ""));
+    assert.deepEqual(restored.all, live);
   });
-  const session = new Session({
-    systemPrompt: "test",
-    llm,
-    tools,
-    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
-    contextLimit: 750_000,
-  });
-  session.subscribe(() => {});
-  const result = await session.prompt("go");
-  assert.equal(result.status, "ok");
-  const live = session.getSnapshot().timeline;
-  const restored = new TimelineStore();
-  restored.rebuild(toTimelineEntries(session.exportState().messages, () => ""));
-  assert.deepEqual(restored.all, live);
 });
 
 test("restoring a run with a hanging tool keeps result null until aborted", () => {

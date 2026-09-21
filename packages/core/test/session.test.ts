@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Session, type SessionState } from "../src/runtime/session.js";
+import { Session } from "../src/runtime/session.js";
+import { sessionFilePath, toMessageLine } from "../src/runtime/session-persistence.js";
+import type { SessionMessage } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import { SCRATCH_RETENTION_MS } from "../src/util/constants.js";
+import { DIR_RETENTION_MS } from "../src/util/constants.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
-import { waitUntil } from "./helpers.js";
+import { waitUntil, withTempDir } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 
@@ -126,83 +128,8 @@ test("does not enforce a todo list inherited from a previous run", async () => {
   assert.equal(session.getSnapshot().todos.length, 2);
 });
 
-test("importState replays messages into the timeline", () => {
-  const tools = new ToolRegistry();
-  tools.register({
-    name: "Echo",
-    description: "echo",
-    parameters: { type: "object", properties: { path: { type: "string" } } },
-    async execute() { return { content: "echoed" }; },
-    argSummaryKeys: ["path"],
-  });
-  const state: SessionState = {
-    messages: [
-      { role: "user", content: "read x" },
-      {
-        role: "assistant",
-        content: null,
-        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
-      },
-      { role: "tool", tool_call_id: "t1", content: "echoed", isError: false, resultSummary: "Echo 4 bytes" },
-    ],
-    todos: [],
-  };
-  const session = new Session({
-    systemPrompt: "test",
-    llm: fakeLLM([]),
-    tools,
-    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
-    contextLimit: 750_000,
-    sessionId: "s1",
-  });
-  session.importState(state);
-  assert.equal(session.exportState().messages.length, 3);
-  const timeline = session.getSnapshot().timeline;
-  assert.equal(timeline.filter((e) => e.type === "user").length, 1);
-  const tool = timeline.find((e) => e.type === "tool");
-  assert.ok(tool && tool.type === "tool");
-  assert.equal(tool.name, "Echo");
-  assert.equal(tool.argsSummary, "a/b");
-  assert.equal(tool.result, "echoed");
-});
-
-test("importState tolerates malformed persisted tool arguments", () => {
-  const tools = new ToolRegistry();
-  tools.register({
-    name: "Echo",
-    description: "echo",
-    parameters: { type: "object", properties: { path: { type: "string" } } },
-    async execute() { return { content: "echoed" }; },
-    argSummaryKeys: ["path"],
-  });
-  const state: SessionState = {
-    messages: [
-      { role: "user", content: "go" },
-      {
-        role: "assistant",
-        content: null,
-        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "null" } }],
-      },
-    ],
-    todos: [],
-  };
-  const session = new Session({
-    systemPrompt: "test",
-    llm: fakeLLM([]),
-    tools,
-    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
-    contextLimit: 750_000,
-    sessionId: "s1",
-  });
-  session.importState(state);
-  const tool = session.getSnapshot().timeline.find((e) => e.type === "tool");
-  assert.ok(tool && tool.type === "tool");
-  assert.equal(tool.argsSummary, "");
-  assert.equal(tool.result, "(interrupted)");
-});
-
-test("importState replays a completed run into the same timeline", async () => {
-  const makeEchoSession = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => {
+test("a resumed session replays messages into the timeline", async () => {
+  await withTempDir(async (dir) => {
     const tools = new ToolRegistry();
     tools.register({
       name: "Echo",
@@ -211,125 +138,204 @@ test("importState replays a completed run into the same timeline", async () => {
       async execute() { return { content: "echoed" }; },
       argSummaryKeys: ["path"],
     });
-    return new Session({
+    const history: SessionMessage[] = [
+      { role: "user", content: "read x" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
+      },
+      { role: "tool", tool_call_id: "t1", content: "echoed", isError: false, resultSummary: "Echo 4 bytes" },
+    ];
+    await writeFile(sessionFilePath(dir, "s1"), history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
+
+    const session = new Session({
       systemPrompt: "test",
-      llm: fakeLLM(script),
+      llm: fakeLLM([]),
       tools,
       mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
       contextLimit: 750_000,
       sessionId: "s1",
+      sessionDir: dir,
     });
-  };
-
-  const session = makeEchoSession([
-    (opts) => {
-      opts.onDelta?.("checking");
-      return {
-        role: "assistant",
-        content: "checking",
-        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
-      };
-    },
-    (opts) => {
-      opts.onDelta?.("done");
-      return { role: "assistant", content: "done" };
-    },
-  ]);
-  session.subscribe(() => {});
-  assert.equal((await session.prompt("go")).status, "ok");
-
-  const live = [...session.getSnapshot().timeline];
-  const restored = makeEchoSession([]);
-  restored.importState(session.exportState());
-
-  assert.deepEqual([...restored.getSnapshot().timeline], live);
+    const timeline = session.getSnapshot().timeline;
+    assert.equal(timeline.filter((e) => e.type === "user").length, 1);
+    const tool = timeline.find((e) => e.type === "tool");
+    assert.ok(tool && tool.type === "tool");
+    assert.equal(tool.name, "Echo");
+    assert.equal(tool.argsSummary, "a/b");
+    assert.equal(tool.result, "echoed");
+  });
 });
 
-test("importState replays an answered question into the same timeline", async () => {
-  const makeAskSession = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => {
+test("a resumed session tolerates malformed persisted tool arguments", async () => {
+  await withTempDir(async (dir) => {
     const tools = new ToolRegistry();
-    return new Session({
+    tools.register({
+      name: "Echo",
+      description: "echo",
+      parameters: { type: "object", properties: { path: { type: "string" } } },
+      async execute() { return { content: "echoed" }; },
+      argSummaryKeys: ["path"],
+    });
+    const history: SessionMessage[] = [
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "null" } }],
+      },
+    ];
+    await writeFile(sessionFilePath(dir, "s1"), history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
+
+    const session = new Session({
       systemPrompt: "test",
-      llm: fakeLLM(script),
+      llm: fakeLLM([]),
       tools,
       mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
       contextLimit: 750_000,
-      builtInTools: { askUser: true },
       sessionId: "s1",
+      sessionDir: dir,
     });
-  };
+    const tool = session.getSnapshot().timeline.find((e) => e.type === "tool");
+    assert.ok(tool && tool.type === "tool");
+    assert.equal(tool.argsSummary, "");
+    assert.equal(tool.result, "(interrupted)");
+  });
+});
 
-  const session = makeAskSession([
-    () => ({
-      role: "assistant",
-      content: null,
-      tool_calls: [{
-        id: "call_7",
-        type: "function",
-        function: {
-          name: "AskUser",
-          arguments: JSON.stringify({
-            questions: [{ question: "env?", options: [{ label: "prod" }, { label: "dev" }], multiSelect: false }],
-          }),
-        },
-      }],
-    }),
-    (opts) => {
-      opts.onDelta?.("done");
-      return { role: "assistant", content: "done" };
-    },
-  ]);
-  session.subscribe(() => {});
-  const run = session.prompt("go");
-  assert.ok(await waitUntil(() => session.pendingQuestion !== undefined, 5000), "question must become pending");
-  session.submitAnswer(session.pendingQuestion!.id, ["prod"]);
-  assert.equal((await run).status, "ok");
+test("a resumed session replays a completed run into the same timeline", async () => {
+  await withTempDir(async (dir) => {
+    const makeEchoSession = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => {
+      const tools = new ToolRegistry();
+      tools.register({
+        name: "Echo",
+        description: "echo",
+        parameters: { type: "object", properties: { path: { type: "string" } } },
+        async execute() { return { content: "echoed" }; },
+        argSummaryKeys: ["path"],
+      });
+      return new Session({
+        systemPrompt: "test",
+        llm: fakeLLM(script),
+        tools,
+        mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+        contextLimit: 750_000,
+        sessionId: "s1",
+        sessionDir: dir,
+      });
+    };
 
-  const live = [...session.getSnapshot().timeline];
-  const restored = makeAskSession([]);
-  restored.importState(session.exportState());
+    const session = makeEchoSession([
+      (opts) => {
+        opts.onDelta?.("checking");
+        return {
+          role: "assistant",
+          content: "checking",
+          tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: JSON.stringify({ path: "a/b" }) } }],
+        };
+      },
+      (opts) => {
+        opts.onDelta?.("done");
+        return { role: "assistant", content: "done" };
+      },
+    ]);
+    session.subscribe(() => {});
+    assert.equal((await session.prompt("go")).status, "ok");
 
-  assert.deepEqual([...restored.getSnapshot().timeline], live);
+    const live = [...session.getSnapshot().timeline];
+    const restored = makeEchoSession([]);
+    assert.deepEqual([...restored.getSnapshot().timeline], live);
+  });
+});
+
+test("a resumed session replays an answered question into the same timeline", async () => {
+  await withTempDir(async (dir) => {
+    const makeAskSession = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => {
+      const tools = new ToolRegistry();
+      return new Session({
+        systemPrompt: "test",
+        llm: fakeLLM(script),
+        tools,
+        mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+        contextLimit: 750_000,
+        builtInTools: { askUser: true },
+        sessionId: "s1",
+        sessionDir: dir,
+      });
+    };
+
+    const session = makeAskSession([
+      () => ({
+        role: "assistant",
+        content: null,
+        tool_calls: [{
+          id: "call_7",
+          type: "function",
+          function: {
+            name: "AskUser",
+            arguments: JSON.stringify({
+              questions: [{ question: "env?", options: [{ label: "prod" }, { label: "dev" }], multiSelect: false }],
+            }),
+          },
+        }],
+      }),
+      (opts) => {
+        opts.onDelta?.("done");
+        return { role: "assistant", content: "done" };
+      },
+    ]);
+    session.subscribe(() => {});
+    const run = session.prompt("go");
+    assert.ok(await waitUntil(() => session.pendingQuestion !== undefined, 5000), "question must become pending");
+    session.submitAnswer(session.pendingQuestion!.id, ["prod"]);
+    assert.equal((await run).status, "ok");
+
+    const live = [...session.getSnapshot().timeline];
+    const restored = makeAskSession([]);
+    assert.deepEqual([...restored.getSnapshot().timeline], live);
+  });
 });
 
 test("a restored session with dangling tool calls is healed before the next run", async () => {
-  const tools = new ToolRegistry();
-  tools.register({
-    name: "Echo",
-    description: "echo",
-    parameters: { type: "object", properties: {} },
-    async execute() { return { content: "echoed" }; },
-  });
-  const state: SessionState = {
-    messages: [
+  await withTempDir(async (dir) => {
+    const tools = new ToolRegistry();
+    tools.register({
+      name: "Echo",
+      description: "echo",
+      parameters: { type: "object", properties: {} },
+      async execute() { return { content: "echoed" }; },
+    });
+    const history: SessionMessage[] = [
       { role: "user", content: "go" },
       {
         role: "assistant",
         content: null,
         tool_calls: [{ id: "t1", type: "function", function: { name: "Echo", arguments: "{}" } }],
       },
-    ],
-    todos: [],
-  };
-  const session = new Session({
-    systemPrompt: "test",
-    llm: fakeLLM([
-      (opts) => {
-        assert.deepEqual(
-          opts.messages.find((m) => m.role === "tool"),
-          { role: "tool", tool_call_id: "t1", content: "(interrupted)" }
-        );
-        return { role: "assistant", content: "done" };
-      },
-    ]),
-    tools,
-    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
-    contextLimit: 750_000,
-    sessionId: "s1",
+    ];
+    await writeFile(sessionFilePath(dir, "s1"), history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
+
+    const session = new Session({
+      systemPrompt: "test",
+      llm: fakeLLM([
+        (opts) => {
+          assert.deepEqual(
+            opts.messages.find((m) => m.role === "tool"),
+            { role: "tool", tool_call_id: "t1", content: "(interrupted)" }
+          );
+          return { role: "assistant", content: "done" };
+        },
+      ]),
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionId: "s1",
+      sessionDir: dir,
+    });
+    const { status } = await session.prompt("continue");
+    assert.equal(status, "ok");
   });
-  session.importState(state);
-  const { status } = await session.prompt("continue");
-  assert.equal(status, "ok");
 });
 
 test("builtInTools: false registers no built-in tools", async () => {
@@ -508,7 +514,7 @@ test("a finished run sweeps the scratch directory", async () => {
   try {
     const stale = join(dir, "stale.txt");
     await writeFile(stale, "old", "utf-8");
-    const past = new Date(Date.now() - SCRATCH_RETENTION_MS - 60_000);
+    const past = new Date(Date.now() - DIR_RETENTION_MS - 60_000);
     await utimes(stale, past, past);
     await writeFile(join(dir, "fresh.txt"), "new", "utf-8");
     const session = makeSession([() => ({ role: "assistant", content: "ok" })], dir);

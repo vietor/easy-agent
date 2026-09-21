@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig, LLMUsage } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
-import { cleanupScratchDir } from "../util/scratch.js";
+import { sweepDir } from "../util/sweep.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import { notesFileName, notesFilePath } from "../util/file.js";
@@ -14,8 +14,8 @@ import type { AskAnswer, AskQuestion } from "../tools/ask-user.js";
 import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineEvent } from "./events.js";
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
-import { SessionMessages, type SessionMessage } from "./session-messages.js";
-import { SessionPersistence } from "./session-persistence.js";
+import { SessionMessages } from "./session-messages.js";
+import { SessionPersistence, loadSessionState, type SessionState } from "./session-persistence.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
@@ -144,6 +144,7 @@ export interface SessionOptions {
   maxParallelToolCalls?: number;
   scratchDir?: string;
   sessionDir?: string;
+  importPath?: string;
 }
 
 export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
@@ -156,11 +157,6 @@ export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcp
 export interface SessionView {
   timeline: readonly TimelineEvent[];
   todos: readonly Todo[];
-}
-
-export interface SessionState {
-  messages: SessionMessage[];
-  todos: Todo[];
 }
 
 export interface PromptResult {
@@ -316,6 +312,13 @@ export class Session {
       },
     });
 
+    const persisted = deps.importPath ? loadSessionState(deps.importPath) : this.persistence?.load();
+    if (persisted) {
+      this.conversation.import(persisted.messages);
+      this.todoStore.set(persisted.todos);
+      this.rebuildTimeline();
+    }
+
     this.agent = new Agent({
       llm: deps.llm,
       conversation: this.conversation,
@@ -371,7 +374,7 @@ export class Session {
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
-      if (this.limits.scratchDir) void cleanupScratchDir(this.limits.scratchDir, notesFileName(this.sessionId));
+      if (this.limits.scratchDir) void sweepDir(this.limits.scratchDir, notesFileName(this.sessionId));
       await this.save();
     }
     return { status, reply: this.stream.reply };
@@ -380,9 +383,8 @@ export class Session {
   save(): Promise<void> {
     const persistence = this.persistence;
     if (!persistence) return Promise.resolve();
-    const state = this.exportState();
-    const revision = this.conversation.revision;
-    this.saveChain = this.saveChain.then(() => persistence.save(state, revision)).catch((e) => {
+    const state: SessionState = { messages: this.conversation.export(), todos: [...this.todoStore.all] };
+    this.saveChain = this.saveChain.then(() => persistence.save(state)).catch((e) => {
       this.emit({ type: "error", text: `session save failed: ${toErrorMessage(e)}` });
     });
     return this.saveChain;
@@ -459,22 +461,9 @@ export class Session {
     void this.save();
   }
 
-  exportState(): SessionState {
-    return { messages: this.conversation.export(), todos: [...this.todoStore.all] };
-  }
-
   private rebuildTimeline(): void {
     this.timelineStore.rebuild(toTimelineEntries(this.conversation.export(), (n, a) => this.tools.summarizeArgs(n, a)));
     this.viewCache = null;
-  }
-
-  importState(state: SessionState): void {
-    this.rejectIfBusy();
-    this.conversation.import(state.messages);
-    this.todoStore.set(state.todos);
-    this.rebuildTimeline();
-    this.persistence?.seed(this.exportState(), this.conversation.revision);
-    void this.save();
   }
 
   async compact(): Promise<RunStatus> {

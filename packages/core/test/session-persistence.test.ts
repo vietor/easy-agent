@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Session } from "../src/runtime/session.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
-import { SessionPersistence, listSessions, loadSessionState, sessionFilePath, toMessageLine, toSessionLine } from "../src/runtime/session-persistence.js";
+import { SessionPersistence, listSessions, loadSessionState, sessionFilePath, toMessageLine, toSessionLine, toTodoLine } from "../src/runtime/session-persistence.js";
 import { PRUNE_PROTECT_TOKENS, TOOL_OUTPUT_CLEARED_PREFIX } from "../src/util/constants.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
@@ -80,22 +81,42 @@ test("filePath names the file a finished run was saved to", async () => {
   });
 });
 
-test("a resumed session appends only the messages it added", async () => {
+test("a session constructed on an existing file resumes it", async () => {
+  await withDir(async (dir) => {
+    assert.deepEqual(makeSession([], dir, "nope").getSnapshot().timeline, []);
+
+    const file = fileOf(dir, "s1");
+    const lines = [
+      toMessageLine({ role: "user", content: "a" }),
+      toMessageLine({ role: "assistant", content: "b" }),
+      toTodoLine([{ content: "t", status: "pending" }]),
+    ];
+    await writeFile(file, lines.join("\n") + "\n", "utf-8");
+
+    const resumed = makeSession([], dir, "s1");
+    assert.deepEqual(resumed.getSnapshot().timeline.map((e) => e.type), ["user", "assistant"]);
+    assert.deepEqual(resumed.getSnapshot().todos, [{ content: "t", status: "pending" }]);
+  });
+});
+
+test("a resumed session writes its merged history back as one canonical file", async () => {
   await withDir(async (dir) => {
     const file = fileOf(dir, "s1");
     const history = [{ role: "user", content: "a" }, { role: "user", content: "b" }] as const;
     await writeFile(file, history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
 
     const session = makeSession([() => ({ role: "assistant", content: "done" })], dir, "s1");
-    session.importState(loadSessionState(file)!);
     assert.equal((await session.prompt("c")).status, "ok");
 
-    assert.deepEqual((await linesOf(file)).length, 4);
+    const lines = await linesOf(file);
+    assert.deepEqual(lines.length, 6);
+    assert.equal(JSON.parse(lines[0]).t, "session");
+    assert.equal(JSON.parse(lines[5]).t, "todo");
     assert.deepEqual(loadSessionState(file)?.messages.map((m) => m.content), ["a", "b", "c", "done"]);
   });
 });
 
-test("resuming a session with an unanswered tool call appends in order", async () => {
+test("resuming a session with an unanswered tool call records the healed history", async () => {
   await withDir(async (dir) => {
     const file = fileOf(dir, "s1");
     const history = [
@@ -109,11 +130,10 @@ test("resuming a session with an unanswered tool call appends in order", async (
     await writeFile(file, history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
 
     const session = makeSession([() => ({ role: "assistant", content: "done" })], dir, "s1");
-    session.importState(loadSessionState(file)!);
     assert.equal((await session.prompt("c")).status, "ok");
 
     const roles = loadSessionState(file)?.messages.map((m) => m.role);
-    assert.deepEqual(roles, ["user", "assistant", "user", "assistant"]);
+    assert.deepEqual(roles, ["user", "assistant", "tool", "user", "assistant"]);
   });
 });
 
@@ -152,7 +172,6 @@ test("a compaction that only prepends a summary still rewrites the file", async 
     await writeFile(file, history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
 
     const session = makeSession([() => ({ role: "assistant", content: "SUMMARY" })], dir, "s1", 1000);
-    session.importState(loadSessionState(file)!);
     assert.equal(await session.compact(), "ok");
 
     const messages = loadSessionState(file)?.messages.map((m) => m.content);
@@ -168,15 +187,45 @@ test("a pruned tool output replaces its on-disk copy instead of staying behind",
     conversation.add({ role: "tool", tool_call_id: "t1", content: output, resultSummary: "Shell · 1 line" });
 
     const persistence = new SessionPersistence(dir, "s1");
-    await persistence.save({ messages: conversation.export(), todos: [] }, conversation.revision);
+    await persistence.save({ messages: conversation.export(), todos: [] });
     assert.ok((await readFile(fileOf(dir, "s1"), "utf-8")).includes(output));
 
     assert.ok(conversation.pruneToolOutputs(0) > 0);
-    await persistence.save({ messages: conversation.export(), todos: [] }, conversation.revision);
+    await persistence.save({ messages: conversation.export(), todos: [] });
 
     const text = await readFile(fileOf(dir, "s1"), "utf-8");
     assert.ok(!text.includes(output));
     assert.ok(text.includes(TOOL_OUTPUT_CLEARED_PREFIX));
+  });
+});
+
+test("an imported file only contributes its content to the new session", async () => {
+  await withDir(async (dir) => {
+    const source = join(dir, "elsewhere.jsonl");
+    const text = [toSessionLine(1000), toMessageLine({ role: "user", content: "from the source" })].join("\n") + "\n";
+    await writeFile(source, text, "utf-8");
+
+    const tools = new ToolRegistry();
+    const session = new Session({
+      systemPrompt: "test",
+      llm: fakeLLM([() => ({ role: "assistant", content: "hi" })]),
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionId: "s1",
+      sessionDir: dir,
+      importPath: source,
+    });
+
+    assert.equal(session.getSnapshot().timeline.length, 1);
+    assert.equal(existsSync(fileOf(dir, "s1")), false);
+    assert.equal(await readFile(source, "utf-8"), text);
+
+    assert.equal((await session.prompt("go")).status, "ok");
+    const lines = await linesOf(fileOf(dir, "s1"));
+    assert.equal(JSON.parse(lines[0]).t, "session");
+    assert.notEqual(JSON.parse(lines[0]).createdAt, 1000);
+    assert.deepEqual(loadSessionState(fileOf(dir, "s1"))?.messages.map((m) => m.content), ["from the source", "go", "hi"]);
   });
 });
 
@@ -205,9 +254,9 @@ test("a rewrite keeps the creation time recorded in the session record", async (
     const conversation = new SessionMessages("system");
     conversation.add({ role: "user", content: "a" });
     const persistence = new SessionPersistence(dir, "s1");
-    persistence.seed({ messages: conversation.export(), todos: [] }, conversation.revision);
+    persistence.load();
     conversation.clear();
-    await persistence.save({ messages: conversation.export(), todos: [] }, conversation.revision);
+    await persistence.save({ messages: conversation.export(), todos: [] });
 
     assert.equal((await linesOf(file))[0], toSessionLine(1000));
     assert.equal(listSessions(dir)[0].createdAt, 1000);
@@ -249,6 +298,20 @@ test("listSessions leaves a session without a leading user message untitled", as
 
 test("listSessions returns nothing for a directory that does not exist", () => {
   assert.deepEqual(listSessions(join(tmpdir(), "no-such-session-dir")), []);
+});
+
+test("a save with nothing new leaves the file untouched", async () => {
+  await withDir(async (dir) => {
+    const session = makeSession([() => ({ role: "assistant", content: "hi" })], dir, "s1");
+    await session.prompt("go");
+
+    const file = fileOf(dir, "s1");
+    const past = new Date(Date.now() - 60_000);
+    await utimes(file, past, past);
+    await session.save();
+
+    assert.equal((await stat(file)).mtimeMs, past.getTime());
+  });
 });
 
 test("save is a no-op without a sessionDir", async () => {

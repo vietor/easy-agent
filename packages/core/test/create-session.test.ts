@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSession } from "../src/create-session.js";
-import { SCRATCH_RETENTION_MS } from "../src/util/constants.js";
+import { DIR_RETENTION_MS } from "../src/util/constants.js";
 
 const llm = { baseUrl: "http://localhost:1", apiKey: "test", model: "test" };
 
@@ -28,7 +28,7 @@ test("a new session sweeps both directories but keeps its own files", async () =
     const scratchDir = join(dir, "scratch");
     await mkdir(sessionDir, { recursive: true });
     await mkdir(scratchDir, { recursive: true });
-    const past = new Date(Date.now() - SCRATCH_RETENTION_MS - 60_000);
+    const past = new Date(Date.now() - DIR_RETENTION_MS - 60_000);
     for (const path of [join(sessionDir, "old.jsonl"), join(scratchDir, "old.notes.md")]) {
       await writeFile(path, "x", "utf-8");
       await utimes(path, past, past);
@@ -48,7 +48,7 @@ test("a new session tolerates a missing scratch directory", async () => {
   await withDir(async (dir) => {
     const stale = join(dir, "old.jsonl");
     await writeFile(stale, "x", "utf-8");
-    const past = new Date(Date.now() - SCRATCH_RETENTION_MS - 60_000);
+    const past = new Date(Date.now() - DIR_RETENTION_MS - 60_000);
     await utimes(stale, past, past);
 
     await startSession(dir, undefined, "s1");

@@ -63,7 +63,7 @@ easy-agent/
 └── tsconfig.json      # base TypeScript config
 ```
 
-The `core` package contains the framework logic (agent loop, tools, MCP client, skill system), an event-driven interface (`SessionEvent` / `onEvent`), and state export/import (`exportState()` / `importState()`). With `sessionDir` set it also owns JSONL session persistence itself — the file format, incremental writes, listing, and sweeping. The `cli` package depends on `core` and provides the interactive terminal experience plus session resolution (`--continue`/`--resume`/`--import`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
+The `core` package contains the framework logic (agent loop, tools, MCP client, skill system), an event-driven interface (`SessionEvent` / `onEvent`), and session state (a session built with `sessionDir` resumes its own file at construction, and `save()` writes it back). With `sessionDir` set it owns JSONL session persistence itself — the file format, atomic whole-file saves, listing, and sweeping. The `cli` package depends on `core` and provides the interactive terminal experience plus session resolution (`--continue`/`--resume`/`--import`), its own built-in slash commands and dispatcher, and the `LocalScript` tool for executing throwaway JavaScript/Python scripts in a temporary directory.
 
 ### Build order
 

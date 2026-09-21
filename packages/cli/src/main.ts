@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { Command } from "commander";
-import { createSession, loadSessionState, sessionFilePath, tryLoadSkills } from "@vietor/agent-core";
+import { createSession, tryLoadSkills } from "@vietor/agent-core";
 import { loadConfig } from "./config.js";
 import { assembleSystemPrompt } from "./prompts.js";
 import { printSessions, resolveSession, type CliOptions } from "./session-resolution.js";
@@ -18,7 +18,7 @@ export async function main(argv: string[] = []): Promise<void> {
     .description("Terminal-based AI agent CLI with conversational TUI")
     .option("-c, --continue", "Continue the most recent session")
     .option("-r, --resume [id]", "Resume a session by ID (omit to list sessions)")
-    .option("--import <file>", "Import a session from a saved JSONL file")
+    .option("--import <file>", "Import a saved session file's content into a new session")
     .parse(argv, { from: "user" });
 
   const opts = program.opts() as CliOptions;
@@ -40,7 +40,7 @@ export async function main(argv: string[] = []): Promise<void> {
 
   const config = loadConfig();
 
-  const { sessionId, resume, imported } = resolveSession(sessionDir, opts);
+  const { sessionId, importPath } = resolveSession(sessionDir, opts);
 
   const globalSkills =
     tryLoadSkills(join(homedir(), ".easy-agent", "skills")) ?? tryLoadSkills(join(homedir(), ".claude", "skills"));
@@ -61,21 +61,10 @@ export async function main(argv: string[] = []): Promise<void> {
     sessionId,
     sessionDir,
     scratchDir,
+    importPath,
     clientInfo: { name: pkg.name, version: pkg.version },
     tools: [localScriptTool],
   });
-
-  if (resume) {
-    const state = loadSessionState(sessionFilePath(sessionDir, sessionId));
-    if (!state) {
-      console.error(`Session not found: ${sessionId}`);
-      session.dispose();
-      process.exit(1);
-    }
-    session.importState(state);
-  } else if (imported) {
-    session.importState(imported);
-  }
 
   let shuttingDown = false;
   const shutdown = () => {

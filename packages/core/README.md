@@ -56,7 +56,6 @@ const result = await session.prompt("What files are in the current directory?");
 console.log(result.reply);                // final assistant reply
 
 console.log(session.getSnapshot().timeline);   // full session timeline
-console.log(session.exportState());   // full session state: messages + todos
 session.dispose();
 ```
 
@@ -110,6 +109,7 @@ const session = await createSession({
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 | `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
 | `sessionDir` | `string` | `undefined` | Directory for the session's JSONL file, written as `<sessionDir>/<sessionId>.jsonl`. When unset, core keeps no storage. |
+| `importPath` | `string` | `undefined` | Path to another session file whose content seeds this session's history instead of the session's own file. Only messages and todos are taken — the source's session record and any records core doesn't know are ignored, nothing is copied, and this session still writes its own `<sessionDir>/<sessionId>.jsonl` with its own creation time. |
 | `scratchDir` | `string` | `undefined` | Directory for the session's working files: the model's notes at `<scratchDir>/<sessionId>.notes.md`, and oversized tool output saved in full as `<scratchDir>/<uuid>.txt` — structured output is summarized as a shape rather than inlined, and Read pages the original file instead of saving a copy. When unset, oversized output is truncated without being saved. |
 
 `maxTurns`, `stallThreshold`, and `maxParallelToolCalls` must be positive integers; `createSession` throws at construction otherwise.
@@ -147,12 +147,11 @@ const session = await createSession({ systemPrompt, llm });
 
 ### Managing conversation
 
+A session built with `sessionDir` resumes its own `<sessionId>.jsonl` at construction — that file is the only way state goes in or out, so there is no separate import call (see `SessionState` below).
+
 | Method | Description |
 |---|---|
 | `clear(): void` | Reset the conversation and log. |
-| `importState(state: SessionState): void` | Replace conversation messages and todos from a previously exported `SessionState`, rebuilding the timeline. Throws `SessionBusyError` if a run is in progress. |
-| `export(): SessionMessage[]` | Return all session messages (excluding the system prompt). |
-| `exportState(): SessionState` | Return the full session state (`{ messages, todos }`); `export()` returns only messages. |
 | `save(): Promise<void>` | Flush the current state to disk. Resolves immediately when `sessionDir` is not configured. |
 | `compact(): Promise<RunStatus>` | Ask the LLM to summarize the conversation so far, replacing history with a summary message followed by the retained recent messages. Runs through the run loop — streams the summary and can be aborted via `abort()`. |
 | `abort(): void` | Abort the current prompt or compact, cancel pending tool calls, and dismiss unanswered user questions. |
@@ -299,14 +298,14 @@ A `Session` runs one prompt/compact at a time. While a run is in progress, calli
 
 | Driver method | Behavior when busy |
 |---|---|
-| `prompt`, `compact`, `runSkill`, `clear`, `importState` | Throws `SessionBusyError`. |
+| `prompt`, `compact`, `runSkill`, `clear` | Throws `SessionBusyError`. |
 
 These remain callable during a run (they are inputs to the running loop, or read-only/teardown):
 
 | Method | Behavior when busy |
 |---|---|
 | `abort`, `submitAnswer` | Allowed - control the running loop. |
-| `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `export`, `exportState`, `save`, `dispose`, accessors | Allowed. |
+| `onEvent`, `subscribe`, `getSnapshot`, `pendingQuestion`, `save`, `dispose`, accessors | Allowed. |
 
 ```ts
 import { SessionBusyError } from "@vietor/agent-core";
@@ -401,7 +400,7 @@ Also returned by `session.compact()` (`"ok"` on success, `"aborted"` if aborted,
 
 ### `SessionMessage`
 
-The internal message format exchanged with the agent, as contained in `session.exportState().messages`.
+The internal message format exchanged with the agent, as contained in `SessionState.messages`.
 
 ```ts
 type SessionMessage =
@@ -448,7 +447,7 @@ type LLMBackend = ResolvedLLMConfig["backend"];
 
 ### `SessionState`
 
-The payload exchanged with a host's persistence layer — the complete state to save and the input to restore:
+The complete session state — what core writes to a session file, and what `loadSessionState()` reads back:
 
 ```ts
 interface SessionState {
@@ -457,11 +456,11 @@ interface SessionState {
 }
 ```
 
-With `sessionDir` set, core persists the state itself as JSONL at `<sessionDir>/<sessionId>.jsonl` (a leading session record, one record per message, plus a trailing todo record) and keeps it current: a save runs at the end of every run — awaited, so the file is on disk before `prompt()`/`compact()`/`runSkill()` resolves — and on `clear()` and `importState()`. Saves are serialized, an append-only delta while messages are only added and a rewrite whenever existing history changed or was replaced (compaction, clear, import, in-place tool-output pruning), and a failed save emits an `error` event without failing the run.
+With `sessionDir` set, core persists the state itself as JSONL at `<sessionDir>/<sessionId>.jsonl` (a leading session record, one record per message, plus a trailing todo record) and keeps it current: a save runs at the end of every run — awaited, so the file is on disk before `prompt()`/`compact()`/`runSkill()` resolves — and on `clear()`. Saves are serialized, and each one rewrites the whole file through a staged temp file + rename, so the file is never half-written and no save can leave a stale copy of a message behind; a save whose content is unchanged is skipped. A failed save emits an `error` event without failing the run.
 
 `createSession` also sweeps the directories it was given — `sessionDir` and `scratchDir` — dropping files past the retention age or over the total size cap while keeping the current session's own `<sessionId>.jsonl` and `<sessionId>.notes.md`; the run loop re-sweeps the scratch directory at every run boundary.
 
-Without `sessionDir`, core never touches the filesystem. The host drives persistence itself: `session.exportState()` snapshots the state, `session.importState(state)` restores one (synchronous, rebuilding the timeline from the messages), and `session.save()` flushes on demand — it resolves immediately when no `sessionDir` is configured. The JSONL format itself stays internal; a host with its own storage only ever handles the plain `SessionState` object.
+With `sessionDir` set, the session file is the interface: **constructing a session whose `<sessionId>.jsonl` already exists resumes it** — the whole of `--continue`/`--resume` is picking that id, and `--import` seeds a new session from another file's content (`importPath`) — while `save()` writes it back. Without `sessionDir`, core never touches the filesystem. State crosses the boundary as a session file: a host reads one with `loadSessionState()` and hands one over by putting it at `<sessionDir>/<sessionId>.jsonl`; the JSONL format itself stays internal.
 
 Session files are also reachable without a `Session`:
 
