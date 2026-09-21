@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Session } from "../src/runtime/session.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
-import { SessionPersistence, listSessions, loadSessionState, sessionFilePath, toMessageLine, toSessionLine, toTodoLine } from "../src/runtime/session-persistence.js";
+import { SessionPersistence, isSessionExists, isSessionFile, listSessions, loadSessionState, sessionFilePath, toMessageLine, toSessionLine, toTodoLine } from "../src/runtime/session-persistence.js";
 import { PRUNE_PROTECT_TOKENS, TOOL_OUTPUT_CLEARED_PREFIX } from "../src/util/constants.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
@@ -78,6 +78,33 @@ test("filePath names the file a finished run was saved to", async () => {
     assert.equal(session.filePath, sessionFilePath(dir, "s1"));
     assert.deepEqual(loadSessionState(session.filePath!)?.messages.map((m) => m.content), ["go", "hi"]);
     assert.equal(makeSession([]).filePath, undefined);
+  });
+});
+
+test("isSessionFile only accepts files carrying a session record", async () => {
+  await withDir(async (dir) => {
+    assert.equal(isSessionFile(fileOf(dir, "s1")), false);
+
+    const bare = fileOf(dir, "bare");
+    await writeFile(bare, toMessageLine({ role: "user", content: "a" }) + "\n", "utf-8");
+    assert.equal(isSessionFile(bare), false);
+
+    const session = makeSession([() => ({ role: "assistant", content: "hi" })], dir, "s1");
+    await session.prompt("go");
+    assert.equal(isSessionFile(session.filePath!), true);
+  });
+});
+
+test("isSessionExists sees only the session's own file", async () => {
+  await withDir(async (dir) => {
+    assert.equal(isSessionExists(dir, "s1"), false);
+
+    const session = makeSession([() => ({ role: "assistant", content: "hi" })], dir, "s1");
+    await session.prompt("go");
+
+    assert.equal(isSessionExists(dir, "s1"), true);
+    assert.equal(isSessionExists(dir, "s2"), false);
+    assert.equal(isSessionExists(join(dir, "elsewhere"), "s1"), false);
   });
 });
 

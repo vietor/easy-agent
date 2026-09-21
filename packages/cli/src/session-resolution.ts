@@ -1,7 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { listSessions, loadSessionState, sessionFilePath } from "@vietor/agent-core";
+import { isSessionExists, isSessionFile, listSessions } from "@vietor/agent-core";
 
 export interface CliOptions {
   continue?: boolean;
@@ -10,7 +8,7 @@ export interface CliOptions {
 }
 
 export interface ResolvedSession {
-  sessionId: string;
+  sessionId?: string;
   importPath?: string;
 }
 
@@ -34,13 +32,8 @@ export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSe
   let importPath: string | undefined;
   if (opts.import) {
     const path = resolve(opts.import);
-    const state = loadSessionState(path);
-    if (!state) {
-      console.error(`Import file not found: ${path}`);
-      process.exit(1);
-    }
-    if (!state.messages.length) {
-      console.error(`No session messages found in: ${path}`);
+    if (!isSessionFile(path)) {
+      console.error(`Not a session file: ${path}`);
       process.exit(1);
     }
     importPath = path;
@@ -54,12 +47,11 @@ export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSe
     sessionId = opts.resume;
     resume = true;
   }
-  if (!sessionId) sessionId = randomUUID();
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(sessionId)) {
+  if (sessionId && !/^[A-Za-z0-9_-]{1,64}$/.test(sessionId)) {
     console.error(`Invalid session id: ${sessionId}`);
     process.exit(1);
   }
-  if (resume && !existsSync(sessionFilePath(sessionDir, sessionId))) {
+  if (resume && sessionId && !isSessionExists(sessionDir, sessionId)) {
     console.error(`Session not found: ${sessionId}`);
     process.exit(1);
   }

@@ -447,7 +447,7 @@ type LLMBackend = ResolvedLLMConfig["backend"];
 
 ### `SessionState`
 
-The complete session state — what core writes to a session file, and what `loadSessionState()` reads back:
+The complete session state — what core writes to a session file. The shape stays inside core: a host checks a candidate file with `isSessionFile()`, it is never read back as an object.
 
 ```ts
 interface SessionState {
@@ -460,14 +460,14 @@ With `sessionDir` set, core persists the state itself as JSONL at `<sessionDir>/
 
 `createSession` also sweeps the directories it was given — `sessionDir` and `scratchDir` — dropping files past the retention age or over the total size cap while keeping the current session's own `<sessionId>.jsonl` and `<sessionId>.notes.md`; the run loop re-sweeps the scratch directory at every run boundary.
 
-With `sessionDir` set, the session file is the interface: **constructing a session whose `<sessionId>.jsonl` already exists resumes it** — the whole of `--continue`/`--resume` is picking that id, and `--import` seeds a new session from another file's content (`importPath`) — while `save()` writes it back. Without `sessionDir`, core never touches the filesystem. State crosses the boundary as a session file: a host reads one with `loadSessionState()` and hands one over by putting it at `<sessionDir>/<sessionId>.jsonl`; the JSONL format itself stays internal.
+With `sessionDir` set, the session file is the interface: **constructing a session whose `<sessionId>.jsonl` already exists resumes it** — the whole of `--continue`/`--resume` is picking that id, and `--import` seeds a new session from another file's content (`importPath`) — while `save()` writes it back. Without `sessionDir`, core never touches the filesystem. State crosses the boundary as a session file: a host checks a candidate with `isSessionFile()` and hands one over by putting it at `<sessionDir>/<sessionId>.jsonl`; the JSONL format itself stays internal.
 
 Session files are also reachable without a `Session`:
 
 | Function | Description |
 |---|---|
-| `sessionFilePath(dir, sessionId)` | The JSONL path for a session in `dir`. |
-| `loadSessionState(path)` | Read one session file back into a `SessionState`, or `null` if it does not exist. |
+| `isSessionExists(dir, sessionId)` | Whether `dir` holds a session file for that id. The path itself never leaves core. |
+| `isSessionFile(path)` | Whether `path` is a session file: it exists and its leading session record says so. The contents are never handed back. |
 | `listSessions(dir)` | Every session in `dir` as `SessionMeta` (`{ id, title?, createdAt, updatedAt }`), most recently updated first. The title is the first user message, summarized; a session that never had one is untitled. `createdAt` comes from the file's leading session record, falling back to its birth time for files written before that record existed. |
 
 ### `Todo`

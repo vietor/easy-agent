@@ -80,6 +80,6 @@ export async function main(argv: string[] = []): Promise<void> {
   await app.waitUntilExit().finally(async () => {
     session.dispose();
     await session.save().catch(() => {});
-    console.log(["Resume this session with:", `${program.name()} --resume ${sessionId}`].join("\n"));
+    console.log(["Resume this session with:", `${program.name()} --resume ${session.sessionId}`].join("\n"));
   });
 }

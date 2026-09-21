@@ -117,6 +117,10 @@ export function sessionFilePath(dir: string, sessionId: string): string {
   return join(dir, sessionFileName(sessionId));
 }
 
+export function isSessionExists(dir: string, sessionId: string): boolean {
+  return existsSync(sessionFilePath(dir, sessionId));
+}
+
 function sessionIdFromPath(path: string): string {
   return basename(path, SESSION_FILE_EXT);
 }
@@ -124,6 +128,11 @@ function sessionIdFromPath(path: string): string {
 export function loadSessionState(path: string): SessionState | null {
   if (!existsSync(path)) return null;
   return parseSessionFile(readFileSync(path, "utf-8")).state;
+}
+
+export function isSessionFile(path: string): boolean {
+  if (!existsSync(path)) return false;
+  return parseRecords(readFilePrefix(path, MAX_TITLE_SCAN_BYTES)).some((r) => r.t === "session");
 }
 
 export class SessionPersistence {
