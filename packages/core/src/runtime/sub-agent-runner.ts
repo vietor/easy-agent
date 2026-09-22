@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
-import { notesFilePath } from "../util/file.js";
+import { notesFilePath } from "./session-persistence.js";
 import type { LLMClient, LLMUsage } from "../llm/types.js";
 import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";

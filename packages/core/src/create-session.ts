@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
-import { sessionFileName } from "./runtime/session-persistence.js";
+import { notesFileName, notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
-import { notesFileName, notesFilePath } from "./util/file.js";
 import { sweepDir } from "./util/sweep.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";

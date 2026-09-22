@@ -77,9 +77,13 @@ function readFilePrefix(path: string, maxBytes: number): string {
   }
 }
 
+function headRecords(path: string): SessionRecord[] {
+  try { return parseRecords(readFilePrefix(path, MAX_TITLE_SCAN_BYTES)); } catch { return []; }
+}
+
 function readHead(path: string): { createdAt?: number; title?: string } {
   let createdAt: number | undefined;
-  for (const record of parseRecords(readFilePrefix(path, MAX_TITLE_SCAN_BYTES))) {
+  for (const record of headRecords(path)) {
     if (record.t === "session" && typeof record.createdAt === "number") {
       createdAt ??= record.createdAt;
     } else if (record.t === "message" && record.m?.role === "user" && typeof record.m.content === "string") {
@@ -97,9 +101,10 @@ export function listSessions(dir: string): SessionMeta[] {
     const path = join(dir, name);
     try {
       const stat = statSync(path);
+      if (!stat.isFile()) continue;
       const head = readHead(path);
       out.push({
-        id: sessionIdFromPath(name),
+        id: basename(name, SESSION_FILE_EXT),
         title: head.title ? summarizeText(head.title, MAX_SUMMARY_LENGTH) : undefined,
         createdAt: head.createdAt ?? (stat.birthtimeMs || stat.mtimeMs),
         updatedAt: stat.mtimeMs,
@@ -117,22 +122,30 @@ export function sessionFilePath(dir: string, sessionId: string): string {
   return join(dir, sessionFileName(sessionId));
 }
 
+export function notesFileName(id: string): string {
+  return `${id}.notes.md`;
+}
+
+export function notesFilePath(dir: string, id: string): string {
+  return join(dir, notesFileName(id));
+}
+
 export function isSessionExists(dir: string, sessionId: string): boolean {
   return existsSync(sessionFilePath(dir, sessionId));
 }
 
-function sessionIdFromPath(path: string): string {
-  return basename(path, SESSION_FILE_EXT);
+function readSessionFile(path: string): { state: SessionState; createdAt: number; text: string } | null {
+  if (!existsSync(path)) return null;
+  const text = readFileSync(path, "utf-8");
+  return { ...parseSessionFile(text), text };
 }
 
 export function loadSessionState(path: string): SessionState | null {
-  if (!existsSync(path)) return null;
-  return parseSessionFile(readFileSync(path, "utf-8")).state;
+  return readSessionFile(path)?.state ?? null;
 }
 
 export function isSessionFile(path: string): boolean {
-  if (!existsSync(path)) return false;
-  return parseRecords(readFilePrefix(path, MAX_TITLE_SCAN_BYTES)).some((r) => r.t === "session");
+  return headRecords(path).some((r) => r.t === "session");
 }
 
 export class SessionPersistence {
@@ -145,12 +158,11 @@ export class SessionPersistence {
   }
 
   load(): SessionState | null {
-    if (!existsSync(this.path)) return null;
-    const text = readFileSync(this.path, "utf-8");
-    const { state, createdAt } = parseSessionFile(text);
-    this.createdAt = createdAt;
-    this.last = text;
-    return state;
+    const loaded = readSessionFile(this.path);
+    if (!loaded) return null;
+    this.createdAt = loaded.createdAt;
+    this.last = loaded.text;
+    return loaded.state;
   }
 
   async save(state: SessionState): Promise<void> {

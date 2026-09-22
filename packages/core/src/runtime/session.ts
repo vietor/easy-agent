@@ -4,7 +4,6 @@ import { isAbortError } from "../util/async.js";
 import { sweepDir } from "../util/sweep.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
-import { notesFileName, notesFilePath } from "../util/file.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -15,7 +14,7 @@ import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineE
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { SessionMessages } from "./session-messages.js";
-import { SessionPersistence, loadSessionState, type SessionState } from "./session-persistence.js";
+import { SessionPersistence, loadSessionState, notesFileName, notesFilePath, type SessionState } from "./session-persistence.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
