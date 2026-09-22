@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSession } from "../src/create-session.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
+import type { MCPServerConfig } from "../src/mcp/types.js";
 
 const llm = { baseUrl: "http://localhost:1", apiKey: "test", model: "test" };
 
@@ -42,6 +43,14 @@ test("a new session sweeps both directories but keeps its own files", async () =
     assert.deepEqual(await readdir(sessionDir), ["s1.jsonl"]);
     assert.deepEqual(await readdir(scratchDir), ["s1.notes.md"]);
   });
+});
+
+test("creating a session does not wait for MCP servers to connect", async () => {
+  const servers: Record<string, MCPServerConfig> = { slow: { type: "stdio", command: "node", args: ["-e", "setTimeout(() => {}, 5000)"] } };
+  const started = Date.now();
+  const session = await createSession({ systemPrompt: "test", llm, builtInTools: false, mcpServers: servers });
+  assert.ok(Date.now() - started < 2000);
+  session.dispose();
 });
 
 test("a new session tolerates a missing scratch directory", async () => {

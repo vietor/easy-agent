@@ -67,7 +67,7 @@ session.dispose();
 
 **`createSession(options: SessionOptions): Promise<Session>`**
 
-Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance. Connects the MCP servers listed in `mcpServers` before resolving.
+Factory that wires together the LLM client, tool registry, MCP servers, and skills into a ready-to-use `Session` instance. The MCP servers listed in `mcpServers` connect in the background — they do not delay the returned `Session`, and their tools appear once a server is up.
 
 ```ts
 import { createSession, LLMConfigSchema } from "@vietor/agent-core";
@@ -101,7 +101,7 @@ const session = await createSession({
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
-| `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect on startup. |
+| `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect in the background after startup. |
 | `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (Read/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
 | `sessionId` | `string` | `randomUUID()` | Unique session identifier. |
@@ -133,7 +133,7 @@ const systemPrompt = [
 
 ## `Session`
 
-The main session object. Create one via `createSession()` — it wires the LLM client, tool registry, and MCP servers, and connects the MCP servers listed in `mcpServers`:
+The main session object. Create one via `createSession()` — it wires the LLM client, tool registry, and MCP servers, and connects the servers listed in `mcpServers` in the background:
 
 ```ts
 const session = await createSession({ systemPrompt, llm });
@@ -698,7 +698,7 @@ MCP tools are exposed to the LLM with the prefixed name `MCP__<server>__<tool>`.
 
 **`connectMCP(servers: Record<string, MCPServerConfig>): Promise<void>`**
 
-Connect additional MCP servers after session creation. Called internally by `createSession` when `mcpServers` is set; usable by hosts to add servers at runtime.
+Connect additional MCP servers after session creation. Called by `createSession` when `mcpServers` is set (without awaiting it) and usable by hosts to add servers at runtime; await it when the caller needs the servers up before proceeding.
 
 ---
 

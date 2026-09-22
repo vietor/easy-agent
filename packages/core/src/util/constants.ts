@@ -34,6 +34,7 @@ export const CONTEXT_LIMIT_RATIO = 0.75;
 export const COMPACT_TAIL_RATIO = 0.15;
 export const DIR_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const DIR_MAX_BYTES = 200 * 1024 * 1024;
+export const DIR_SWEEP_CONCURRENCY = 32;
 export const TOOL_OUTPUT_CLEARED_PREFIX = "(output cleared: ";
 
 export function mbToBytes(mb: number): number {

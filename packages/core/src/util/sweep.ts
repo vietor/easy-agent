@@ -1,6 +1,7 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import { DIR_MAX_BYTES, DIR_RETENTION_MS } from "./constants.js";
+import { mapWithConcurrency } from "./async.js";
+import { DIR_MAX_BYTES, DIR_RETENTION_MS, DIR_SWEEP_CONCURRENCY } from "./constants.js";
 
 interface Entry {
   path: string;
@@ -16,22 +17,24 @@ export async function sweepDir(dir: string, keep?: string): Promise<void> {
     return;
   }
   const cutoff = Date.now() - DIR_RETENTION_MS;
-  const kept: Entry[] = [];
-  let total = 0;
-  for (const name of names) {
-    if (name === keep) continue;
-    const path = join(dir, name);
-    try {
-      const info = await stat(path);
-      if (!info.isFile()) continue;
-      if (info.mtimeMs < cutoff) {
-        await unlink(path).catch(() => {});
-        continue;
+  const kept = (
+    await mapWithConcurrency(names, DIR_SWEEP_CONCURRENCY, async (name): Promise<Entry | undefined> => {
+      if (name === keep) return undefined;
+      const path = join(dir, name);
+      try {
+        const info = await stat(path);
+        if (!info.isFile()) return undefined;
+        if (info.mtimeMs < cutoff) {
+          await unlink(path).catch(() => {});
+          return undefined;
+        }
+        return { path, mtime: info.mtimeMs, size: info.size };
+      } catch {
+        return undefined;
       }
-      kept.push({ path, mtime: info.mtimeMs, size: info.size });
-      total += info.size;
-    } catch {}
-  }
+    })
+  ).filter((entry) => entry !== undefined);
+  let total = kept.reduce((sum, entry) => sum + entry.size, 0);
   if (total <= DIR_MAX_BYTES) return;
   kept.sort((a, b) => a.mtime - b.mtime);
   for (const entry of kept) {

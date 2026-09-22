@@ -43,8 +43,10 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
   const sessionId = opts.sessionId ?? randomUUID();
   const cwd = opts.cwd ?? process.cwd();
-  if (opts.sessionDir) await sweepDir(opts.sessionDir, sessionFileName(sessionId));
-  if (opts.scratchDir) await sweepDir(opts.scratchDir, notesFileName(sessionId));
+  await Promise.all([
+    opts.sessionDir ? sweepDir(opts.sessionDir, sessionFileName(sessionId)) : undefined,
+    opts.scratchDir ? sweepDir(opts.scratchDir, notesFileName(sessionId)) : undefined,
+  ]);
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
   const session = new Session({
@@ -63,7 +65,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   }
 
   if (opts.mcpServers) {
-    await session.connectMCP(opts.mcpServers);
+    void session.connectMCP(opts.mcpServers);
   }
 
   return session;
