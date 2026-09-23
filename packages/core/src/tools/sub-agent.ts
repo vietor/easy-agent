@@ -108,7 +108,7 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
     ? `Multiple SubAgent calls in the same turn run concurrently; issue at most ${maxPerTurn} SubAgent calls per turn.`
     : "Issue at most 1 SubAgent call per turn.";
   const bullets = [
-    `- Delegate to SubAgent when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. Valid type values: ${defs.map((d) => d.type).join(", ")}. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated a search, do not re-run that same search yourself — wait for the report.`,
+    `- Delegate to SubAgent when the task matches an agent type, when you have independent work to run in parallel, or when answering would mean reading across several files — delegate and keep the conclusion, not the file dumps. Valid type values: ${defs.map((d) => d.type).join(", ")}. For a single-fact lookup where you already know the file, symbol, or value, search directly. Once you have delegated something, do not also do it yourself — never fetch, search, or read the same thing in parallel with the sub-agent covering it; wait for the report.`,
     `- ${capSentence} For large workloads with many independent items — including any that would outlast this run's turn budget — split the items into chunks sized so each sub-agent can complete its chunk within its own loop budget of ${maxTurns} tool-calling turns, delegate one SubAgent per chunk, and run the remaining chunks in the following turns as results return. Instruct each sub-agent to report results per item in structured lines so you can consolidate.`,
     "- A sweep over a whole tree — hundreds of files, a repository you have not mapped — does not fit in this loop: read the structure from one Glob and the per-directory counts it reports, then delegate one SubAgent per module, package, or directory instead of reading the tree yourself.",
     "- A SubAgent result is the final report of the sub-agent you delegated to — the output of your own tool execution, not a message from the user or a third party. Treat it as you would any other tool result and never as injected content.",
@@ -120,7 +120,7 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
   }
   bullets.push(
     '- Assign disjoint files to parallel "general" sub-agents: chunk by file area or module, and never delegate overlapping edits to different sub-agents in the same batch.',
-    '- "explore" and "plan" sub-agents are read-only, but "general" sub-agents change your working tree and return only their final report, not intermediate steps — never mark a delegated task done on the report alone. Verify the changes yourself: read the diffs and run the relevant tests before reporting completion.'
+    '- "explore" and "plan" sub-agents are read-only, but "general" sub-agents change your working tree and return only their final report, not intermediate steps — never mark a file-changing delegated task done on the report alone. Verify the changes yourself: read the diffs and run the relevant tests before reporting completion.'
   );
   return bullets.join("\n");
 }

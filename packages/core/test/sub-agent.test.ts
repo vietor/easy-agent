@@ -236,7 +236,8 @@ test("read-only session restricts SubAgent types to explore and plan", async () 
 test("SubAgent guidance omits general in read-only sessions", () => {
   const full = renderSubAgentGuidance(false, 10, 50);
   assert.ok(full.includes("Valid type values: explore, plan, general"));
-  assert.ok(full.includes("never mark a delegated task done on the report alone"));
+  assert.ok(full.includes("never fetch, search, or read the same thing in parallel with the sub-agent"));
+  assert.ok(full.includes("never mark a file-changing delegated task done on the report alone"));
   assert.ok(full.includes('Use "explore" when the answer already exists in the codebase or on the web'));
   const readOnly = renderSubAgentGuidance(true, 10, 50);
   assert.ok(!readOnly.includes("general"));
