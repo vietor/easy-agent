@@ -6,7 +6,8 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool, renderSubAgentGuidance } from "../src/tools/sub-agent.js";
 import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { ChatOptions, LLMClient, LLMUsage } from "../src/llm/types.js";
+import type { Tool } from "../src/tools/types.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const calls: ChatOptions[] = [];
@@ -33,6 +34,17 @@ function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
   };
 }
 
+function withUsage(usage: LLMUsage, message: LLMAssistantMessage) {
+  return (opts: ChatOptions) => {
+    opts.onUsage?.(usage);
+    return message;
+  };
+}
+
+function subAgentSchema(calls: ChatOptions[], index: number) {
+  return calls[index].tools?.find((s) => s.function.name === "SubAgent");
+}
+
 function stub(name: string, content: string, agentLevel = 0) {
   return {
     name,
@@ -49,12 +61,12 @@ const SUB_TOOLS = [stub("Read", "file contents", 1), stub("Glob", "matches", 1),
 const GENERAL_ONLY_TOOLS = [stub("Shell", "ok", 2), stub("Write", "written", 2), stub("Edit", "edited", 2)];
 const SESSION_SCOPED_TOOLS = [stub("AskUser", "asked"), stub("Skill", "skilled"), stub("TodoWrite", "todos")];
 
-function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number } = {}): Agent {
+function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number; maxSubAgentDepth?: number } = {}): Agent {
   const tools = new ToolRegistry();
   tools.registerAll(SUB_TOOLS);
   tools.registerAll([...GENERAL_ONLY_TOOLS, ...SESSION_SCOPED_TOOLS]);
   let parentAgent: Agent;
-  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level) => runSubAgent({ llm, tools, cwd: process.cwd(), maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (usage) => parentAgent.addUsage(usage) }, systemPrompt, task, level) }));
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level, signal) => runSubAgent({ llm, tools, cwd: process.cwd(), depth: 1, maxSubAgentDepth: subAgentOpts.maxSubAgentDepth ?? 3, maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (usage) => parentAgent.addUsage(usage) }, systemPrompt, task, level, signal) }));
   const conversation = new SessionMessages("system prompt");
   parentAgent = new Agent({
     llm,
@@ -90,8 +102,8 @@ test("nested sub-agent reply becomes the SubAgent tool result", async () => {
   assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
   assert.match(String(calls[1].messages[0].content), /Tool-Use Guidelines/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
-  assert.deepEqual(nestedTools, ["Glob", "Grep", "Read", "WebFetch"]);
-  assert.ok(!nestedTools.some((n) => ["SubAgent", "Shell", "Write", "Edit", "Skill"].includes(n)));
+  assert.deepEqual(nestedTools, ["Glob", "Grep", "Read", "SubAgent", "WebFetch"]);
+  assert.ok(!nestedTools.some((n) => ["Shell", "Write", "Edit", "Skill"].includes(n)));
   assert.ok(
     calls[2].messages.some(
       (m) => m.role === "tool" && typeof m.content === "string" && m.content.includes("file contents")
@@ -112,8 +124,8 @@ test("general sub-agent gets writable tools but not session-scoped ones", async 
 
   assert.match(String(calls[1].messages[0].content), /You are the General sub-agent/);
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
-  assert.deepEqual(nestedTools, ["Edit", "Glob", "Grep", "Read", "Shell", "WebFetch", "Write"]);
-  assert.ok(!nestedTools.some((n) => ["SubAgent", "AskUser", "Skill", "TodoWrite"].includes(n)));
+  assert.deepEqual(nestedTools, ["Edit", "Glob", "Grep", "Read", "Shell", "SubAgent", "WebFetch", "Write"]);
+  assert.ok(!nestedTools.some((n) => ["AskUser", "Skill", "TodoWrite"].includes(n)));
 
   const toolMsg = agent.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
@@ -247,11 +259,13 @@ test("SubAgent guidance states the loop budget each sub-agent gets", () => {
   assert.ok(renderSubAgentGuidance(true, 10, 25).includes("its own loop budget of 25 tool-calling turns"));
 });
 
-test("a sub-agent is never told to delegate to sub-agents", async () => {
+test("a sub-agent below the nesting cap is given the delegation guidance", async () => {
   let system = "";
+  let toolNames: string[] = [];
   const { llm } = fakeLLM([
     (opts) => {
       system = String(opts.messages[0].content);
+      toolNames = opts.tools?.map((s) => s.function.name) ?? [];
       return { role: "assistant", content: "done" };
     },
   ]);
@@ -262,6 +276,8 @@ test("a sub-agent is never told to delegate to sub-agents", async () => {
       llm,
       tools,
       cwd: process.cwd(),
+      depth: 1,
+      maxSubAgentDepth: 3,
       maxTurns: 50,
       stallThreshold: 3,
       maxParallelToolCalls: 10,
@@ -273,7 +289,42 @@ test("a sub-agent is never told to delegate to sub-agents", async () => {
   );
   assert.equal(result.status, "ok");
   assert.ok(system.includes("Tool-Use Guidelines:"), "the header must still be present");
-  assert.ok(!system.includes("delegate chunks to sub-agents"), "a sub-agent cannot spawn sub-agents");
+  assert.ok(system.includes("Valid type values: explore, plan, general"));
+  assert.ok(toolNames.includes("SubAgent"));
+});
+
+test("the deepest sub-agent is told it cannot spawn and gets no SubAgent tool", async () => {
+  let system = "";
+  let toolNames: string[] = [];
+  const { llm } = fakeLLM([
+    (opts) => {
+      system = String(opts.messages[0].content);
+      toolNames = opts.tools?.map((s) => s.function.name) ?? [];
+      return { role: "assistant", content: "done" };
+    },
+  ]);
+  const tools = new ToolRegistry();
+  tools.registerAll([...SUB_TOOLS, ...GENERAL_ONLY_TOOLS]);
+  const result = await runSubAgent(
+    {
+      llm,
+      tools,
+      cwd: process.cwd(),
+      depth: 3,
+      maxSubAgentDepth: 3,
+      maxTurns: 50,
+      stallThreshold: 3,
+      maxParallelToolCalls: 10,
+      contextLimit: 750_000,
+    },
+    "You are the General sub-agent.",
+    "task",
+    2
+  );
+  assert.equal(result.status, "ok");
+  assert.ok(system.includes("cannot spawn further sub-agents"));
+  assert.ok(!system.includes("Valid type values"));
+  assert.ok(!toolNames.includes("SubAgent"));
 });
 
 test("SubAgent label is capped at 50 chars and shown after the type name", () => {
@@ -334,4 +385,157 @@ test("multiple SubAgent calls in one turn run concurrently", async () => {
   const results = agent.export().filter((m) => m.role === "tool" && !m.isError).map((m) => m.content);
   assert.ok(results.includes("RESULT A"));
   assert.ok(results.includes("RESULT B"));
+});
+
+test("a sub-agent can spawn a sub-agent and sees only its report", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "outer" }), "t1"),
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "inner" }), "n1"),
+    () => ({ role: "assistant", content: "DEEP" }),
+    () => ({ role: "assistant", content: "MID" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  assert.equal(await agent.run("go"), "ok");
+
+  assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
+  assert.match(String(calls[2].messages[0].content), /You are the Explore sub-agent/);
+  assert.ok(calls[2].tools?.some((s) => s.function.name === "SubAgent"));
+  assert.ok(calls[3].messages.some((m) => m.role === "tool" && m.content === "DEEP"));
+
+  const toolMessages = agent.export().filter((m) => m.role === "tool").map((m) => m.content);
+  assert.deepEqual(toolMessages, ["MID"]);
+});
+
+test("nesting stops at the deepest level", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "one" }), "t1"),
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "two" }), "n1"),
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "three" }), "n2"),
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "four" }), "n3"),
+    () => ({ role: "assistant", content: "L3 DONE" }),
+    () => ({ role: "assistant", content: "L2 DONE" }),
+    () => ({ role: "assistant", content: "L1 DONE" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  assert.equal(await agent.run("go"), "ok");
+
+  const deepestTools = calls[3].tools?.map((s) => s.function.name) ?? [];
+  assert.ok(!deepestTools.includes("SubAgent"));
+  assert.ok(String(calls[3].messages[0].content).includes("cannot spawn further sub-agents"));
+  assert.ok(!String(calls[3].messages[0].content).includes("Valid type values"));
+  assert.ok(calls[4].messages.some((m) => m.role === "tool" && String(m.content).includes("unknown tool")));
+
+  const toolMessages = agent.export().filter((m) => m.role === "tool").map((m) => m.content);
+  assert.deepEqual(toolMessages, ["L1 DONE"]);
+});
+
+test("the nesting cap is configurable", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "outer" }), "t1"),
+    () => ({ role: "assistant", content: "OUTER REPORT" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm, { maxSubAgentDepth: 1 });
+  assert.equal(await agent.run("go"), "ok");
+
+  const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
+  assert.ok(!nestedTools.includes("SubAgent"));
+  assert.ok(String(calls[1].messages[0].content).includes("cannot spawn further sub-agents"));
+});
+
+test("usage from every nesting level is counted exactly once", async () => {
+  const { llm } = fakeLLM([
+    withUsage({ cacheInputTokens: 0, missInputTokens: 10, outputTokens: 1 }, toolCall("SubAgent", JSON.stringify({ type: "explore", task: "one" }), "t1")),
+    withUsage({ cacheInputTokens: 0, missInputTokens: 20, outputTokens: 2 }, toolCall("SubAgent", JSON.stringify({ type: "explore", task: "two" }), "n1")),
+    withUsage({ cacheInputTokens: 0, missInputTokens: 30, outputTokens: 3 }, toolCall("SubAgent", JSON.stringify({ type: "explore", task: "three" }), "n2")),
+    withUsage({ cacheInputTokens: 0, missInputTokens: 40, outputTokens: 4 }, { role: "assistant", content: "L3" }),
+    withUsage({ cacheInputTokens: 0, missInputTokens: 50, outputTokens: 5 }, { role: "assistant", content: "L2" }),
+    withUsage({ cacheInputTokens: 0, missInputTokens: 60, outputTokens: 6 }, { role: "assistant", content: "L1" }),
+    withUsage({ cacheInputTokens: 0, missInputTokens: 70, outputTokens: 7 }, { role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  assert.equal(await agent.run("go"), "ok");
+  assert.deepEqual(agent.usage, { cacheInputTokens: 0, missInputTokens: 280, outputTokens: 28 });
+});
+
+test("a read-only sub-agent cannot delegate to a writable child", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "outer" }), "t1"),
+    () => ({ role: "assistant", content: "OUTER REPORT" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  assert.equal(await agent.run("go"), "ok");
+
+  const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
+  assert.deepEqual(nestedTools, ["Glob", "Grep", "Read", "SubAgent", "WebFetch"]);
+
+  const params = subAgentSchema(calls, 1)?.function.parameters as { properties: { type: { enum: string[] } } };
+  assert.deepEqual(params.properties.type.enum, ["explore", "plan"]);
+  const system = String(calls[1].messages[0].content);
+  assert.ok(system.includes("Valid type values: explore, plan"));
+  assert.ok(!system.includes("general"));
+});
+
+test("a writable sub-agent delegates to writable children", async () => {
+  const { llm, calls } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "general", task: "one" }), "t1"),
+    () => toolCall("SubAgent", JSON.stringify({ type: "general", task: "two" }), "n1"),
+    () => toolCall("Shell", JSON.stringify({ command: "true" }), "n2"),
+    () => ({ role: "assistant", content: "L2 DONE" }),
+    () => ({ role: "assistant", content: "L1 DONE" }),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const agent = makeParentAgent(llm);
+  assert.equal(await agent.run("go"), "ok");
+
+  assert.match(String(calls[2].messages[0].content), /You are the General sub-agent/);
+  const nestedTools = calls[2].tools?.map((s) => s.function.name) ?? [];
+  assert.ok(nestedTools.includes("Shell"));
+  assert.ok(nestedTools.includes("Write"));
+  assert.ok(nestedTools.includes("Edit"));
+});
+
+test("nested sub-agents inherit the run's abort signal", async () => {
+  const controller = new AbortController();
+  let nestedSignal: AbortSignal | undefined;
+  const probe: Tool = {
+    name: "Probe",
+    agentLevel: 1,
+    description: "probe",
+    parameters: { type: "object", properties: {} },
+    async execute(_args, ctx) {
+      nestedSignal = ctx.signal;
+      return { content: "probed" };
+    },
+  };
+  const { llm } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "inner" }), "n1"),
+    () => toolCall("Probe", "{}", "n2"),
+    () => ({ role: "assistant", content: "inner done" }),
+    () => ({ role: "assistant", content: "outer done" }),
+  ]);
+  const tools = new ToolRegistry();
+  tools.registerAll([...SUB_TOOLS, probe]);
+  const result = await runSubAgent(
+    {
+      llm,
+      tools,
+      cwd: process.cwd(),
+      depth: 1,
+      maxSubAgentDepth: 3,
+      maxTurns: 50,
+      stallThreshold: 3,
+      maxParallelToolCalls: 10,
+      contextLimit: 750_000,
+    },
+    "You are the Explore sub-agent.",
+    "task",
+    1,
+    controller.signal
+  );
+  assert.equal(result.status, "ok");
+  assert.equal(nestedSignal, controller.signal);
 });

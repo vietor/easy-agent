@@ -3,7 +3,7 @@ import type { LLMClient, LLMConfig, LLMUsage } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { sweepDir } from "../util/sweep.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
-import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_SUB_AGENT_DEPTH, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -141,6 +141,7 @@ export interface SessionOptions {
   maxTurns?: number;
   stallThreshold?: number;
   maxParallelToolCalls?: number;
+  maxSubAgentDepth?: number;
   scratchDir?: string;
   sessionDir?: string;
   importPath?: string;
@@ -289,6 +290,7 @@ export class Session {
 
   constructor(deps: SessionDeps) {
     this.limits = resolveRunLimits(deps);
+    const maxSubAgentDepth = requirePositiveInt(deps.maxSubAgentDepth ?? DEFAULT_MAX_SUB_AGENT_DEPTH, "maxSubAgentDepth");
     this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
@@ -305,6 +307,8 @@ export class Session {
             llm: deps.llm,
             tools: this.tools,
             cwd: this.cwd,
+            depth: 1,
+            maxSubAgentDepth,
             ...this.limits,
             onUsage: (usage) => this.agent.addUsage(usage),
           }, systemPrompt, task, level, signal),

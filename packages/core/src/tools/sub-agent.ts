@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NOT_EXECUTED_PREFIX } from "../util/constants.js";
+import { NOT_EXECUTED_PREFIX, SUB_AGENT_TOOL_NAME } from "../util/constants.js";
 import { summarizeText } from "../util/text.js";
 import type { SubAgentRunResult } from "../runtime/sub-agent-runner.js";
 import { isGrantedAtLevel, type AgentLevel, type Tool } from "./types.js";
@@ -14,7 +14,7 @@ export interface SubAgentToolDeps {
 }
 
 const CAPABILITY_CONTRACT = [
-  "- You cannot ask the user questions, use skills or todos, or spawn further sub-agents. If a user decision or missing input genuinely blocks you, stop and report the decision point in your final reply instead of guessing.",
+  "- You cannot ask the user questions or use skills or todos. If a user decision or missing input genuinely blocks you, stop and report the decision point in your final reply instead of guessing.",
   "- If the task is ambiguous but you can proceed, state your assumptions explicitly in your report.",
   "- Trust tool results as ground truth; do not guess file contents from memory.",
 ].join("\n");
@@ -98,6 +98,9 @@ function defsForSession(readOnlySession: boolean): SubAgentDef[] {
 
 const MAX_SUB_AGENTS_PER_TURN = 8;
 
+export const SUB_AGENT_DENIED_GUIDANCE =
+  "- You cannot spawn further sub-agents. Do the work with the tools you have, and if part of it falls outside your type, report what remains in your final reply instead of improvising.";
+
 export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number, maxTurns: number): string {
   const defs = defsForSession(readOnlySession);
   const maxPerTurn = Math.max(1, Math.min(MAX_SUB_AGENTS_PER_TURN, maxParallelToolCalls));
@@ -135,12 +138,12 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
       .optional()
       .describe(`Short label (max ${MAX_LABEL_LENGTH} characters) for this sub-agent run, shown in the UI.`),
     task: z.string({ error: TASK_ERROR }).trim().min(1, { error: TASK_ERROR })
-      .describe("The task or question for the sub-agent. It sees only this text and its own system prompt — never your conversation history, the files you already read, or the project's instruction files — and it gets only the tools that opt in to sub-agent use: the built-in file, shell, and web tools it is allowed, plus any custom tool tagged with an agent level; MCP tools are never shared with it. So make it self-contained: the background it needs, the paths or scope to work in, any project rule or convention it must follow, and the deliverable and format you want back."),
+      .describe("The task or question for the sub-agent. It sees only this text and its own system prompt — never your conversation history, the files you already read, or the project's instruction files — and it gets only the tools that opt in to sub-agent use: the built-in file, shell, and web tools it is allowed, plus any custom tool tagged with an agent level, and a SubAgent tool of its own unless it is already at the deepest nesting level; MCP tools are never shared with it. So make it self-contained: the background it needs, the paths or scope to work in, any project rule or convention it must follow, and the deliverable and format you want back."),
   });
   return {
-    name: "SubAgent",
+    name: SUB_AGENT_TOOL_NAME,
     description:
-      "Run a dedicated sub-agent in its own nested loop — the only result you receive is its final report as text, not intermediate steps. The type parameter lists the valid values and when to use each. Sub-agents cannot ask questions, use skills or todos, or spawn further sub-agents.",
+      "Run a dedicated sub-agent in its own nested loop — the only result you receive is its final report as text, not intermediate steps. The type parameter lists the valid values and when to use each. Sub-agents cannot ask questions or use skills or todos.",
     parameters: toToolParameters(SubAgentArgs),
     summarizeArgs: (args) => {
       const type = args.type as string;

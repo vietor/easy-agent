@@ -540,4 +540,5 @@ test("rejects non-positive turn, stall, and concurrency limits", () => {
   assert.throws(() => new Session({ ...deps, maxTurns: Number.NaN }), /maxTurns must be a positive integer, got NaN/);
   assert.throws(() => new Session({ ...deps, stallThreshold: 2.5 }), /stallThreshold must be a positive integer/);
   assert.throws(() => new Session({ ...deps, maxParallelToolCalls: -1 }), /maxParallelToolCalls must be a positive integer/);
+  assert.throws(() => new Session({ ...deps, maxSubAgentDepth: 0 }), /maxSubAgentDepth must be a positive integer, got 0/);
 });
