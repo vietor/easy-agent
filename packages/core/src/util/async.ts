@@ -89,6 +89,9 @@ export async function mapWithConcurrency<T, R>(
   const size = Math.min(Math.max(1, limit), items.length);
   let next = 0;
   let failure: { index: number; error: unknown } | undefined;
+  const record = (index: number, error: unknown): void => {
+    if (!failure || index < failure.index) failure = { index, error };
+  };
   const worker = async (): Promise<void> => {
     while (!failure) {
       if (signal?.aborted) return;
@@ -97,7 +100,7 @@ export async function mapWithConcurrency<T, R>(
       try {
         completed.push({ index, value: await fn(items[index]) });
       } catch (error) {
-        if (!failure || index < failure.index) failure = { index, error };
+        record(index, error);
       }
     }
   };
