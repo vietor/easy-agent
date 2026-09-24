@@ -63,14 +63,6 @@ export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-export function withTimeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
-  return signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
-}
-
-export function isTimeout(signal: AbortSignal): boolean {
-  return (signal.reason as { name?: string })?.name === "TimeoutError";
-}
-
 export function withAbort<T>(promise: Promise<T>, signal?: AbortSignal, onAbort?: () => T): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) return onAbort ? Promise.resolve(onAbort()) : Promise.reject(new AbortedError());
@@ -119,11 +111,11 @@ export async function withTimeoutFn<T>(
   timeoutMessage: string,
   otherError?: (e: unknown) => unknown
 ): Promise<T> {
-  const timed = withTimeoutSignal(signal, ms);
+  const timed = signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms);
   try {
     return await fn(timed);
   } catch (e) {
-    if (isTimeout(timed)) throw new Error(timeoutMessage);
+    if ((timed.reason as { name?: string })?.name === "TimeoutError") throw new Error(timeoutMessage);
     throw otherError ? otherError(e) : e;
   }
 }
