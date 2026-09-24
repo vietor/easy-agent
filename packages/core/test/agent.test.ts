@@ -514,7 +514,7 @@ test("aborting during auto-compact emits exactly one interrupted event", async (
   assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
 });
 
-test("a failing tool summary leaves the conversation well-formed for the next turn", async () => {
+test("a failing tool summary falls back to the default one instead of aborting the run", async () => {
   const tools = new ToolRegistry();
   tools.register({
     name: "Boom",
@@ -523,11 +523,14 @@ test("a failing tool summary leaves the conversation well-formed for the next tu
     async execute() {
       return { content: "result" };
     },
+    summarizeArgs() {
+      throw new Error("args boom");
+    },
     summarizeResult() {
       throw new Error("summary boom");
     },
   });
-  const { llm } = fakeLLM([() => toolCall("Boom")]);
+  const { llm } = fakeLLM([() => toolCall("Boom"), () => ({ role: "assistant", content: "done" })]);
   const conversation = new SessionMessages("system prompt");
   const agent = new Agent({
     llm,
@@ -541,6 +544,13 @@ test("a failing tool summary leaves the conversation well-formed for the next tu
     maxParallelToolCalls: 10,
     contextLimit: 750_000,
   });
-  await assert.rejects(() => agent.run("go"), /summary boom/);
-  assert.deepEqual(agent.export()[agent.export().length - 1], { role: "tool", tool_call_id: "t1", content: "(interrupted)" });
+  const argsSummaries: string[] = [];
+  const status = await agent.run("go", (e) => {
+    if (e.type === "tool_start") argsSummaries.push(e.argsSummary);
+  });
+  assert.equal(status, "ok");
+  assert.deepEqual(argsSummaries, [""]);
+  const toolMessage = agent.export().find((m) => m.role === "tool");
+  assert.ok(toolMessage?.role === "tool");
+  assert.match(toolMessage.resultSummary ?? "", /Retrieved 6 bytes, 1 lines$/);
 });

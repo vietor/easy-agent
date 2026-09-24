@@ -81,16 +81,25 @@ export class ToolRegistry {
 
   summarizeResult(name: string, result: TextResult, durationMs: number): string {
     const tool = this.tools.get(name);
-    const resultSummary = tool?.summarizeResult
-      ? tool.summarizeResult(result)
-      : defaultResultSummary(result);
+    let resultSummary: string;
+    try {
+      resultSummary = tool?.summarizeResult ? tool.summarizeResult(result) : defaultResultSummary(result);
+    } catch {
+      resultSummary = defaultResultSummary(result);
+    }
     return `[${formatDuration(durationMs / 1000)}] ${resultSummary}`;
   }
 
   summarizeArgs(name: string, args: Record<string, unknown>): string {
     const tool = this.tools.get(name);
     if (!tool) return "";
-    if (tool.summarizeArgs) return tool.summarizeArgs(args);
+    if (tool.summarizeArgs) {
+      try {
+        return tool.summarizeArgs(args);
+      } catch {
+        return "";
+      }
+    }
     if (!tool.argSummaryKeys) return "";
     const parts: string[] = [];
     for (const k of tool.argSummaryKeys) {
