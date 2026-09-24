@@ -41,7 +41,7 @@ export class CompletionsAdapter extends BaseLLMAdapter {
     const params: Record<string, unknown> = {
       model: this.model,
       ...(useThinking ? { max_completion_tokens: this.maxOutputTokens } : { max_tokens: this.maxOutputTokens }),
-      messages,
+      messages: messages.map(toCompletionsMessage),
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
@@ -107,6 +107,11 @@ export class CompletionsAdapter extends BaseLLMAdapter {
     }
     return message;
   }
+}
+
+function toCompletionsMessage(m: LLMMessage): LLMMessage {
+  if (m.role !== "tool" || !m.isError) return m;
+  return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
 }
 
 type ResponsesInputItem = OpenAI.Responses.ResponseInputItem;

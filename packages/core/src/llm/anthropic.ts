@@ -198,7 +198,7 @@ function toMessageParam(m: LLMMessage, includeThinking: boolean): Anthropic.Mess
   if (m.role === "tool") {
     return {
       role: "user",
-      content: [{ type: "tool_result", tool_use_id: m.tool_call_id, content: m.content }],
+      content: [{ type: "tool_result", tool_use_id: m.tool_call_id, content: m.content, ...(m.isError && { is_error: true }) }],
     };
   }
   const blocks: Anthropic.ContentBlockParam[] = [];

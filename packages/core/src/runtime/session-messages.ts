@@ -48,7 +48,9 @@ function messageText(msg: SessionMessage): string {
 }
 
 function toLLMMessage(m: SessionMessage): LLMMessage {
-  if (m.role === "tool") return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
+  if (m.role === "tool") {
+    return { role: "tool", tool_call_id: m.tool_call_id, content: m.content, ...(m.isError && { isError: true }) };
+  }
   if (m.role === "skill") {
     const content = `Skill "${m.name}" invoked. Its instructions follow:\n\n${m.content}`;
     return { role: "user", name: m.name, content };
@@ -127,7 +129,13 @@ export class SessionMessages {
       }
       for (const tc of m.tool_calls) {
         if (satisfied.has(tc.id)) continue;
-        out.push({ role: "tool", tool_call_id: tc.id, content: INTERRUPTED_TOOL_CONTENT });
+        out.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: INTERRUPTED_TOOL_CONTENT,
+          resultSummary: INTERRUPTED_TOOL_CONTENT,
+          isError: true,
+        });
         changed = true;
         addedTokens += estimateTokens(INTERRUPTED_TOOL_CONTENT);
       }

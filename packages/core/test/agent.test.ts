@@ -13,6 +13,7 @@ import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { Tool, Todo } from "../src/tools/types.js";
 import type { TextResult } from "../src/tools/types.js";
 import { sleep, waitUntil, withTempDir } from "./helpers.js";
+import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const calls: ChatOptions[] = [];
@@ -305,7 +306,7 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
   assert.equal(status, "aborted");
   const tool = session.getSnapshot().timeline.find((e) => e.type === "tool");
   assert.ok(tool && tool.type === "tool");
-  assert.equal(tool.result, "aborted");
+  assert.equal(tool.result, INTERRUPTED_TOOL_CONTENT);
   assert.equal(tool.isError, true);
 });
 

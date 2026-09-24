@@ -8,6 +8,7 @@ import type { TimelineEvent } from "../src/runtime/timeline.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
+import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { AskedQuestion } from "../src/tools/ask-user.js";
 import { withTempDir } from "./helpers.js";
@@ -136,7 +137,7 @@ test("restored timeline from persisted messages matches the live run (golden equ
   });
 });
 
-test("restoring a run with a hanging tool keeps result null until aborted", () => {
+test("restoring a run with a hanging tool keeps result null until interrupted", () => {
   const store = new TimelineStore();
   store.rebuild(
     toTimelineEntries(
@@ -149,8 +150,8 @@ test("restoring a run with a hanging tool keeps result null until aborted", () =
   );
   const tool = store.all.find((e) => e.type === "tool");
   assert.deepEqual(tool, { type: "tool", id: "t1", name: "Echo", argsSummary: "", result: null });
-  store.markPendingToolsAborted();
-  assert.equal((store.all.find((e) => e.type === "tool") as Extract<TimelineEvent, { type: "tool" }>).result, "aborted");
+  store.markPendingToolsInterrupted();
+  assert.equal((store.all.find((e) => e.type === "tool") as Extract<TimelineEvent, { type: "tool" }>).result, INTERRUPTED_TOOL_CONTENT);
 });
 
 test("toTimelineEntries rebuilds AskUser question entries with the user's answers", () => {

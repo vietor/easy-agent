@@ -373,7 +373,7 @@ export class Session {
       clearInterval(this.timer);
       this.timer = undefined;
       this.abortController = null;
-      this.timelineStore.markPendingToolsAborted();
+      this.timelineStore.markPendingToolsInterrupted();
       this.runMetrics = runMetricsSince(this.runStartedAt, this.agent.usage, this.stream.firstReplyAt, false);
       this.emitRunMetrics();
       this.flushThinking();

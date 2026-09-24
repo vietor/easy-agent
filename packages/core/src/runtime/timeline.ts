@@ -1,6 +1,6 @@
 import { parseToolCallArgs, toText } from "../llm/messages.js";
 import { trimSurroundingNewlines } from "../util/text.js";
-import { ASK_USER_TOOL_NAME } from "../util/constants.js";
+import { ASK_USER_TOOL_NAME, INTERRUPTED_TOOL_CONTENT } from "../util/constants.js";
 import type { SessionMessage } from "./session-messages.js";
 import type { SessionEvent, TimelineEvent } from "./events.js";
 import { parseQuestions, type AskAnswer } from "../tools/ask-user.js";
@@ -79,11 +79,11 @@ export class TimelineStore {
     return undefined;
   }
 
-  markPendingToolsAborted(): void {
+  markPendingToolsInterrupted(): void {
     for (const [, idx] of this.pendingTools) {
       const entry = this.entries[idx];
       if (entry.type === "tool" && entry.result === null) {
-        this.entries[idx] = { ...entry, result: "aborted", isError: true, resultSummary: "aborted" };
+        this.entries[idx] = { ...entry, result: INTERRUPTED_TOOL_CONTENT, isError: true, resultSummary: INTERRUPTED_TOOL_CONTENT };
       }
     }
     this.pendingTools.clear();

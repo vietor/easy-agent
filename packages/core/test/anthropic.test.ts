@@ -43,6 +43,20 @@ test("tool results for a multi-tool_use assistant merge into one message", () =>
   assert.equal(messages.length, idx + 2);
 });
 
+test("an errored tool result is marked as an error", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "Echo", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "call_1", content: "Error: boom", isError: true },
+    ],
+    true
+  );
+  assert.deepEqual(messages[2].content, [
+    { type: "tool_result", tool_use_id: "call_1", content: "Error: boom", is_error: true },
+  ]);
+});
+
 test("a follow-up user text message stays separate from tool results", () => {
   const { messages } = toAnthropicMessages(
     [

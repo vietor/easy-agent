@@ -33,7 +33,7 @@ export type LLMMessage =
   | { role: "system"; content: string | TextContentPart[] }
   | { role: "user"; content: string | TextContentPart[]; name?: string }
   | LLMAssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string };
+  | { role: "tool"; tool_call_id: string; content: string; isError?: boolean };
 
 export function toText(content: string | TextContentPart[] | null | undefined): string {
   if (!content) return "";

@@ -10,6 +10,16 @@ function assistantToolCall(id: string): LLMAssistantMessage {
   return { role: "assistant", content: null, tool_calls: [{ id, type: "function", function: { name: "Echo", arguments: "{}" } }] };
 }
 
+function interruptedToolCall(id: string) {
+  return {
+    role: "tool" as const,
+    tool_call_id: id,
+    content: INTERRUPTED_TOOL_CONTENT,
+    resultSummary: INTERRUPTED_TOOL_CONTENT,
+    isError: true,
+  };
+}
+
 test("estimatedTokens tracks bytes/4 of added messages", () => {
   const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "hello world" });
@@ -119,7 +129,7 @@ test("normalizeInterruptedToolCalls appends a placeholder for a dangling tool ca
   assert.deepEqual(c.export(), [
     { role: "user", content: "go" },
     assistantToolCall("t1"),
-    { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT },
+    interruptedToolCall("t1"),
   ]);
 });
 
@@ -158,7 +168,7 @@ test("normalizeInterruptedToolCalls appends only the missing placeholder after r
   c.normalizeInterruptedToolCalls();
   const msgs = c.export();
   assert.deepEqual(msgs.map((m) => m.role), ["assistant", "tool", "tool"]);
-  assert.deepEqual(msgs[msgs.length - 1], { role: "tool", tool_call_id: "t2", content: INTERRUPTED_TOOL_CONTENT });
+  assert.deepEqual(msgs[msgs.length - 1], interruptedToolCall("t2"));
 });
 
 test("normalizeInterruptedToolCalls handles consecutive dangling assistant messages", () => {
@@ -168,8 +178,8 @@ test("normalizeInterruptedToolCalls handles consecutive dangling assistant messa
   c.add(assistantToolCall("t2"));
   c.normalizeInterruptedToolCalls();
   const msgs = c.export();
-  assert.deepEqual(msgs[2], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
-  assert.deepEqual(msgs[4], { role: "tool", tool_call_id: "t2", content: INTERRUPTED_TOOL_CONTENT });
+  assert.deepEqual(msgs[2], interruptedToolCall("t1"));
+  assert.deepEqual(msgs[4], interruptedToolCall("t2"));
 });
 
 test("normalizeInterruptedToolCalls updates tokens and invalidates the LLM cache", () => {
@@ -180,13 +190,13 @@ test("normalizeInterruptedToolCalls updates tokens and invalidates the LLM cache
   c.toLLM();
   c.normalizeInterruptedToolCalls();
   assert.equal(c.getEstimatedTokens(), before + Math.round(INTERRUPTED_TOOL_CONTENT.length / 4));
-  assert.deepEqual(c.toLLM()[c.toLLM().length - 1], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
+  assert.deepEqual(c.toLLM()[c.toLLM().length - 1], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT, isError: true });
 });
 
 test("import normalizes dangling tool calls", () => {
   const c = new SessionMessages(SYS);
   c.import([{ role: "user", content: "go" }, assistantToolCall("t1")]);
-  assert.deepEqual(c.export()[2], { role: "tool", tool_call_id: "t1", content: INTERRUPTED_TOOL_CONTENT });
+  assert.deepEqual(c.export()[2], interruptedToolCall("t1"));
 });
 
 function addToolOutput(c: SessionMessages, id: string, chars: number, summary?: string): void {

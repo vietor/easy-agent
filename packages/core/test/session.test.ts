@@ -322,7 +322,7 @@ test("a restored session with dangling tool calls is healed before the next run"
         (opts) => {
           assert.deepEqual(
             opts.messages.find((m) => m.role === "tool"),
-            { role: "tool", tool_call_id: "t1", content: "(interrupted)" }
+            { role: "tool", tool_call_id: "t1", content: "(interrupted)", isError: true }
           );
           return { role: "assistant", content: "done" };
         },
