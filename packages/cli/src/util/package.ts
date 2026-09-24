@@ -7,7 +7,6 @@ const MAX_PARENT_TRAVERSAL = 10;
 export interface PackageInfo {
   name: string;
   version: string;
-  description: string;
 }
 
 let _pkg: PackageInfo | null = null;

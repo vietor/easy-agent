@@ -6,11 +6,10 @@ import { formatCompactNumber, summaryCount } from "./text.js";
 const TRUNCATION_MARKER = "(output truncated)";
 const BREAKDOWN_DIRS = 12;
 
-export function formatRipgrepOutput(lines: string[], truncated: boolean, emptyText: string, overflow?: string): string {
+export function formatRipgrepOutput(lines: string[], emptyText: string, overflow?: string): string {
   if (!lines.length) return emptyText;
   const out = lines.join("\n");
-  if (!truncated) return out;
-  return out + "\n" + (overflow ?? TRUNCATION_MARKER);
+  return overflow ? out + "\n" + overflow : out;
 }
 
 export function overflowNotice(entries: string[], shown: number, word: "file" | "match", breakdown?: string): string {

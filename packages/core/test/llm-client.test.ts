@@ -8,12 +8,6 @@ function fakeAdapter(stream: LLMAdapter["stream"]): LLMAdapter {
   return { model: "test-model", thinkingEffort: "high", maxInputTokens: 1000, maxOutputTokens: 100, stream };
 }
 
-test("connection and timeout errors are retryable", () => {
-  for (const name of ["APIConnectionError", "APIConnectionTimeoutError", "APITimeoutError"]) {
-    assert.equal(isRetryableError({ name }), true, name);
-  }
-});
-
 test("429 and 5xx statuses are retryable, other 4xx are not", () => {
   for (const status of [429, 500, 503]) {
     assert.equal(isRetryableError({ status }), true, String(status));
@@ -43,7 +37,7 @@ test("chat does not retry an attempt that already emitted a tool call", async ()
   const adapter = fakeAdapter(async (opts) => {
     attempts++;
     opts.onToolCall?.();
-    throw { name: "APIConnectionError" };
+    throw { status: 500 };
   });
   await assert.rejects(withRetryChat(adapter)({ messages: [], tools: [] }));
   assert.equal(attempts, 1);
@@ -53,7 +47,7 @@ test("chat retries an attempt that failed before emitting a tool call", async ()
   let attempts = 0;
   const adapter = fakeAdapter(async () => {
     attempts++;
-    if (attempts === 1) throw { name: "APIConnectionError" };
+    if (attempts === 1) throw { status: 500 };
     return { role: "assistant", content: "ok" };
   });
   const result = await withRetryChat(adapter)({ messages: [], tools: [] });

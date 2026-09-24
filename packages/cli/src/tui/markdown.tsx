@@ -110,7 +110,7 @@ function renderInline(tokens: Token[] | undefined, mode: "react" | "text" = "rea
 function renderList(token: Tokens.List): ReactNode {
   const markers = token.items.map((item, i) => {
     if (item.task) return item.checked ? "[x]" : "[ ]";
-    if (token.ordered) return `${(token.start === "" ? i + 1 : Number(token.start) + i)}.`;
+    if (token.ordered) return `${Number(token.start) + i}.`;
     return "•";
   });
   const markerWidth = Math.max(1, ...markers.map((s)=>stringWidth(s)));

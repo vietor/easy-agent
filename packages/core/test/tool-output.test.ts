@@ -50,12 +50,18 @@ function stub(name: string, content: string, truncate?: "head" | "tail", structu
   };
 }
 
-function makeAgent(llm: LLMClient, tools: Tool[], scratchDir?: string, contextLimit = 750_000): Agent {
+function makeAgent(
+  llm: LLMClient,
+  tools: Tool[],
+  scratchDir?: string,
+  contextLimit = 750_000
+): { agent: Agent; conversation: SessionMessages } {
   const registry = new ToolRegistry();
   registry.registerAll(tools);
-  return new Agent({
+  const conversation = new SessionMessages("system prompt");
+  const agent = new Agent({
     llm,
-    conversation: new SessionMessages("system prompt"),
+    conversation,
     tools: registry,
     cwd: process.cwd(),
     getTodos: () => [],
@@ -65,6 +71,7 @@ function makeAgent(llm: LLMClient, tools: Tool[], scratchDir?: string, contextLi
     contextLimit,
     scratchDir,
   });
+  return { agent, conversation };
 }
 
 async function withScratchDir(fn: (dir: string) => Promise<void>): Promise<void> {
@@ -76,17 +83,17 @@ async function withScratchDir(fn: (dir: string) => Promise<void>): Promise<void>
   }
 }
 
-function toolMessage(agent: Agent) {
-  const message = agent.export().find((m) => m.role === "tool");
+function toolMessage(conversation: SessionMessages) {
+  const message = conversation.export().find((m) => m.role === "tool");
   assert.ok(message, "tool result must be in the conversation");
   return message;
 }
 
 async function runWith(tool: Tool, scratchDir?: string, args = "{}") {
   const { llm } = fakeLLM([() => toolCall(tool.name, args), () => ({ role: "assistant", content: "done" })]);
-  const agent = makeAgent(llm, [tool], scratchDir);
+  const { agent, conversation } = makeAgent(llm, [tool], scratchDir);
   assert.equal(await agent.run("go"), "ok");
-  return toolMessage(agent);
+  return toolMessage(conversation);
 }
 
 test("oversized output passes through untouched when no scratch directory is configured", async () => {
@@ -134,11 +141,11 @@ test("old tool output is cleared once the context approaches its limit", async (
     script.push(() => ({ role: "assistant", content: "done" }));
     const { llm } = fakeLLM(script);
     const notices: string[] = [];
-    const agent = makeAgent(llm, [stub("Big", BIG)], dir, 60_000);
+    const { agent, conversation } = makeAgent(llm, [stub("Big", BIG)], dir, 60_000);
 
     assert.equal(await agent.run("go", (e) => { if (e.type === "notice") notices.push(e.text); }), "ok");
     assert.match(notices.join("\n"), /cleared .* tokens of old tool output/);
-    const toolMessages = agent.export().filter((m) => m.role === "tool");
+    const toolMessages = conversation.export().filter((m) => m.role === "tool");
     assert.ok(toolMessages.some((m) => m.content.startsWith("(output cleared: ")), "old output must be cleared");
     assert.ok(toolMessages.at(-1)!.content.includes("Full output saved to: "), "recent output must survive");
   });

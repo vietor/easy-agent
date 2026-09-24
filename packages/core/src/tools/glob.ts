@@ -26,7 +26,7 @@ export const globTool: Tool = {
     rgArgs.push(target);
     const { lines, truncated, all } = await runRipgrepLines(rgArgs, cwd, ctx.signal, DEFAULT_GLOB_LIMIT);
     const overflow = truncated ? overflowNotice(all, lines.length, "file", directoryBreakdown(all)) : undefined;
-    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES, overflow) };
+    return { content: formatRipgrepOutput(lines, NO_MATCHES, overflow) };
   },
   summarizeResult(result) {
     return ripgrepResultSummary("file", result, "Glob failed", "Found 0 files");

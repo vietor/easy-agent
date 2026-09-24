@@ -142,10 +142,6 @@ export class Agent {
     this.conversation.clear();
   }
 
-  export(): SessionMessage[] {
-    return this.conversation.export();
-  }
-
   async compact(onEvent?: (e: SessionEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
     const request = this.conversation.toLLM().slice(1);
     if (request.length === 0) return "ok";

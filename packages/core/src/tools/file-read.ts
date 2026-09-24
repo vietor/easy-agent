@@ -28,11 +28,9 @@ const ReadArgs = z.object({
     .describe(`number of lines to read (default ${DEFAULT_FILE_READ_LIMIT})`),
 });
 
-interface PageRead {
-  text: string | null;
-  totalLines: number;
-  eof: boolean;
-}
+type PageRead =
+  | { text: string; eof: boolean }
+  | { text: null; totalLines: number };
 
 async function readPage(handle: FileHandle, offset: number, limit: number): Promise<PageRead> {
   const startLine = offset - 1;
@@ -56,8 +54,8 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
       if (newlines === startLine - 1) windowStart = i + 1;
       newlines++;
       if (newlines === startLine + limit) {
-        if (windowStart >= 0 && windowStart < i) pieces.push(Buffer.from(buf.subarray(windowStart, i)));
-        return { text: Buffer.concat(pieces).toString("utf-8"), totalLines: -1, eof: false };
+        if (windowStart < i) pieces.push(Buffer.from(buf.subarray(windowStart, i)));
+        return { text: Buffer.concat(pieces).toString("utf-8"), eof: false };
       }
       from = i + 1;
     }
@@ -67,8 +65,8 @@ async function readPage(handle: FileHandle, offset: number, limit: number): Prom
     }
   }
   const totalLines = newlines + 1;
-  if (startLine >= totalLines) return { text: null, totalLines, eof: true };
-  return { text: Buffer.concat(pieces).toString("utf-8"), totalLines, eof: true };
+  if (startLine >= totalLines) return { text: null, totalLines };
+  return { text: Buffer.concat(pieces).toString("utf-8"), eof: true };
 }
 
 export const fileReadTool: Tool = {
@@ -87,15 +85,15 @@ export const fileReadTool: Tool = {
         throw new Error(`file is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_FILE_READ_BYTES)} read limit`);
       }
       if (size === 0) return { content: "(empty file)" };
-      const { text, totalLines, eof } = await readPage(handle, offset, limit);
-      if (text === null) {
-        return { content: `(offset ${offset} is past end of file; file has ${totalLines} lines)` };
+      const page = await readPage(handle, offset, limit);
+      if (page.text === null) {
+        return { content: `(offset ${offset} is past end of file; file has ${page.totalLines} lines)` };
       }
-      const lines = text.split("\n");
+      const lines = page.text.split("\n");
       let out = lines
         .map((line, i) => `${String(offset + i).padStart(6, " ")}\t${line}`)
         .join("\n");
-      if (!eof) {
+      if (!page.eof) {
         out += `\n(more lines; use offset=${offset + limit} to continue)`;
       }
       return { content: out };

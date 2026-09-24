@@ -28,7 +28,6 @@ export function printSessions(sessionDir: string, name: string): void {
 
 export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSession {
   let sessionId: string | undefined;
-  let resume = false;
   let importPath: string | undefined;
   if (opts.import) {
     const path = resolve(opts.import);
@@ -41,17 +40,15 @@ export function resolveSession(sessionDir: string, opts: CliOptions): ResolvedSe
     const sessions = listSessions(sessionDir);
     if (sessions.length) {
       sessionId = sessions[0].id;
-      resume = true;
     }
   } else if (opts.resume && typeof opts.resume === "string") {
     sessionId = opts.resume;
-    resume = true;
   }
   if (sessionId && !/^[A-Za-z0-9_-]{1,64}$/.test(sessionId)) {
     console.error(`Invalid session id: ${sessionId}`);
     process.exit(1);
   }
-  if (resume && sessionId && !isSessionExists(sessionDir, sessionId)) {
+  if (sessionId && !isSessionExists(sessionDir, sessionId)) {
     console.error(`Session not found: ${sessionId}`);
     process.exit(1);
   }

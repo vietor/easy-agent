@@ -2,7 +2,7 @@ import { Box, Text } from "ink";
 
 export function ThinkingView({ text, expanded }: { text: string; expanded: boolean }) {
   const lines = text.split("\n");
-  const firstLine = (lines[0] ?? "").slice(0, 80);
+  const firstLine = lines[0].slice(0, 80);
   if (expanded) {
     return (
       <Box marginTop={1} paddingLeft={1} flexDirection="column">

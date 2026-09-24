@@ -70,7 +70,7 @@ export const grepTool: Tool = {
     const overflow = truncated
       ? overflowNotice(all, lines.length, listed ? "file" : "match", listed ? directoryBreakdown(all) : undefined)
       : undefined;
-    return { content: formatRipgrepOutput(lines, truncated, NO_MATCHES, overflow) };
+    return { content: formatRipgrepOutput(lines, NO_MATCHES, overflow) };
   },
   summarizeResult(result) {
     return ripgrepResultSummary("match", result, "Grep failed", "Found 0 matches");

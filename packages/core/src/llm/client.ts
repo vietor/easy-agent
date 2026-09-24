@@ -8,8 +8,6 @@ import { LLM_MAX_RETRIES } from "../util/constants.js";
 export function isRetryableError(e: unknown, signal?: AbortSignal): boolean { // exported for testing
   if (signal?.aborted || isAbortError(e)) return false;
   if (e instanceof EmptyAssistantMessageError) return true;
-  const name = (e as { name?: string }).name;
-  if (name === "APIConnectionError" || name === "APIConnectionTimeoutError" || name === "APITimeoutError") return true;
   const status = (e as { status?: number }).status;
   if (status != null) return status === 429 || status >= 500;
   return false;

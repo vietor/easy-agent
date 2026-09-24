@@ -429,8 +429,10 @@ test("abort keeps the partial reply but leaves it out of the timeline", async ()
     },
   ]);
   session.subscribe(() => {});
+  let started = false;
+  session.onEvent((e) => { if (e.type === "run_metrics" && e.running) started = true; });
   const run = session.prompt("go");
-  assert.ok(await waitUntil(() => session.running, 5000), "run must start");
+  assert.ok(await waitUntil(() => started, 5000), "run must start");
   session.abort();
   const { status, reply } = await run;
   assert.equal(status, "aborted");

@@ -64,7 +64,7 @@ export const localScriptTool: Tool = {
         { cwd: ctx.cwd, timeout: CALL_TIMEOUT_MS },
         ctx.signal,
       );
-      if (r.status === 0 && !r.error) {
+      if (r.status === 0) {
         return { content: r.stdout || NO_OUTPUT };
       }
       const parts = [r.stdout, r.stderr, r.error?.message].filter(Boolean);

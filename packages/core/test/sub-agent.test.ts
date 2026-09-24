@@ -61,7 +61,10 @@ const SUB_TOOLS = [stub("Read", "file contents", 1), stub("Glob", "matches", 1),
 const GENERAL_ONLY_TOOLS = [stub("Shell", "ok", 2), stub("Write", "written", 2), stub("Edit", "edited", 2)];
 const SESSION_SCOPED_TOOLS = [stub("AskUser", "asked"), stub("Skill", "skilled"), stub("TodoWrite", "todos")];
 
-function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number; maxSubAgentDepth?: number } = {}): Agent {
+function makeParentAgent(
+  llm: LLMClient,
+  subAgentOpts: { maxTurns?: number; maxSubAgentDepth?: number } = {}
+): { agent: Agent; conversation: SessionMessages } {
   const tools = new ToolRegistry();
   tools.registerAll(SUB_TOOLS);
   tools.registerAll([...GENERAL_ONLY_TOOLS, ...SESSION_SCOPED_TOOLS]);
@@ -79,7 +82,7 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number; maxS
     maxParallelToolCalls: 10,
     contextLimit: 750_000,
   });
-  return parentAgent;
+  return { agent: parentAgent, conversation };
 }
 
 test("nested sub-agent reply becomes the SubAgent tool result", async () => {
@@ -89,11 +92,11 @@ test("nested sub-agent reply becomes the SubAgent tool result", async () => {
     () => ({ role: "assistant", content: "FOUND X" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
 
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg, "tool result must be in the conversation");
   assert.equal(toolMsg.content, "FOUND X");
   assert.ok(!toolMsg.isError);
@@ -117,7 +120,7 @@ test("general sub-agent gets writable tools but not session-scoped ones", async 
     () => ({ role: "assistant", content: "IMPLEMENTED X" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
 
@@ -126,7 +129,7 @@ test("general sub-agent gets writable tools but not session-scoped ones", async 
   assert.deepEqual(nestedTools, ["Edit", "Glob", "Grep", "Read", "Shell", "SubAgent", "WebFetch", "Write"]);
   assert.ok(!nestedTools.some((n) => ["AskUser", "Skill", "TodoWrite"].includes(n)));
 
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
   assert.equal(toolMsg.content, "IMPLEMENTED X");
   assert.ok(!toolMsg.isError);
@@ -151,7 +154,7 @@ test("sub-agent usage is added to the parent agent's counters", async () => {
       return { role: "assistant", content: "done" };
     },
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent } = makeParentAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
   assert.deepEqual(agent.usage, { cacheInputTokens: 15, missInputTokens: 100, outputTokens: 24 });
@@ -162,11 +165,11 @@ test("unknown sub-agent type returns an error without invoking a nested loop", a
     () => toolCall("SubAgent", JSON.stringify({ type: "bogus", task: "x" })),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
 
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
   assert.ok(String(toolMsg.content).includes("bogus"));
@@ -180,11 +183,11 @@ test("nested maxTurns is enforced", async () => {
     () => toolCall("Glob", JSON.stringify({ pattern: "*.ts" }), "n2"),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm, { maxTurns: 1 });
+  const { agent, conversation } = makeParentAgent(llm, { maxTurns: 1 });
   const status = await agent.run("go");
   assert.equal(status, "ok");
 
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
   assert.ok(String(toolMsg.content).includes("maxTurns"));
@@ -198,11 +201,11 @@ test("stalled sub-agent reports the repeated tool call in its result", async () 
     () => toolCall("Read", JSON.stringify({ path: "a.ts" }), "n3"),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
 
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg);
   assert.equal(toolMsg.isError, true);
   assert.ok(String(toolMsg.content).includes("status stalled"));
@@ -378,11 +381,11 @@ test("multiple SubAgent calls in one turn run concurrently", async () => {
       return fn(opts);
     },
   };
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
   assert.equal(maxInflight, 2);
-  const results = agent.export().filter((m) => m.role === "tool" && !m.isError).map((m) => m.content);
+  const results = conversation.export().filter((m) => m.role === "tool" && !m.isError).map((m) => m.content);
   assert.ok(results.includes("RESULT A"));
   assert.ok(results.includes("RESULT B"));
 });
@@ -395,7 +398,7 @@ test("a sub-agent can spawn a sub-agent and sees only its report", async () => {
     () => ({ role: "assistant", content: "MID" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   assert.equal(await agent.run("go"), "ok");
 
   assert.match(String(calls[1].messages[0].content), /You are the Explore sub-agent/);
@@ -403,7 +406,7 @@ test("a sub-agent can spawn a sub-agent and sees only its report", async () => {
   assert.ok(calls[2].tools?.some((s) => s.function.name === "SubAgent"));
   assert.ok(calls[3].messages.some((m) => m.role === "tool" && m.content === "DEEP"));
 
-  const toolMessages = agent.export().filter((m) => m.role === "tool").map((m) => m.content);
+  const toolMessages = conversation.export().filter((m) => m.role === "tool").map((m) => m.content);
   assert.deepEqual(toolMessages, ["MID"]);
 });
 
@@ -418,7 +421,7 @@ test("nesting stops at the deepest level", async () => {
     () => ({ role: "assistant", content: "L1 DONE" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent, conversation } = makeParentAgent(llm);
   assert.equal(await agent.run("go"), "ok");
 
   const deepestTools = calls[3].tools?.map((s) => s.function.name) ?? [];
@@ -427,7 +430,7 @@ test("nesting stops at the deepest level", async () => {
   assert.ok(!String(calls[3].messages[0].content).includes("Valid type values"));
   assert.ok(calls[4].messages.some((m) => m.role === "tool" && String(m.content).includes("unknown tool")));
 
-  const toolMessages = agent.export().filter((m) => m.role === "tool").map((m) => m.content);
+  const toolMessages = conversation.export().filter((m) => m.role === "tool").map((m) => m.content);
   assert.deepEqual(toolMessages, ["L1 DONE"]);
 });
 
@@ -437,7 +440,7 @@ test("the nesting cap is configurable", async () => {
     () => ({ role: "assistant", content: "OUTER REPORT" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm, { maxSubAgentDepth: 1 });
+  const { agent } = makeParentAgent(llm, { maxSubAgentDepth: 1 });
   assert.equal(await agent.run("go"), "ok");
 
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
@@ -455,7 +458,7 @@ test("usage from every nesting level is counted exactly once", async () => {
     withUsage({ cacheInputTokens: 0, missInputTokens: 60, outputTokens: 6 }, { role: "assistant", content: "L1" }),
     withUsage({ cacheInputTokens: 0, missInputTokens: 70, outputTokens: 7 }, { role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent } = makeParentAgent(llm);
   assert.equal(await agent.run("go"), "ok");
   assert.deepEqual(agent.usage, { cacheInputTokens: 0, missInputTokens: 280, outputTokens: 28 });
 });
@@ -466,7 +469,7 @@ test("a read-only sub-agent cannot delegate to a writable child", async () => {
     () => ({ role: "assistant", content: "OUTER REPORT" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent } = makeParentAgent(llm);
   assert.equal(await agent.run("go"), "ok");
 
   const nestedTools = calls[1].tools?.map((s) => s.function.name) ?? [];
@@ -488,7 +491,7 @@ test("a writable sub-agent delegates to writable children", async () => {
     () => ({ role: "assistant", content: "L1 DONE" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeParentAgent(llm);
+  const { agent } = makeParentAgent(llm);
   assert.equal(await agent.run("go"), "ok");
 
   assert.match(String(calls[2].messages[0].content), /You are the General sub-agent/);

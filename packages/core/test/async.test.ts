@@ -14,7 +14,6 @@ test("isAbortError matches every abort shape and rejects others", () => {
   assert.equal(isAbortError(new AbortedError()), true);
   assert.equal(isAbortError(new DOMException("x", "AbortError")), true);
   assert.equal(isAbortError({ name: "AbortError" }), true);
-  assert.equal(isAbortError({ name: "APIUserAbortError" }), true);
   assert.equal(isAbortError(new Error("boom")), false);
   assert.equal(isAbortError({ name: "TimeoutError" }), false);
   assert.equal(isAbortError(undefined), false);

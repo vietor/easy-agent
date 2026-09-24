@@ -53,7 +53,7 @@ export class TimelineStore {
     if (idx === undefined) return;
     this.pendingTools.delete(id);
     const entry = this.entries[idx];
-    if (entry.type !== "tool" || entry.result !== null) return;
+    if (entry.type !== "tool") return;
     this.entries[idx] = { ...entry, result, isError, resultSummary };
     this.listeners.notify();
   }
@@ -63,7 +63,7 @@ export class TimelineStore {
     if (index === undefined) return;
     this.pendingQuestions.delete(id);
     const entry = this.entries[index];
-    if (entry.type !== "question" || entry.questions.some((q) => q.answer !== null)) return;
+    if (entry.type !== "question") return;
     this.entries[index] = {
       ...entry,
       questions: entry.questions.map((q, i) => ({ ...q, answer: answers[i] ?? "" })),

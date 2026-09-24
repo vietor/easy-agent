@@ -256,10 +256,6 @@ export class Session {
     return this.timelineStore.latestUnansweredQuestion;
   }
 
-  get running(): boolean {
-    return this.abortController !== null;
-  }
-
   get contextTokens(): number {
     return this.agent.contextTokens;
   }

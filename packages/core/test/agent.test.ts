@@ -52,7 +52,7 @@ function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
 function makeAgent(
   llm: LLMClient,
   opts: { maxTurns?: number; contextLimit?: number; getTodos?: () => readonly Todo[]; tools?: Tool[]; resolveSkill?: (name: string) => Skill | undefined; notesPath?: string } = {}
-): Agent {
+): { agent: Agent; conversation: SessionMessages } {
   const tools = new ToolRegistry();
   tools.register({
     name: "Echo",
@@ -64,7 +64,7 @@ function makeAgent(
   });
   if (opts.tools) tools.registerAll(opts.tools);
   const conversation = new SessionMessages("system prompt");
-  return new Agent({
+  const agent = new Agent({
     llm,
     conversation,
     tools,
@@ -77,6 +77,7 @@ function makeAgent(
     resolveSkill: opts.resolveSkill,
     notesPath: opts.notesPath,
   });
+  return { agent, conversation };
 }
 
 function textContent(m: LLMMessage): string {
@@ -85,18 +86,18 @@ function textContent(m: LLMMessage): string {
 
 test("text-only response completes with ok", async () => {
   const { llm } = fakeLLM([() => ({ role: "assistant", content: "done" })]);
-  const agent = makeAgent(llm);
+  const { agent, conversation } = makeAgent(llm);
   const status = await agent.run("hi");
   assert.equal(status, "ok");
-  assert.equal(agent.export().length, 2);
+  assert.equal(conversation.export().length, 2);
 });
 
 test("tool call executes and its result is stored in the conversation", async () => {
   const { llm } = fakeLLM([() => toolCall("Echo"), () => ({ role: "assistant", content: "done" })]);
-  const agent = makeAgent(llm);
+  const { agent, conversation } = makeAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg, "tool result must be in the conversation");
   assert.equal(toolMsg.content, "echoed");
 });
@@ -112,7 +113,7 @@ test("usage accumulates across all successful calls in a run", async () => {
       return { role: "assistant", content: "done" };
     },
   ]);
-  const agent = makeAgent(llm);
+  const { agent } = makeAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "ok");
   assert.deepEqual(agent.usage, { cacheInputTokens: 200, missInputTokens: 300, outputTokens: 30 });
@@ -125,7 +126,7 @@ test("a failing call's usage is not added to the counters", async () => {
       throw new Error("boom");
     },
   ]);
-  const agent = makeAgent(llm);
+  const { agent } = makeAgent(llm);
   const status = await agent.run("go");
   assert.equal(status, "error");
   assert.deepEqual(agent.usage, { cacheInputTokens: 0, missInputTokens: 0, outputTokens: 0 });
@@ -133,19 +134,19 @@ test("a failing call's usage is not added to the counters", async () => {
 
 test("stalls on repeated identical tool calls", async () => {
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo"), () => toolCall("Echo")]);
-  const agent = makeAgent(llm);
+  const { agent, conversation } = makeAgent(llm);
   const status = await agent.run("do it");
   assert.equal(status, "stalled");
-  const last = agent.export().pop() as { content: string };
+  const last = conversation.export().pop() as { content: string };
   assert.match(last.content, /repeated identical tool calls: Echo/);
 });
 
 test("every assistant tool_calls is followed by its tool results, even on stall", async () => {
   const { llm } = fakeLLM([() => toolCall("Echo"), () => toolCall("Echo"), () => toolCall("Echo")]);
-  const agent = makeAgent(llm);
+  const { agent, conversation } = makeAgent(llm);
   const status = await agent.run("do it");
   assert.equal(status, "stalled");
-  const messages = agent.export();
+  const messages = conversation.export();
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i];
     if (m.role !== "assistant" || !m.tool_calls?.length) continue;
@@ -164,10 +165,10 @@ test("maxTurns run records placeholder results for the pending tool calls", asyn
     () => toolCall("Echo", '{"n":2}'),
     () => toolCall("Echo", '{"n":3}'),
   ]);
-  const agent = makeAgent(llm, { maxTurns: 2 });
+  const { agent, conversation } = makeAgent(llm, { maxTurns: 2 });
   const status = await agent.run("go");
   assert.equal(status, "maxTurns");
-  const messages = agent.export();
+  const messages = conversation.export();
   assert.equal(messages[messages.length - 2].role, "assistant");
   const last = messages[messages.length - 1];
   assert.equal(last.role, "tool");
@@ -183,10 +184,13 @@ test("text-only stall with incomplete todos: nudge is sent but never stored", as
     () => ({ role: "assistant", content: "done-ish" }),
   ]);
   let todos: readonly Todo[] = [];
-  const agent = makeAgent(llm, { getTodos: () => todos, tools: [createTodoWriteTool((t) => { todos = t; })] });
+  const { agent, conversation } = makeAgent(llm, {
+    getTodos: () => todos,
+    tools: [createTodoWriteTool((t) => { todos = t; })],
+  });
   const status = await agent.run("work");
   assert.equal(status, "stalled");
-  const texts = agent.export().map((m) => (typeof m.content === "string" ? m.content : ""));
+  const texts = conversation.export().map((m) => (typeof m.content === "string" ? m.content : ""));
   assert.ok(!texts.some((t) => t.includes("STOP!")));
   assert.ok(calls[2].messages.some((m) => m.role === "user" && textContent(m).includes("STOP!")));
 });
@@ -197,10 +201,10 @@ test("maxTurns aborts after the configured limit of tool-call turns", async () =
     () => toolCall("Echo", '{"n":2}'),
     () => toolCall("Echo", '{"n":3}'),
   ]);
-  const agent = makeAgent(llm, { maxTurns: 2 });
+  const { agent, conversation } = makeAgent(llm, { maxTurns: 2 });
   const status = await agent.run("go");
   assert.equal(status, "maxTurns");
-  const results = agent.export().filter((m) => m.role === "tool") as Array<{ isError?: boolean }>;
+  const results = conversation.export().filter((m) => m.role === "tool") as Array<{ isError?: boolean }>;
   assert.equal(results.length, 3);
   assert.equal(results.filter((r) => !r.isError).length, 2);
 });
@@ -211,9 +215,9 @@ test("the turn budget warns before the end and reserves the last turn for the fi
     () => toolCall("Echo", '{"n":2}'),
     () => ({ role: "assistant", content: "final report" }),
   ]);
-  const agent = makeAgent(llm, { maxTurns: 2 });
+  const { agent, conversation } = makeAgent(llm, { maxTurns: 2 });
   assert.equal(await agent.run("go"), "ok");
-  assert.equal(agent.export().at(-1)?.content, "final report");
+  assert.equal(conversation.export().at(-1)?.content, "final report");
   assert.equal(calls[0].messages.at(-1)?.content, "go", "no budget reminder while the budget is comfortable");
   assert.match(textContent(calls[1].messages.at(-1)!), /Turns used: 1\/2 \(1 left\)\. Wrap up now/);
   assert.equal(calls[1].toolChoice, undefined);
@@ -227,9 +231,9 @@ test("a final answer is kept even when tasks are still open", async () => {
     () => ({ role: "assistant", content: "final report" }),
   ]);
   let todos: readonly Todo[] = [];
-  const agent = makeAgent(llm, { maxTurns: 1, getTodos: () => todos, tools: [createTodoWriteTool((t) => { todos = t; })] });
+  const { agent, conversation } = makeAgent(llm, { maxTurns: 1, getTodos: () => todos, tools: [createTodoWriteTool((t) => { todos = t; })] });
   assert.equal(await agent.run("work"), "ok");
-  assert.equal(agent.export().at(-1)?.content, "final report");
+  assert.equal(conversation.export().at(-1)?.content, "final report");
 });
 
 test("aborting a turn keeps the messages it already produced", async () => {
@@ -241,11 +245,11 @@ test("aborting a turn keeps the messages it already produced", async () => {
       return new Promise<LLMAssistantMessage>(() => {});
     },
   ]);
-  const agent = makeAgent(llm);
+  const { agent, conversation } = makeAgent(llm);
   const status = await agent.run("go", undefined, controller.signal);
   assert.equal(status, "aborted");
-  assert.deepEqual(agent.export().map((m) => m.role), ["user", "assistant", "tool"]);
-  assert.equal(agent.export()[2].content, "echoed");
+  assert.deepEqual(conversation.export().map((m) => m.role), ["user", "assistant", "tool"]);
+  assert.equal(conversation.export()[2].content, "echoed");
 });
 
 test("an aborted turn reports the tool calls that finished and interrupts the rest", async () => {
@@ -260,7 +264,7 @@ test("an aborted turn reports the tool calls that finished and interrupts the re
       ],
     }),
   ]);
-  const agent = makeAgent(llm, {
+  const { agent, conversation } = makeAgent(llm, {
     tools: [{
       name: "Hang",
       description: "hang",
@@ -274,7 +278,7 @@ test("an aborted turn reports the tool calls that finished and interrupts the re
   const status = await agent.run("go", undefined, controller.signal);
   assert.equal(status, "aborted");
   assert.deepEqual(
-    agent.export().map((m) => (m.role === "tool" ? `${m.tool_call_id}: ${m.content}` : m.role)),
+    conversation.export().map((m) => (m.role === "tool" ? `${m.tool_call_id}: ${m.content}` : m.role)),
     ["user", "assistant", "t1: echoed", "t2: (interrupted)"]
   );
 });
@@ -317,7 +321,7 @@ test("auto-compact failure surfaces an error event", async () => {
     },
   ]);
   const events: string[] = [];
-  const agent = makeAgent(llm, { contextLimit: 1000 });
+  const { agent } = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000), (e) => events.push(e.type));
   assert.equal(status, "error");
   assert.ok(events.includes("error"), "compact failure must emit an error event");
@@ -336,10 +340,10 @@ test("abort after auto-compact keeps the compaction it already paid for", async 
       return { role: "assistant", content: "partial" };
     },
   ]);
-  const agent = makeAgent(llm, { contextLimit: 1000 });
+  const { agent, conversation } = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000), undefined, controller.signal);
   assert.equal(status, "aborted");
-  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "a".repeat(5000)]);
+  assert.deepEqual(conversation.export().map((m) => m.content), ["SUMMARY", "a".repeat(5000)]);
 });
 
 test("auto-compact fires above the threshold and the run continues", async () => {
@@ -351,10 +355,10 @@ test("auto-compact fires above the threshold and the run continues", async () =>
     },
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeAgent(llm, { contextLimit: 1000 });
+  const { agent, conversation } = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000));
   assert.equal(status, "ok");
-  const messages = agent.export();
+  const messages = conversation.export();
   assert.deepEqual(messages.map((m) => m.role), ["assistant", "user", "assistant"]);
   assert.equal(messages[0].content, "SUMMARY");
   assert.equal(messages[1].content, "a".repeat(5000));
@@ -366,7 +370,7 @@ test("the turn after a compaction points the model back at its notes file", asyn
     () => ({ role: "assistant", content: "SUMMARY" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeAgent(llm, { contextLimit: 1000, notesPath: "/scratch/notes.md" });
+  const { agent } = makeAgent(llm, { contextLimit: 1000, notesPath: "/scratch/notes.md" });
   assert.equal(await agent.run("a".repeat(5000)), "ok");
   const texts = calls[1].messages.map(textContent);
   assert.equal(texts.filter((t) => t.includes("/scratch/notes.md")).length, 1, "the notes file must be named exactly once");
@@ -378,7 +382,7 @@ test("a compaction without a notes file adds no notice", async () => {
     () => ({ role: "assistant", content: "SUMMARY" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeAgent(llm, { contextLimit: 1000 });
+  const { agent } = makeAgent(llm, { contextLimit: 1000 });
   assert.equal(await agent.run("a".repeat(5000)), "ok");
   assert.ok(!calls[1].messages.map(textContent).some((t) => t.includes("Context was compacted")));
 });
@@ -393,10 +397,10 @@ test("tool schemas count toward the context limit", async () => {
     () => ({ role: "assistant", content: "done" }),
   ]);
   const notices: string[] = [];
-  const agent = makeAgent(llm, { contextLimit: 20 });
+  const { agent, conversation } = makeAgent(llm, { contextLimit: 20 });
   const status = await agent.run("go", (e) => { if (e.type === "notice") notices.push(e.text); });
   assert.equal(status, "ok");
-  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "go", "done"]);
+  assert.deepEqual(conversation.export().map((m) => m.content), ["SUMMARY", "go", "done"]);
   assert.deepEqual(notices, ["auto-compacting context", "context still exceeds the limit after compacting"]);
 });
 
@@ -408,7 +412,7 @@ test("auto-compaction retries once the context has grown past a futile compactio
     () => ({ role: "assistant", content: "done" }),
   ]);
   const notices: string[] = [];
-  const agent = makeAgent(llm, { contextLimit: 2000, tools: [bigTool] });
+  const { agent } = makeAgent(llm, { contextLimit: 2000, tools: [bigTool] });
   assert.equal(await agent.run("a".repeat(20_000), (e) => { if (e.type === "notice") notices.push(e.text); }), "ok");
   assert.deepEqual(notices, [
     "auto-compacting context",
@@ -424,12 +428,12 @@ test("a Skill tool call injects the skill prompt and emits a skill event", async
     () => ({ role: "assistant", content: "done" }),
   ]);
   const events: string[] = [];
-  const agent = makeAgent(llm, {
+  const { agent, conversation } = makeAgent(llm, {
     resolveSkill: (n) => (n === "x" ? skill : undefined),
   });
   const status = await agent.run("go", (e) => events.push(e.type));
   assert.equal(status, "ok");
-  const skillMsg = agent.export().find((m) => m.role === "skill");
+  const skillMsg = conversation.export().find((m) => m.role === "skill");
   assert.ok(skillMsg, "skill message must be in the conversation");
   assert.equal((skillMsg as { name?: string }).name, "x");
   assert.equal(skillMsg.content, "SKILL PROMPT X");
@@ -444,11 +448,11 @@ test("a repeated Skill tool call notes the loaded prompt instead of duplicating 
     () => toolCall("Skill", JSON.stringify({ name: "x" })),
     () => ({ role: "assistant", content: "done" }),
   ]);
-  const agent = makeAgent(llm, { resolveSkill: (n) => (n === "x" ? skill : undefined) });
+  const { agent, conversation } = makeAgent(llm, { resolveSkill: (n) => (n === "x" ? skill : undefined) });
   const status = await agent.run("go");
   assert.equal(status, "ok");
   assert.deepEqual(
-    agent.export().filter((m) => m.role === "skill").map((m) => m.content),
+    conversation.export().filter((m) => m.role === "skill").map((m) => m.content),
     ["SKILL PROMPT X", '<skill "x" invoked - its instructions are already in context above>']
   );
   assert.equal(calls[2].messages.filter((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT X")).length, 1);
@@ -460,11 +464,11 @@ test("malformed Skill arguments are tolerated as a tool error", async () => {
     () => ({ role: "assistant", content: "done" }),
   ]);
   const events: string[] = [];
-  const agent = makeAgent(llm, { resolveSkill: () => undefined });
+  const { agent, conversation } = makeAgent(llm, { resolveSkill: () => undefined });
   const status = await agent.run("go", (e) => events.push(e.type));
   assert.equal(status, "ok");
-  assert.equal(agent.export().find((m) => m.role === "skill"), undefined);
-  const toolMsg = agent.export().find((m) => m.role === "tool");
+  assert.equal(conversation.export().find((m) => m.role === "skill"), undefined);
+  const toolMsg = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMsg, "tool result must be present");
   assert.equal((toolMsg as { isError?: boolean }).isError, true);
   assert.ok(!events.includes("skill"));
@@ -522,9 +526,13 @@ test("aborting during chat emits exactly one interrupted event", async () => {
   });
   session.subscribe(() => {});
   const events: string[] = [];
-  session.onEvent((e) => events.push(e.type));
+  let started = false;
+  session.onEvent((e) => {
+    events.push(e.type);
+    if (e.type === "run_metrics" && e.running) started = true;
+  });
   const run = session.prompt("go");
-  assert.ok(await waitUntil(() => session.running, 5000), "run must start");
+  assert.ok(await waitUntil(() => started, 5000), "run must start");
   session.abort();
   const { status } = await run;
   assert.equal(status, "aborted");
@@ -536,14 +544,14 @@ test("aborting during auto-compact emits exactly one interrupted event", async (
   const controller = new AbortController();
   const { llm, calls } = fakeLLM([() => new Promise<LLMAssistantMessage>(() => {})]);
   const events: string[] = [];
-  const agent = makeAgent(llm, { contextLimit: 1000 });
+  const { agent, conversation } = makeAgent(llm, { contextLimit: 1000 });
   const run = agent.run("a".repeat(5000), (e) => events.push(e.type), controller.signal);
   assert.ok(await waitUntil(() => calls.length === 1, 5000), "compact call must start");
   controller.abort();
   const status = await run;
   assert.equal(status, "aborted");
   assert.equal(events.filter((t) => t === "interrupted").length, 1);
-  assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
+  assert.deepEqual(conversation.export().map((m) => m.content), ["a".repeat(5000)]);
 });
 
 test("a failing tool summary falls back to the default one instead of aborting the run", async () => {
@@ -581,7 +589,7 @@ test("a failing tool summary falls back to the default one instead of aborting t
   });
   assert.equal(status, "ok");
   assert.deepEqual(argsSummaries, [""]);
-  const toolMessage = agent.export().find((m) => m.role === "tool");
+  const toolMessage = conversation.export().find((m) => m.role === "tool");
   assert.ok(toolMessage?.role === "tool");
   assert.match(toolMessage.resultSummary ?? "", /Retrieved 6 bytes, 1 lines$/);
 });

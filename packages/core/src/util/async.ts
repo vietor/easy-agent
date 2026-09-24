@@ -7,8 +7,7 @@ export class AbortedError extends Error {
 
 export function isAbortError(e: unknown): boolean {
   if (e instanceof AbortedError) return true;
-  const name = (e as { name?: string } | undefined)?.name;
-  return name === "AbortError" || name === "APIUserAbortError";
+  return (e as { name?: string } | undefined)?.name === "AbortError";
 }
 
 export function backoffDelay(attempt: number): number {
