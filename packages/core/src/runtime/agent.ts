@@ -72,6 +72,7 @@ export class Agent {
   private maxTurns: number;
   private maxParallelToolCalls: number;
   readonly contextLimit: number;
+  private turnOutcomes: ToolCallOutcome[] = [];
   private todoDeclared = false;
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
@@ -224,6 +225,10 @@ export class Agent {
       }
       throw e;
     } finally {
+      for (const outcome of this.turnOutcomes) {
+        this.conversation.add({ role: "tool", tool_call_id: outcome.id, content: outcome.content, resultSummary: outcome.resultSummary, isError: outcome.isError });
+      }
+      this.turnOutcomes = [];
       this.conversation.normalizeInterruptedToolCalls();
     }
   }
@@ -313,6 +318,7 @@ export class Agent {
       for (const r of results) {
         this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, resultSummary: r.resultSummary, isError: r.isError });
       }
+      this.turnOutcomes = [];
       for (let i = 0; i < msg.tool_calls.length; i++) {
         const tc = msg.tool_calls[i];
         if (tc.function.name === TODO_WRITE_TOOL_NAME && !results[i].isError) this.todoDeclared = true;
@@ -381,9 +387,14 @@ export class Agent {
     for (const batch of batches) {
       if (signal?.aborted) return null;
       const limit = batch.parallel ? this.maxParallelToolCalls : 1;
-      outcomes.push(
-        ...await mapWithConcurrency(batch.calls, limit, (call) => this.executeToolCall(call, onEvent, signal), signal)
+      const batchOutcomes = await mapWithConcurrency(
+        batch.calls,
+        limit,
+        (call) => this.executeToolCall(call, onEvent, signal),
+        signal
       );
+      outcomes.push(...batchOutcomes);
+      this.turnOutcomes.push(...batchOutcomes);
     }
     return signal?.aborted ? null : outcomes;
   }

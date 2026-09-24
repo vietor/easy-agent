@@ -247,6 +247,37 @@ test("aborting a turn keeps the messages it already produced", async () => {
   assert.equal(agent.export()[2].content, "echoed");
 });
 
+test("an aborted turn reports the tool calls that finished and interrupts the rest", async () => {
+  const controller = new AbortController();
+  const { llm } = fakeLLM([
+    () => ({
+      role: "assistant",
+      content: null,
+      tool_calls: [
+        { id: "t1", type: "function", function: { name: "Echo", arguments: "{}" } },
+        { id: "t2", type: "function", function: { name: "Hang", arguments: "{}" } },
+      ],
+    }),
+  ]);
+  const agent = makeAgent(llm, {
+    tools: [{
+      name: "Hang",
+      description: "hang",
+      parameters: { type: "object", properties: {} },
+      execute: () => {
+        controller.abort();
+        return new Promise<TextResult>(() => {});
+      },
+    }],
+  });
+  const status = await agent.run("go", undefined, controller.signal);
+  assert.equal(status, "aborted");
+  assert.deepEqual(
+    agent.export().map((m) => (m.role === "tool" ? `${m.tool_call_id}: ${m.content}` : m.role)),
+    ["user", "assistant", "t1: echoed", "t2: (interrupted)"]
+  );
+});
+
 test("aborted run resolves hanging tool entries in the timeline", async () => {
   const tools = new ToolRegistry();
   tools.register({
