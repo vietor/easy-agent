@@ -85,28 +85,24 @@ export async function mapWithConcurrency<T, R>(
   fn: (item: T) => Promise<R>,
   signal?: AbortSignal
 ): Promise<R[]> {
-  const size = Math.min(Math.max(1, limit), items.length);
-  if (size === 0) return [];
   const completed: Array<{ index: number; value: R }> = [];
+  const size = Math.min(Math.max(1, limit), items.length);
   let next = 0;
-  let stopped = false;
-  let firstFailure: { index: number; error: unknown } | undefined;
+  let failure: { index: number; error: unknown } | undefined;
   const worker = async (): Promise<void> => {
-    while (!stopped) {
+    while (!failure) {
       if (signal?.aborted) return;
       const index = next++;
       if (index >= items.length) return;
       try {
         completed.push({ index, value: await fn(items[index]) });
       } catch (error) {
-        stopped = true;
-        if (!firstFailure || index < firstFailure.index) firstFailure = { index, error };
-        throw error;
+        if (!failure || index < failure.index) failure = { index, error };
       }
     }
   };
-  await Promise.allSettled(Array.from({ length: size }, () => worker()));
-  if (firstFailure) throw firstFailure.error;
+  await Promise.all(Array.from({ length: size }, () => worker()));
+  if (failure) throw failure.error;
   completed.sort((a, b) => a.index - b.index);
   return completed.map((r) => r.value);
 }

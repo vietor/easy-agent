@@ -390,10 +390,9 @@ export class Agent {
     const outcomes: ToolCallOutcome[] = [];
     for (const batch of batches) {
       if (signal?.aborted) return null;
+      const limit = batch.parallel ? this.maxParallelToolCalls : 1;
       outcomes.push(
-        ...(batch.parallel
-          ? await mapWithConcurrency(batch.calls, this.maxParallelToolCalls, (call) => this.executeToolCall(call, onEvent, signal), signal)
-          : [await this.executeToolCall(batch.calls[0], onEvent, signal)])
+        ...await mapWithConcurrency(batch.calls, limit, (call) => this.executeToolCall(call, onEvent, signal), signal)
       );
     }
     return signal?.aborted ? null : outcomes;

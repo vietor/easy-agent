@@ -17,7 +17,7 @@ test("runs at most limit calls at once and preserves order", async () => {
   assert.ok(maxInflight <= 2);
 });
 
-test("stops launching further chunks once the signal is aborted", async () => {
+test("stops claiming new items once the signal is aborted", async () => {
   const ac = new AbortController();
   let started = 0;
   const results = await mapWithConcurrency(
@@ -80,4 +80,18 @@ test("returns items that completed in input order when the signal aborts", async
     ac.signal
   );
   assert.deepEqual(results, [1, 2]);
+});
+
+test("rejects with the error of the lowest-index item that failed", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  const promise = mapWithConcurrency([1, 2], 2, async (n) => {
+    if (n === 2) {
+      release();
+      throw new Error("second failed");
+    }
+    await gate;
+    throw new Error("first failed");
+  });
+  await assert.rejects(promise, /first failed/);
 });

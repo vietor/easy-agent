@@ -91,7 +91,7 @@ test("a delegation tree shares one budget", async () => {
   tools.register(
     createSubAgentTool({
       runSubAgent: (systemPrompt, task, level, signal) =>
-        runSubAgent({ ...runOpts(llm, budget) }, systemPrompt, task, level, signal),
+        runSubAgent(runOpts(llm, budget), systemPrompt, task, level, signal),
     })
   );
   const conversation = new SessionMessages("system prompt");
