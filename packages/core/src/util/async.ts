@@ -57,7 +57,10 @@ function trySleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return withTimeoutFn(() => p, ms, undefined, `timeout after ${ms}ms`);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms);
+    p.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
 }
 
 export function withTimeoutSignal(signal: AbortSignal | undefined, ms: number): AbortSignal {
