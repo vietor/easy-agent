@@ -49,9 +49,10 @@ export class AnthropicAdapter extends BaseLLMAdapter {
       messages,
       ...(systemCached && { system: systemCached }),
       ...(useThinking && {
-        thinking: { type: "adaptive" as const },
+        thinking: { type: "adaptive" as const, display: "summarized" as const },
         output_config: { effort: this.thinkingEffort },
       }),
+      ...(!useThinking && { thinking: { type: "disabled" as const } }),
       ...(tools.length > 0 && { tools: toolsCached ?? tools }),
       ...(opts.toolChoice && { tool_choice: { type: opts.toolChoice } }),
     };
