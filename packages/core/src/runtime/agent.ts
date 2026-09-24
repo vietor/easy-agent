@@ -380,13 +380,23 @@ export class Agent {
     onEvent?: (e: SessionEvent) => void,
     signal?: AbortSignal
   ): Promise<ToolCallOutcome[] | null> {
-    const results = await mapWithConcurrency(
-      calls,
-      this.maxParallelToolCalls,
-      (call) => this.executeToolCall(call, onEvent, signal),
-      signal
-    );
-    return signal?.aborted ? null : results;
+    const batches: Array<{ calls: typeof calls; parallel: boolean }> = [];
+    for (const call of calls) {
+      const parallel = this.tools.concurrencySafe(call.function.name);
+      const last = batches.at(-1);
+      if (parallel && last?.parallel) last.calls.push(call);
+      else batches.push({ calls: [call], parallel });
+    }
+    const outcomes: ToolCallOutcome[] = [];
+    for (const batch of batches) {
+      if (signal?.aborted) return null;
+      outcomes.push(
+        ...(batch.parallel
+          ? await mapWithConcurrency(batch.calls, this.maxParallelToolCalls, (call) => this.executeToolCall(call, onEvent, signal), signal)
+          : [await this.executeToolCall(batch.calls[0], onEvent, signal)])
+      );
+    }
+    return signal?.aborted ? null : outcomes;
   }
 
   private async executeToolCall(

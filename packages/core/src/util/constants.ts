@@ -21,6 +21,7 @@ export const DEFAULT_GREP_LIMIT = 250;
 export const DEFAULT_GLOB_LIMIT = 150;
 export const DEFAULT_MAX_PARALLEL_TOOL_CALLS = 10;
 export const DEFAULT_MAX_SUB_AGENT_DEPTH = 3;
+export const DEFAULT_MAX_CONCURRENT_SUB_AGENTS = 4;
 export const SKILL_TOOL_NAME = "Skill" as const;
 export const ASK_USER_TOOL_NAME = "AskUser" as const;
 export const TODO_WRITE_TOOL_NAME = "TodoWrite" as const;

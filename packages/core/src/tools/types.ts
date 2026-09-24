@@ -54,6 +54,7 @@ export function isGrantedAtLevel(agentLevel: AgentLevel | undefined, maxLevel: A
 export interface Tool {
   name: string;
   agentLevel?: AgentLevel;
+  concurrencySafe?: boolean;
   description: string;
   parameters: Record<string, unknown>;
   argSummaryKeys?: string[];

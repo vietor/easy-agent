@@ -142,6 +142,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
   });
   return {
     name: SUB_AGENT_TOOL_NAME,
+    concurrencySafe: true,
     description:
       "Run a dedicated sub-agent in its own nested loop — the only result you receive is its final report as text, not intermediate steps. The type parameter lists the valid values and when to use each. Sub-agents cannot ask questions or use skills or todos.",
     parameters: toToolParameters(SubAgentArgs),

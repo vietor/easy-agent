@@ -492,6 +492,7 @@ type TodoStatus = "pending" | "inProgress" | "completed";
 interface Tool {
   name: string;
   agentLevel?: AgentLevel;   // 0 = never granted to sub-agents; 1 = read-only sub-agents; 2 = writable sub-agents only
+  concurrencySafe?: boolean; // may run alongside other tool calls in the same turn
   description: string;
   parameters: Record<string, unknown>;   // JSON Schema object
   argSummaryKeys?: string[];                // parameter keys used for display summary
@@ -502,6 +503,7 @@ interface Tool {
 ```
 
 - `agentLevel` (optional, default `0`) declares which sub-agents may use the tool: `0` = never granted to any sub-agent; `1` = granted to read-only sub-agents ("explore"/"plan"), which therefore also reaches writable ones; `2` = granted only to writable sub-agents ("general"). Tools with `agentLevel: 1` are what `builtInTools: { readOnly: true }` registers (Read/Glob/Grep/WebFetch). If you previously marked a custom tool `readOnly: true` to expose it to sub-agents, set `agentLevel: 1`; use `agentLevel: 2` for custom writable tools meant for the general sub-agent only. AskUser/Skill/TodoWrite are session-scoped and stay at `0`; SubAgent is never granted by level either — a sub-agent below the nesting cap gets a SubAgent tool of its own, so delegation nests up to `maxSubAgentDepth` levels below the session.
+- `concurrencySafe` (optional, default `false`) declares whether the tool may run concurrently with other tool calls from the same turn. A turn's calls are split into consecutive runs: a run of `concurrencySafe` calls executes together (up to `maxParallelToolCalls`), and every other call runs on its own, with nothing else in flight. The default is fail-closed, so custom and MCP tools run one at a time until you opt them in; declare it only for tools that read without mutating state. Marked by default: Read, Glob, Grep, WebFetch, and SubAgent.
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
 - `execute` returns a `TextResult` (`{ content, isError? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
@@ -555,6 +557,8 @@ Core tools (registered by default; `builtInTools: { readOnly: true }` registers 
 | **Write** | Create or overwrite files. |
 | **Edit** | Surgical text replacement. |
 
+Shell, Write, and Edit are not concurrency-safe, so within one turn each runs alone — no two of them, and nothing else, is ever in flight at the same time. Two concurrent `Edit`s on one file can therefore no longer lose an update.
+
 Interactive tools are **off by default** and registered only when explicitly enabled via `builtInTools` (`askUser: true`, `todoWrite: true`, `subAgent: true`):
 
 | Tool | Description |
@@ -562,7 +566,7 @@ Interactive tools are **off by default** and registered only when explicitly ena
 | **AskUser** | Ask the user 1-4 questions in one call (each with 2-4 options and optional multi-select) and wait for the answers. |
 | **TodoWrite** | Track multi-step task progress; the agent must complete every task before its final reply. |
 | **Skill** | Invoke a skill by name; loads its instructions into context. Registered automatically whenever `skills` are provided. |
-| **SubAgent** | Run a nested sub-agent. Types: "explore" — read-only fan-out investigation; "plan" — read-only implementation planning; "general" — writable executor that may modify files and run shell commands, for delegating whole implementation chunks (run several in parallel for multi-task work). Tool grants follow each tool's `agentLevel`: read-only sub-agents get level-1 tools, "general" gets level 1+2; level-0 tools (AskUser/Skill/TodoWrite) are never delegated. Sub-agents delegate further one nesting step at a time, up to `maxSubAgentDepth` (default 3) levels below the session: the deepest level gets no SubAgent tool, and a read-only sub-agent can only delegate to read-only sub-agents, so it cannot escalate to a writable child. When the session is built read-only (`builtInTools: { readOnly: true }`), "general" is not offered and the tool falls back to explore/plan only. Sub-agents return only their final report — verify their changes yourself. |
+| **SubAgent** | Run a nested sub-agent. Types: "explore" — read-only fan-out investigation; "plan" — read-only implementation planning; "general" — writable executor that may modify files and run shell commands, for delegating whole implementation chunks (run several in parallel for multi-task work). Tool grants follow each tool's `agentLevel`: read-only sub-agents get level-1 tools, "general" gets level 1+2; level-0 tools (AskUser/Skill/TodoWrite) are never delegated. Sub-agents delegate further one nesting step at a time, up to `maxSubAgentDepth` (default 3) levels below the session: the deepest level gets no SubAgent tool, and a read-only sub-agent can only delegate to read-only sub-agents, so it cannot escalate to a writable child. When the session is built read-only (`builtInTools: { readOnly: true }`), "general" is not offered and the tool falls back to explore/plan only. At most 4 sub-agents run at once per session: a delegation beyond that is refused with an error instead of being queued, so the model is told to let running sub-agents report back rather than retry. Sub-agents return only their final report — verify their changes yourself. |
 
 `builtInTools: false` disables all built-in tools.
 
@@ -765,7 +769,10 @@ Exponential backoff in ms: `1000 * 2 ** attempt`. Suitable as the `backoff` fiel
 
 **`mapWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>, signal?: AbortSignal): Promise<R[]>`**
 
-Map over `items` in chunks of `limit` concurrent executions (unlike `Promise.all`, never runs more than `limit` at once). Stops scheduling new chunks once `signal` aborts; results keep input order.
+Map over `items` keeping at most `limit` calls in flight (unlike `Promise.all`, never runs more than `limit` at once), starting the next item as soon as one settles instead of waiting for a whole batch to finish. Results are returned in input order, regardless of the order calls complete in.
+
+- Aborting `signal` stops new items from being claimed; calls already in flight are not cancelled and still settle. The result is the items that completed, in input order.
+- If a call rejects, no further items are started and the promise rejects with the error of the lowest-index item that failed. This matters because callers stop waiting the moment the promise settles: without it, the rest of the array would keep running in the background with nothing left to cancel it.
 
 ## Text helpers
 

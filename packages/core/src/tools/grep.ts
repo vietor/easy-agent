@@ -38,6 +38,7 @@ const GrepArgs = z.object({
 export const grepTool: Tool = {
   name: "Grep",
   agentLevel: 1,
+  concurrencySafe: true,
   description: DESCRIPTION,
   parameters: toToolParameters(GrepArgs),
   async execute(args, ctx) {

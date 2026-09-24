@@ -75,6 +75,10 @@ export class ToolRegistry {
     return this.tools.get(name)?.persist !== false;
   }
 
+  concurrencySafe(name: string): boolean {
+    return this.tools.get(name)?.concurrencySafe === true;
+  }
+
   summarizeResult(name: string, result: TextResult, durationMs: number): string {
     const tool = this.tools.get(name);
     const resultSummary = tool?.summarizeResult

@@ -3,7 +3,7 @@ import type { LLMClient, LLMConfig, LLMUsage } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { sweepDir } from "../util/sweep.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
-import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_SUB_AGENT_DEPTH, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { DEFAULT_MAX_CONCURRENT_SUB_AGENTS, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_SUB_AGENT_DEPTH, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -18,7 +18,7 @@ import { SessionPersistence, loadSessionState, notesFileName, notesFilePath, typ
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
-import { runSubAgent } from "./sub-agent-runner.js";
+import { SubAgentBudget, runSubAgent } from "./sub-agent-runner.js";
 
 class StreamBuffer {
   private streamingText = "";
@@ -291,6 +291,7 @@ export class Session {
   constructor(deps: SessionDeps) {
     this.limits = resolveRunLimits(deps);
     const maxSubAgentDepth = requirePositiveInt(deps.maxSubAgentDepth ?? DEFAULT_MAX_SUB_AGENT_DEPTH, "maxSubAgentDepth");
+    const subAgentBudget = new SubAgentBudget(DEFAULT_MAX_CONCURRENT_SUB_AGENTS);
     this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
@@ -309,6 +310,7 @@ export class Session {
             cwd: this.cwd,
             depth: 1,
             maxSubAgentDepth,
+            budget: subAgentBudget,
             ...this.limits,
             onUsage: (usage) => this.agent.addUsage(usage),
           }, systemPrompt, task, level, signal),

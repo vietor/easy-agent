@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mapWithConcurrency } from "../src/util/async.js";
+import { sleep, waitUntil } from "./helpers.js";
 
 test("runs at most limit calls at once and preserves order", async () => {
   let inflight = 0;
@@ -37,4 +38,46 @@ test("stops launching further chunks once the signal is aborted", async () => {
 test("empty input returns empty results", async () => {
   const results = await mapWithConcurrency([], 3, async (n: number) => n);
   assert.deepEqual(results, []);
+});
+
+test("starts the next item as soon as a slot frees", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  const started: number[] = [];
+  const promise = mapWithConcurrency([1, 2, 3], 2, async (n) => {
+    started.push(n);
+    if (n === 1) await gate;
+    return n;
+  });
+  assert.ok(await waitUntil(() => started.length === 3, 1000));
+  release();
+  assert.deepEqual(await promise, [1, 2, 3]);
+});
+
+test("stops starting new items once one rejects", async () => {
+  const started: number[] = [];
+  const promise = mapWithConcurrency([1, 2, 3, 4, 5, 6], 2, async (n) => {
+    started.push(n);
+    if (n === 1) throw new Error("boom");
+    await sleep(5);
+    return n;
+  });
+  await assert.rejects(promise, /boom/);
+  await sleep(20);
+  assert.deepEqual(started, [1, 2]);
+});
+
+test("returns items that completed in input order when the signal aborts", async () => {
+  const ac = new AbortController();
+  const results = await mapWithConcurrency(
+    [1, 2, 3, 4],
+    2,
+    async (n) => {
+      if (n === 2) ac.abort();
+      await sleep(n === 1 ? 20 : 5);
+      return n;
+    },
+    ac.signal
+  );
+  assert.deepEqual(results, [1, 2]);
 });

@@ -15,6 +15,7 @@ const GlobArgs = z.object({
 export const globTool: Tool = {
   name: "Glob",
   agentLevel: 1,
+  concurrencySafe: true,
   description: DESCRIPTION,
   parameters: toToolParameters(GlobArgs),
   async execute(args, ctx) {

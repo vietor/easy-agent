@@ -95,6 +95,7 @@ async function fetchOne(url: string, signal: AbortSignal | undefined): Promise<s
 export const webFetchTool: Tool = {
   name: "WebFetch",
   agentLevel: 1,
+  concurrencySafe: true,
   description: DESCRIPTION,
   parameters: toToolParameters(WebFetchArgs),
   async execute(args, ctx) {
