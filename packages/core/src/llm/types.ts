@@ -1,15 +1,20 @@
 import { z } from "zod";
 import type { LLMAssistantMessage, LLMMessage } from "./messages.js";
 
-export const LLMConfigSchema = z.object({
-  baseUrl: z.string(),
-  apiKey: z.string(),
-  model: z.string(),
-  thinkingEffort: z.enum(["high", "max"]).default("high"),
-  backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
-  maxInputTokens: z.int().min(128_000).default(1_000_000),
-  maxOutputTokens: z.int().min(48_000).default(128_000),
-});
+export const LLMConfigSchema = z
+  .object({
+    baseUrl: z.string(),
+    apiKey: z.string(),
+    model: z.string(),
+    thinkingEffort: z.enum(["high", "max"]).default("high"),
+    backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
+    maxInputTokens: z.int().min(128_000).default(1_000_000),
+    maxOutputTokens: z.int().min(48_000).default(128_000),
+  })
+  .refine((cfg) => cfg.maxOutputTokens < cfg.maxInputTokens, {
+    error: "maxOutputTokens must be less than maxInputTokens, otherwise the two leave no context budget for the conversation",
+    path: ["maxOutputTokens"],
+  });
 
 export type LLMConfig = z.input<typeof LLMConfigSchema>;
 

@@ -65,3 +65,10 @@ test("a new session tolerates a missing scratch directory", async () => {
     assert.deepEqual(await readdir(dir), []);
   });
 });
+
+test("refuses an llm config whose output budget leaves no context room", async () => {
+  await assert.rejects(
+    () => createSession({ systemPrompt: "test", llm: { ...llm, maxInputTokens: 128_000, maxOutputTokens: 128_000 }, builtInTools: false }),
+    /maxOutputTokens must be less than maxInputTokens/
+  );
+});
