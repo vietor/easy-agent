@@ -329,7 +329,6 @@ export class Session {
       conversation: this.conversation,
       tools: this.tools,
       cwd: this.cwd,
-      setTodos: (t) => this.todoStore.set(t),
       getTodos: () => this.todoStore.all,
       ...this.limits,
       notesPath: this.limits.scratchDir ? notesFilePath(this.limits.scratchDir, this.sessionId) : undefined,

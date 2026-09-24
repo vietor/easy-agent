@@ -73,7 +73,6 @@ export async function runSubAgent(
       conversation,
       tools: subTools,
       cwd,
-      setTodos: () => {},
       getTodos: () => [],
       ...limits,
       notesPath,

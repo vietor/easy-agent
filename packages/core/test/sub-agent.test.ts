@@ -73,7 +73,6 @@ function makeParentAgent(llm: LLMClient, subAgentOpts: { maxTurns?: number; maxS
     conversation,
     tools,
     cwd: process.cwd(),
-    setTodos: () => {},
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,

@@ -100,7 +100,6 @@ test("a delegation tree shares one budget", async () => {
     conversation,
     tools,
     cwd: process.cwd(),
-    setTodos: () => {},
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 5,

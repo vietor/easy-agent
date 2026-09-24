@@ -61,7 +61,6 @@ async function runTurn(tools: Tool[], calls: LLMAssistantMessage): Promise<Sessi
     conversation,
     tools: registry,
     cwd: process.cwd(),
-    setTodos: () => {},
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,

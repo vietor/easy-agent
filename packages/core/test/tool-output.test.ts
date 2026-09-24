@@ -58,7 +58,6 @@ function makeAgent(llm: LLMClient, tools: Tool[], scratchDir?: string, contextLi
     conversation: new SessionMessages("system prompt"),
     tools: registry,
     cwd: process.cwd(),
-    setTodos: () => {},
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,

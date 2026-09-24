@@ -46,7 +46,6 @@ export interface AgentOptions extends RunLimits {
   conversation: SessionMessages;
   tools: ToolRegistry;
   cwd: string;
-  setTodos: (todos: Todo[]) => void;
   getTodos: () => readonly Todo[];
   resolveSkill?: (name: string) => Skill | undefined;
   onCompact?: () => void;
@@ -68,13 +67,11 @@ export class Agent {
   private conversation: SessionMessages;
   private tools: ToolRegistry;
   private cwd: string;
-  private setTodos: (todos: Todo[]) => void;
   private getTodos: () => readonly Todo[];
   private stallThreshold: number;
   private maxTurns: number;
   private maxParallelToolCalls: number;
   readonly contextLimit: number;
-  private todoSnapshot: readonly Todo[] = [];
   private todoDeclared = false;
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
@@ -92,7 +89,6 @@ export class Agent {
     this.conversation = opts.conversation;
     this.tools = opts.tools;
     this.cwd = opts.cwd;
-    this.setTodos = opts.setTodos;
     this.getTodos = opts.getTodos;
     this.stallThreshold = opts.stallThreshold;
     this.maxTurns = opts.maxTurns;
@@ -205,16 +201,12 @@ export class Agent {
     signal?: AbortSignal
   ): Promise<RunStatus> {
     this.conversation.add(msg);
-    this.conversation.createSnapshot();
-    this.todoSnapshot = this.getTodos();
     this.todoDeclared = false;
 
     let aborted = false;
     const onAbort = () => {
       if (aborted) return;
       aborted = true;
-      this.conversation.restoreFromSnapshot();
-      this.setTodos([...this.todoSnapshot]);
       onEvent?.({ type: "interrupted" });
     };
 
@@ -232,8 +224,6 @@ export class Agent {
       }
       throw e;
     } finally {
-      this.conversation.clearSnapshot();
-      this.todoSnapshot = [];
       this.conversation.normalizeInterruptedToolCalls();
     }
   }

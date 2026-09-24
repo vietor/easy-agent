@@ -41,22 +41,6 @@ test("toLLM cache stays in sync with add", () => {
   assert.equal(llm[2].content, "b");
 });
 
-test("snapshot/restore rolls back messages and token estimate", () => {
-  const c = new SessionMessages(SYS);
-  c.add({ role: "user", content: "a" });
-  c.createSnapshot();
-  c.add({ role: "user", content: "b" });
-  c.add({ role: "assistant", content: "reply" });
-  c.toLLM();
-  c.restoreFromSnapshot();
-  assert.equal(c.export().length, 1);
-  assert.equal(c.export()[0].content, "a");
-  assert.equal(c.getEstimatedTokens(), 1);
-  c.add({ role: "user", content: "c" });
-  assert.equal(c.export().length, 2);
-  assert.equal(c.toLLM().length, 3);
-});
-
 test("compact replaces the conversation with the summary", () => {
   const c = new SessionMessages(SYS);
   c.add({ role: "user", content: "history" });
@@ -212,7 +196,6 @@ function addToolOutput(c: SessionMessages, id: string, chars: number, summary?: 
 test("pruneToolOutputs clears old tool output, protects the recent window, and fixes token accounting", () => {
   const c = new SessionMessages(SYS);
   for (const id of ["t1", "t2", "t3", "t4"]) addToolOutput(c, id, 100_000, "Command executed 100000 bytes");
-  c.createSnapshot();
   c.toLLM();
   const before = c.getEstimatedTokens();
 
@@ -225,9 +208,6 @@ test("pruneToolOutputs clears old tool output, protects the recent window, and f
   assert.match(msgs[2].content, /^\(output cleared: /);
   assert.equal(msgs[3].content, "a".repeat(100_000), "the most recent tool output must survive");
   assert.equal(c.toLLM()[1].content, msgs[0].content, "the LLM cache must be rebuilt");
-
-  c.restoreFromSnapshot();
-  assert.equal(c.getEstimatedTokens(), before - freed, "snapshot tokens must stay in sync");
 });
 
 test("pruneToolOutputs leaves history intact when the reclaimable amount is below the minimum", () => {

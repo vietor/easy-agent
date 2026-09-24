@@ -61,7 +61,6 @@ export class SessionMessages {
 
   private messages: SessionMessage[] = [];
   private estimatedTokens = 0;
-  private snapshot?: { messages: SessionMessage[]; estimatedTokens: number };
   private llmCache: LLMMessage[] | null = null;
 
   constructor(private system: string) {
@@ -157,7 +156,6 @@ export class SessionMessages {
 
     for (const message of candidates) message.content = clearedContent(message);
     this.estimatedTokens -= freed;
-    if (this.snapshot) this.snapshot.estimatedTokens -= freed;
     this.llmCache = null;
     return freed;
   }
@@ -179,15 +177,13 @@ export class SessionMessages {
     }
     this.resetMessages(
       [{ role: "assistant", content: summary }, ...this.messages.slice(start)],
-      estimateTokens(summary) + tokens,
-      true
+      estimateTokens(summary) + tokens
     );
   }
 
-  private resetMessages(messages: SessionMessage[], extraTokens: number, keepSnapshot = false): void {
+  private resetMessages(messages: SessionMessage[], extraTokens: number): void {
     this.messages = messages;
     this.estimatedTokens = this.systemEstimateTokens + extraTokens;
-    if (!keepSnapshot) this.clearSnapshot();
     this.llmCache = null;
   }
 
@@ -200,24 +196,4 @@ export class SessionMessages {
     };
   }
 
-  createSnapshot(): void {
-    this.snapshot = {
-      messages: this.messages.slice(),
-      estimatedTokens: this.estimatedTokens,
-    };
-  }
-
-  restoreFromSnapshot(): void {
-    const snap = this.snapshot;
-    if (snap) {
-      this.messages = snap.messages.slice();
-      this.estimatedTokens = snap.estimatedTokens;
-      this.clearSnapshot();
-      this.llmCache = null;
-    }
-  }
-
-  clearSnapshot(): void {
-    this.snapshot = undefined;
-  }
 }

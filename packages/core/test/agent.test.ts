@@ -68,7 +68,6 @@ function makeAgent(
     conversation,
     tools,
     cwd: process.cwd(),
-    setTodos: () => {},
     getTodos: opts.getTodos ?? (() => []),
     stallThreshold: 3,
     maxTurns: opts.maxTurns ?? 50,
@@ -232,19 +231,20 @@ test("a final answer is kept even when tasks are still open", async () => {
   assert.equal(agent.export().at(-1)?.content, "final report");
 });
 
-test("abort rolls the conversation back to the pre-run snapshot", async () => {
+test("aborting a turn keeps the messages it already produced", async () => {
   const controller = new AbortController();
   const { llm } = fakeLLM([
+    () => toolCall("Echo"),
     () => {
       controller.abort();
-      return { role: "assistant", content: "partial" };
+      return new Promise<LLMAssistantMessage>(() => {});
     },
   ]);
   const agent = makeAgent(llm);
   const status = await agent.run("go", undefined, controller.signal);
   assert.equal(status, "aborted");
-  assert.equal(agent.export().length, 1);
-  assert.equal(agent.export()[0].content, "go");
+  assert.deepEqual(agent.export().map((m) => m.role), ["user", "assistant", "tool"]);
+  assert.equal(agent.export()[2].content, "echoed");
 });
 
 test("aborted run resolves hanging tool entries in the timeline", async () => {
@@ -291,7 +291,7 @@ test("auto-compact failure surfaces an error event", async () => {
   assert.ok(events.includes("error"), "compact failure must emit an error event");
 });
 
-test("abort after auto-compact still rolls the conversation back", async () => {
+test("abort after auto-compact keeps the compaction it already paid for", async () => {
   const controller = new AbortController();
   const { llm } = fakeLLM([
     (opts) => {
@@ -307,7 +307,7 @@ test("abort after auto-compact still rolls the conversation back", async () => {
   const agent = makeAgent(llm, { contextLimit: 1000 });
   const status = await agent.run("a".repeat(5000), undefined, controller.signal);
   assert.equal(status, "aborted");
-  assert.deepEqual(agent.export().map((m) => m.content), ["a".repeat(5000)]);
+  assert.deepEqual(agent.export().map((m) => m.content), ["SUMMARY", "a".repeat(5000)]);
 });
 
 test("auto-compact fires above the threshold and the run continues", async () => {
@@ -474,7 +474,7 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
     await session.save();
     const after = loadSessionState(session.filePath!)!.messages;
     assert.deepEqual(after, before);
-    assert.ok(!after.some((m) => m.role === "tool"));
+    assert.ok(!after.some((m) => m.role === "tool" && m.content === "late result"));
   });
 });
 
@@ -537,7 +537,6 @@ test("a failing tool summary falls back to the default one instead of aborting t
     conversation,
     tools,
     cwd: process.cwd(),
-    setTodos: () => {},
     getTodos: () => [],
     stallThreshold: 3,
     maxTurns: 50,
