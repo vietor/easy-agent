@@ -554,7 +554,7 @@ Core tools (registered by default; `builtInTools: { readOnly: true }` registers 
 | **Grep** *(read-only)* | Content search with regex. A capped result reports the total count, plus the per-directory distribution in `files_with_matches` mode. |
 | **WebFetch** *(read-only)* | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 | **Shell** | Run shell commands. |
-| **Write** | Create or overwrite files. |
+| **Write** | Create, overwrite, or append to files. |
 | **Edit** | Surgical text replacement. |
 
 Shell, Write, and Edit are not concurrency-safe, so within one turn each runs alone — no two of them, and nothing else, is ever in flight at the same time. Two concurrent `Edit`s on one file can therefore no longer lose an update.
