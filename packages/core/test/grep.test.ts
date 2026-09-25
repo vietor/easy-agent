@@ -73,12 +73,33 @@ test("grep offset past the end reports no entries instead of no matches", async 
   });
 });
 
-test("grep rejects offset outside content mode", async () => {
+test("grep offset pages files_with_matches mode in path order", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "grep-files-paging-"));
+  try {
+    for (const name of ["c.txt", "a.txt", "b.txt"]) await writeFile(join(dir, name), "alpha\n", "utf-8");
+    const out = await grep({ pattern: "alpha", path: dir, output_mode: "files_with_matches", head_limit: 2, offset: 1 }, process.cwd());
+    assert.equal(out, "b.txt\nc.txt");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("grep offset pages count mode", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "grep-count-paging-"));
+  try {
+    await writeFile(join(dir, "a.txt"), "alpha\nalpha\n", "utf-8");
+    await writeFile(join(dir, "b.txt"), "alpha\n", "utf-8");
+    const out = await grep({ pattern: "alpha", path: dir, output_mode: "count", head_limit: 1, offset: 1 }, process.cwd());
+    assert.equal(out, "b.txt:1");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("grep offset past the end of files_with_matches reports no entries", async () => {
   await withFile("alpha\n", async (p) => {
-    await assert.rejects(
-      grepTool.execute({ pattern: "alpha", path: p, output_mode: "count", offset: 1 }, process.cwd()),
-      /offset is only supported with output_mode=content/
-    );
+    const out = await grep({ pattern: "alpha", path: join(p, ".."), output_mode: "files_with_matches", offset: 5 }, process.cwd());
+    assert.equal(out, "(no entries at offset 5 — end of results)");
   });
 });
 

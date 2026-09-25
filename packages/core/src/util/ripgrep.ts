@@ -12,9 +12,17 @@ export function formatRipgrepOutput(lines: string[], emptyText: string, overflow
   return overflow ? out + "\n" + overflow : out;
 }
 
-export function overflowNotice(entries: string[], shown: number, word: "file" | "match", breakdown?: string): string {
-  const head = `${TRUNCATION_MARKER} ${formatCompactNumber(entries.length)} ${word === "file" ? "files" : "matches"} in total, showing the first ${formatCompactNumber(shown)}`;
+export function overflowNotice(entries: string[], shown: number, word: "file" | "match", breakdown?: string, offset = 0): string {
+  const noun = word === "file" ? "files" : "matches";
+  const range = offset > 0
+    ? `${formatCompactNumber(offset + 1)}-${formatCompactNumber(offset + shown)}`
+    : `the first ${formatCompactNumber(shown)}`;
+  const head = `${TRUNCATION_MARKER} ${formatCompactNumber(entries.length)} ${noun} in total, showing ${range}`;
   return breakdown ? `${head}\n${breakdown}` : head;
+}
+
+export function offsetPastEnd(offset: number): string {
+  return `(no entries at offset ${offset} — end of results)`;
 }
 
 export function directoryBreakdown(paths: string[]): string | undefined {

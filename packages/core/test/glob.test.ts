@@ -64,3 +64,26 @@ test("glob without matches lists nothing", async () => {
     assert.equal(out, "(no matches)");
   });
 });
+
+test("glob offset walks a listing in the same order as the pages before it", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  await withDir([["a.txt", now - 3 * 86400], ["b.txt", now - 86400], ["c.txt", now - 2 * 86400]], async (dir) => {
+    assert.equal(await glob({ path: dir }, dir), "b.txt\nc.txt\na.txt");
+    assert.equal(await glob({ path: dir, offset: 2 }, dir), "a.txt");
+  });
+});
+
+test("glob offset pages a capped listing and reports the shown range", async () => {
+  const files = Array.from({ length: 310 }, (_, i) => `f${String(i).padStart(3, "0")}.txt`);
+  await withDir(files, async (dir) => {
+    const lines = (await glob({ path: dir, offset: 150 }, dir)).split("\n").filter(Boolean);
+    assert.equal(lines.length, 151);
+    assert.equal(lines[150], "(output truncated) 310 files in total, showing 151-300");
+  });
+});
+
+test("glob offset past the end reports no entries instead of no matches", async () => {
+  await withDir(["a.txt"], async (dir) => {
+    assert.equal(await glob({ path: dir, offset: 5 }, dir), "(no entries at offset 5 — end of results)");
+  });
+});

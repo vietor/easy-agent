@@ -33,6 +33,11 @@ export function tryParseToolArgs<S extends z.ZodType>(
   return result.success ? { ok: true, value: result.data } : { ok: false, error: issueMessage(result.error) };
 }
 
+export function nonNegativeInt(name: string, description: string) {
+  const error = `${name} must be a non-negative integer`;
+  return z.number({ error }).min(0, { error }).refine(Number.isInteger, { error }).describe(description);
+}
+
 export type TodoStatus = "pending" | "inProgress" | "completed";
 
 export interface Todo {
