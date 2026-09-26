@@ -134,6 +134,27 @@ test("grep reports the total when results are capped", async () => {
   }
 });
 
+test("grep count mode counts files per directory", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "grep-count-census-"));
+  try {
+    await mkdir(join(dir, "a"), { recursive: true });
+    await mkdir(join(dir, "b"), { recursive: true });
+    await writeFile(join(dir, "a", "f1.txt"), "alpha\n", "utf-8");
+    await writeFile(join(dir, "a", "f2.txt"), "alpha\n", "utf-8");
+    await writeFile(join(dir, "b", "f3.txt"), "alpha\n", "utf-8");
+
+    const out = await grep({ pattern: "alpha", path: dir, output_mode: "count", head_limit: 2 }, process.cwd());
+    assert.equal(out, [
+      "a/f1.txt:1",
+      "a/f2.txt:1",
+      "(output truncated) 3 files in total, showing the first 2",
+      "by directory: a = 2, b = 1",
+    ].join("\n"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("grep validates offset", async () => {
   await withFile("alpha\n", async (p) => {
     await assert.rejects(

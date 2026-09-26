@@ -553,7 +553,7 @@ Core tools (registered by default; `builtInTools: { readOnly: true }` registers 
 |---|---|
 | **Read** *(read-only)* | Read files with line numbers. |
 | **Glob** *(read-only)* | File listing by glob pattern. A capped listing reports the total match count and the per-directory distribution. |
-| **Grep** *(read-only)* | Content search with regex. A capped result reports the total count, plus the per-directory distribution in `files_with_matches` mode. |
+| **Grep** *(read-only)* | Content search with regex. A capped result reports the total count, plus the per-directory distribution in `files_with_matches` and `count` modes. |
 | **WebFetch** *(read-only)* | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
 | **Shell** | Run shell commands. |
 | **Write** | Create, overwrite, or append to files. |

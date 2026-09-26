@@ -59,9 +59,11 @@ export const grepTool: Tool = {
     if (offset > 0 && lines.length === 0) {
       return { content: offsetPastEnd(offset) };
     }
-    const listed = output_mode === "files_with_matches";
+    const censusPaths = output_mode === "count" ? all.map((line) => line.replace(/:\d+$/, "")) : all;
+    const census = output_mode === "content" ? undefined : directoryBreakdown(censusPaths);
+    const noun = output_mode === "content" ? "match" : "file";
     const overflow = truncated
-      ? overflowNotice(all, lines.length, listed ? "file" : "match", listed ? directoryBreakdown(all) : undefined, offset)
+      ? overflowNotice(all, lines.length, noun, census, offset)
       : undefined;
     return { content: formatRipgrepOutput(lines, NO_MATCHES, overflow) };
   },

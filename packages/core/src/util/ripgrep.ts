@@ -4,7 +4,7 @@ import { NO_MATCHES, REQUEST_TIMEOUT_MS } from "./constants.js";
 import { formatCompactNumber, summaryCount } from "./text.js";
 
 const TRUNCATION_MARKER = "(output truncated)";
-const BREAKDOWN_DIRS = 12;
+const BREAKDOWN_DIRS = 40;
 
 export function formatRipgrepOutput(lines: string[], emptyText: string, overflow?: string): string {
   if (!lines.length) return emptyText;
@@ -25,16 +25,19 @@ export function offsetPastEnd(offset: number): string {
   return `(no entries at offset ${offset} — end of results)`;
 }
 
-export function directoryBreakdown(paths: string[]): string | undefined {
+export function directoryBreakdown(paths: string[]): string {
   const counts = new Map<string, number>();
   for (const path of paths) {
     const cut = path.lastIndexOf("/");
     const dir = cut < 0 ? "." : path.slice(0, cut);
     counts.set(dir, (counts.get(dir) ?? 0) + 1);
   }
-  if (counts.size < 2) return undefined;
-  const ranked = [...counts].sort((a, b) => b[1] - a[1]).slice(0, BREAKDOWN_DIRS);
-  return `by directory: ${ranked.map(([dir, count]) => `${dir} = ${count}`).join(", ")}`;
+  const ranked = [...counts].sort((a, b) => b[1] - a[1]);
+  const shown = ranked.slice(0, BREAKDOWN_DIRS).map(([dir, count]) => `${dir} = ${count}`).join(", ");
+  const omitted = ranked.length > BREAKDOWN_DIRS
+    ? ` (${BREAKDOWN_DIRS} of ${ranked.length} directories shown, largest first — narrow with path or pattern for the rest)`
+    : "";
+  return `by directory: ${shown}${omitted}`;
 }
 
 function listedLineCount(content: string): number {
