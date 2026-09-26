@@ -11,7 +11,7 @@ import { DIR_RETENTION_MS } from "../src/util/constants.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { waitUntil, withTempDir } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { ChatOptions, LLMClient, LLMUsage } from "../src/llm/types.js";
 
 function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
   const llm: LLMClient = {
@@ -48,6 +48,73 @@ function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>, 
     scratchDir,
   });
 }
+
+function withUsage(usage: LLMUsage, message: LLMAssistantMessage) {
+  return (opts: ChatOptions): LLMAssistantMessage => {
+    opts.onUsage?.(usage);
+    return message;
+  };
+}
+
+function subAgentCall(task: string, id: string): LLMAssistantMessage {
+  return {
+    role: "assistant",
+    content: null,
+    tool_calls: [{ id, type: "function", function: { name: "SubAgent", arguments: JSON.stringify({ type: "explore", task }) } }],
+  };
+}
+
+function makeSessionWithSubAgent(script: Array<(opts: ChatOptions) => LLMAssistantMessage>): Session {
+  const tools = new ToolRegistry();
+  return new Session({
+    systemPrompt: "test",
+    llm: fakeLLM(script),
+    tools,
+    mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+    contextLimit: 750_000,
+    builtInTools: { subAgent: true },
+  });
+}
+
+test("a sub-agent's tokens are added to the session's run metrics", async () => {
+  const session = makeSessionWithSubAgent([
+    withUsage({ cacheInputTokens: 1, missInputTokens: 10, outputTokens: 2 }, subAgentCall("find X", "s1")),
+    withUsage({ cacheInputTokens: 3, missInputTokens: 20, outputTokens: 4 }, { role: "assistant", content: "REPORT" }),
+    withUsage({ cacheInputTokens: 5, missInputTokens: 30, outputTokens: 6 }, { role: "assistant", content: "done" }),
+  ]);
+  const finals: Array<{ cacheInputTokens: number; missInputTokens: number; outputTokens: number }> = [];
+  session.onEvent((e) => {
+    if (e.type === "run_metrics" && !e.running) finals.push(e);
+  });
+
+  assert.equal((await session.prompt("go")).status, "ok");
+  const final = finals.at(-1)!;
+  assert.deepEqual(
+    { cacheInputTokens: final.cacheInputTokens, missInputTokens: final.missInputTokens, outputTokens: final.outputTokens },
+    { cacheInputTokens: 9, missInputTokens: 60, outputTokens: 12 }
+  );
+});
+
+test("usage from a nested sub-agent is counted once at the session", async () => {
+  const session = makeSessionWithSubAgent([
+    withUsage({ cacheInputTokens: 1, missInputTokens: 10, outputTokens: 1 }, subAgentCall("one", "s1")),
+    withUsage({ cacheInputTokens: 2, missInputTokens: 20, outputTokens: 2 }, subAgentCall("two", "s2")),
+    withUsage({ cacheInputTokens: 3, missInputTokens: 30, outputTokens: 3 }, { role: "assistant", content: "L2" }),
+    withUsage({ cacheInputTokens: 4, missInputTokens: 40, outputTokens: 4 }, { role: "assistant", content: "L1" }),
+    withUsage({ cacheInputTokens: 5, missInputTokens: 50, outputTokens: 5 }, { role: "assistant", content: "done" }),
+  ]);
+  const finals: Array<{ cacheInputTokens: number; missInputTokens: number; outputTokens: number }> = [];
+  session.onEvent((e) => {
+    if (e.type === "run_metrics" && !e.running) finals.push(e);
+  });
+
+  assert.equal((await session.prompt("go")).status, "ok");
+  const final = finals.at(-1)!;
+  assert.deepEqual(
+    { cacheInputTokens: final.cacheInputTokens, missInputTokens: final.missInputTokens, outputTokens: final.outputTokens },
+    { cacheInputTokens: 15, missInputTokens: 150, outputTokens: 15 }
+  );
+});
 
 test("a new prompt clears the all-completed todo list from the session view", async () => {
   const session = makeSession([

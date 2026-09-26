@@ -142,6 +142,8 @@ export interface SessionOptions {
   stallThreshold?: number;
   maxParallelToolCalls?: number;
   maxSubAgentDepth?: number;
+  maxConcurrentSubAgents?: number;
+  maxSubAgentTurns?: number;
   scratchDir?: string;
   sessionDir?: string;
   importPath?: string;
@@ -287,7 +289,12 @@ export class Session {
   constructor(deps: SessionDeps) {
     this.limits = resolveRunLimits(deps);
     const maxSubAgentDepth = requirePositiveInt(deps.maxSubAgentDepth ?? DEFAULT_MAX_SUB_AGENT_DEPTH, "maxSubAgentDepth");
-    const subAgentBudget = new SubAgentBudget(DEFAULT_MAX_CONCURRENT_SUB_AGENTS);
+    const maxSubAgentTurns = requirePositiveInt(deps.maxSubAgentTurns ?? this.limits.maxTurns, "maxSubAgentTurns");
+    const maxConcurrentSubAgents = requirePositiveInt(
+      deps.maxConcurrentSubAgents ?? DEFAULT_MAX_CONCURRENT_SUB_AGENTS,
+      "maxConcurrentSubAgents"
+    );
+    const subAgentBudget = new SubAgentBudget(maxConcurrentSubAgents);
     this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
@@ -309,6 +316,7 @@ export class Session {
             maxSubAgentDepth,
             budget: subAgentBudget,
             ...this.limits,
+            maxTurns: maxSubAgentTurns,
             onUsage: (usage) => this.agent.addUsage(usage),
           }, systemPrompt, task, level, signal),
       },

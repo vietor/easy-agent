@@ -19,7 +19,7 @@ function contextLimitFor(maxInputTokens: number, maxOutputTokens: number): numbe
   return Math.floor(Math.min(maxInputTokens * CONTEXT_LIMIT_RATIO, maxInputTokens - maxOutputTokens));
 }
 
-function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, scratchDir: string | undefined, sessionId: string): string {
+function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, maxSubAgentTurns: number, scratchDir: string | undefined, sessionId: string): string {
   const parts = [base];
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
   const toolUseLines = [renderToolUsePrompt(maxTurns, mode, scratchDir ? notesFilePath(scratchDir, sessionId) : undefined)];
@@ -27,7 +27,7 @@ function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInToo
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
-    if (builtInTools.subAgent) toolUseLines.push(renderSubAgentGuidance(builtInTools.readOnly === true, maxParallelToolCalls, maxTurns));
+    if (builtInTools.subAgent) toolUseLines.push(renderSubAgentGuidance(builtInTools.readOnly === true, maxParallelToolCalls, maxSubAgentTurns));
   }
   parts.push(toolUseLines.join("\n"));
   if (skills?.length) {
@@ -49,11 +49,13 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   ]);
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
+  const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS;
+  const maxSubAgentTurns = opts.maxSubAgentTurns ?? maxTurns;
   const session = new Session({
     ...opts,
     sessionId,
     cwd,
-    systemPrompt: buildSystemPrompt(base, opts.skills, opts.builtInTools, opts.maxTurns ?? DEFAULT_MAX_TURNS, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, opts.scratchDir, sessionId),
+    systemPrompt: buildSystemPrompt(base, opts.skills, opts.builtInTools, maxTurns, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, maxSubAgentTurns, opts.scratchDir, sessionId),
     llm,
     tools,
     mcp,
