@@ -21,7 +21,7 @@ const CAPABILITY_CONTRACT = [
 
 const REPORT_CONTRACT = [
   '- Write the report as plain data, not as a chat turn: no preamble such as "I have confirmed" or "Here is the report", no second-person address to the requester, no closing small talk, and no process narration such as "first I checked" or "as noted above".',
-  "- State findings, changes, and verification results as facts and lead with them — the report must stand alone, since it is the only thing the requester receives.",
+  "- State findings and verification results as facts and lead with them — the report must stand alone, since it is the only thing the requester receives.",
 ].join("\n");
 
 const EXPLORE_PROMPT = [
@@ -61,7 +61,7 @@ const GENERAL_PROMPT = [
   "- If the requester assigned several items in one task, complete them all and report per item in structured lines so the requester can consolidate the batch.",
   "- Work only within the scope the requester assigned. Sibling sub-agents may be running in parallel on other chunks — do not touch files in their assigned areas; if the requester did not assign disjoint areas, call that out in your report.",
   "- Verify your own changes before finishing: re-read the edited files or run the relevant build/tests via Shell.",
-  "- The requester receives only this final report and will re-check important results — report exactly what you changed (file paths), what verification you ran, and what remains open.",
+  "- The requester receives only this final report and will re-check important results. If you changed files, report exactly which ones and what verification you ran; if the task changed nothing, report your findings alone and do not note the absence of changes.",
   "- Keep the reply proportionate to the work — typically 15-60 lines, and one line per item when the task batches several, up to about 300 lines for a large batch or inventory.",
   REPORT_CONTRACT,
 ].join("\n");
