@@ -34,7 +34,7 @@ const EXPLORE_PROMPT = [
   "- If the task implies designing a change or producing a deliverable, do not improvise one: report the facts it needs and state that the design itself is out of your scope.",
   "- Follow imports and call sites to trace definitions when the answer depends on how code connects.",
   '- Report in concise markdown: a summary of findings first, then details with file_path:line_number references (or URLs for web sources), and a final "Bottom line" section with a direct answer to the task.',
-  "- Keep the reply proportionate to the question — typically 10-40 lines, and one line per item when the task batches several; extract key facts rather than pasting file contents.",
+  "- Keep the reply proportionate to the question: a short answer gets 10-40 lines, while a task that asks for an inventory or a sweep — every endpoint, table, call site, or symbol in scope — gets one line per item under headings, as long as the list requires, up to about 300 lines. Past that, compress by grouping and summarizing rather than dropping items. Extract key facts rather than pasting file contents, and never pad a short answer.",
   REPORT_CONTRACT,
 ].join("\n");
 
@@ -49,7 +49,7 @@ const PLAN_PROMPT = [
   "- Identify the critical files for implementation — the files the implementer must read first.",
   '- End with a short "Risks & open questions" section listing anything to verify during implementation.',
   '- Then add a short "Verification" section: the commands, tests, or manual checks to run to confirm each step works.',
-  "- Keep the plan concise — typically 20-50 lines.",
+  "- Keep the plan concise — typically 20-50 lines, and longer only for a change that spans many files or steps: one numbered step per unit of work, up to about 300 lines.",
   "- Be specific and actionable; do not speculate beyond what you read.",
   REPORT_CONTRACT,
 ].join("\n");
@@ -62,7 +62,7 @@ const GENERAL_PROMPT = [
   "- Work only within the scope the requester assigned. Sibling sub-agents may be running in parallel on other chunks — do not touch files in their assigned areas; if the requester did not assign disjoint areas, call that out in your report.",
   "- Verify your own changes before finishing: re-read the edited files or run the relevant build/tests via Shell.",
   "- The requester receives only this final report and will re-check important results — report exactly what you changed (file paths), what verification you ran, and what remains open.",
-  "- Keep the reply proportionate to the work — typically 15-60 lines, and one line per item when the task batches several.",
+  "- Keep the reply proportionate to the work — typically 15-60 lines, and one line per item when the task batches several, up to about 300 lines for a large batch or inventory.",
   REPORT_CONTRACT,
 ].join("\n");
 
@@ -120,7 +120,8 @@ export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelTool
   }
   bullets.push(
     '- Assign disjoint files to parallel "general" sub-agents: chunk by file area or module, and never delegate overlapping edits to different sub-agents in the same batch.',
-    '- "explore" and "plan" sub-agents are read-only, but "general" sub-agents change your working tree and return only their final report, not intermediate steps — never mark a file-changing delegated task done on the report alone. Verify the changes yourself: read the diffs and run the relevant tests before reporting completion.'
+    '- "explore" and "plan" sub-agents are read-only, but "general" sub-agents change your working tree and return only their final report, not intermediate steps — never mark a file-changing delegated task done on the report alone. Verify the changes yourself: read the diffs and run the relevant tests before reporting completion.',
+    '- When the deliverable is itself a large file — a report, a document, a set of sections — a "general" sub-agent can write its own part straight to an assigned output file and report back only that path and a short summary, which leaves your context and your turns for coordination. Give each one a distinct output file and merge them yourself.'
   );
   return bullets.join("\n");
 }
@@ -144,7 +145,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
     name: SUB_AGENT_TOOL_NAME,
     concurrencySafe: true,
     description:
-      "Run a dedicated sub-agent in its own nested loop — the only result you receive is its final report as text, not intermediate steps. The type parameter lists the valid values and when to use each. Sub-agents cannot ask questions or use skills or todos.",
+      "Run a dedicated sub-agent in its own nested loop — you receive its final report as text, not intermediate steps. The type parameter lists the valid values and when to use each. Sub-agents cannot ask questions or use skills or todos.",
     parameters: toToolParameters(SubAgentArgs),
     summarizeArgs: (args) => {
       const type = args.type as string;
@@ -158,9 +159,14 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
       const { type, task } = parsed.value;
       const def = defByType[type];
 
-      const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal);
+      const { status, reply, messages, notesPath } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal);
+      const notes = notesPath
+        ? def.level === 1
+          ? `\n\nFull report saved to: ${notesPath}\nRe-read it after a context compaction instead of re-running this sub-agent.`
+          : `\n\nFull report and notes saved to: ${notesPath}\nRead that file for detail beyond this report, or after a context compaction.`
+        : "";
 
-      if (status === "ok") return { content: reply };
+      if (status === "ok") return { content: reply + notes };
       let stallReason: string | undefined;
       if (status === "stalled") {
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -172,7 +178,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
         }
       }
       const suffix = stallReason ? ` ${stallReason}` : "";
-      return { content: `Sub-agent "${def.name}" ended with status ${status}.${suffix}\n\n${reply}`, isError: true };
+      return { content: `Sub-agent "${def.name}" ended with status ${status}.${suffix}\n\n${reply}${notes}`, isError: true };
     },
   };
 }

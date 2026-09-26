@@ -27,7 +27,7 @@ export function renderToolUsePrompt(maxTurns: number, mode: "full" | "readOnly" 
 }
 
 function renderNotesLine(notesPath: string): string {
-  return `- Long investigations: record each confirmed fact (file paths, signatures, decisions, open questions) as a line in \`${notesPath}\` in the same turn you learn it. Automatic compaction replaces the conversation with a summary, so after one, re-read that file instead of re-exploring.`;
+  return `- Long investigations: record each confirmed fact (file paths, signatures, decisions, open questions) as a line in \`${notesPath}\` in the same turn you learn it, using Write with append set so the lines you already recorded survive. Automatic compaction replaces the conversation with a summary, so after one, re-read that file instead of re-exploring.`;
 }
 
 export function renderEnvironment(cwd: string): string {

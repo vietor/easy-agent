@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { appendFile } from "node:fs/promises";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
@@ -7,12 +8,14 @@ import type { LLMClient, LLMUsage } from "../llm/types.js";
 import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";
 import { createSubAgentTool, renderSubAgentGuidance, SUB_AGENT_DENIED_GUIDANCE } from "../tools/sub-agent.js";
-import { SUB_AGENT_TOOL_NAME } from "../util/constants.js";
+import { MAX_TOOL_OUTPUT_BYTES, MAX_TOOL_OUTPUT_LINES, SUB_AGENT_TOOL_NAME } from "../util/constants.js";
+import { truncateOutput } from "../util/text.js";
 
 export interface SubAgentRunOptions extends RunLimits {
   llm: LLMClient;
   tools: ToolRegistry;
   cwd: string;
+  sessionId: string;
   depth: number;
   maxSubAgentDepth: number;
   budget?: SubAgentBudget;
@@ -23,6 +26,7 @@ export interface SubAgentRunResult {
   status: RunStatus;
   reply: string;
   messages: SessionMessage[];
+  notesPath?: string;
 }
 
 export class SubAgentBudget {
@@ -48,14 +52,14 @@ export async function runSubAgent(
   level: AgentLevel,
   signal?: AbortSignal
 ): Promise<SubAgentRunResult> {
-  const { llm, tools, cwd, onUsage, depth, maxSubAgentDepth, budget, ...limits } = opts;
+  const { llm, tools, cwd, sessionId, onUsage, depth, maxSubAgentDepth, budget, ...limits } = opts;
   if (budget && !budget.tryAcquire()) {
     throw new Error(`sub-agent limit reached: ${budget.limit} sub-agents are already running in this session; do not retry — wait for the running sub-agents to report back, or do this work yourself with the tools you have`);
   }
   try {
     const mode = level === 1 ? "readOnly" : "full";
     const canSpawn = depth < maxSubAgentDepth;
-    const notesPath = mode === "full" && limits.scratchDir ? notesFilePath(limits.scratchDir, randomUUID()) : undefined;
+    const notesPath = limits.scratchDir ? notesFilePath(limits.scratchDir, `${sessionId}.${randomUUID()}`) : undefined;
     const prompt = [systemPrompt, renderEnvironment(cwd), renderToolUsePrompt(limits.maxTurns, mode, notesPath)];
     if (limits.scratchDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
     prompt.push(canSpawn ? renderSubAgentGuidance(mode === "readOnly", limits.maxParallelToolCalls, limits.maxTurns) : SUB_AGENT_DENIED_GUIDANCE);
@@ -75,13 +79,18 @@ export async function runSubAgent(
       cwd,
       getTodos: () => [],
       ...limits,
-      notesPath,
+      notesPath: mode === "full" ? notesPath : undefined,
     });
     const status = await subAgent.run(task, undefined, signal);
     onUsage?.(subAgent.usage);
     const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
     const messages = status !== "ok" ? conversation.export() : [];
-    return { status, reply, messages };
+    if (notesPath) {
+      const cut = truncateOutput(reply, "head", MAX_TOOL_OUTPUT_BYTES, MAX_TOOL_OUTPUT_LINES);
+      const body = cut.truncated ? `${cut.text}\n\n(report truncated in this file: first ${cut.keptLines} of ${cut.totalLines} lines)` : reply;
+      await appendFile(notesPath, `\n## Sub-agent report\n\n${body}\n`, "utf-8");
+    }
+    return { status, reply, messages, notesPath };
   } finally {
     budget?.release();
   }
