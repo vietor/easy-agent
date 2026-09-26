@@ -14,7 +14,7 @@ import { INITIAL_RUN_METRICS, type RunMetrics, type SessionEvent, type TimelineE
 import type { MCPClientInfo } from "../mcp/types.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { SessionMessages } from "./session-messages.js";
-import { SessionPersistence, loadSessionState, notesFileName, notesFilePath, type SessionState } from "./session-persistence.js";
+import { SessionPersistence, isSessionScratchFile, loadSessionState, notesFilePath, type SessionState } from "./session-persistence.js";
 import { Emitter } from "../util/emitter.js";
 import { TimelineStore, toTimelineEntries } from "./timeline.js";
 import { TodoStore } from "./todo-store.js";
@@ -304,6 +304,7 @@ export class Session {
             llm: deps.llm,
             tools: this.tools,
             cwd: this.cwd,
+            sessionId: this.sessionId,
             depth: 1,
             maxSubAgentDepth,
             budget: subAgentBudget,
@@ -374,7 +375,7 @@ export class Session {
       this.emitRunMetrics();
       this.flushThinking();
       this.clearCompletedTodos();
-      if (this.limits.scratchDir) void sweepDir(this.limits.scratchDir, notesFileName(this.sessionId));
+      if (this.limits.scratchDir) void sweepDir(this.limits.scratchDir, (name) => isSessionScratchFile(name, this.sessionId));
       await this.save();
     }
     return { status, reply: this.stream.reply };

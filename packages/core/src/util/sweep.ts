@@ -9,7 +9,7 @@ interface Entry {
   size: number;
 }
 
-export async function sweepDir(dir: string, keep?: string): Promise<void> {
+export async function sweepDir(dir: string, keep?: (name: string) => boolean): Promise<void> {
   let names: string[];
   try {
     names = await readdir(dir);
@@ -19,7 +19,7 @@ export async function sweepDir(dir: string, keep?: string): Promise<void> {
   const cutoff = Date.now() - DIR_RETENTION_MS;
   const kept = (
     await mapWithConcurrency(names, DIR_SWEEP_CONCURRENCY, async (name): Promise<Entry | undefined> => {
-      if (name === keep) return undefined;
+      if (keep?.(name)) return undefined;
       const path = join(dir, name);
       try {
         const info = await stat(path);

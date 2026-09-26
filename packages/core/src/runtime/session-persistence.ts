@@ -130,6 +130,10 @@ export function notesFilePath(dir: string, id: string): string {
   return join(dir, notesFileName(id));
 }
 
+export function isSessionScratchFile(name: string, sessionId: string): boolean {
+  return name.startsWith(`${sessionId}.`);
+}
+
 export function isSessionExists(dir: string, sessionId: string): boolean {
   return existsSync(sessionFilePath(dir, sessionId));
 }

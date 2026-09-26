@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
-import { notesFileName, notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
+import { isSessionScratchFile, notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
 import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
@@ -44,8 +44,8 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const sessionId = opts.sessionId ?? randomUUID();
   const cwd = opts.cwd ?? process.cwd();
   await Promise.all([
-    opts.sessionDir ? sweepDir(opts.sessionDir, sessionFileName(sessionId)) : undefined,
-    opts.scratchDir ? sweepDir(opts.scratchDir, notesFileName(sessionId)) : undefined,
+    opts.sessionDir ? sweepDir(opts.sessionDir, (name) => name === sessionFileName(sessionId)) : undefined,
+    opts.scratchDir ? sweepDir(opts.scratchDir, (name) => isSessionScratchFile(name, sessionId)) : undefined,
   ]);
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);

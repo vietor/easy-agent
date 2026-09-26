@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sweepDir } from "../src/util/sweep.js";
+import { isSessionScratchFile } from "../src/runtime/session-persistence.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
 
 async function withDir(fn: (dir: string) => Promise<void>): Promise<void> {
@@ -36,8 +37,23 @@ test("sweep never removes the excluded file", async () => {
     await utimes(join(dir, "kept.txt"), past, past);
     await utimes(join(dir, "stale.txt"), past, past);
 
-    await sweepDir(dir, "kept.txt");
+    await sweepDir(dir, (name) => name === "kept.txt");
     assert.deepEqual(await readdir(dir), ["kept.txt"]);
+  });
+});
+
+test("sweep keeps every file the live session owns and reclaims another session's", async () => {
+  await withDir(async (dir) => {
+    assert.equal(isSessionScratchFile("ab.notes.md", "a"), false, "a shared prefix is not enough");
+    const past = new Date(Date.now() - DIR_RETENTION_MS - 60_000);
+    const mine = ["s1.notes.md", "s1.9f2c.notes.md"];
+    for (const name of [...mine, "s2.notes.md", "s2.9f2c.notes.md"]) {
+      await writeFile(join(dir, name), "old", "utf-8");
+      await utimes(join(dir, name), past, past);
+    }
+
+    await sweepDir(dir, (name) => isSessionScratchFile(name, "s1"));
+    assert.deepEqual((await readdir(dir)).sort(), [...mine].sort());
   });
 });
 
