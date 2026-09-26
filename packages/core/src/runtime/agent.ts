@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import { isAbortError, mapWithConcurrency, withAbort } from "../util/async.js";
 import {
   COMPACT_TAIL_RATIO,
@@ -21,6 +20,7 @@ import {
   toErrorMessage,
   truncateOutput,
 } from "../util/text.js";
+import { nextUuid } from "../util/uid.js";
 import { parseToolCallArgs, toText, type LLMAssistantMessage } from "../llm/messages.js";
 import type { ChatOptions, LLMClient, LLMUsage, ToolSchema } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -432,7 +432,7 @@ export class Agent {
     if (this.tools.persistOutput(name)) {
       try {
         await mkdir(this.scratchDir, { recursive: true });
-        outputPath = join(this.scratchDir, `${randomUUID()}.txt`);
+        outputPath = join(this.scratchDir, `${name.replace(/[^\w-]/g, "_")}.${nextUuid()}.txt`);
         await writeFile(outputPath, json ?? content, "utf-8");
       } catch {
         return { content };

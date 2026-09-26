@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { isSessionScratchFile, notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
@@ -7,6 +6,7 @@ import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { sweepDir } from "./util/sweep.js";
+import { nextUuid } from "./util/uid.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { renderSubAgentGuidance } from "./tools/sub-agent.js";
@@ -41,7 +41,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const llm = createLLM(opts.llm);
   const tools = new ToolRegistry();
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
-  const sessionId = opts.sessionId ?? randomUUID();
+  const sessionId = opts.sessionId ?? nextUuid();
   const cwd = opts.cwd ?? process.cwd();
   await Promise.all([
     opts.sessionDir ? sweepDir(opts.sessionDir, (name) => name === sessionFileName(sessionId)) : undefined,

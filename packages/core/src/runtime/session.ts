@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
 import type { LLMClient, LLMConfig, LLMUsage } from "../llm/types.js";
 import { isAbortError } from "../util/async.js";
 import { sweepDir } from "../util/sweep.js";
 import { toErrorMessage, trimLeftNewlines, trimSurroundingNewlines } from "../util/text.js";
 import { DEFAULT_MAX_CONCURRENT_SUB_AGENTS, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_SUB_AGENT_DEPTH, DEFAULT_MAX_TURNS, DEFAULT_STALL_THRESHOLD } from "../util/constants.js";
+import { nextUuid } from "../util/uid.js";
 import type { MCPServerManager } from "../mcp/manager.js";
 import type { MCPServerConfig, MCPServerInfo } from "../mcp/types.js";
 import type { Skill } from "../skills/types.js";
@@ -298,7 +298,7 @@ export class Session {
     this.conversation = new SessionMessages(deps.systemPrompt);
     this.tools = deps.tools;
     this.cwd = deps.cwd ?? process.cwd();
-    this.sessionId = deps.sessionId ?? randomUUID();
+    this.sessionId = deps.sessionId ?? nextUuid();
     this.persistence = deps.sessionDir ? new SessionPersistence(deps.sessionDir, this.sessionId) : undefined;
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
     registerBuiltinTools(this.tools, deps.builtInTools, {

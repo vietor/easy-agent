@@ -112,6 +112,7 @@ test("oversized output is truncated and the saved file holds the complete text",
 
     const saved = (await readdir(dir)).filter((name) => name.endsWith(".txt"));
     assert.equal(saved.length, 1, "exactly one saved file");
+    assert.ok(saved[0].startsWith("Big."), "the saved file is named for the tool that produced it");
     assert.equal(await readFile(join(dir, saved[0]), "utf-8"), BIG);
   });
 });

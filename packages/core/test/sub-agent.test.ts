@@ -581,7 +581,7 @@ test("a read-only sub-agent's report is saved where the parent can read it", asy
     );
     assert.equal(result.status, "ok");
     assert.ok(result.notesPath);
-    assert.match(result.notesPath, /s1\.[0-9a-f-]{36}\.notes\.md$/, "the notes file is named for its session, so the sweep can identify it");
+    assert.match(result.notesPath, /s1\.[0-9A-Za-z]{11}\.notes\.md$/, "the notes file is named for its session, so the sweep can identify it");
     assert.equal(await readFile(result.notesPath, "utf-8"), "\n## Sub-agent report\n\nthe report\n");
     assert.ok(!system.includes(result.notesPath), "a read-only sub-agent has no Write tool, so it must not be told to keep notes");
   } finally {

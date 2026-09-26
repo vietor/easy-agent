@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { appendFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
@@ -11,6 +10,7 @@ import { ToolRegistry } from "../tools/registry.js";
 import { createSubAgentTool, renderSubAgentGuidance, SUB_AGENT_DENIED_GUIDANCE } from "../tools/sub-agent.js";
 import { MAX_TOOL_OUTPUT_BYTES, MAX_TOOL_OUTPUT_LINES, SUB_AGENT_TOOL_NAME } from "../util/constants.js";
 import { truncateOutput } from "../util/text.js";
+import { nextUid } from "../util/uid.js";
 
 export interface SubAgentRunOptions extends RunLimits {
   llm: LLMClient;
@@ -72,7 +72,7 @@ export async function runSubAgent(
   try {
     const mode = level === 1 ? "readOnly" : "full";
     const canSpawn = depth < maxSubAgentDepth;
-    const notesPath = limits.scratchDir ? notesFilePath(limits.scratchDir, `${sessionId}.${randomUUID()}`) : undefined;
+    const notesPath = limits.scratchDir ? notesFilePath(limits.scratchDir, `${sessionId}.${nextUid()}`) : undefined;
     const prompt = [systemPrompt, renderEnvironment(cwd), renderToolUsePrompt(limits.maxTurns, mode, notesPath)];
     if (limits.scratchDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
     prompt.push(canSpawn ? renderSubAgentGuidance(mode === "readOnly", limits.maxParallelToolCalls, limits.maxTurns) : SUB_AGENT_DENIED_GUIDANCE);
