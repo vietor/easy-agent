@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
@@ -27,6 +28,18 @@ export interface SubAgentRunResult {
   reply: string;
   messages: SessionMessage[];
   notesPath?: string;
+}
+
+async function saveReport(notesPath: string, reply: string): Promise<string | undefined> {
+  const cut = truncateOutput(reply, "head", MAX_TOOL_OUTPUT_BYTES, MAX_TOOL_OUTPUT_LINES);
+  const body = cut.truncated ? `${cut.text}\n\n(report truncated in this file: first ${cut.keptLines} of ${cut.totalLines} lines)` : reply;
+  try {
+    await mkdir(dirname(notesPath), { recursive: true });
+    await appendFile(notesPath, `\n## Sub-agent report\n\n${body}\n`, "utf-8");
+    return notesPath;
+  } catch {
+    return undefined;
+  }
 }
 
 export class SubAgentBudget {
@@ -85,12 +98,8 @@ export async function runSubAgent(
     onUsage?.(subAgent.usage);
     const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;
     const messages = status !== "ok" ? conversation.export() : [];
-    if (notesPath) {
-      const cut = truncateOutput(reply, "head", MAX_TOOL_OUTPUT_BYTES, MAX_TOOL_OUTPUT_LINES);
-      const body = cut.truncated ? `${cut.text}\n\n(report truncated in this file: first ${cut.keptLines} of ${cut.totalLines} lines)` : reply;
-      await appendFile(notesPath, `\n## Sub-agent report\n\n${body}\n`, "utf-8");
-    }
-    return { status, reply, messages, notesPath };
+    const savedNotes = notesPath ? await saveReport(notesPath, reply) : undefined;
+    return { status, reply, messages, notesPath: savedNotes };
   } finally {
     budget?.release();
   }

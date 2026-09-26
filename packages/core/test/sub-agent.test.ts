@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Agent } from "../src/runtime/agent.js";
@@ -584,6 +584,71 @@ test("a read-only sub-agent's report is saved where the parent can read it", asy
     assert.match(result.notesPath, /s1\.[0-9a-f-]{36}\.notes\.md$/, "the notes file is named for its session, so the sweep can identify it");
     assert.equal(await readFile(result.notesPath, "utf-8"), "\n## Sub-agent report\n\nthe report\n");
     assert.ok(!system.includes(result.notesPath), "a read-only sub-agent has no Write tool, so it must not be told to keep notes");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a scratch directory that does not exist yet is created for the report", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "sub-notes-missing-"));
+  try {
+    const { llm } = fakeLLM([() => ({ role: "assistant", content: "the report" })]);
+    const tools = new ToolRegistry();
+    tools.registerAll(SUB_TOOLS);
+    const result = await runSubAgent(
+      {
+        llm,
+        tools,
+        cwd: process.cwd(),
+        sessionId: "s1",
+        depth: 1,
+        maxSubAgentDepth: 3,
+        maxTurns: 50,
+        stallThreshold: 3,
+        maxParallelToolCalls: 10,
+        contextLimit: 750_000,
+        scratchDir: join(dir, "scratch"),
+      },
+      "You are the Explore sub-agent.",
+      "task",
+      1
+    );
+    assert.equal(result.status, "ok");
+    assert.ok(result.notesPath);
+    assert.equal(await readFile(result.notesPath, "utf-8"), "\n## Sub-agent report\n\nthe report\n");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a report survives a notes file that cannot be written", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "sub-notes-fail-"));
+  try {
+    await writeFile(join(dir, "blocker"), "x", "utf-8");
+    const { llm } = fakeLLM([() => ({ role: "assistant", content: "the report" })]);
+    const tools = new ToolRegistry();
+    tools.registerAll(SUB_TOOLS);
+    const result = await runSubAgent(
+      {
+        llm,
+        tools,
+        cwd: process.cwd(),
+        sessionId: "s1",
+        depth: 1,
+        maxSubAgentDepth: 3,
+        maxTurns: 50,
+        stallThreshold: 3,
+        maxParallelToolCalls: 10,
+        contextLimit: 750_000,
+        scratchDir: join(dir, "blocker", "scratch"),
+      },
+      "You are the Explore sub-agent.",
+      "task",
+      1
+    );
+    assert.equal(result.status, "ok");
+    assert.equal(result.reply, "the report");
+    assert.equal(result.notesPath, undefined, "a path must not be reported for a file that was never written");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
