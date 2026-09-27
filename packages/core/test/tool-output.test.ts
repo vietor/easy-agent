@@ -8,34 +8,11 @@ import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { fileReadTool } from "../src/tools/file-read.js";
 import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
-import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { LLMClient } from "../src/llm/types.js";
 import type { Tool } from "../src/tools/types.js";
+import { fakeLLM, toolCall } from "./helpers.js";
 
 const BIG = Array.from({ length: 10_000 }, (_, i) => `line ${i} ${"x".repeat(24)}`).join("\n");
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
-  const llm: LLMClient = {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-  return { llm };
-}
-
-function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
-  return {
-    role: "assistant",
-    content: null,
-    tool_calls: [{ id, type: "function", function: { name, arguments: args } }],
-  };
-}
 
 function stub(name: string, content: string, truncate?: "head" | "tail", structured?: unknown): Tool {
   return {

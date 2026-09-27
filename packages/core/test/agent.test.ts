@@ -9,28 +9,11 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Skill } from "../src/skills/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { LLMClient } from "../src/llm/types.js";
 import type { Tool, Todo } from "../src/tools/types.js";
 import type { TextResult } from "../src/tools/types.js";
-import { sleep, waitUntil, withTempDir } from "./helpers.js";
+import { fakeLLM, sleep, toolCall, waitUntil, withTempDir } from "./helpers.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
-  const calls: ChatOptions[] = [];
-  const llm: LLMClient = {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      calls.push(opts);
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-  return { llm, calls };
-}
 
 const bigTool: Tool = {
   name: "Big",
@@ -40,14 +23,6 @@ const bigTool: Tool = {
     return { content: "b".repeat(12_000) };
   },
 };
-
-function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
-  return {
-    role: "assistant",
-    content: null,
-    tool_calls: [{ id, type: "function", function: { name, arguments: args } }],
-  };
-}
 
 function makeAgent(
   llm: LLMClient,

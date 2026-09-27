@@ -9,40 +9,9 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool, renderSubAgentGuidance } from "../src/tools/sub-agent.js";
 import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient, LLMUsage } from "../src/llm/types.js";
+import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { Tool } from "../src/tools/types.js";
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
-  const calls: ChatOptions[] = [];
-  const llm: LLMClient = {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      calls.push(opts);
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-  return { llm, calls };
-}
-
-function toolCall(name: string, args = "{}", id = "t1"): LLMAssistantMessage {
-  return {
-    role: "assistant",
-    content: null,
-    tool_calls: [{ id, type: "function", function: { name, arguments: args } }],
-  };
-}
-
-function withUsage(usage: LLMUsage, message: LLMAssistantMessage) {
-  return (opts: ChatOptions) => {
-    opts.onUsage?.(usage);
-    return message;
-  };
-}
+import { fakeLLM, toolCall, withUsage } from "./helpers.js";
 
 function subAgentSchema(calls: ChatOptions[], index: number) {
   return calls[index].tools?.find((s) => s.function.name === "SubAgent");

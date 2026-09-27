@@ -9,24 +9,9 @@ import type { SessionMessage } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
-import { waitUntil, withTempDir } from "./helpers.js";
+import { fakeLLM, waitUntil, withTempDir, withUsage } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient, LLMUsage } from "../src/llm/types.js";
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
-  const llm: LLMClient = {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-  return llm;
-}
+import type { ChatOptions } from "../src/llm/types.js";
 
 function todoCall(todos: unknown, id: string): LLMAssistantMessage {
   return {
@@ -40,20 +25,13 @@ function makeSession(script: Array<(opts: ChatOptions) => LLMAssistantMessage>, 
   const tools = new ToolRegistry();
   return new Session({
     systemPrompt: "test",
-    llm: fakeLLM(script),
+    llm: fakeLLM(script).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
     builtInTools: { todoWrite: true },
     scratchDir,
   });
-}
-
-function withUsage(usage: LLMUsage, message: LLMAssistantMessage) {
-  return (opts: ChatOptions): LLMAssistantMessage => {
-    opts.onUsage?.(usage);
-    return message;
-  };
 }
 
 function subAgentCall(task: string, id: string): LLMAssistantMessage {
@@ -68,7 +46,7 @@ function makeSessionWithSubAgent(script: Array<(opts: ChatOptions) => LLMAssista
   const tools = new ToolRegistry();
   return new Session({
     systemPrompt: "test",
-    llm: fakeLLM(script),
+    llm: fakeLLM(script).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
@@ -218,7 +196,7 @@ test("a resumed session replays messages into the timeline", async () => {
 
     const session = new Session({
       systemPrompt: "test",
-      llm: fakeLLM([]),
+      llm: fakeLLM([]).llm,
       tools,
       mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
       contextLimit: 750_000,
@@ -257,7 +235,7 @@ test("a resumed session tolerates malformed persisted tool arguments", async () 
 
     const session = new Session({
       systemPrompt: "test",
-      llm: fakeLLM([]),
+      llm: fakeLLM([]).llm,
       tools,
       mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
       contextLimit: 750_000,
@@ -284,7 +262,7 @@ test("a resumed session replays a completed run into the same timeline", async (
       });
       return new Session({
         systemPrompt: "test",
-        llm: fakeLLM(script),
+        llm: fakeLLM(script).llm,
         tools,
         mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
         contextLimit: 750_000,
@@ -322,7 +300,7 @@ test("a resumed session replays an answered question into the same timeline", as
       const tools = new ToolRegistry();
       return new Session({
         systemPrompt: "test",
-        llm: fakeLLM(script),
+        llm: fakeLLM(script).llm,
         tools,
         mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
         contextLimit: 750_000,
@@ -393,7 +371,7 @@ test("a restored session with dangling tool calls is healed before the next run"
           );
           return { role: "assistant", content: "done" };
         },
-      ]),
+      ]).llm,
       tools,
       mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
       contextLimit: 750_000,
@@ -409,7 +387,7 @@ test("builtInTools: false registers no built-in tools", async () => {
   const tools = new ToolRegistry();
   new Session({
     systemPrompt: "test",
-    llm: fakeLLM([]),
+    llm: fakeLLM([]).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
@@ -469,7 +447,7 @@ test("auto-compact rebuilds the timeline from the compacted conversation", async
         opts.onDelta?.("done");
         return { role: "assistant", content: "done" };
       },
-    ]),
+    ]).llm,
     tools: new ToolRegistry(),
     mcp: new MCPServerManager(new ToolRegistry(), { name: "test", version: "0" }),
     contextLimit: 1000,
@@ -519,7 +497,7 @@ test("dispose resolves a pending question", async () => {
         content: null,
         tool_calls: [{ id: "q1", type: "function", function: { name: "AskUser", arguments: JSON.stringify({ questions: [{ question: "which?", options: [{ label: "a" }, { label: "b" }], multiSelect: false }] }) } }],
       }),
-    ]),
+    ]).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
@@ -561,7 +539,7 @@ test("submitAnswer feeds the answers back to the model as an AskUser tool result
         assert.deepEqual(JSON.parse(last.content), { "env?": "prod", "method?": ["email", "slack"] });
         return { role: "assistant", content: "done" };
       },
-    ]),
+    ]).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,
@@ -600,7 +578,7 @@ test("rejects non-positive turn, stall, and concurrency limits", () => {
   const tools = new ToolRegistry();
   const deps = {
     systemPrompt: "test",
-    llm: fakeLLM([]),
+    llm: fakeLLM([]).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit: 750_000,

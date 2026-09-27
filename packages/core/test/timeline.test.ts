@@ -7,34 +7,9 @@ import { TodoStore } from "../src/runtime/todo-store.js";
 import type { TimelineEvent } from "../src/runtime/timeline.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
-import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { AskedQuestion } from "../src/tools/ask-user.js";
-import { withTempDir } from "./helpers.js";
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
-  const llm: LLMClient = {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-  return llm;
-}
-
-function toolCall(name: string, id = "t1"): LLMAssistantMessage {
-  return {
-    role: "assistant",
-    content: null,
-    tool_calls: [{ id, type: "function", function: { name, arguments: "{}" } }],
-  };
-}
+import { fakeLLM, toolCall, withTempDir } from "./helpers.js";
 
 test("setAnswers is a no-op for an unknown question id", () => {
   const store = new TimelineStore();
@@ -109,7 +84,7 @@ test("applyEvent stores timeline entries and merges tool stream events", () => {
 
 test("restored timeline from persisted messages matches the live run (golden equivalence)", async () => {
   await withTempDir(async (dir) => {
-    const llm = fakeLLM([() => toolCall("Echo"), () => ({ role: "assistant", content: null })]);
+    const llm = fakeLLM([() => toolCall("Echo"), () => ({ role: "assistant", content: null })]).llm;
     const tools = new ToolRegistry();
     tools.register({
       name: "Echo",

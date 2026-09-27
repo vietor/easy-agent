@@ -6,24 +6,8 @@ import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool } from "../src/tools/sub-agent.js";
 import { SubAgentBudget, runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>) {
-  const calls: ChatOptions[] = [];
-  const llm: LLMClient = {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      calls.push(opts);
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-  return { llm, calls };
-}
+import type { LLMClient } from "../src/llm/types.js";
+import { fakeLLM } from "./helpers.js";
 
 function runOpts(llm: LLMClient, budget?: SubAgentBudget) {
   return {

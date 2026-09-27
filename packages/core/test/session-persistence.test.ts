@@ -11,21 +11,8 @@ import { PRUNE_PROTECT_TOKENS, TOOL_OUTPUT_CLEARED_PREFIX } from "../src/util/co
 import { ToolRegistry } from "../src/tools/registry.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import type { ChatOptions, LLMClient } from "../src/llm/types.js";
-
-function fakeLLM(script: Array<(opts: ChatOptions) => LLMAssistantMessage>): LLMClient {
-  return {
-    model: "fake",
-    thinkingEffort: "high",
-    maxInputTokens: 200000,
-    maxOutputTokens: 128000,
-    chat: async (opts) => {
-      const fn = script.shift();
-      if (!fn) throw new Error("no scripted response");
-      return fn(opts);
-    },
-  };
-}
+import type { ChatOptions } from "../src/llm/types.js";
+import { fakeLLM } from "./helpers.js";
 
 function makeSession(
   script: Array<(opts: ChatOptions) => LLMAssistantMessage>,
@@ -36,7 +23,7 @@ function makeSession(
   const tools = new ToolRegistry();
   return new Session({
     systemPrompt: "test",
-    llm: fakeLLM(script),
+    llm: fakeLLM(script).llm,
     tools,
     mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
     contextLimit,
@@ -235,7 +222,7 @@ test("an imported file only contributes its content to the new session", async (
     const tools = new ToolRegistry();
     const session = new Session({
       systemPrompt: "test",
-      llm: fakeLLM([() => ({ role: "assistant", content: "hi" })]),
+      llm: fakeLLM([() => ({ role: "assistant", content: "hi" })]).llm,
       tools,
       mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
       contextLimit: 750_000,
