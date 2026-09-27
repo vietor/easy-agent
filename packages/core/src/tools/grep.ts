@@ -1,13 +1,11 @@
 import { z } from "zod";
-import { directoryBreakdown, formatRipgrepOutput, offsetPastEnd, overflowNotice, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
-import { DEFAULT_GREP_LIMIT, NO_MATCHES } from "../util/constants.js";
+import { directoryBreakdown, renderListing, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
+import { DEFAULT_GREP_LIMIT } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
-import { nonNegativeInt, parseToolArgs, toToolParameters } from "./types.js";
+import { nonNegativeInt, parseToolArgs, positiveInt, toToolParameters } from "./types.js";
 
 const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git, and does not search files excluded by .gitignore. Content mode returns path:line:content sorted by file path, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order.`;
-
-const HEAD_LIMIT_ERROR = "head_limit must be a positive integer";
 
 const GrepArgs = z.object({
   pattern: z.string({ error: "pattern is required" }).min(1, { error: "pattern is required" }),
@@ -23,10 +21,7 @@ const GrepArgs = z.object({
   context: nonNegativeInt("context", "lines before and after each match").optional(),
   only_matching: z.boolean({ error: "only_matching must be a boolean" }).optional().describe("only the matched parts"),
   multiline: z.boolean({ error: "multiline must be a boolean" }).optional().describe("patterns may span newlines"),
-  head_limit: z.number({ error: HEAD_LIMIT_ERROR }).min(1, { error: HEAD_LIMIT_ERROR })
-    .refine(Number.isInteger, { error: HEAD_LIMIT_ERROR })
-    .default(DEFAULT_GREP_LIMIT)
-    .describe(`max output lines, default ${DEFAULT_GREP_LIMIT}`),
+  head_limit: positiveInt("head_limit", `max output lines, default ${DEFAULT_GREP_LIMIT}`).default(DEFAULT_GREP_LIMIT),
   offset: nonNegativeInt("offset", "skip this many result lines before returning results").default(0),
 });
 
@@ -55,20 +50,14 @@ export const grepTool: Tool = {
     else if (output_mode === "count") rgArgs.push("-c");
     else rgArgs.push("-m", String(offset + head_limit));
     rgArgs.push("--", pattern, target);
-    const { lines, truncated, all } = await runRipgrepLines(rgArgs, cwd, ctx.signal, head_limit, offset);
-    if (offset > 0 && lines.length === 0) {
-      return { content: offsetPastEnd(offset) };
-    }
-    const censusPaths = output_mode === "count" ? all.map((line) => line.replace(/:\d+$/, "")) : all;
+    const result = await runRipgrepLines(rgArgs, cwd, ctx.signal, head_limit, offset);
+    const censusPaths = output_mode === "count" ? result.all.map((line) => line.replace(/:\d+$/, "")) : result.all;
     const census = output_mode === "content" ? undefined : directoryBreakdown(censusPaths);
     const noun = output_mode === "content" ? "match" : "file";
-    const overflow = truncated
-      ? overflowNotice(all, lines.length, noun, census, offset)
-      : undefined;
-    return { content: formatRipgrepOutput(lines, NO_MATCHES, overflow) };
+    return { content: renderListing(result, noun, census, offset) };
   },
   summarizeResult(result) {
-    return ripgrepResultSummary("match", result, "Grep failed", "Found 0 matches");
+    return ripgrepResultSummary("match", result, "Grep failed");
   },
   argSummaryKeys: ["pattern", "path", "glob"],
 };

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { directoryBreakdown, formatRipgrepOutput, offsetPastEnd, overflowNotice, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
-import { DEFAULT_GLOB_LIMIT, NO_MATCHES } from "../util/constants.js";
+import { directoryBreakdown, renderListing, ripgrepResultSummary, runRipgrepLines } from "../util/ripgrep.js";
+import { DEFAULT_GLOB_LIMIT } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 import { nonNegativeInt, parseToolArgs, toToolParameters } from "./types.js";
@@ -25,15 +25,12 @@ export const globTool: Tool = {
     const rgArgs = ["--files", "--sortr=modified"];
     if (pattern) rgArgs.push("-g", pattern);
     rgArgs.push(target);
-    const { lines, truncated, all } = await runRipgrepLines(rgArgs, cwd, ctx.signal, DEFAULT_GLOB_LIMIT, offset);
-    if (offset > 0 && lines.length === 0) {
-      return { content: offsetPastEnd(offset) };
-    }
-    const overflow = truncated ? overflowNotice(all, lines.length, "file", directoryBreakdown(all), offset) : undefined;
-    return { content: formatRipgrepOutput(lines, NO_MATCHES, overflow) };
+    const result = await runRipgrepLines(rgArgs, cwd, ctx.signal, DEFAULT_GLOB_LIMIT, offset);
+    const census = result.truncated ? directoryBreakdown(result.all) : undefined;
+    return { content: renderListing(result, "file", census, offset) };
   },
   summarizeResult(result) {
-    return ripgrepResultSummary("file", result, "Glob failed", "Found 0 files");
+    return ripgrepResultSummary("file", result, "Glob failed");
   },
   argSummaryKeys: ["pattern", "path"],
 };

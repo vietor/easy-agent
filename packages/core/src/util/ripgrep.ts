@@ -6,8 +6,8 @@ import { formatCompactNumber, summaryCount } from "./text.js";
 const TRUNCATION_MARKER = "(output truncated)";
 const BREAKDOWN_DIRS = 40;
 
-export function formatRipgrepOutput(lines: string[], emptyText: string, overflow?: string): string {
-  if (!lines.length) return emptyText;
+export function formatRipgrepOutput(lines: string[], overflow?: string): string {
+  if (!lines.length) return NO_MATCHES;
   const out = lines.join("\n");
   return overflow ? out + "\n" + overflow : out;
 }
@@ -49,9 +49,9 @@ function listedLineCount(content: string): number {
   return count;
 }
 
-export function ripgrepResultSummary(word: "file" | "match", result: { content: string; isError?: boolean }, failText: string, noMatchesText: string): string {
+export function ripgrepResultSummary(word: "file" | "match", result: { content: string; isError?: boolean }, failText: string): string {
   if (result.isError) return failText;
-  if (result.content === NO_MATCHES) return noMatchesText;
+  if (result.content === NO_MATCHES) return summaryCount(word, 0);
   return summaryCount(word, listedLineCount(result.content));
 }
 
@@ -59,6 +59,17 @@ interface RipgrepLinesResult {
   lines: string[];
   truncated: boolean;
   all: string[];
+}
+
+export function renderListing(
+  result: RipgrepLinesResult,
+  word: "file" | "match",
+  census: string | undefined,
+  offset: number
+): string {
+  if (offset > 0 && result.lines.length === 0) return offsetPastEnd(offset);
+  if (!result.truncated) return formatRipgrepOutput(result.lines);
+  return formatRipgrepOutput(result.lines, overflowNotice(result.all, result.lines.length, word, census, offset));
 }
 
 export async function runRipgrepLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number, offset = 0): Promise<RipgrepLinesResult> {

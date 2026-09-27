@@ -20,9 +20,9 @@ export function issueMessage(error: z.ZodError): string {
 }
 
 export function parseToolArgs<S extends z.ZodType>(schema: S, args: Record<string, unknown>): z.output<S> {
-  const result = schema.safeParse(args);
-  if (result.success) return result.data;
-  throw new Error(issueMessage(result.error));
+  const parsed = tryParseToolArgs(schema, args);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.value;
 }
 
 export function tryParseToolArgs<S extends z.ZodType>(
@@ -36,6 +36,11 @@ export function tryParseToolArgs<S extends z.ZodType>(
 export function nonNegativeInt(name: string, description: string) {
   const error = `${name} must be a non-negative integer`;
   return z.number({ error }).min(0, { error }).refine(Number.isInteger, { error }).describe(description);
+}
+
+export function positiveInt(name: string, description: string) {
+  const error = `${name} must be a positive integer`;
+  return z.number({ error }).min(1, { error }).refine(Number.isInteger, { error }).describe(description);
 }
 
 export type TodoStatus = "pending" | "inProgress" | "completed";
