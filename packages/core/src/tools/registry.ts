@@ -119,7 +119,7 @@ export interface BuiltinToolsOptions {
   subAgent?: boolean;
 }
 
-export interface BuiltinToolsDeps {
+interface BuiltinToolsDeps {
   ask: (questions: AskQuestion[]) => Promise<AskAnswer[]>;
   setTodos: (todos: Todo[]) => void;
   resolveSkill?: (name: string) => Skill | undefined;

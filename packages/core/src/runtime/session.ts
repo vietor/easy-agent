@@ -149,7 +149,7 @@ export interface SessionOptions {
   importPath?: string;
 }
 
-export interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
+interface SessionDeps extends Omit<SessionOptions, "llm" | "tools" | "mcpServers"> {
   llm: LLMClient;
   tools: ToolRegistry;
   mcp: MCPServerManager;

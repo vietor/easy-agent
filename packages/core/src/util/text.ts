@@ -64,7 +64,7 @@ export function trimSurroundingNewlines(content: string | null) {
   return content.replace(/^[\r\n]+|[\r\n]+$/g, '');
 }
 
-export function countNonEmptyLines(content: string): number {
+function countNonEmptyLines(content: string): number {
   return content.split("\n").filter((l) => l).length;
 }
 
@@ -80,7 +80,7 @@ function nthNewline(text: string, n: number): number {
   return index;
 }
 
-export interface TruncateResult {
+interface TruncateResult {
   text: string;
   truncated: boolean;
   totalBytes: number;

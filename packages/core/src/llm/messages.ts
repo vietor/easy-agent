@@ -1,11 +1,11 @@
 import { toErrorMessage } from "../util/text.js";
 
-export interface TextContentPart {
+interface TextContentPart {
   type: "text";
   text: string;
 }
 
-export interface ToolCall {
+interface ToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };

@@ -12,7 +12,7 @@ import { MAX_TOOL_OUTPUT_BYTES, MAX_TOOL_OUTPUT_LINES, SUB_AGENT_TOOL_NAME } fro
 import { truncateOutput } from "../util/text.js";
 import { nextUid } from "../util/uid.js";
 
-export interface SubAgentRunOptions extends RunLimits {
+interface SubAgentRunOptions extends RunLimits {
   llm: LLMClient;
   tools: ToolRegistry;
   cwd: string;

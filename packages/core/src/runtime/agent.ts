@@ -41,7 +41,7 @@ export interface RunLimits {
   scratchDir?: string;
 }
 
-export interface AgentOptions extends RunLimits {
+interface AgentOptions extends RunLimits {
   llm: LLMClient;
   conversation: SessionMessages;
   tools: ToolRegistry;
