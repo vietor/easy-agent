@@ -1,7 +1,7 @@
 import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { isSessionScratchFile, notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
-import { ToolRegistry, type BuiltinToolsOptions } from "./tools/registry.js";
+import { ToolRegistry } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
 import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
@@ -10,7 +10,6 @@ import { nextUuid } from "./util/uid.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
 import { ASK_USER_GUIDANCE } from "./tools/ask-user.js";
 import { renderSubAgentGuidance } from "./tools/sub-agent.js";
-import type { Skill } from "./skills/types.js";
 import type { SessionOptions } from "./runtime/session.js";
 
 export const SYSTEM_PROMPT_BOUNDARY = '\n\n---\n<!-- SYSTEM_PROMPT_BOUNDARY -->\n\n';
@@ -19,8 +18,17 @@ function contextLimitFor(maxInputTokens: number, maxOutputTokens: number): numbe
   return Math.floor(Math.min(maxInputTokens * CONTEXT_LIMIT_RATIO, maxInputTokens - maxOutputTokens));
 }
 
-function buildSystemPrompt(base: string, skills: Skill[] | undefined, builtInTools: BuiltinToolsOptions | false | undefined, maxTurns: number, maxParallelToolCalls: number, maxSubAgentTurns: number, scratchDir: string | undefined, sessionId: string): string {
+interface SystemPromptLimits {
+  sessionId: string;
+  maxTurns: number;
+  maxParallelToolCalls: number;
+  maxSubAgentTurns: number;
+}
+
+function buildSystemPrompt(base: string, opts: SessionOptions, limits: SystemPromptLimits): string {
   const parts = [base];
+  const { builtInTools, scratchDir, skills } = opts;
+  const { sessionId, maxTurns, maxParallelToolCalls, maxSubAgentTurns } = limits;
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
   const toolUseLines = [renderToolUsePrompt(maxTurns, mode, scratchDir ? notesFilePath(scratchDir, sessionId) : undefined)];
   if (scratchDir) toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
@@ -50,12 +58,16 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
   const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS;
+  const maxParallelToolCalls = opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS;
   const maxSubAgentTurns = opts.maxSubAgentTurns ?? maxTurns;
   const session = new Session({
     ...opts,
     sessionId,
     cwd,
-    systemPrompt: buildSystemPrompt(base, opts.skills, opts.builtInTools, maxTurns, opts.maxParallelToolCalls ?? DEFAULT_MAX_PARALLEL_TOOL_CALLS, maxSubAgentTurns, opts.scratchDir, sessionId),
+    maxTurns,
+    maxParallelToolCalls,
+    maxSubAgentTurns,
+    systemPrompt: buildSystemPrompt(base, opts, { sessionId, maxTurns, maxParallelToolCalls, maxSubAgentTurns }),
     llm,
     tools,
     mcp,
