@@ -19,16 +19,6 @@ function clearedContent(message: ToolMessage): string {
   return `${TOOL_OUTPUT_CLEARED_PREFIX}${message.resultSummary ?? "tool output"})`;
 }
 
-function lastAssistantText(messages: SessionMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role !== "assistant") continue;
-    const text = toText(m.content);
-    if (text) return text;
-  }
-  return "";
-}
-
 function messageText(msg: SessionMessage): string {
   const parts: string[] = [];
   const t = toText(msg.content);
@@ -100,7 +90,13 @@ export class SessionMessages {
   }
 
   lastAssistantText(): string {
-    return lastAssistantText(this.messages);
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const m = this.messages[i];
+      if (m.role !== "assistant") continue;
+      const text = toText(m.content);
+      if (text) return text;
+    }
+    return "";
   }
 
   import(messages: SessionMessage[]): void {

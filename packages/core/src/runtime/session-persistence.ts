@@ -122,12 +122,8 @@ export function sessionFilePath(dir: string, sessionId: string): string {
   return join(dir, sessionFileName(sessionId));
 }
 
-export function notesFileName(id: string): string {
-  return `${id}.notes.md`;
-}
-
 export function notesFilePath(dir: string, id: string): string {
-  return join(dir, notesFileName(id));
+  return join(dir, `${id}.notes.md`);
 }
 
 export function isSessionScratchFile(name: string, sessionId: string): boolean {
