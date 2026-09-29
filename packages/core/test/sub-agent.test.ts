@@ -7,7 +7,7 @@ import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createSubAgentTool, renderSubAgentGuidance } from "../src/tools/sub-agent.js";
-import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
+import { SubAgentBudget, runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
 import type { Tool } from "../src/tools/types.js";
@@ -220,9 +220,11 @@ test("SubAgent guidance omits general in read-only sessions", () => {
   assert.ok(readOnly.includes('never use "plan" for fact-finding'));
 });
 
-test("SubAgent guidance per-turn cap follows maxParallelToolCalls within [1, 8]", () => {
+test("SubAgent guidance per-turn cap follows maxParallelToolCalls and the concurrency budget within [1, 8]", () => {
   assert.ok(renderSubAgentGuidance(false, 3, 50).includes("at most 3 SubAgent calls per turn"));
   assert.ok(renderSubAgentGuidance(false, 40, 50).includes("at most 8 SubAgent calls per turn"));
+  assert.ok(renderSubAgentGuidance(false, 10, 50, 4).includes("at most 4 SubAgent calls per turn"));
+  assert.ok(renderSubAgentGuidance(false, 40, 50, 20).includes("at most 8 SubAgent calls per turn"));
   const serial = renderSubAgentGuidance(false, 1, 50);
   assert.ok(serial.includes("at most 1 SubAgent call per turn"));
   assert.ok(!serial.includes("Multiple SubAgent calls in the same turn run concurrently"));
@@ -254,6 +256,7 @@ test("a sub-agent below the nesting cap is given the delegation guidance", async
       sessionId: "s1",
       depth: 1,
       maxSubAgentDepth: 3,
+      budget: new SubAgentBudget(6),
       maxTurns: 50,
       stallThreshold: 3,
       maxParallelToolCalls: 10,
@@ -266,6 +269,7 @@ test("a sub-agent below the nesting cap is given the delegation guidance", async
   assert.equal(result.status, "ok");
   assert.ok(system.includes("Tool-Use Guidelines:"), "the header must still be present");
   assert.ok(system.includes("Valid type values: explore, plan, general"));
+  assert.ok(system.includes("at most 6 SubAgent calls per turn"));
   assert.ok(toolNames.includes("SubAgent"));
 });
 

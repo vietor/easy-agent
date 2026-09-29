@@ -101,9 +101,9 @@ const MAX_SUB_AGENTS_PER_TURN = 8;
 export const SUB_AGENT_DENIED_GUIDANCE =
   "- You cannot spawn further sub-agents. Do the work with the tools you have, and if part of it falls outside your type, report what remains in your final reply instead of improvising.";
 
-export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number, maxTurns: number): string {
+export function renderSubAgentGuidance(readOnlySession: boolean, maxParallelToolCalls: number, maxTurns: number, maxConcurrentSubAgents = Infinity): string {
   const defs = defsForSession(readOnlySession);
-  const maxPerTurn = Math.max(1, Math.min(MAX_SUB_AGENTS_PER_TURN, maxParallelToolCalls));
+  const maxPerTurn = Math.max(1, Math.min(MAX_SUB_AGENTS_PER_TURN, maxParallelToolCalls, maxConcurrentSubAgents));
   const capSentence = maxPerTurn > 1
     ? `Multiple SubAgent calls in the same turn run concurrently; issue at most ${maxPerTurn} SubAgent calls per turn.`
     : "Issue at most 1 SubAgent call per turn.";
