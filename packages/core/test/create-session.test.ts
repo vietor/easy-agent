@@ -66,6 +66,16 @@ test("a new session tolerates a missing scratch directory", async () => {
   });
 });
 
+test("refuses a session id that would escape its directory", async () => {
+  for (const sessionId of ["", ".", "..", "../escape", "a/b", "a\\b"]) {
+    await assert.rejects(
+      () => createSession({ systemPrompt: "test", llm, builtInTools: false, sessionId }),
+      /sessionId must be a single path segment/,
+      `sessionId ${JSON.stringify(sessionId)} must be refused`
+    );
+  }
+});
+
 test("refuses an llm config whose output budget leaves no context room", async () => {
   await assert.rejects(
     () => createSession({ systemPrompt: "test", llm: { ...llm, maxInputTokens: 128_000, maxOutputTokens: 128_000 }, builtInTools: false }),

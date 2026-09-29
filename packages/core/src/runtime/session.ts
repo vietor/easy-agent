@@ -164,6 +164,7 @@ export interface SessionView {
 export interface PromptResult {
   status: RunStatus;
   reply: string;
+  error?: string;
 }
 
 export type PendingQuestion = Extract<TimelineEvent, { type: "question" }>;
@@ -256,6 +257,10 @@ export class Session {
 
   get pendingQuestion(): PendingQuestion | undefined {
     return this.timelineStore.latestUnansweredQuestion;
+  }
+
+  get running(): boolean {
+    return this.abortController !== null;
   }
 
   get contextTokens(): number {
@@ -365,6 +370,7 @@ export class Session {
     }, 1000);
 
     let status: RunStatus = "ok";
+    let error: string | undefined;
     try {
       status = await runFn(this.abortController.signal);
       this.flushStreaming();
@@ -372,7 +378,8 @@ export class Session {
       status = isAbortError(e) ? "aborted" : "error";
       this.flushStreaming();
       if (status !== "aborted") {
-        this.emit({ type: "error", text: toErrorMessage(e) });
+        error = toErrorMessage(e);
+        this.emit({ type: "error", text: error });
       }
     } finally {
       clearInterval(this.timer);
@@ -386,7 +393,8 @@ export class Session {
       if (this.limits.scratchDir) void sweepDir(this.limits.scratchDir, (name) => isSessionScratchFile(name, this.sessionId));
       await this.save();
     }
-    return { status, reply: this.stream.reply };
+    const reply = this.stream.reply;
+    return error === undefined ? { status, reply } : { status, reply, error };
   }
 
   save(): Promise<void> {

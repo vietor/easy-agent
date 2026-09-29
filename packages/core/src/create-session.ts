@@ -50,6 +50,9 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const tools = new ToolRegistry();
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
   const sessionId = opts.sessionId ?? nextUuid();
+  if (!sessionId || sessionId === "." || sessionId === ".." || /[/\\]/.test(sessionId)) {
+    throw new Error(`sessionId must be a single path segment, got "${sessionId}"`);
+  }
   const cwd = opts.cwd ?? process.cwd();
   await Promise.all([
     opts.sessionDir ? sweepDir(opts.sessionDir, (name) => name === sessionFileName(sessionId)) : undefined,

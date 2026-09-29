@@ -104,7 +104,7 @@ const session = await createSession({
 | `mcpServers` | `Record<string, MCPServerConfig>` | `undefined` | MCP servers to connect in the background after startup. |
 | `builtInTools` | `BuiltinToolsOptions \| false` | *(7 core tools enabled; interactive tools off)* | `readOnly: true` registers only the read-only core tools (Read/Glob/Grep/WebFetch); `askUser`/`todoWrite`/`subAgent` enable interactive tools (all off by default); `false` to disable all built-in tools. |
 | `clientInfo` | `{ name: string; version: string }` | `{ name: "agent-core", version: "0.0.0" }` | Client identity sent to MCP servers. |
-| `sessionId` | `string` | `UUID()` | Unique session identifier. |
+| `sessionId` | `string` | `UUID()` | Unique session identifier. Must be a single path segment: `createSession` throws when it is empty, `.`, `..`, or contains a path separator, since it names this session's files inside `sessionDir` and `scratchDir`. |
 | `maxTurns` | `number` | `50` | Tool-calling turns allowed per prompt. Once the last 20% is left the run warns the model in-band, and the turn after the budget is spent is reserved for the final answer with tools disabled. |
 | `stallThreshold` | `number` | `3` | Stall tolerance: consecutive identical tool-call sets, or consecutive text-only responses while todos are incomplete, before the run is treated as stalled. |
 | `maxParallelToolCalls` | `number` | `10` | Maximum number of tool calls executed concurrently in one turn. |
@@ -360,10 +360,11 @@ Returned by `session.prompt()`.
 interface PromptResult {
   status: RunStatus;
   reply: string;
+  error?: string;
 }
 ```
 
-`status` indicates how the run ended; `reply` is the final assistant text (may be partial or empty when `status !== "ok"`). Error details are delivered via the `error` event; subscribe to `onEvent` for the full picture.
+`status` indicates how the run ended; `reply` is the final assistant text (may be partial or empty when `status !== "ok"`). `error` is present only when the run ended with `status: "error"`, carrying the same message as the emitted `error` event — so a caller that does not subscribe to `onEvent` still sees why the run failed. Retries and other in-band errors are still delivered only via events.
 
 ### `PendingQuestion`
 
@@ -586,8 +587,10 @@ const session = await createSession({
 
 ### Custom tools example
 
+With a hand-written JSON Schema, `execute` validates its own arguments:
+
 ```ts
-import type { Tool } from "@vietor/agent-core";
+import { toolError, type Tool } from "@vietor/agent-core";
 
 const greetTool: Tool = {
   name: "greet",
@@ -598,7 +601,9 @@ const greetTool: Tool = {
     required: ["name"],
   },
   async execute(args) {
-    return `Hello, ${args.name as string}!`;
+    const name = args.name;
+    if (typeof name !== "string" || !name) return toolError("name is required");
+    return { content: `Hello, ${name}!` };
   },
 };
 
