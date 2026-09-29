@@ -23,25 +23,26 @@ async function startSession(sessionDir: string | undefined, scratchDir: string |
   session.dispose();
 }
 
-test("a new session sweeps both directories but keeps its own files", async () => {
+test("a new session sweeps the session directory and clears the scratch directory", async () => {
   await withDir(async (dir) => {
     const sessionDir = join(dir, "projects");
     const scratchDir = join(dir, "scratch");
     await mkdir(sessionDir, { recursive: true });
-    await mkdir(scratchDir, { recursive: true });
+    await mkdir(join(scratchDir, "nested"), { recursive: true });
+    await writeFile(join(scratchDir, "nested", "deep.txt"), "x", "utf-8");
     const past = new Date(Date.now() - DIR_RETENTION_MS - 60_000);
-    for (const path of [join(sessionDir, "old.jsonl"), join(scratchDir, "old.notes.md")]) {
+    for (const path of [join(sessionDir, "old.jsonl"), join(scratchDir, "stale.txt")]) {
       await writeFile(path, "x", "utf-8");
       await utimes(path, past, past);
     }
-    for (const path of [join(sessionDir, "s1.jsonl"), join(scratchDir, "s1.notes.md")]) {
+    for (const path of [join(sessionDir, "s1.jsonl"), join(scratchDir, "notes.md")]) {
       await writeFile(path, "x", "utf-8");
     }
 
     await startSession(sessionDir, scratchDir, "s1");
 
     assert.deepEqual(await readdir(sessionDir), ["s1.jsonl"]);
-    assert.deepEqual(await readdir(scratchDir), ["s1.notes.md"]);
+    assert.deepEqual(await readdir(scratchDir).catch(() => []), [], "scratch is cleared whole, even the live session's own files");
   });
 });
 

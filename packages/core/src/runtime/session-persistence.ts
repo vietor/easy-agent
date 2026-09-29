@@ -8,6 +8,7 @@ import type { SessionMessage } from "./session-messages.js";
 
 const MAX_TITLE_SCAN_BYTES = 64 * 1024;
 const SESSION_FILE_EXT = ".jsonl";
+export const NOTES_FILE_NAME = "notes.md";
 
 interface SessionRecord {
   t?: string;
@@ -122,12 +123,8 @@ export function sessionFilePath(dir: string, sessionId: string): string {
   return join(dir, sessionFileName(sessionId));
 }
 
-export function notesFilePath(dir: string, id: string): string {
-  return join(dir, `${id}.notes.md`);
-}
-
-export function isSessionScratchFile(name: string, sessionId: string): boolean {
-  return name.startsWith(`${sessionId}.`);
+export function notesFilePath(dir: string): string {
+  return join(dir, NOTES_FILE_NAME);
 }
 
 export function isSessionExists(dir: string, sessionId: string): boolean {

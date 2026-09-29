@@ -1,6 +1,7 @@
+import { rm } from "node:fs/promises";
 import { createLLM } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
-import { isSessionScratchFile, notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
+import { notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
@@ -19,7 +20,6 @@ function contextLimitFor(maxInputTokens: number, maxOutputTokens: number): numbe
 }
 
 interface SystemPromptLimits {
-  sessionId: string;
   maxTurns: number;
   maxParallelToolCalls: number;
   maxSubAgentTurns: number;
@@ -28,9 +28,9 @@ interface SystemPromptLimits {
 function buildSystemPrompt(base: string, opts: SessionOptions, limits: SystemPromptLimits): string {
   const parts = [base];
   const { builtInTools, scratchDir, skills } = opts;
-  const { sessionId, maxTurns, maxParallelToolCalls, maxSubAgentTurns } = limits;
+  const { maxTurns, maxParallelToolCalls, maxSubAgentTurns } = limits;
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
-  const toolUseLines = [renderToolUsePrompt(maxTurns, mode, scratchDir ? notesFilePath(scratchDir, sessionId) : undefined)];
+  const toolUseLines = [renderToolUsePrompt(maxTurns, mode, scratchDir ? notesFilePath(scratchDir) : undefined)];
   if (scratchDir) toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
@@ -56,7 +56,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
   const cwd = opts.cwd ?? process.cwd();
   await Promise.all([
     opts.sessionDir ? sweepDir(opts.sessionDir, (name) => name === sessionFileName(sessionId)) : undefined,
-    opts.scratchDir ? sweepDir(opts.scratchDir, (name) => isSessionScratchFile(name, sessionId)) : undefined,
+    opts.scratchDir ? rm(opts.scratchDir, { recursive: true, force: true }) : undefined,
   ]);
 
   const base = [opts.systemPrompt, renderEnvironment(cwd)].join(SYSTEM_PROMPT_BOUNDARY);
@@ -70,7 +70,7 @@ export async function createSession(opts: SessionOptions): Promise<Session> {
     maxTurns,
     maxParallelToolCalls,
     maxSubAgentTurns,
-    systemPrompt: buildSystemPrompt(base, opts, { sessionId, maxTurns, maxParallelToolCalls, maxSubAgentTurns }),
+    systemPrompt: buildSystemPrompt(base, opts, { maxTurns, maxParallelToolCalls, maxSubAgentTurns }),
     llm,
     tools,
     mcp,

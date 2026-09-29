@@ -159,14 +159,9 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
       const { type, task } = parsed.value;
       const def = defByType[type];
 
-      const { status, reply, messages, notesPath } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal);
-      const notes = notesPath
-        ? def.level === 1
-          ? `\n\nFull report saved to: ${notesPath}\nRe-read it after a context compaction instead of re-running this sub-agent.`
-          : `\n\nFull report and notes saved to: ${notesPath}\nRead that file for detail beyond this report, or after a context compaction.`
-        : "";
+      const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal);
 
-      if (status === "ok") return { content: reply + notes };
+      if (status === "ok") return { content: reply };
       let stallReason: string | undefined;
       if (status === "stalled") {
         for (let i = messages.length - 1; i >= 0; i--) {
@@ -178,7 +173,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
         }
       }
       const suffix = stallReason ? ` ${stallReason}` : "";
-      return { content: `Sub-agent "${def.name}" ended with status ${status}.${suffix}\n\n${reply}${notes}`, isError: true };
+      return { content: `Sub-agent "${def.name}" ended with status ${status}.${suffix}\n\n${reply}`, isError: true };
     },
   };
 }

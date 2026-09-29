@@ -555,19 +555,22 @@ test("submitAnswer feeds the answers back to the model as an AskUser tool result
   assert.deepEqual(entry?.questions.map((q) => q.answer), ["prod", ["email", "slack"]]);
 });
 
-test("a finished run sweeps the scratch directory", async () => {
+test("a finished run sweeps the scratch directory but keeps the notes file", async () => {
   const dir = await mkdtemp(join(tmpdir(), "session-scratch-"));
   try {
     const stale = join(dir, "stale.txt");
+    const notes = join(dir, "notes.md");
     await writeFile(stale, "old", "utf-8");
+    await writeFile(notes, "old", "utf-8");
     const past = new Date(Date.now() - DIR_RETENTION_MS - 60_000);
     await utimes(stale, past, past);
+    await utimes(notes, past, past);
     await writeFile(join(dir, "fresh.txt"), "new", "utf-8");
     const session = makeSession([() => ({ role: "assistant", content: "ok" })], dir);
 
     await session.prompt("hi");
     assert.ok(await waitUntil(async () => !(await readdir(dir)).includes("stale.txt"), 5000));
-    assert.deepEqual(await readdir(dir), ["fresh.txt"]);
+    assert.deepEqual((await readdir(dir)).sort(), ["fresh.txt", "notes.md"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

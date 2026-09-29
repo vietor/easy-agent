@@ -1,8 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { Agent } from "../src/runtime/agent.js";
 import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
@@ -41,7 +38,7 @@ function makeParentAgent(
   tools.registerAll(SUB_TOOLS);
   tools.registerAll([...GENERAL_ONLY_TOOLS, ...SESSION_SCOPED_TOOLS]);
   let parentAgent: Agent;
-  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level, signal) => runSubAgent({ llm, tools, cwd: process.cwd(), sessionId: "s1", depth: 1, maxSubAgentDepth: subAgentOpts.maxSubAgentDepth ?? 3, maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (usage) => parentAgent.addUsage(usage) }, systemPrompt, task, level, signal) }));
+  tools.register(createSubAgentTool({ runSubAgent: (systemPrompt, task, level, signal) => runSubAgent({ llm, tools, cwd: process.cwd(), depth: 1, maxSubAgentDepth: subAgentOpts.maxSubAgentDepth ?? 3, maxTurns: subAgentOpts.maxTurns ?? 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000, onUsage: (usage) => parentAgent.addUsage(usage) }, systemPrompt, task, level, signal) }));
   const conversation = new SessionMessages("system prompt");
   parentAgent = new Agent({
     llm,
@@ -253,7 +250,6 @@ test("a sub-agent below the nesting cap is given the delegation guidance", async
       llm,
       tools,
       cwd: process.cwd(),
-      sessionId: "s1",
       depth: 1,
       maxSubAgentDepth: 3,
       budget: new SubAgentBudget(6),
@@ -290,7 +286,6 @@ test("the deepest sub-agent is told it cannot spawn and gets no SubAgent tool", 
       llm,
       tools,
       cwd: process.cwd(),
-      sessionId: "s1",
       depth: 3,
       maxSubAgentDepth: 3,
       maxTurns: 50,
@@ -505,7 +500,6 @@ test("nested sub-agents inherit the run's abort signal", async () => {
       llm,
       tools,
       cwd: process.cwd(),
-      sessionId: "s1",
       depth: 1,
       maxSubAgentDepth: 3,
       maxTurns: 50,
@@ -522,254 +516,12 @@ test("nested sub-agents inherit the run's abort signal", async () => {
   assert.equal(nestedSignal, controller.signal);
 });
 
-test("a read-only sub-agent's report is saved where the parent can read it", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "sub-notes-readonly-"));
-  try {
-    let system = "";
-    const { llm } = fakeLLM([
-      (opts) => {
-        system = String(opts.messages[0].content);
-        return { role: "assistant", content: "the report" };
-      },
-    ]);
-    const tools = new ToolRegistry();
-    tools.registerAll(SUB_TOOLS);
-    const result = await runSubAgent(
-      {
-        llm,
-        tools,
-        cwd: process.cwd(),
-        sessionId: "s1",
-        depth: 1,
-        maxSubAgentDepth: 3,
-        maxTurns: 50,
-        stallThreshold: 3,
-        maxParallelToolCalls: 10,
-        contextLimit: 750_000,
-        scratchDir: dir,
-      },
-      "You are the Explore sub-agent.",
-      "task",
-      1
-    );
-    assert.equal(result.status, "ok");
-    assert.ok(result.notesPath);
-    assert.match(result.notesPath, /s1\.[0-9A-Za-z]{11}\.notes\.md$/, "the notes file is named for its session, so the sweep can identify it");
-    assert.equal(await readFile(result.notesPath, "utf-8"), "\n## Sub-agent report\n\nthe report\n");
-    assert.ok(!system.includes(result.notesPath), "a read-only sub-agent has no Write tool, so it must not be told to keep notes");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
+test("the SubAgent tool result carries the report", async () => {
+  const tool = createSubAgentTool({ runSubAgent: async () => ({ status: "ok", reply: "the report", messages: [] }) });
+  assert.equal((await tool.execute({ type: "explore", task: "x" }, { cwd: process.cwd() })).content, "the report");
 
-test("a scratch directory that does not exist yet is created for the report", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "sub-notes-missing-"));
-  try {
-    const { llm } = fakeLLM([() => ({ role: "assistant", content: "the report" })]);
-    const tools = new ToolRegistry();
-    tools.registerAll(SUB_TOOLS);
-    const result = await runSubAgent(
-      {
-        llm,
-        tools,
-        cwd: process.cwd(),
-        sessionId: "s1",
-        depth: 1,
-        maxSubAgentDepth: 3,
-        maxTurns: 50,
-        stallThreshold: 3,
-        maxParallelToolCalls: 10,
-        contextLimit: 750_000,
-        scratchDir: join(dir, "scratch"),
-      },
-      "You are the Explore sub-agent.",
-      "task",
-      1
-    );
-    assert.equal(result.status, "ok");
-    assert.ok(result.notesPath);
-    assert.equal(await readFile(result.notesPath, "utf-8"), "\n## Sub-agent report\n\nthe report\n");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test("a report survives a notes file that cannot be written", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "sub-notes-fail-"));
-  try {
-    await writeFile(join(dir, "blocker"), "x", "utf-8");
-    const { llm } = fakeLLM([() => ({ role: "assistant", content: "the report" })]);
-    const tools = new ToolRegistry();
-    tools.registerAll(SUB_TOOLS);
-    const result = await runSubAgent(
-      {
-        llm,
-        tools,
-        cwd: process.cwd(),
-        sessionId: "s1",
-        depth: 1,
-        maxSubAgentDepth: 3,
-        maxTurns: 50,
-        stallThreshold: 3,
-        maxParallelToolCalls: 10,
-        contextLimit: 750_000,
-        scratchDir: join(dir, "blocker", "scratch"),
-      },
-      "You are the Explore sub-agent.",
-      "task",
-      1
-    );
-    assert.equal(result.status, "ok");
-    assert.equal(result.reply, "the report");
-    assert.equal(result.notesPath, undefined, "a path must not be reported for a file that was never written");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test("a writable sub-agent is told where to record facts", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "sub-notes-writable-"));
-  try {
-    let system = "";
-    const { llm } = fakeLLM([
-      (opts) => {
-        system = String(opts.messages[0].content);
-        return { role: "assistant", content: "done" };
-      },
-    ]);
-    const tools = new ToolRegistry();
-    tools.registerAll([...SUB_TOOLS, ...GENERAL_ONLY_TOOLS]);
-    const result = await runSubAgent(
-      {
-        llm,
-        tools,
-        cwd: process.cwd(),
-        sessionId: "s1",
-        depth: 1,
-        maxSubAgentDepth: 3,
-        maxTurns: 50,
-        stallThreshold: 3,
-        maxParallelToolCalls: 10,
-        contextLimit: 750_000,
-        scratchDir: dir,
-      },
-      "You are the General sub-agent.",
-      "task",
-      2
-    );
-    assert.equal(result.status, "ok");
-    assert.ok(system.includes(String(result.notesPath)), "the notes file it was told to keep is the one reported back");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test("a sub-agent that never finishes also gets its notes file", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "sub-notes-maxturns-"));
-  try {
-    const { llm } = fakeLLM([
-      () => toolCall("Read", JSON.stringify({ path: "a.ts" })),
-      () => toolCall("Read", JSON.stringify({ path: "a.ts" })),
-    ]);
-    const tools = new ToolRegistry();
-    tools.registerAll(SUB_TOOLS);
-    const result = await runSubAgent(
-      {
-        llm,
-        tools,
-        cwd: process.cwd(),
-        sessionId: "s1",
-        depth: 1,
-        maxSubAgentDepth: 3,
-        maxTurns: 1,
-        stallThreshold: 3,
-        maxParallelToolCalls: 10,
-        contextLimit: 750_000,
-        scratchDir: dir,
-      },
-      "You are the Explore sub-agent.",
-      "task",
-      1
-    );
-    assert.equal(result.status, "maxTurns");
-    assert.ok(result.notesPath, "a run that produced no report still leaves a record of what it did");
-    assert.equal((await readdir(dir)).filter((name) => name.endsWith(".notes.md")).length, 1);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test("a report too large for the notes file is bounded there and marked", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "sub-notes-big-"));
-  try {
-    const report = Array.from({ length: 1500 }, (_, i) => `finding ${i} ${"x".repeat(60)}`).join("\n");
-    const { llm } = fakeLLM([() => ({ role: "assistant", content: report })]);
-    const tools = new ToolRegistry();
-    tools.registerAll(SUB_TOOLS);
-    const result = await runSubAgent(
-      {
-        llm,
-        tools,
-        cwd: process.cwd(),
-        sessionId: "s1",
-        depth: 1,
-        maxSubAgentDepth: 3,
-        maxTurns: 50,
-        stallThreshold: 3,
-        maxParallelToolCalls: 10,
-        contextLimit: 750_000,
-        scratchDir: dir,
-      },
-      "You are the Explore sub-agent.",
-      "task",
-      1
-    );
-    assert.equal(result.status, "ok");
-    const saved = await readFile(String(result.notesPath), "utf-8");
-    assert.ok(saved.length < report.length, "a runaway report must not grow the notes file without bound");
-    assert.match(saved, /\(report truncated in this file: first \d+ of \d+ lines\)/);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-test("a sub-agent run without a scratch directory reports no notes path", async () => {
-  const { llm } = fakeLLM([() => ({ role: "assistant", content: "the report" })]);
-  const tools = new ToolRegistry();
-  tools.registerAll(SUB_TOOLS);
-  const result = await runSubAgent(
-    { llm, tools, cwd: process.cwd(), sessionId: "s1", depth: 1, maxSubAgentDepth: 3, maxTurns: 50, stallThreshold: 3, maxParallelToolCalls: 10, contextLimit: 750_000 },
-    "You are the Explore sub-agent.",
-    "task",
-    1
-  );
-  assert.equal(result.status, "ok");
-  assert.equal(result.notesPath, undefined);
-});
-
-test("the SubAgent tool result points at the saved report", async () => {
-  const saved = join(tmpdir(), "saved.notes.md");
-  const tool = createSubAgentTool({
-    runSubAgent: async () => ({ status: "ok", reply: "the report", messages: [], notesPath: saved }),
-  });
-  const readOnly = await tool.execute({ type: "explore", task: "x" }, { cwd: process.cwd() });
-  assert.equal(
-    readOnly.content,
-    `the report\n\nFull report saved to: ${saved}\nRe-read it after a context compaction instead of re-running this sub-agent.`
-  );
-  const writable = await tool.execute({ type: "general", task: "x" }, { cwd: process.cwd() });
-  assert.equal(
-    writable.content,
-    `the report\n\nFull report and notes saved to: ${saved}\nRead that file for detail beyond this report, or after a context compaction.`
-  );
-
-  const bare = createSubAgentTool({ runSubAgent: async () => ({ status: "ok", reply: "the report", messages: [] }) });
-  assert.equal((await bare.execute({ type: "explore", task: "x" }, { cwd: process.cwd() })).content, "the report");
-
-  const failed = createSubAgentTool({
-    runSubAgent: async () => ({ status: "stalled", reply: "gave up", messages: [], notesPath: saved }),
-  });
+  const failed = createSubAgentTool({ runSubAgent: async () => ({ status: "stalled", reply: "gave up", messages: [] }) });
   const failedResult = await failed.execute({ type: "explore", task: "x" }, { cwd: process.cwd() });
   assert.equal(failedResult.isError, true);
-  assert.match(String(failedResult.content), /gave up\n\nFull report saved to: /);
+  assert.match(String(failedResult.content), /^Sub-agent "Explore" ended with status stalled\.\n\ngave up$/);
 });

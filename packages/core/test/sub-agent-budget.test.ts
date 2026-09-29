@@ -14,7 +14,6 @@ function runOpts(llm: LLMClient, budget?: SubAgentBudget) {
     llm,
     tools: new ToolRegistry(),
     cwd: process.cwd(),
-    sessionId: "s1",
     depth: 1,
     maxSubAgentDepth: 3,
     budget,
