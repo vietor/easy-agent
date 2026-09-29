@@ -485,7 +485,7 @@ export class Session {
 
   async compact(): Promise<RunStatus> {
     this.rejectIfBusy();
-    const { status } = await this.run((signal) => this.agent.compact(this.handleEvent, signal));
+    const { status } = await this.run((signal) => this.agent.compact(this.handleEvent, signal, false));
     return status;
   }
 

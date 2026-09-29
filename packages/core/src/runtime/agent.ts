@@ -142,7 +142,7 @@ export class Agent {
     this.conversation.clear();
   }
 
-  async compact(onEvent?: (e: SessionEvent) => void, signal?: AbortSignal): Promise<RunStatus> {
+  async compact(onEvent?: (e: SessionEvent) => void, signal?: AbortSignal, keepTail = true): Promise<RunStatus> {
     const request = this.conversation.toLLM().slice(1);
     if (request.length === 0) return "ok";
     const cachePrefixLen = request.length;
@@ -170,7 +170,7 @@ export class Agent {
       onEvent?.({ type: "error", text: "compact failed: LLM returned no summary text" });
       return "error";
     }
-    this.conversation.compact(compactText, Math.floor(this.contextLimit * COMPACT_TAIL_RATIO));
+    this.conversation.compact(compactText, keepTail ? Math.floor(this.contextLimit * COMPACT_TAIL_RATIO) : 0);
     if (this.notesPath) this.pendingCompactNotice = renderPostCompactNotice(this.notesPath);
     this.onCompact?.();
     return "ok";

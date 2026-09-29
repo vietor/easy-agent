@@ -175,21 +175,21 @@ test("a compaction replaces the messages it summarized on disk", async () => {
     assert.equal(await session.compact(), "ok");
     assert.ok(compacted, "the second call must be the compaction request");
     const messages = loadSessionState(fileOf(dir, "s1"))?.messages.map((m) => m.content);
-    assert.deepEqual(messages, ["SUMMARY", "hello", "hi"]);
+    assert.deepEqual(messages, ["SUMMARY"]);
   });
 });
 
-test("a compaction that only prepends a summary still rewrites the file", async () => {
+test("an auto-compact keeps the recent tail on disk", async () => {
   await withDir(async (dir) => {
-    const file = fileOf(dir, "s1");
-    const history = ["a", "b", "c"].map((c) => ({ role: "user", content: c.repeat(400) }) as const);
-    await writeFile(file, history.map((m) => toMessageLine(m)).join("\n") + "\n", "utf-8");
+    const session = makeSession([
+      () => ({ role: "assistant", content: "SUMMARY" }),
+      () => ({ role: "assistant", content: "done" }),
+    ], dir, "s1", 1000);
+    const prompt = "a".repeat(5000);
+    assert.equal((await session.prompt(prompt)).status, "ok");
 
-    const session = makeSession([() => ({ role: "assistant", content: "SUMMARY" })], dir, "s1", 1000);
-    assert.equal(await session.compact(), "ok");
-
-    const messages = loadSessionState(file)?.messages.map((m) => m.content);
-    assert.deepEqual(messages, ["SUMMARY", "b".repeat(400), "c".repeat(400)]);
+    const messages = loadSessionState(fileOf(dir, "s1"))?.messages.map((m) => m.content);
+    assert.deepEqual(messages, ["SUMMARY", prompt, "done"]);
   });
 });
 

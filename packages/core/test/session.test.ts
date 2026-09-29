@@ -414,7 +414,7 @@ test("a run that settles without streaming text returns an empty reply, not the 
   assert.equal(second.reply, "");
 });
 
-test("compact shows the streamed summary once in the timeline", async () => {
+test("a manual compact replaces the conversation with the streamed summary", async () => {
   const session = makeSession([
     () => ({ role: "assistant", content: "hi" }),
     (opts) => {
@@ -426,10 +426,9 @@ test("compact shows the streamed summary once in the timeline", async () => {
   await session.prompt("hello");
   const status = await session.compact();
   assert.equal(status, "ok");
-  assert.deepEqual(
-    session.getSnapshot().timeline.filter((e) => e.type === "assistant").map((e) => e.text),
-    ["SUMMARY", "hi"]
-  );
+  const timeline = session.getSnapshot().timeline;
+  assert.deepEqual(timeline.map((e) => e.type), ["assistant"]);
+  assert.deepEqual(timeline.filter((e) => e.type === "assistant").map((e) => e.text), ["SUMMARY"]);
 });
 
 test("auto-compact rebuilds the timeline from the compacted conversation", async () => {
