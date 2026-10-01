@@ -5,7 +5,7 @@ import { notesFilePath, sessionFileName } from "./runtime/session-persistence.js
 import { ToolRegistry } from "./tools/registry.js";
 import { MCPServerManager } from "./mcp/manager.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./runtime/prompts.js";
-import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
+import { CONTEXT_LIMIT_RATIO, DEFAULT_MAX_CONCURRENT_SUB_AGENTS, DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_TURNS } from "./util/constants.js";
 import { sweepDir } from "./util/sweep.js";
 import { nextUuid } from "./util/uid.js";
 import { TODO_WRITE_GUIDANCE } from "./tools/todo-write.js";
@@ -25,7 +25,7 @@ interface SystemPromptLimits {
   maxSubAgentTurns: number;
 }
 
-function buildSystemPrompt(base: string, opts: SessionOptions, limits: SystemPromptLimits): string {
+export function buildSystemPrompt(base: string, opts: SessionOptions, limits: SystemPromptLimits): string {
   const parts = [base];
   const { builtInTools, scratchDir, skills } = opts;
   const { maxTurns, maxParallelToolCalls, maxSubAgentTurns } = limits;
@@ -35,7 +35,14 @@ function buildSystemPrompt(base: string, opts: SessionOptions, limits: SystemPro
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
     if (builtInTools.askUser) toolUseLines.push(ASK_USER_GUIDANCE);
-    if (builtInTools.subAgent) toolUseLines.push(renderSubAgentGuidance(builtInTools.readOnly === true, maxParallelToolCalls, maxSubAgentTurns));
+    if (builtInTools.subAgent) {
+      toolUseLines.push(renderSubAgentGuidance(
+        builtInTools.readOnly === true,
+        maxParallelToolCalls,
+        maxSubAgentTurns,
+        opts.maxConcurrentSubAgents ?? DEFAULT_MAX_CONCURRENT_SUB_AGENTS
+      ));
+    }
   }
   parts.push(toolUseLines.join("\n"));
   if (skills?.length) {

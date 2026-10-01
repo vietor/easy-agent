@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSession } from "../src/create-session.js";
+import { buildSystemPrompt, createSession } from "../src/create-session.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
 import type { MCPServerConfig } from "../src/mcp/types.js";
 
@@ -82,4 +82,11 @@ test("refuses an llm config whose output budget leaves no context room", async (
     () => createSession({ systemPrompt: "test", llm: { ...llm, maxInputTokens: 128_000, maxOutputTokens: 128_000 }, builtInTools: false }),
     /maxOutputTokens must be less than maxInputTokens/
   );
+});
+
+test("the sub-agent guidance advertises the effective concurrency budget", () => {
+  const limits = { maxTurns: 50, maxParallelToolCalls: 10, maxSubAgentTurns: 50 };
+  const opts = { systemPrompt: "test", llm, builtInTools: { subAgent: true } };
+  assert.match(buildSystemPrompt("base", opts, limits), /issue at most 4 SubAgent calls per turn/);
+  assert.match(buildSystemPrompt("base", { ...opts, maxConcurrentSubAgents: 2 }, limits), /issue at most 2 SubAgent calls per turn/);
 });
