@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import {
   EmptyAssistantMessageError,
+  IncompleteStreamError,
+  TruncatedResponseError,
   toText,
   type LLMAssistantMessage,
   type LLMMessage,
@@ -53,12 +55,15 @@ export class CompletionsAdapter extends BaseLLMAdapter {
       { signal }
     );
 
+    let finishReason: string | null = null;
     for await (const chunk of stream) {
       if (chunk.usage) {
         const cached = (chunk.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens ?? 0;
         onUsage?.({ cacheInputTokens: cached, missInputTokens: (chunk.usage.prompt_tokens ?? 0) - cached, outputTokens: chunk.usage.completion_tokens ?? 0 });
       }
-      const delta = chunk.choices?.[0]?.delta;
+      const choice = chunk.choices?.[0];
+      if (choice?.finish_reason) finishReason = choice.finish_reason;
+      const delta = choice?.delta;
       if (!delta) continue;
       if (delta.content) {
         content += delta.content;
@@ -88,6 +93,9 @@ export class CompletionsAdapter extends BaseLLMAdapter {
         }
       }
     }
+
+    const endError = completionsEndError(finishReason);
+    if (endError) throw endError;
 
     const message: LLMAssistantMessage = {
       role: "assistant",
@@ -160,17 +168,21 @@ export class ResponsesAdapter extends BaseLLMAdapter {
           break;
         case "response.completed":
         case "response.failed":
+        case "response.incomplete":
           finalResponse = event.response;
           break;
       }
     }
 
-    if (!finalResponse) throw new EmptyAssistantMessageError();
+    if (!finalResponse) throw new IncompleteStreamError("stream ended without a final response");
     if (finalResponse.status === "failed") {
       const detail = finalResponse.error
         ? `${finalResponse.error.code}: ${finalResponse.error.message}`
         : "unknown error";
       throw new Error(`Responses API error: ${detail}`);
+    }
+    if (finalResponse.status === "incomplete") {
+      throw responsesIncompleteError(finalResponse.incomplete_details?.reason ?? null);
     }
     if (finalResponse.usage) {
       const cacheTokens = finalResponse.usage.input_tokens_details?.cached_tokens ?? 0;
@@ -235,4 +247,17 @@ export function toResponsesInput(messages: LLMMessage[]): ResponsesInputItem[] {
     }
   }
   return items;
+}
+
+export function completionsEndError(finishReason: string | null): TruncatedResponseError | IncompleteStreamError | null {
+  if (finishReason === null) return new IncompleteStreamError("stream ended without a finish reason");
+  return finishReason === "length" || finishReason === "content_filter"
+    ? new TruncatedResponseError(`response truncated (finish_reason: ${finishReason})`)
+    : null;
+}
+
+export function responsesIncompleteError(reason: string | null): TruncatedResponseError | IncompleteStreamError {
+  return reason
+    ? new TruncatedResponseError(`response incomplete (${reason})`)
+    : new IncompleteStreamError("stream ended incomplete with no reason");
 }

@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { isRetryableError, withRetryChat } from "../src/llm/client.js";
-import { EmptyAssistantMessageError } from "../src/llm/messages.js";
+import { EmptyAssistantMessageError, IncompleteStreamError, TruncatedResponseError } from "../src/llm/messages.js";
 import type { LLMAdapter } from "../src/llm/types.js";
 
 function fakeAdapter(stream: LLMAdapter["stream"]): LLMAdapter {
@@ -24,6 +26,24 @@ test("ordinary errors and non-error throws are not retryable", () => {
 
 test("empty model response errors are retryable", () => {
   assert.equal(isRetryableError(new EmptyAssistantMessageError()), true);
+});
+
+test("SDK connection errors are retryable", () => {
+  assert.equal(isRetryableError(new Anthropic.APIConnectionError({ message: "socket hang up" })), true);
+  assert.equal(isRetryableError(new Anthropic.APIConnectionTimeoutError({})), true);
+  assert.equal(isRetryableError(new OpenAI.APIConnectionError({ message: "socket hang up" })), true);
+});
+
+test("abort-shaped errors are never retryable", () => {
+  assert.equal(isRetryableError(new Anthropic.APIUserAbortError()), false);
+  assert.equal(isRetryableError(new OpenAI.APIUserAbortError()), false);
+  assert.equal(isRetryableError(new DOMException("aborted", "AbortError")), false);
+});
+
+test("fetch failures and incomplete streams are retryable, truncation is not", () => {
+  assert.equal(isRetryableError(new TypeError("fetch failed")), true);
+  assert.equal(isRetryableError(new IncompleteStreamError("stream ended without a finish reason")), true);
+  assert.equal(isRetryableError(new TruncatedResponseError("response truncated")), false);
 });
 
 test("an already-aborted signal is never retryable", () => {

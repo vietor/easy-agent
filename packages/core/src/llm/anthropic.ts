@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   EmptyAssistantMessageError,
+  IncompleteStreamError,
+  TruncatedResponseError,
   parseToolCallArgs,
   toText,
   type LLMAssistantMessage,
@@ -11,6 +13,7 @@ import {
 import type { ChatOptions, ResolvedLLMConfig, ToolSchema } from "./types.js";
 import { BaseLLMAdapter } from "./base.js";
 import { netFetch } from "../util/net.js";
+import { toErrorMessage } from "../util/text.js";
 
 const CONTINUE_CUE = "Continue the work, using the prior conversation as context.";
 const CACHE_BREAKPOINT_WINDOW = 15;
@@ -58,17 +61,20 @@ export class AnthropicAdapter extends BaseLLMAdapter {
     };
 
     const stream = this.client.messages.stream(params, { signal: opts.signal });
-    if (opts.onUsage) stream.on("streamEvent", (e) => { if (e.type === "message_start") opts.onUsage!({ cacheInputTokens: 0, missInputTokens: e.message.usage.input_tokens, outputTokens: 0 }); });
     if (opts.onDelta) stream.on("text", (delta) => opts.onDelta!(delta));
     if (opts.onThinking) stream.on("thinking", (delta) => opts.onThinking!(delta));
     if (opts.onToolCall) stream.on("contentBlock", (block) => { if (block.type === "tool_use") opts.onToolCall!(); });
 
-    const final = await stream.finalMessage();
+    const final = await stream.finalMessage().catch((e) => {
+      throw finalMessageError(e) ?? e;
+    });
     const cacheTokens = (final.usage.cache_read_input_tokens ?? 0) + (final.usage.cache_creation_input_tokens ?? 0);
     opts.onUsage?.({ cacheInputTokens: cacheTokens, missInputTokens: final.usage.input_tokens, outputTokens: final.usage.output_tokens });
     if (final.stop_reason === "refusal") {
       throw new Error("model declined the request (stop_reason: refusal)");
     }
+    const stopError = stopReasonError(final.stop_reason);
+    if (stopError) throw stopError;
 
     const thinking: Array<ThinkingBlock | RedactedThinkingBlock> = [];
     let text = "";
@@ -100,6 +106,19 @@ export class AnthropicAdapter extends BaseLLMAdapter {
     }
     return message;
   }
+}
+
+export function finalMessageError(e: unknown): IncompleteStreamError | null {
+  return e instanceof Anthropic.AnthropicError && !(e instanceof Anthropic.APIError)
+    ? new IncompleteStreamError(`stream ended without producing a complete message: ${toErrorMessage(e)}`)
+    : null;
+}
+
+export function stopReasonError(stopReason: string | null): TruncatedResponseError | IncompleteStreamError | null {
+  if (stopReason === "max_tokens" || stopReason === "model_context_window_exceeded" || stopReason === "pause_turn") {
+    return new TruncatedResponseError(`response truncated (stop_reason: ${stopReason})`);
+  }
+  return stopReason === null ? new IncompleteStreamError("stream ended without a stop reason") : null;
 }
 
 function toAnthropicTool(schema: ToolSchema): Anthropic.Tool {

@@ -1,3 +1,5 @@
+import { RETRY_AFTER_MAX_MS } from "./constants.js";
+
 export class AbortedError extends Error {
   constructor() {
     super("aborted");
@@ -11,13 +13,22 @@ export function isAbortError(e: unknown): boolean {
 }
 
 export function backoffDelay(attempt: number): number {
-  return Math.min(2000 * 2 ** attempt, 60_000);
+  return Math.min(Math.round(2000 * 2 ** attempt * (0.8 + Math.random() * 0.4)), 60_000);
+}
+
+export function retryAfterDelay(e: unknown): number | null {
+  const value = (e as { headers?: { get?: (name: string) => string | null } } | undefined)?.headers?.get?.("retry-after");
+  if (!value) return null;
+  const seconds = Number(value);
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return Math.min(ms, RETRY_AFTER_MAX_MS);
 }
 
 export interface RetryOptions {
   retries: number;
   retryable: (e: unknown) => boolean;
-  backoff: (attempt: number) => number;
+  backoff: (attempt: number, error: unknown) => number;
   onRetry?: (attempt: number, max: number, error: unknown) => void;
   signal?: AbortSignal;
 }
@@ -29,7 +40,7 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions): Pr
     } catch (e) {
       if (attempt < opts.retries && opts.retryable(e)) {
         opts.onRetry?.(attempt + 1, opts.retries, e);
-        await trySleep(opts.backoff(attempt), opts.signal);
+        await trySleep(opts.backoff(attempt, e), opts.signal);
         continue;
       }
       throw e;

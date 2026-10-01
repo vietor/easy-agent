@@ -48,6 +48,20 @@ export class EmptyAssistantMessageError extends Error {
   }
 }
 
+export class TruncatedResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TruncatedResponseError";
+  }
+}
+
+export class IncompleteStreamError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "IncompleteStreamError";
+  }
+}
+
 export function parseToolCallArgs(
   args: string | undefined
 ): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {

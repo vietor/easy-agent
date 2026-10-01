@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toAnthropicMessages } from "../src/llm/anthropic.js";
+import Anthropic from "@anthropic-ai/sdk";
+import { finalMessageError, stopReasonError, toAnthropicMessages } from "../src/llm/anthropic.js";
+import { IncompleteStreamError, TruncatedResponseError } from "../src/llm/messages.js";
 
 test("satisfied tool_use is left untouched", () => {
   const { messages } = toAnthropicMessages(
@@ -138,5 +140,21 @@ test("a long prefix is marked again every window", () => {
     .map((m, i) => (Array.isArray(m.content) && m.content.some((b) => "cache_control" in b) ? i : -1))
     .filter((i) => i >= 0);
   assert.deepEqual(marked, [4, 19]);
+});
+
+test("truncated stop reasons map to a truncated error", () => {
+  for (const reason of ["max_tokens", "model_context_window_exceeded", "pause_turn"]) {
+    assert.ok(stopReasonError(reason) instanceof TruncatedResponseError, reason);
+  }
+  assert.equal(stopReasonError("end_turn"), null);
+  assert.equal(stopReasonError("tool_use"), null);
+  assert.ok(stopReasonError(null) instanceof IncompleteStreamError);
+});
+
+test("a stream ending without a complete message maps to an incomplete stream error", () => {
+  const error = finalMessageError(new Anthropic.AnthropicError("stream ended without producing a Message with role=assistant"));
+  assert.ok(error instanceof IncompleteStreamError);
+  assert.equal(finalMessageError(new Anthropic.APIError(400, undefined, "bad request", undefined)), null);
+  assert.equal(finalMessageError(new TypeError("fetch failed")), null);
 });
 

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toResponsesInput, toResponsesTool } from "../src/llm/openai.js";
+import { completionsEndError, responsesIncompleteError, toResponsesInput, toResponsesTool } from "../src/llm/openai.js";
+import { IncompleteStreamError, TruncatedResponseError } from "../src/llm/messages.js";
 
 test("a tool-call turn converts to message, function_call, and function_call_output items", () => {
   const items = toResponsesInput([
@@ -82,4 +83,18 @@ test("toResponsesTool flattens the function schema", () => {
     toResponsesTool({ type: "function", function: { name: "Echo", description: "echo", parameters: { type: "object" } } }),
     { type: "function", name: "Echo", description: "echo", parameters: { type: "object" }, strict: false }
   );
+});
+
+test("completed finish reasons pass, length and content_filter map to truncated", () => {
+  assert.equal(completionsEndError("stop"), null);
+  assert.equal(completionsEndError("tool_calls"), null);
+  assert.ok(completionsEndError("length") instanceof TruncatedResponseError);
+  assert.ok(completionsEndError("content_filter") instanceof TruncatedResponseError);
+  assert.ok(completionsEndError(null) instanceof IncompleteStreamError);
+});
+
+test("an incomplete response maps to a truncation error", () => {
+  assert.ok(responsesIncompleteError("max_output_tokens") instanceof TruncatedResponseError);
+  assert.ok(responsesIncompleteError("content_filter") instanceof TruncatedResponseError);
+  assert.ok(responsesIncompleteError(null) instanceof IncompleteStreamError);
 });

@@ -28,6 +28,7 @@ export const TODO_WRITE_TOOL_NAME = "TodoWrite" as const;
 export const SUB_AGENT_TOOL_NAME = "SubAgent" as const;
 export const LLM_MAX_RETRIES = 3;
 export const WEB_FETCH_RETRIES = 2;
+export const RETRY_AFTER_MAX_MS = 60_000;
 export const MAX_TOOL_OUTPUT_BYTES = 50 * 1024;
 export const MAX_TOOL_OUTPUT_LINES = 2000;
 export const MAX_SHELL_OUTPUT_MB = 20;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AbortedError, isAbortError, withAbort, withRetry, withTimeout, withTimeoutFn } from "../src/util/async.js";
+import { AbortedError, backoffDelay, isAbortError, retryAfterDelay, withAbort, withRetry, withTimeout, withTimeoutFn } from "../src/util/async.js";
 import { sleep, waitUntil } from "./helpers.js";
 
 test("AbortedError carries name and message", () => {
@@ -49,6 +49,28 @@ test("withAbort invokes onAbort exactly once", async () => {
   controller.abort();
   assert.equal(await p, 7);
   assert.equal(calls, 1);
+});
+
+test("backoffDelay jitters within ±20% of the exponential curve", () => {
+  for (const attempt of [0, 1, 2]) {
+    const base = Math.min(2000 * 2 ** attempt, 60_000);
+    for (let i = 0; i < 50; i++) {
+      const delay = backoffDelay(attempt);
+      assert.ok(delay >= base * 0.8 && delay <= base * 1.2, `${delay} within ${base * 0.8}..${base * 1.2}`);
+    }
+  }
+});
+
+test("retryAfterDelay reads seconds or HTTP dates, caps at 60s, and rejects junk", () => {
+  const headers = (value: string | null) => ({ headers: { get: () => value } });
+  assert.equal(retryAfterDelay(headers("30")), 30_000);
+  assert.equal(retryAfterDelay(headers("120")), 60_000);
+  assert.equal(retryAfterDelay(headers("-1")), null);
+  assert.equal(retryAfterDelay(headers("not-a-date")), null);
+  assert.equal(retryAfterDelay(headers(null)), null);
+  assert.equal(retryAfterDelay(new Error("no headers")), null);
+  const ms = retryAfterDelay(headers(new Date(Date.now() + 5_000).toUTCString()));
+  assert.ok(ms !== null && ms > 3_000 && ms <= 5_000, String(ms));
 });
 
 test("withRetry retries retryable failures then succeeds", async () => {
