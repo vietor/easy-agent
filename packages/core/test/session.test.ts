@@ -4,7 +4,7 @@ import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Session } from "../src/runtime/session.js";
-import { sessionFilePath, toMessageLine } from "../src/runtime/session-persistence.js";
+import { loadSessionState, sessionFilePath, toMessageLine } from "../src/runtime/session-persistence.js";
 import type { SessionMessage } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
@@ -412,6 +412,46 @@ test("a run that settles without streaming text returns an empty reply, not the 
   const second = await session.prompt("two");
   assert.equal(second.status, "error");
   assert.equal(second.reply, "");
+});
+
+test("a failed call keeps the partial reply it streamed before failing", async () => {
+  await withTempDir(async (dir) => {
+    const tools = new ToolRegistry();
+    const make = (script: Array<(opts: ChatOptions) => LLMAssistantMessage>) => new Session({
+      systemPrompt: "test",
+      llm: fakeLLM(script).llm,
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionId: "s1",
+      sessionDir: dir,
+    });
+    const session = make([
+      (opts) => {
+        opts.onDelta?.("partial reply");
+        throw new Error("boom");
+      },
+    ]);
+    session.subscribe(() => {});
+    const result = await session.prompt("go");
+    assert.equal(result.status, "error");
+    assert.equal(result.reply, "partial reply");
+    assert.deepEqual(
+      session.getSnapshot().timeline.map((e) => e.type),
+      ["user", "assistant", "error"]
+    );
+    const messages = loadSessionState(session.filePath!)!.messages;
+    assert.deepEqual(
+      messages.map((m) => [m.role, m.content]),
+      [["user", "go"], ["assistant", "partial reply"]]
+    );
+
+    const restored = make([]);
+    assert.deepEqual(
+      [...restored.getSnapshot().timeline],
+      [...session.getSnapshot().timeline].filter((e) => e.type !== "error")
+    );
+  });
 });
 
 test("a manual compact replaces the conversation with the streamed summary", async () => {

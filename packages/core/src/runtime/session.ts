@@ -346,6 +346,10 @@ export class Session {
         this.stream.discardStreamedText();
         this.rebuildTimeline();
       },
+      onAttemptFailed: () => {
+        const text = this.flushStreaming();
+        if (text) this.conversation.add({ role: "assistant", content: text });
+      },
     });
     this.mcp = deps.mcp;
   }
@@ -446,10 +450,11 @@ export class Session {
     if (e.type === "assistant_delta") this.flushThinking();
   };
 
-  private flushStreaming(): void {
+  private flushStreaming(): string {
     const text = trimSurroundingNewlines(this.stream.flushAssistant());
     if (text) this.emit({ type: "assistant", text });
     this.flushThinking();
+    return text;
   }
 
   private flushThinking(): void {

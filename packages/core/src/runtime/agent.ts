@@ -49,6 +49,7 @@ interface AgentOptions extends RunLimits {
   getTodos: () => readonly Todo[];
   resolveSkill?: (name: string) => Skill | undefined;
   onCompact?: () => void;
+  onAttemptFailed?: () => void;
   notesPath?: string;
 }
 
@@ -76,6 +77,7 @@ export class Agent {
   private todoDeclared = false;
   private resolveSkill?: (name: string) => Skill | undefined;
   private onCompact?: () => void;
+  private onAttemptFailed?: () => void;
   private notesPath?: string;
   private pendingCompactNotice = "";
   private readonly scratchDir?: string;
@@ -97,6 +99,7 @@ export class Agent {
     this.contextLimit = opts.contextLimit;
     this.resolveSkill = opts.resolveSkill;
     this.onCompact = opts.onCompact;
+    this.onAttemptFailed = opts.onAttemptFailed;
     this.notesPath = opts.notesPath;
     this.scratchDir = opts.scratchDir;
     this.maxToolOutputBytes = Math.min(MAX_TOOL_OUTPUT_BYTES, Math.floor(opts.contextLimit / 2));
@@ -362,6 +365,7 @@ export class Agent {
         onAbort();
         return { ok: false, status: "aborted" };
       }
+      this.onAttemptFailed?.();
       opts.onEvent?.({ type: "error", text: toErrorMessage(e) });
       return { ok: false, status: "error" };
     }
