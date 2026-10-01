@@ -1,4 +1,5 @@
 import { AbortedError } from "../util/async.js";
+import { CALL_TIMEOUT_MS, STDERR_TAIL_BYTES } from "../util/constants.js";
 import { killProcessTree } from "../util/subprocess.js";
 import type { MCPClientInfo } from "./types.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -13,15 +14,25 @@ export class MCPClient {
   private transport: Transport;
   private connectReject?: (e: Error) => void;
   private closing = false;
+  private stderrBuffer = "";
   onClosed?: (error?: string) => void;
+
+  get stderrTail(): string {
+    return this.stderrBuffer;
+  }
 
   constructor(
     config: ResolvedMCPServerConfig,
     clientInfo: MCPClientInfo,
+    private callTimeoutMs: number = CALL_TIMEOUT_MS,
   ) {
     this.client = new Client(clientInfo, { capabilities: {} });
     if (config.type === "stdio") {
-      this.transport = new StdioClientTransport({ ...config, stderr: "ignore" });
+      const transport = new StdioClientTransport({ ...config, stderr: "pipe" });
+      transport.stderr?.on("data", (chunk: Buffer) => {
+        this.stderrBuffer = (this.stderrBuffer + chunk.toString()).slice(-STDERR_TAIL_BYTES);
+      });
+      this.transport = transport;
     } else {
       const opts = { requestInit: { headers: config.headers } };
       const url = new URL(config.url);
@@ -48,7 +59,7 @@ export class MCPClient {
   }
 
   async callTool(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<CallToolResult> {
-    return this.client.callTool({ name, arguments: args }, undefined, { signal }) as Promise<CallToolResult>;
+    return this.client.callTool({ name, arguments: args }, undefined, { signal, timeout: this.callTimeoutMs }) as Promise<CallToolResult>;
   }
 
   kill(): void {

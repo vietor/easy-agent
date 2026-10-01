@@ -63,6 +63,11 @@ function mcpToolName(server: string, tool: string): string {
   return `MCP__${server}__${tool}`;
 }
 
+function stderrSuffix(client: MCPClient): string {
+  const tail = client.stderrTail;
+  return tail ? `; stderr: ${tail}` : "";
+}
+
 interface MCPServerEntry {
   type: MCPServerType;
   status: MCPServerInfo["status"];
@@ -89,6 +94,11 @@ export class MCPServerManager {
 
   private async connectServer(name: string, cfg: MCPServerConfig): Promise<void> {
     if (this.disposed) return;
+    const existing = this.servers.get(name);
+    if (existing) {
+      existing.client?.kill();
+      this.unregisterServerTools(name, existing.tools);
+    }
     const type: MCPServerType = cfg.type ?? "stdio";
     const parsed = MCPServerConfigSchema.safeParse(cfg);
     if (!parsed.success) {
@@ -120,7 +130,7 @@ export class MCPServerManager {
     } catch (e) {
       client.kill();
       if (!this.disposed) {
-        this.markFailed(name, type, toErrorMessage(e));
+        this.markFailed(name, type, `${toErrorMessage(e)}${stderrSuffix(client)}`);
       }
     } finally {
       this.pending.delete(client);
@@ -139,7 +149,7 @@ export class MCPServerManager {
     const entry = this.servers.get(name);
     if (!entry || entry.client !== client || entry.status !== "connected") return;
     this.unregisterServerTools(name, entry.tools);
-    this.markFailed(name, entry.type, error ?? "MCP server connection closed");
+    this.markFailed(name, entry.type, `${error ?? "MCP server connection closed"}${stderrSuffix(client)}`);
   }
 
   private adapt(server: string, client: MCPClient, tool: MCPTool): Tool {
@@ -150,18 +160,22 @@ export class MCPServerManager {
       parameters: tool.inputSchema,
       ...(argSummaryKeys.length ? { argSummaryKeys } : {}),
       async execute(args, ctx) {
-        const result = await withTimeoutFn(
-          (signal) => client.callTool(tool.name, args, signal),
-          CALL_TIMEOUT_MS,
-          ctx.signal,
-          `MCP tool call timed out (${CALL_TIMEOUT_MS / 1000}s)`
-        );
-        const text = extractContent(result);
-        if (result.isError) return toolError(text);
-        const content = text || NO_OUTPUT;
-        return result.structuredContent === undefined
-          ? { content }
-          : { content, structured: result.structuredContent };
+        try {
+          const result = await withTimeoutFn(
+            (signal) => client.callTool(tool.name, args, signal),
+            CALL_TIMEOUT_MS,
+            ctx.signal,
+            `call timed out (${CALL_TIMEOUT_MS / 1000}s)`
+          );
+          const text = extractContent(result);
+          if (result.isError) return toolError(text);
+          const content = text || NO_OUTPUT;
+          return result.structuredContent === undefined
+            ? { content }
+            : { content, structured: result.structuredContent };
+        } catch (e) {
+          throw new Error(`MCP tool ${tool.name} (${server}) failed: ${toErrorMessage(e)}${stderrSuffix(client)}`);
+        }
       },
     };
   }
@@ -174,6 +188,7 @@ export class MCPServerManager {
     this.disposed = true;
     for (const { client } of this.servers.values()) client?.kill();
     for (const client of this.pending) client.kill();
+    for (const [name, entry] of this.servers) this.unregisterServerTools(name, entry.tools);
     this.servers.clear();
     this.pending.clear();
   }
