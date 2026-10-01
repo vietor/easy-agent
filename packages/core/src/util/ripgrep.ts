@@ -12,12 +12,15 @@ export function formatRipgrepOutput(lines: string[], overflow?: string): string 
   return overflow ? out + "\n" + overflow : out;
 }
 
-export function overflowNotice(entries: string[], shown: number, word: "file" | "match", breakdown?: string, offset = 0): string {
+export function overflowNotice(entries: string[], shown: number, word: "file" | "match", breakdown: string | undefined, offset: number, exact: boolean): string {
   const noun = word === "file" ? "files" : "matches";
   const range = offset > 0
     ? `${formatCompactNumber(offset + 1)}-${formatCompactNumber(offset + shown)}`
     : `the first ${formatCompactNumber(shown)}`;
-  const head = `${TRUNCATION_MARKER} ${formatCompactNumber(entries.length)} ${noun} in total, showing ${range}`;
+  const count = formatCompactNumber(entries.length);
+  const head = exact
+    ? `${TRUNCATION_MARKER} ${count} ${noun} in total, showing ${range}`
+    : `${TRUNCATION_MARKER} at least ${count} ${noun}, showing ${range}`;
   return breakdown ? `${head}\n${breakdown}` : head;
 }
 
@@ -59,6 +62,7 @@ interface RipgrepLinesResult {
   lines: string[];
   truncated: boolean;
   all: string[];
+  capped: boolean;
 }
 
 export function renderListing(
@@ -69,7 +73,8 @@ export function renderListing(
 ): string {
   if (offset > 0 && result.lines.length === 0) return offsetPastEnd(offset);
   if (!result.truncated) return formatRipgrepOutput(result.lines);
-  return formatRipgrepOutput(result.lines, overflowNotice(result.all, result.lines.length, word, census, offset));
+  const exact = word === "file" && !result.capped;
+  return formatRipgrepOutput(result.lines, overflowNotice(result.all, result.lines.length, word, census, offset, exact));
 }
 
 export async function runRipgrepLines(args: string[], cwd: string, signal?: AbortSignal, limit?: number, offset = 0): Promise<RipgrepLinesResult> {
@@ -79,11 +84,12 @@ export async function runRipgrepLines(args: string[], cwd: string, signal?: Abor
     throw r.error ?? new Error((r.stderr || "").trim() || `ripgrep exited with ${r.status}`);
   }
   const all = r.stdout.split("\n").filter(Boolean).map((f) => f.replace(/^\.\//, ""));
-  let truncated = r.truncated === true;
+  const capped = r.truncated === true;
+  let truncated = capped;
   let lines = offset > 0 ? all.slice(offset) : all;
   if (limit !== undefined && lines.length > limit) {
     lines = lines.slice(0, limit);
     truncated = true;
   }
-  return { lines, truncated, all };
+  return { lines, truncated, all, capped };
 }

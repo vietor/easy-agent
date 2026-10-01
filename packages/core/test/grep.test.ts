@@ -112,7 +112,7 @@ test("grep rejects values its schema declares invalid", async () => {
   });
 });
 
-test("grep reports the total when results are capped", async () => {
+test("grep reports the match count when results are capped", async () => {
   const dir = await mkdtemp(join(tmpdir(), "grep-capped-"));
   try {
     await mkdir(join(dir, "a"), { recursive: true });
@@ -121,7 +121,7 @@ test("grep reports the total when results are capped", async () => {
     await writeFile(join(dir, "b", "f.txt"), "alpha\n", "utf-8");
 
     const content = await grep({ pattern: "alpha", path: dir, head_limit: 1 }, process.cwd());
-    assert.equal(content, "a/f.txt:1:alpha\n(output truncated) 2 matches in total, showing the first 1");
+    assert.equal(content, "a/f.txt:1:alpha\n(output truncated) at least 2 matches, showing the first 1");
     assert.equal(grepTool.summarizeResult!({ content }, 0), "Found 1 match");
 
     const files = (await grep({ pattern: "alpha", path: dir, output_mode: "files_with_matches", head_limit: 1 }, process.cwd())).split("\n");
