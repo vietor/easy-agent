@@ -6,6 +6,7 @@ import { Session } from "../src/runtime/session.js";
 import { loadSessionState } from "../src/runtime/session-persistence.js";
 import { MCPServerManager } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
+import { createSkillTool } from "../src/tools/skill.js";
 import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Skill } from "../src/skills/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
@@ -448,6 +449,22 @@ test("malformed Skill arguments are tolerated as a tool error", async () => {
   assert.equal((toolMsg as { isError?: boolean }).isError, true);
   assert.ok(!events.includes("skill"));
   assert.ok(!calls[1].messages.some((m) => m.role === "user" && textContent(m).includes("SKILL PROMPT")));
+});
+
+test("a Skill call with an untrimmed name loads the skill end to end", async () => {
+  const skill: Skill = { name: "x", description: "d", prompt: "SKILL PROMPT X" };
+  const resolve = (n: string) => (n === "x" ? skill : undefined);
+  const { llm } = fakeLLM([
+    () => toolCall("Skill", JSON.stringify({ name: " x " })),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const { agent, conversation } = makeAgent(llm, { tools: [createSkillTool(resolve)], resolveSkill: resolve });
+  const status = await agent.run("go");
+  assert.equal(status, "ok");
+  const toolMsg = conversation.export().find((m) => m.role === "tool") as { isError?: boolean } | undefined;
+  assert.ok(toolMsg, "tool result must be present");
+  assert.equal(toolMsg.isError, undefined);
+  assert.ok(conversation.export().find((m) => m.role === "skill"), "the skill must be injected for the trimmed name");
 });
 
 test("a tool resolving after the run settles cannot mutate the conversation", async () => {

@@ -324,7 +324,7 @@ export class Agent {
         if (tc.function.name !== SKILL_TOOL_NAME) continue;
         const name = results[i].args.name;
         if (typeof name !== "string" || !name) continue;
-        const skill = this.resolveSkill?.(name);
+        const skill = this.resolveSkill?.(name.trim());
         if (!skill) continue;
         this.conversation.add(this.conversation.skillMessage(skill.name, skill.prompt));
         onEvent?.({ type: "skill", name: skill.name });
