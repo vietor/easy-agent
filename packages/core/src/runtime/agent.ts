@@ -389,6 +389,7 @@ export class Agent {
         (call) => this.executeToolCall(call, onEvent, signal),
         signal
       );
+      if (signal?.aborted) return null;
       outcomes.push(...batchOutcomes);
       this.turnOutcomes.push(...batchOutcomes);
     }

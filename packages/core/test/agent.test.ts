@@ -489,6 +489,48 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
   });
 });
 
+test("a tool resolving after an aborted run cannot leak into the next run", async () => {
+  await withTempDir(async (dir) => {
+    const tools = new ToolRegistry();
+    let release!: (result: TextResult) => void;
+    const gate = new Promise<TextResult>((r) => { release = r; });
+    tools.register({
+      name: "Slow",
+      description: "slow",
+      parameters: { type: "object", properties: {} },
+      execute: () => gate,
+    });
+    const { llm } = fakeLLM([() => toolCall("Slow"), () => ({ role: "assistant", content: "done" })]);
+    const session = new Session({
+      systemPrompt: "test",
+      llm,
+      tools,
+      mcp: new MCPServerManager(tools, { name: "test", version: "0" }),
+      contextLimit: 750_000,
+      sessionDir: dir,
+    });
+    session.subscribe(() => {});
+    const run = session.prompt("go");
+    assert.ok(
+      await waitUntil(() => session.getSnapshot().timeline.some((e) => e.type === "tool"), 5000),
+      "tool entry must appear before the run settles"
+    );
+    session.abort();
+    assert.equal((await run).status, "aborted");
+    release({ content: "late result" });
+    await sleep(50);
+
+    assert.equal((await session.prompt("again")).status, "ok");
+    const messages = loadSessionState(session.filePath!)!.messages;
+    assert.ok(!messages.some((m) => m.role === "tool" && m.content === "late result"), "the late tool result must not leak into a later run");
+    assert.deepEqual(
+      messages.filter((m) => m.role === "tool" && m.tool_call_id === "t1").map((m) => m.content),
+      [INTERRUPTED_TOOL_CONTENT]
+    );
+    assert.equal(messages.at(-1)?.content, "done");
+  });
+});
+
 test("aborting during chat emits exactly one interrupted event", async () => {
   const tools = new ToolRegistry();
   const { llm } = fakeLLM([() => new Promise<LLMAssistantMessage>(() => {})]);
