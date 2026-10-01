@@ -81,9 +81,10 @@ export const fileReadTool: Tool = {
       if (page.text === null) {
         return { content: `(offset ${offset} is past end of file; file has ${page.totalLines} lines)` };
       }
-      const lines = page.text.split("\n");
+      const lines = page.text.split(/\r?\n/);
+      const lineNumberWidth = String(offset + lines.length - 1).length;
       let out = lines
-        .map((line, i) => `${String(offset + i).padStart(6, " ")}\t${line}`)
+        .map((line, i) => `${String(offset + i).padStart(lineNumberWidth, " ")}\t${line}`)
         .join("\n");
       if (!page.eof) {
         out += `\n(more lines; use offset=${offset + limit} to continue)`;

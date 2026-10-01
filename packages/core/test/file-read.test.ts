@@ -25,7 +25,8 @@ function read(path: string, args: Record<string, unknown> = {}): Promise<string>
 }
 
 function numbered(lines: string[], start: number): string {
-  return lines.map((l, i) => `${String(start + i).padStart(6, " ")}\t${l}`).join("\n");
+  const width = String(start + lines.length - 1).length;
+  return lines.map((l, i) => `${String(start + i).padStart(width, " ")}\t${l}`).join("\n");
 }
 
 test("reads a page with line numbers", async () => {
@@ -110,5 +111,19 @@ test("rejects non-positive offset and limit", async () => {
     await assert.rejects(() => read(p, { offset: 0 }), /offset must be a positive integer/);
     await assert.rejects(() => read(p, { offset: 2.5 }), /offset must be a positive integer/);
     await assert.rejects(() => read(p, { limit: 0 }), /limit must be a positive integer/);
+  });
+});
+
+test("CRLF line endings are stripped from displayed lines", async () => {
+  await withFile("a\r\nb\r\n", async (p) => {
+    assert.equal(await read(p), numbered(["a", "b", ""], 1));
+  });
+});
+
+test("line numbers are padded to the widest number in the page", async () => {
+  const content = Array.from({ length: 12 }, (_, i) => `line${i + 1}`).join("\n");
+  await withFile(content, async (p) => {
+    const out = await read(p, { offset: 9, limit: 2 });
+    assert.equal(out, numbered(["line9", "line10"], 9) + "\n(more lines; use offset=11 to continue)");
   });
 });

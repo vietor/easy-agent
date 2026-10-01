@@ -28,12 +28,18 @@ export const fileEditTool: Tool = {
     const resolved = resolve(ctx.cwd, path);
     const all = replace_all === true;
     const content = await readFile(resolved, "utf-8");
-    if (!content.includes(oldStr)) throw new Error(`old_string not found in ${path}; re-read the file with Read to get the exact current text (watch whitespace/indentation, and use CRLF if the file has CRLF line endings)`);
+    let target = oldStr;
+    let replacement = newStr;
+    if (!content.includes(target) && content.includes("\r\n")) {
+      target = oldStr.replace(/\r?\n/g, "\r\n");
+      replacement = newStr.replace(/\r?\n/g, "\r\n");
+    }
+    if (!content.includes(target)) throw new Error(`old_string not found in ${path}; re-read the file with Read to get the exact current text (watch whitespace/indentation)`);
     if (!all) {
-      const count = content.split(oldStr).length - 1;
+      const count = content.split(target).length - 1;
       if (count > 1) throw new Error(`old_string appears ${count} times in ${path}, must be unique (or set replace_all)`);
     }
-    await writeFile(resolved, content.split(oldStr).join(newStr), "utf-8");
+    await writeFile(resolved, content.split(target).join(replacement), "utf-8");
     return { content: all ? `Edited ${path} (replaced all)` : `Edited ${path}` };
   },
   summarizeResult(result) {
