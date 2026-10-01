@@ -33,39 +33,39 @@ test("glob sorts results by mtime, newest first", async () => {
 });
 
 test("glob caps results and reports the total", async () => {
-  const files = Array.from({ length: 155 }, (_, i) => `f${String(i).padStart(3, "0")}.txt`);
+  const files = Array.from({ length: 255 }, (_, i) => `f${String(i).padStart(3, "0")}.txt`);
   await withDir(files, async (dir) => {
     const out = await glob({ path: dir }, dir);
     const lines = out.split("\n").filter(Boolean);
-    assert.equal(lines.length, 152);
-    assert.equal(lines[150], "(output truncated) 155 files in total, showing the first 150");
-    assert.equal(lines[151], "by directory: . = 155");
+    assert.equal(lines.length, 252);
+    assert.equal(lines[250], "(output truncated) 255 files in total, showing the first 250");
+    assert.equal(lines[251], "by directory: . = 255");
   });
 });
 
 test("glob reports the per-directory distribution of a truncated listing", async () => {
   const files = [
-    ...Array.from({ length: 100 }, (_, i) => `a/f${i}.java`),
-    ...Array.from({ length: 60 }, (_, i) => `b/f${i}.java`),
+    ...Array.from({ length: 200 }, (_, i) => `a/f${i}.java`),
+    ...Array.from({ length: 105 }, (_, i) => `b/f${i}.java`),
     ...Array.from({ length: 5 }, (_, i) => `b/c/f${i}.java`),
   ];
   await withDir(files, async (dir) => {
     const out = await glob({ path: dir, pattern: "**/*.java" }, dir);
     const lines = out.split("\n").filter(Boolean);
-    assert.equal(lines[150], "(output truncated) 165 files in total, showing the first 150");
-    assert.match(lines[151], /^by directory: /);
-    assert.match(lines[151], /\bb = 60\b/);
-    assert.match(lines[151], /\bb\/c = 5\b/);
+    assert.equal(lines[250], "(output truncated) 310 files in total, showing the first 250");
+    assert.match(lines[251], /^by directory: /);
+    assert.match(lines[251], /\bb = 105\b/);
+    assert.match(lines[251], /\bb\/c = 5\b/);
   });
 });
 
 test("glob caps the per-directory census and reports how many directories are hidden", async () => {
   const dirs = Array.from({ length: 45 }, (_, d) => `d${String(d).padStart(2, "0")}`);
-  const files = dirs.flatMap((d) => Array.from({ length: 4 }, (_, f) => `${d}/f${f}.java`));
+  const files = dirs.flatMap((d) => Array.from({ length: 7 }, (_, f) => `${d}/f${f}.java`));
   await withDir(files, async (dir) => {
     const lines = (await glob({ path: dir, pattern: "**/*.java" }, dir)).split("\n").filter(Boolean);
-    assert.equal(lines[150], "(output truncated) 180 files in total, showing the first 150");
-    const census = lines[151];
+    assert.equal(lines[250], "(output truncated) 315 files in total, showing the first 250");
+    const census = lines[251];
     assert.match(census, /\(40 of 45 directories shown, largest first — narrow with path or pattern for the rest\)$/);
     assert.equal(census.slice(0, census.indexOf(" (")).split(", ").length, 40);
   });
@@ -87,12 +87,12 @@ test("glob offset walks a listing in the same order as the pages before it", asy
 });
 
 test("glob offset pages a capped listing and reports the shown range", async () => {
-  const files = Array.from({ length: 310 }, (_, i) => `f${String(i).padStart(3, "0")}.txt`);
+  const files = Array.from({ length: 510 }, (_, i) => `f${String(i).padStart(3, "0")}.txt`);
   await withDir(files, async (dir) => {
-    const lines = (await glob({ path: dir, offset: 150 }, dir)).split("\n").filter(Boolean);
-    assert.equal(lines.length, 152);
-    assert.equal(lines[150], "(output truncated) 310 files in total, showing 151-300");
-    assert.equal(lines[151], "by directory: . = 310");
+    const lines = (await glob({ path: dir, offset: 250 }, dir)).split("\n").filter(Boolean);
+    assert.equal(lines.length, 252);
+    assert.equal(lines[250], "(output truncated) 510 files in total, showing 251-500");
+    assert.equal(lines[251], "by directory: . = 510");
   });
 });
 
