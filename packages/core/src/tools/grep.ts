@@ -31,6 +31,7 @@ export const grepTool: Tool = {
   concurrencySafe: true,
   description: DESCRIPTION,
   parameters: toToolParameters(GrepArgs),
+  maxResultSizeBytes: 100_000,
   async execute(args, ctx) {
     const { pattern, path, glob, type, output_mode, ignore_case, before, after, context, only_matching, multiline, head_limit, offset } = parseToolArgs(GrepArgs, args);
     const { cwd, target } = resolveSearchPath(path, ctx.cwd);
