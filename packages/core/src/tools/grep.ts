@@ -3,7 +3,7 @@ import { directoryBreakdown, renderListing, ripgrepResultSummary, runRipgrepLine
 import { DEFAULT_GREP_LIMIT } from "../util/constants.js";
 import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
-import { nonNegativeInt, parseToolArgs, positiveInt, toToolParameters } from "./types.js";
+import { nonNegativeInt, parseToolArgs, toToolParameters } from "./types.js";
 
 const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git, and does not search files excluded by .gitignore. Content mode returns path:line:content sorted by file path, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order.`;
 
@@ -21,7 +21,7 @@ const GrepArgs = z.object({
   context: nonNegativeInt("context", "lines before and after each match").optional(),
   only_matching: z.boolean({ error: "only_matching must be a boolean" }).optional().describe("only the matched parts"),
   multiline: z.boolean({ error: "multiline must be a boolean" }).optional().describe("patterns may span newlines"),
-  head_limit: positiveInt("head_limit", `max output lines, default ${DEFAULT_GREP_LIMIT}`).default(DEFAULT_GREP_LIMIT),
+  head_limit: nonNegativeInt("head_limit", `max output lines, pass 0 for unlimited, default ${DEFAULT_GREP_LIMIT}`).default(DEFAULT_GREP_LIMIT),
   offset: nonNegativeInt("offset", "skip this many result lines before returning results").default(0),
 });
 
@@ -48,9 +48,9 @@ export const grepTool: Tool = {
     rgArgs.push("--sort=path");
     if (output_mode === "files_with_matches") rgArgs.push("-l");
     else if (output_mode === "count") rgArgs.push("-c");
-    else rgArgs.push("-m", String(offset + head_limit));
+    else if (head_limit) rgArgs.push("-m", String(offset + head_limit));
     rgArgs.push("--", pattern, target);
-    const result = await runRipgrepLines(rgArgs, cwd, ctx.signal, head_limit, offset);
+    const result = await runRipgrepLines(rgArgs, cwd, ctx.signal, head_limit || undefined, offset);
     const censusPaths = output_mode === "count" ? result.all.map((line) => line.replace(/:\d+$/, "")) : result.all;
     const census = output_mode === "content" ? undefined : directoryBreakdown(censusPaths);
     const noun = output_mode === "content" ? "match" : "file";

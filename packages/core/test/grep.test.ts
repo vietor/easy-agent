@@ -66,6 +66,13 @@ test("grep offset across files is deterministic with sorted paths", async () => 
   }
 });
 
+test("grep head_limit 0 returns unlimited results and still pages with offset", async () => {
+  await withFile("alpha\nbeta\nalpha\nalpha\n", async (p) => {
+    const out = await grep({ pattern: "alpha", path: p, head_limit: 0, offset: 1 }, process.cwd());
+    assert.equal(out, `${p.replace(/\\/g, "/")}:3:alpha\n${p.replace(/\\/g, "/")}:4:alpha`);
+  });
+});
+
 test("grep offset past the end reports no entries instead of no matches", async () => {
   await withFile("alpha\nalpha\n", async (p) => {
     const out = await grep({ pattern: "alpha", path: p, head_limit: 2, offset: 2 }, process.cwd());
@@ -106,7 +113,7 @@ test("grep offset past the end of files_with_matches reports no entries", async 
 test("grep rejects values its schema declares invalid", async () => {
   await withFile("alpha\n", async (p) => {
     await assert.rejects(() => grep({ pattern: "alpha", path: p, output_mode: "files" }, process.cwd()), /output_mode must be content/);
-    await assert.rejects(() => grep({ pattern: "alpha", path: p, head_limit: 0 }, process.cwd()), /head_limit must be a positive integer/);
+    await assert.rejects(() => grep({ pattern: "alpha", path: p, head_limit: -1 }, process.cwd()), /head_limit must be a non-negative integer/);
     await assert.rejects(() => grep({ pattern: "alpha", path: p, ignore_case: "true" }, process.cwd()), /ignore_case must be a boolean/);
     await assert.rejects(() => grep({ path: p }, process.cwd()), /pattern is required/);
   });
