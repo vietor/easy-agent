@@ -19,6 +19,7 @@ export const globTool: Tool = {
   concurrencySafe: true,
   description: DESCRIPTION,
   parameters: toToolParameters(GlobArgs),
+  maxResultSizeBytes: 100_000,
   async execute(args, ctx) {
     const { pattern, path, offset } = parseToolArgs(GlobArgs, args);
     const { cwd, target } = resolveSearchPath(path, ctx.cwd);
