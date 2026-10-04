@@ -153,6 +153,47 @@ test("the line cap keeps the final lines for a tail-truncated tool", async () =>
   });
 });
 
+test("maxResultSizeBytes caps only the tool that declares it", async () => {
+  await withScratchDir(async (dir) => {
+    const small = stub("Small", "x".repeat(300));
+    small.maxResultSizeBytes = 100;
+    const big = stub("Big", "y".repeat(300));
+    const { llm } = fakeLLM([
+      () => toolCall("Small"),
+      () => toolCall("Big"),
+      () => ({ role: "assistant", content: "done" }),
+    ]);
+    const { agent, conversation } = makeAgent(llm, [small, big], dir);
+
+    assert.equal(await agent.run("go"), "ok");
+    const toolMessages = conversation.export().filter((m) => m.role === "tool");
+    assert.equal(toolMessages.length, 2);
+    assert.match(toolMessages[0].content, /^x{100}\n\n\.\.\.output truncated/);
+    assert.match(toolMessages[0].content, /\(300 bytes total\)/);
+    assert.match(toolMessages[0].resultSummary ?? "", /truncated, full output: /);
+    assert.equal(toolMessages[1].content, "y".repeat(300));
+    assert.ok(!toolMessages[1].resultSummary?.includes("truncated"));
+
+    const saved = (await readdir(dir)).filter((name) => name.endsWith(".txt"));
+    assert.equal(saved.length, 1, "exactly one saved file");
+    assert.ok(saved[0].startsWith("Small."), "the saved file is named for the truncating tool");
+    assert.equal(await readFile(join(dir, saved[0]), "utf-8"), "x".repeat(300));
+  });
+});
+
+test("a tool without maxResultSizeBytes truncates at the default cap", async () => {
+  await withScratchDir(async (dir) => {
+    const atCap = "x".repeat(50 * 1024);
+    const message = await runWith(stub("Big", atCap), dir);
+    assert.equal(message.content, atCap);
+    assert.equal((await readdir(dir)).length, 0, "nothing under the cap is saved");
+
+    const overCap = await runWith(stub("Big", `${atCap}y`), dir);
+    assert.match(overCap.content, /\(51\.2K bytes total\)/);
+    assert.match(overCap.resultSummary ?? "", /truncated, full output: /);
+  });
+});
+
 test("sub-agents inherit the scratch directory", async () => {
   await withScratchDir(async (dir) => {
     let system = "";

@@ -71,6 +71,10 @@ export class ToolRegistry {
     return this.tools.get(name)?.truncate ?? "head";
   }
 
+  maxResultSizeBytes(name: string): number | undefined {
+    return this.tools.get(name)?.maxResultSizeBytes;
+  }
+
   persistOutput(name: string): boolean {
     return this.tools.get(name)?.persist !== false;
   }

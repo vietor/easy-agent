@@ -430,7 +430,8 @@ export class Agent {
     const { content, structured } = result;
     if (!this.scratchDir) return { content };
     const tail = this.tools.truncateDirection(name) === "tail";
-    const cut = truncateOutput(content, tail ? "tail" : "head", this.maxToolOutputBytes, MAX_TOOL_OUTPUT_LINES);
+    const maxBytes = this.tools.maxResultSizeBytes(name) ?? this.maxToolOutputBytes;
+    const cut = truncateOutput(content, tail ? "tail" : "head", maxBytes, MAX_TOOL_OUTPUT_LINES);
     if (!cut.truncated) return { content };
     const json = structured === undefined ? undefined : JSON.stringify(structured, null, 2);
     let outputPath: string | undefined;

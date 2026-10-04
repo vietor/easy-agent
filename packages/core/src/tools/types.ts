@@ -69,6 +69,7 @@ export interface Tool {
   parameters: Record<string, unknown>;
   argSummaryKeys?: string[];
   truncate?: "head" | "tail";
+  maxResultSizeBytes?: number;
   persist?: boolean;
   summarizeArgs?: (args: Record<string, unknown>) => string;
   summarizeResult?(result: TextResult): string;
