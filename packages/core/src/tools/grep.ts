@@ -5,7 +5,7 @@ import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 import { nonNegativeInt, parseToolArgs, toToolParameters } from "./types.js";
 
-const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git, and does not search files excluded by .gitignore. Content mode returns path:line:content sorted by file path, capped at ${DEFAULT_GREP_LIMIT} lines. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order.`;
+const DESCRIPTION = `Search file contents recursively for a regex pattern (RE2 syntax). Skips node_modules and .git, and does not search files excluded by .gitignore. Content mode returns path:line:content sorted by file path. For large codebases, use output_mode=files_with_matches first, or narrow with glob/type, or raise head_limit. Use offset to page through more results in the same order.`;
 
 const GrepArgs = z.object({
   pattern: z.string({ error: "pattern is required" }).min(1, { error: "pattern is required" }),
