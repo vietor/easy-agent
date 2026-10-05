@@ -5,7 +5,7 @@ import { resolveSearchPath } from "../util/file.js";
 import type { Tool } from "./types.js";
 import { nonNegativeInt, parseToolArgs, toToolParameters } from "./types.js";
 
-const DESCRIPTION = `List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Sorted by modification time (newest first), capped at ${DEFAULT_GLOB_LIMIT}. A capped result reports the total match count and the per-directory distribution — use it to map a large tree before paging or delegating. Use offset to page through more results in the same order. Skips node_modules and .git, and does not list files excluded by .gitignore.`;
+const DESCRIPTION = `List files under a directory, optionally filtered by a glob pattern (e.g. **/*.ts). Sorted by modification time (newest first). A capped result reports the total match count and the per-directory distribution — use it to map a large tree before paging or delegating. Use offset to page through more results in the same order. Skips node_modules and .git, and does not list files excluded by .gitignore.`;
 
 const GlobArgs = z.object({
   pattern: z.string({ error: "pattern must be a string" }).optional().describe("glob pattern; omit to list all files"),
