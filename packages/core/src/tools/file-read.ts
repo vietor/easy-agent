@@ -10,7 +10,7 @@ import { formatCompactNumber, summaryBytes } from "../util/text.js";
 const CHUNK = 64 * 1024;
 const MAX_FILE_READ_BYTES = mbToBytes(MAX_FILE_READ_MB);
 
-const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over ${MAX_FILE_READ_MB}MB and binary files are rejected.`;
+const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over the size limit and binary files are rejected.`;
 
 const PATH_ERROR = "path is required";
 
