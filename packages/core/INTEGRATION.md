@@ -2,7 +2,7 @@
 
 How to embed `@vietor/agent-core` in your own terminal tool. The [README](./README.md) is the API reference; this document is the contract between what core guarantees and what the host must do — for a host that owns the terminal (rendering, key handling, dialogs) and drives the session in-process, with no dependency on this repository's CLI.
 
-The embedded example in `examples/terminal-embed` exercises everything below with nothing but `node:` and this package.
+The embedded example in `examples/terminal-embed` follows this contract with nothing but `node:` and this package — rendering, questions, interrupts, and persistence; its README lists what it deliberately leaves out.
 
 ## 1. Division of responsibility
 
