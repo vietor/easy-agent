@@ -1,7 +1,7 @@
 import { toErrorMessage } from "../util/text.js";
 import type { ImageMediaType } from "../util/file.js";
 
-export interface TextContentPart {
+export interface TextPart {
   type: "text";
   text: string;
 }
@@ -30,18 +30,18 @@ export interface RedactedThinkingBlock {
 
 export interface LLMAssistantMessage {
   role: "assistant";
-  content: string | null | TextContentPart[];
+  content: string | null | TextPart[];
   tool_calls?: ToolCall[];
   thinking?: Array<ThinkingBlock | RedactedThinkingBlock>;
 }
 
 export type LLMMessage =
-  | { role: "system"; content: string | TextContentPart[] }
-  | { role: "user"; content: string | TextContentPart[]; name?: string }
+  | { role: "system"; content: string | TextPart[] }
+  | { role: "user"; content: string | TextPart[]; name?: string }
   | LLMAssistantMessage
   | { role: "tool"; tool_call_id: string; content: string; isError?: boolean; images?: ImagePart[] };
 
-export function toText(content: string | TextContentPart[] | null | undefined): string {
+export function toText(content: string | TextPart[] | null | undefined): string {
   if (!content) return "";
   if (typeof content === "string") return content;
   return content.map((p) => p.text).join("");
