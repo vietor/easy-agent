@@ -213,6 +213,20 @@ test("a pruned tool output replaces its on-disk copy instead of staying behind",
   });
 });
 
+test("image parts survive a save and reload round trip", async () => {
+  await withDir(async (dir) => {
+    const conversation = new SessionMessages("system");
+    const image = { mimeType: "image/png" as const, data: "aGk=" };
+    conversation.add({ role: "tool", tool_call_id: "t1", content: "Read image f.png (image/png, 3 bytes)", images: [image] });
+
+    const persistence = new SessionPersistence(dir, "s1");
+    await persistence.save({ messages: conversation.export(), todos: [] });
+    assert.deepEqual(loadSessionState(fileOf(dir, "s1"))?.messages, [
+      { role: "tool", tool_call_id: "t1", content: "Read image f.png (image/png, 3 bytes)", images: [image] },
+    ]);
+  });
+});
+
 test("an imported file only contributes its content to the new session", async () => {
   await withDir(async (dir) => {
     const source = join(dir, "elsewhere.jsonl");
