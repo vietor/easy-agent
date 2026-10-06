@@ -1,5 +1,6 @@
-import { toText, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
+import { toText, type ImagePart, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import {
+  IMAGE_TOKEN_ESTIMATE,
   INTERRUPTED_TOOL_CONTENT,
   PRUNE_PROTECT_TOKENS,
   TOOL_OUTPUT_CLEARED_PREFIX,
@@ -11,7 +12,7 @@ export type SessionMessage =
   | { role: "user"; content: string }
   | { role: "skill"; name: string; content: string }
   | LLMAssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean };
+  | { role: "tool"; tool_call_id: string; content: string; resultSummary?: string; isError?: boolean; images?: ImagePart[] };
 
 type ToolMessage = Extract<SessionMessage, { role: "tool" }>;
 
@@ -37,9 +38,17 @@ function messageText(msg: SessionMessage): string {
   return parts.join(" ");
 }
 
+function messageTokens(msg: SessionMessage): number {
+  const tokens = estimateTokens(messageText(msg));
+  if (msg.role === "tool" && msg.images?.length) {
+    return tokens + msg.images.length * IMAGE_TOKEN_ESTIMATE;
+  }
+  return tokens;
+}
+
 function toLLMMessage(m: SessionMessage): LLMMessage {
   if (m.role === "tool") {
-    return { role: "tool", tool_call_id: m.tool_call_id, content: m.content, ...(m.isError && { isError: true }) };
+    return { role: "tool", tool_call_id: m.tool_call_id, content: m.content, ...(m.isError && { isError: true }), ...(m.images?.length && { images: m.images }) };
   }
   if (m.role === "skill") {
     const content = `Skill "${m.name}" invoked. Its instructions follow:\n\n${m.content}`;
@@ -66,7 +75,7 @@ export class SessionMessages {
 
   add(msg: SessionMessage): void {
     this.messages.push(msg);
-    this.estimatedTokens += estimateTokens(messageText(msg));
+    this.estimatedTokens += messageTokens(msg);
     if (this.llmCache) {
       this.llmCache.push(toLLMMessage(msg));
     }
@@ -102,7 +111,7 @@ export class SessionMessages {
   import(messages: SessionMessage[]): void {
     this.resetMessages(
       messages.slice(),
-      messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0)
+      messages.reduce((sum, m) => sum + messageTokens(m), 0)
     );
     this.normalizeInterruptedToolCalls();
   }
@@ -150,7 +159,7 @@ export class SessionMessages {
     for (let i = this.messages.length - 1; i >= 0; i--) {
       const m = this.messages[i];
       if (m.role !== "tool") continue;
-      const tokens = estimateTokens(m.content);
+      const tokens = messageTokens(m);
       total += tokens;
       if (total <= PRUNE_PROTECT_TOKENS) continue;
       freed += tokens - estimateTokens(clearedContent(m));
@@ -158,7 +167,10 @@ export class SessionMessages {
     }
     if (freed <= minFreedTokens) return 0;
 
-    for (const message of candidates) message.content = clearedContent(message);
+    for (const message of candidates) {
+      message.content = clearedContent(message);
+      message.images = undefined;
+    }
     this.estimatedTokens -= freed;
     this.llmCache = null;
     return freed;
@@ -173,10 +185,10 @@ export class SessionMessages {
     let tokens = 0;
     while (start > 0 && tokens < keepTokens) {
       start--;
-      tokens += estimateTokens(messageText(this.messages[start]));
+      tokens += messageTokens(this.messages[start]);
     }
     while (start < this.messages.length && this.messages[start].role === "tool") {
-      tokens -= estimateTokens(messageText(this.messages[start]));
+      tokens -= messageTokens(this.messages[start]);
       start++;
     }
     this.resetMessages(

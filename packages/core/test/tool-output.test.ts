@@ -8,6 +8,8 @@ import { SessionMessages } from "../src/runtime/session-messages.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { fileReadTool } from "../src/tools/file-read.js";
 import { runSubAgent } from "../src/runtime/sub-agent-runner.js";
+import type { SessionEvent } from "../src/runtime/events.js";
+import type { ImagePart } from "../src/llm/messages.js";
 import type { LLMClient } from "../src/llm/types.js";
 import type { Tool } from "../src/tools/types.js";
 import { fakeLLM, toolCall } from "./helpers.js";
@@ -264,6 +266,29 @@ test("structured output under the limit is inlined unchanged", async () => {
     const message = await runWith(stub("MCP__fs__get", "small text", undefined, { id: 1 }), dir);
     assert.equal(message.content, "small text");
   });
+});
+
+test("tool images ride the session message but stay out of the event stream", async () => {
+  const images: ImagePart[] = [{ mimeType: "image/png", data: "aGk=" }];
+  const tool: Tool = {
+    name: "Shot",
+    agentLevel: 2,
+    description: "Shot",
+    parameters: { type: "object", properties: {} },
+    async execute() {
+      return { content: "Read image shot.png (image/png, 3 bytes)", images };
+    },
+  };
+  const { llm } = fakeLLM([() => toolCall("Shot"), () => ({ role: "assistant", content: "done" })]);
+  const { agent, conversation } = makeAgent(llm, [tool]);
+  const events: SessionEvent[] = [];
+  assert.equal(await agent.run("go", (e) => events.push(e)), "ok");
+
+  const message = toolMessage(conversation);
+  assert.deepEqual(message.images, images);
+  const toolEnd = events.find((e) => e.type === "tool_end");
+  assert.equal(toolEnd?.result, "Read image shot.png (image/png, 3 bytes)");
+  assert.ok(!JSON.stringify(events).includes("aGk="), "base64 image data must not enter the event stream");
 });
 
 test("a truncated Read result points back at the file instead of saving a copy", async () => {

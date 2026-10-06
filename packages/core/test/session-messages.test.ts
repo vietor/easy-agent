@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SessionMessages } from "../src/runtime/session-messages.js";
-import type { LLMAssistantMessage } from "../src/llm/messages.js";
-import { INTERRUPTED_TOOL_CONTENT, PRUNE_MIN_CLEAR_RATIO } from "../src/util/constants.js";
+import type { ImagePart, LLMAssistantMessage } from "../src/llm/messages.js";
+import { IMAGE_TOKEN_ESTIMATE, INTERRUPTED_TOOL_CONTENT, PRUNE_MIN_CLEAR_RATIO } from "../src/util/constants.js";
 
 const SYS = "sys";
+
+const IMAGE: ImagePart = { mimeType: "image/png", data: "aGk=" };
 
 function assistantToolCall(id: string): LLMAssistantMessage {
   return { role: "assistant", content: null, tool_calls: [{ id, type: "function", function: { name: "Echo", arguments: "{}" } }] };
@@ -228,4 +230,47 @@ test("pruneToolOutputs leaves history intact when the reclaimable amount is belo
   assert.equal(c.pruneToolOutputs(0.5 * before), 0);
   assert.equal(c.getEstimatedTokens(), before);
   assert.equal(c.export()[0].content, "a".repeat(4_000));
+});
+
+test("estimatedTokens counts a flat image estimate per attached image", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "tool", tool_call_id: "t1", content: "out", images: [IMAGE, IMAGE] });
+  assert.equal(c.getEstimatedTokens(), 1 + Math.round("out".length / 4) + 2 * IMAGE_TOKEN_ESTIMATE);
+});
+
+test("toLLM passes images through", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "tool", tool_call_id: "t1", content: "out", images: [IMAGE] });
+  assert.deepEqual(c.toLLM()[1], { role: "tool", tool_call_id: "t1", content: "out", images: [IMAGE] });
+});
+
+test("import restores image parts and their token estimate", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "user", content: "go" });
+  c.add({ role: "tool", tool_call_id: "t1", content: "out", images: [IMAGE, IMAGE] });
+  const tokens = c.getEstimatedTokens();
+
+  const c2 = new SessionMessages(SYS);
+  c2.import(c.export());
+  assert.equal(c2.getEstimatedTokens(), tokens);
+  assert.deepEqual(c2.toLLM()[2], { role: "tool", tool_call_id: "t1", content: "out", images: [IMAGE, IMAGE] });
+});
+
+test("pruneToolOutputs drops images with the output and frees their tokens", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "tool", tool_call_id: "t1", content: "a".repeat(100_000), resultSummary: "r" });
+  c.add({ role: "tool", tool_call_id: "t2", content: "a".repeat(100_000), resultSummary: "r", images: [IMAGE] });
+  c.add({ role: "tool", tool_call_id: "t3", content: "a".repeat(100_000), resultSummary: "r", images: [IMAGE, IMAGE] });
+  const before = c.getEstimatedTokens();
+
+  const freed = c.pruneToolOutputs(0);
+  assert.equal(freed, 25_000 - 5 + 25_000 + IMAGE_TOKEN_ESTIMATE - 5);
+  assert.equal(c.getEstimatedTokens(), before - freed);
+  assert.equal(c.getEstimatedTokens(), 1 + 5 + 5 + 25_000 + 2 * IMAGE_TOKEN_ESTIMATE);
+
+  const msgs = c.export();
+  assert.equal((msgs[0] as { images?: ImagePart[] }).images, undefined, "the cleared message must drop its image");
+  assert.equal((msgs[1] as { images?: ImagePart[] }).images, undefined);
+  assert.deepEqual((msgs[2] as { images?: ImagePart[] }).images, [IMAGE, IMAGE], "the most recent tool output must survive with its images");
+  assert.deepEqual((c.toLLM()[3] as { images?: ImagePart[] }).images, [IMAGE, IMAGE], "the LLM cache must be rebuilt without the cleared images");
 });

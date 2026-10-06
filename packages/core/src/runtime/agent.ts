@@ -21,7 +21,7 @@ import {
   truncateOutput,
 } from "../util/text.js";
 import { nextUuid } from "../util/uid.js";
-import { parseToolCallArgs, toText, type LLMAssistantMessage } from "../llm/messages.js";
+import { parseToolCallArgs, toText, type ImagePart, type LLMAssistantMessage } from "../llm/messages.js";
 import type { ChatOptions, LLMClient, LLMUsage, ToolSchema } from "../llm/types.js";
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { COMPACT_PROMPT, renderCompactTodos, renderTodoReminder, renderIncompleteTodoNudge, renderPostCompactNotice, renderTurnBudget } from "./prompts.js";
@@ -61,6 +61,7 @@ interface ToolCallOutcome {
   resultSummary?: string;
   isError?: boolean;
   args: Record<string, unknown>;
+  images?: ImagePart[];
 }
 
 export class Agent {
@@ -225,7 +226,7 @@ export class Agent {
       throw e;
     } finally {
       for (const outcome of this.turnOutcomes) {
-        this.conversation.add({ role: "tool", tool_call_id: outcome.id, content: outcome.content, resultSummary: outcome.resultSummary, isError: outcome.isError });
+        this.conversation.add({ role: "tool", tool_call_id: outcome.id, content: outcome.content, resultSummary: outcome.resultSummary, isError: outcome.isError, ...(outcome.images?.length && { images: outcome.images }) });
       }
       this.turnOutcomes = [];
       this.conversation.normalizeInterruptedToolCalls();
@@ -315,7 +316,7 @@ export class Agent {
       const results = await this.runToolCalls(msg.tool_calls, onEvent, signal);
       if (!results) return "aborted";
       for (const r of results) {
-        this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, resultSummary: r.resultSummary, isError: r.isError });
+        this.conversation.add({ role: "tool", tool_call_id: r.id, content: r.content, resultSummary: r.resultSummary, isError: r.isError, ...(r.images?.length && { images: r.images }) });
       }
       this.turnOutcomes = [];
       for (let i = 0; i < msg.tool_calls.length; i++) {
@@ -420,7 +421,7 @@ export class Agent {
       ? `${summary} · truncated${captured.outputPath ? `, full output: ${captured.outputPath}` : ""}`
       : summary;
     if (!signal?.aborted) onEvent?.({ type: "tool_end", id: call.id, result: captured.content, isError: result.isError, resultSummary });
-    return { id: call.id, content: captured.content, resultSummary, isError: result.isError, args };
+    return { id: call.id, content: captured.content, resultSummary, isError: result.isError, args, images: result.images };
   }
 
   private async captureLargeOutput(
