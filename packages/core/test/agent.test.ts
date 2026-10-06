@@ -78,6 +78,28 @@ test("tool call executes and its result is stored in the conversation", async ()
   assert.equal(toolMsg.content, "echoed");
 });
 
+test("the tool context carries the client's vision capability, defaulting to true", async () => {
+  let seen: boolean | undefined;
+  const probe: Tool = {
+    name: "Probe",
+    description: "probe",
+    parameters: { type: "object", properties: {} },
+    async execute(_args, ctx) {
+      seen = ctx.vision;
+      return { content: "ok" };
+    },
+  };
+  const { llm: capable } = fakeLLM([() => toolCall("Probe"), () => ({ role: "assistant", content: "done" })]);
+  const { agent: capableAgent } = makeAgent(capable, { tools: [probe] });
+  assert.equal(await capableAgent.run("go"), "ok");
+  assert.equal(seen, true);
+
+  const { llm: textOnly } = fakeLLM([() => toolCall("Probe"), () => ({ role: "assistant", content: "done" })]);
+  const { agent: textAgent } = makeAgent({ ...textOnly, vision: false }, { tools: [probe] });
+  assert.equal(await textAgent.run("go"), "ok");
+  assert.equal(seen, false);
+});
+
 test("usage accumulates across all successful calls in a run", async () => {
   const { llm } = fakeLLM([
     (opts) => {

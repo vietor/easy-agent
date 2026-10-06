@@ -9,6 +9,7 @@ export const LLMConfigSchema = z
     headers: z.record(z.string(), z.string()).optional(),
     thinkingEffort: z.enum(["high", "max"]).default("high"),
     backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
+    vision: z.boolean().default(true),
     maxInputTokens: z.int().min(128_000).default(1_000_000),
     maxOutputTokens: z.int().min(48_000).default(128_000),
   })
@@ -61,6 +62,7 @@ export interface LLMClient {
   readonly thinkingEffort: LLMThinkingEffort;
   readonly maxInputTokens: number;
   readonly maxOutputTokens: number;
+  readonly vision?: boolean;
   chat(opts: ChatOptions): Promise<LLMAssistantMessage>;
 }
 

@@ -59,6 +59,7 @@ export function createLLM(config: LLMConfig): LLMClient {
     thinkingEffort: adapter.thinkingEffort,
     maxInputTokens: adapter.maxInputTokens,
     maxOutputTokens: adapter.maxOutputTokens,
+    vision: cfg.vision,
     chat: withRetryChat(adapter),
   };
 }

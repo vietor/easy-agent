@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseToolCallArgs } from "../src/llm/messages.js";
+import { createLLM } from "../src/llm/client.js";
 import { LLMConfigSchema } from "../src/llm/types.js";
 import { toErrorMessage } from "../src/util/text.js";
 
@@ -9,6 +10,13 @@ test("LLMConfigSchema passes headers through and defaults them to undefined", ()
   const parsed = LLMConfigSchema.parse({ ...base, headers: { "X-Route": "team-a" } });
   assert.deepEqual(parsed.headers, { "X-Route": "team-a" });
   assert.equal(LLMConfigSchema.parse(base).headers, undefined);
+});
+
+test("vision defaults to true and carries into the created client", () => {
+  const base = { baseUrl: "https://example.test/v1", apiKey: "k", model: "m" };
+  assert.equal(LLMConfigSchema.parse(base).vision, true);
+  assert.equal(createLLM(base).vision, true);
+  assert.equal(createLLM({ ...base, vision: false }).vision, false);
 });
 
 test("missing or empty arguments parse to an empty object", () => {
