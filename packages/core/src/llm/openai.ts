@@ -4,6 +4,7 @@ import {
   IncompleteStreamError,
   TruncatedResponseError,
   toText,
+  type ImagePart,
   type LLMAssistantMessage,
   type LLMMessage,
 } from "./messages.js";
@@ -44,7 +45,7 @@ export class CompletionsAdapter extends BaseLLMAdapter {
     const params: Record<string, unknown> = {
       model: this.model,
       ...(useThinking ? { max_completion_tokens: this.maxOutputTokens } : { max_tokens: this.maxOutputTokens }),
-      messages: messages.map(toCompletionsMessage),
+      messages: toCompletionsMessages(messages),
       stream: true,
       stream_options: { include_usage: true },
       ...(tools.length > 0 && { tools }),
@@ -118,9 +119,38 @@ export class CompletionsAdapter extends BaseLLMAdapter {
   }
 }
 
-function toCompletionsMessage(m: LLMMessage): LLMMessage {
-  if (m.role !== "tool" || !m.isError) return m;
-  return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
+export function imageDataUrl(image: ImagePart): string {
+  return `data:${image.mimeType};base64,${image.data}`;
+}
+
+interface CompletionsImageMessage {
+  role: "user";
+  content: Array<{ type: "image_url"; image_url: { url: string } }>;
+}
+
+export function toCompletionsMessages(messages: LLMMessage[]): Array<LLMMessage | CompletionsImageMessage> {
+  const out: Array<LLMMessage | CompletionsImageMessage> = [];
+  let pending: CompletionsImageMessage | undefined;
+  const flush = () => {
+    if (pending) out.push(pending);
+    pending = undefined;
+  };
+  for (const m of messages) {
+    if (m.role !== "tool") {
+      flush();
+      out.push(m);
+      continue;
+    }
+    out.push({ role: "tool", tool_call_id: m.tool_call_id, content: m.content });
+    if (m.images?.length) {
+      pending ??= { role: "user", content: [] };
+      for (const image of m.images) {
+        pending.content.push({ type: "image_url", image_url: { url: imageDataUrl(image) } });
+      }
+    }
+  }
+  flush();
+  return out;
 }
 
 type ResponsesInputItem = OpenAI.Responses.ResponseInputItem;
