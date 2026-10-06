@@ -37,6 +37,10 @@ export function withRetryChat(adapter: LLMAdapter): LLMClient["chat"] {
   };
 }
 
+export function isLLMClient(llm: LLMConfig | LLMClient): llm is LLMClient {
+  return typeof (llm as LLMClient).chat === "function";
+}
+
 export function createLLM(config: LLMConfig): LLMClient {
   const cfg = LLMConfigSchema.parse(config);
   let adapter: LLMAdapter;

@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { createLLM } from "./llm/client.js";
+import { createLLM, isLLMClient } from "./llm/client.js";
 import { Session } from "./runtime/session.js";
 import { notesFilePath, sessionFileName } from "./runtime/session-persistence.js";
 import { ToolRegistry } from "./tools/registry.js";
@@ -53,7 +53,7 @@ export function buildSystemPrompt(base: string, opts: SessionOptions, limits: Sy
 }
 
 export async function createSession(opts: SessionOptions): Promise<Session> {
-  const llm = createLLM(opts.llm);
+  const llm = isLLMClient(opts.llm) ? opts.llm : createLLM(opts.llm);
   const tools = new ToolRegistry();
   const mcp = new MCPServerManager(tools, opts.clientInfo ?? { name: "agent-core", version: "0.0.0" });
   const sessionId = opts.sessionId ?? nextUuid();

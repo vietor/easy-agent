@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { buildSystemPrompt, createSession } from "../src/create-session.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
 import type { MCPServerConfig } from "../src/mcp/types.js";
+import { fakeLLM } from "./helpers.js";
 
 const llm = { baseUrl: "http://localhost:1", apiKey: "test", model: "test" };
 
@@ -89,4 +90,26 @@ test("the sub-agent guidance advertises the effective concurrency budget", () =>
   const opts = { systemPrompt: "test", llm, builtInTools: { subAgent: true } };
   assert.match(buildSystemPrompt("base", opts, limits), /issue at most 4 SubAgent calls per turn/);
   assert.match(buildSystemPrompt("base", { ...opts, maxConcurrentSubAgents: 2 }, limits), /issue at most 2 SubAgent calls per turn/);
+});
+
+test("an injected LLM client is used as-is", async () => {
+  const { llm: fake, calls } = fakeLLM([
+    (opts) => {
+      opts.onDelta?.("hello");
+      return { role: "assistant", content: "hello" };
+    },
+  ]);
+  const session = await createSession({ systemPrompt: "sys", llm: fake, builtInTools: false });
+  assert.equal(session.model, "fake");
+  assert.equal(session.thinkingEffort, "high");
+  assert.equal(session.contextLimit, 72_000);
+
+  const result = await session.prompt("hi");
+  session.dispose();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.reply, "hello");
+  const system = calls[0].messages[0];
+  assert.equal(system.role, "system");
+  assert.ok(typeof system.content === "string" && system.content.includes("sys"));
 });

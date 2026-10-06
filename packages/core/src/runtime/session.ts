@@ -130,7 +130,7 @@ function runMetricsSince(
 
 export interface SessionOptions {
   systemPrompt: string;
-  llm: LLMConfig;
+  llm: LLMConfig | LLMClient;
   cwd?: string;
   tools?: Tool[];
   skills?: Skill[];
