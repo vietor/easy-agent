@@ -16,6 +16,7 @@ The package exposes two entry points:
 |---|---|
 | `@vietor/agent-core` | `createSession`, the `Session` API, tools, skills, MCP, LLM config, shared types |
 | `@vietor/agent-core/util` | Framework utilities: async helpers, text formatting, subprocess, file/HTML/net helpers, constants |
+| `@vietor/agent-core/package.json` | The package manifest, for tooling that probes the installed version |
 
 ```ts
 import { createSession, type Tool } from "@vietor/agent-core";
@@ -27,7 +28,7 @@ import { runProcess, formatDuration } from "@vietor/agent-core/util";
 ## Quick Start
 
 ```ts
-import { createSession, tryLoadSkills } from "@vietor/agent-core";
+import { createSession } from "@vietor/agent-core";
 
 const session = await createSession({
   systemPrompt: "You are a helpful assistant.",
@@ -35,29 +36,40 @@ const session = await createSession({
     baseUrl: "https://api.deepseek.com/v1",
     apiKey: "your-api-key",
     model: "deepseek-v4-flash",
-    thinkingEffort: "high",
-    backend: "completions",
-    maxInputTokens: 1_000_000,
   },
-  mcpServers: {
-    filesystem: { type: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] },
-  },
+  builtInTools: { askUser: true },
 });
 
 session.onEvent((e) => {
   if (e.type === "assistant_delta") process.stdout.write(e.text);
-  else if (e.type === "run_metrics") {
-    const inputTokens = e.cacheInputTokens + e.missInputTokens;
-    console.log(`tokens: ${inputTokens} input / ${e.outputTokens} output`);
+  else if (e.type === "tool_start") console.log(`\n[tool] ${e.name} ${e.argsSummary}`);
+  else if (e.type === "tool_end" && e.isError) console.log(`\n[tool failed] ${e.resultSummary}`);
+  else if (e.type === "error") console.error(`\n[error] ${e.text}`);
+  else if (e.type === "question") {
+    // Render e.questions, then answer via session.submitAnswer(e.id, answers) — see "Asking the user"
+  }
+});
+
+process.on("SIGINT", async () => {
+  if (session.running) {
+    session.abort();                        // the run settles with status "aborted"; exit on the next signal
+  } else {
+    await session.save();                   // no-op without sessionDir
+    session.dispose();                      // kills MCP server processes
+    process.exit(0);
   }
 });
 
 const result = await session.prompt("What files are in the current directory?");
 console.log(result.reply);                // final assistant reply
-
-console.log(session.getSnapshot().timeline);   // full session timeline
-session.dispose();
 ```
+
+Two facts that shape a host's startup:
+
+- **MCP servers connect in the background.** `createSession` returns before they are up; their tools appear as each server connects (`session.mcpServers` tracks `pending`/`connected`/`failed`). `await session.connectMCP(servers)` yourself when you need them ready before the first prompt.
+- **One run at a time.** Calling `prompt()` (or `compact()`/`runSkill()`/`clear()`) while a run is in progress throws `SessionBusyError` — check `session.running` or catch it. Core does not queue.
+
+Hosts own the terminal: rendering, key handling, and answering questions are host concerns. [INTEGRATION.md](./INTEGRATION.md) documents the full contract (events, questions, interrupts, cleanup) and `examples/terminal-embed` in the repository is a runnable reference built on nothing but `node:` and this package.
 
 ---
 
@@ -97,7 +109,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. `createSession` appends the environment block and the tool-use guidelines after it (plus the skill list when skills are loaded). |
-| `llm` | `LLMConfig` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`). Only `baseUrl`, `apiKey`, and `model` are required; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`, the last two with minimums of `128_000` and `48_000`. |
+| `llm` | `LLMConfig \| LLMClient` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`), or your own `LLMClient` — an injected client is used as-is (see Custom LLM clients). Only `baseUrl`, `apiKey`, and `model` are required on a config; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`, the last two with minimums of `128_000` and `48_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -232,6 +244,8 @@ type StreamEvent =
   | { type: "thinking_cleared" }
   | { type: "tool_start"; id: string; name: string; argsSummary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
+  | { type: "todos_changed"; todos: Todo[] }
+  | { type: "sub_agent_event"; toolCallId: string; event: SessionEvent }
   | ({ type: "run_metrics" } & RunMetrics);
 ```
 
@@ -245,12 +259,18 @@ type StreamEvent =
 | `assistant` | A text response segment is flushed (on tool call or completion). | ✓ |
 | `tool_start` | A tool call starts. | ✓ (stored as `tool`) |
 | `tool_end` | A tool call finishes. | — (merged into its `tool` entry) |
+| `todos_changed` | The todo list changed: TodoWrite, `clear()`, or the run-end clear of an all-completed list. Payload is the new list. | — |
+| `sub_agent_event` | An event from a running sub-agent, wrapped with the id of the parent SubAgent tool call. | — |
 | `retry` | The LLM client retries after a transient API error. | ✓ |
 | `error` | An error occurred. | ✓ |
 | `interrupted` | The current run was aborted. | ✓ |
 | `question` | The AskUser tool poses a group of 1-4 questions. | ✓ |
 | `notice` | `session.addNotice()` is called, or the run auto-compacts context. | ✓ |
 | `run_metrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
+
+**`todos_changed`** is the push counterpart of `getSnapshot().todos`: emitted on every mutation (including TodoWrite's normalizations), carrying the same list the view will report. `subscribe`/`getSnapshot` keep working unchanged; the event is for consumers that render from the stream alone.
+
+**Sub-agent events.** A running sub-agent's own events (`assistant_delta`, `thinking_delta`, `tool_start`/`tool_end`, `retry`, `error`, `interrupted`, `notice`) are re-emitted on the session's `onEvent` as `sub_agent_event`, each tagged with the `toolCallId` of the SubAgent call that started it — so concurrent delegations can be attributed exactly. A nested delegation (a sub-agent spawning a sub-agent) is tagged with the same session-level call id that began the tree. These events never enter the session timeline and never touch the parent's stream buffer — accumulate them per `toolCallId` (keyed from the SubAgent `tool_start.id`) if you render a live view of each delegation. One difference from the top-level stream: a nested stream carries no `thinking_cleared` (flushing is the Session layer's job), so drop accumulated nested thinking when the next nested `assistant_delta`, `tool_start`, or `error` arrives, or when the parent delegation's `tool_end` closes it.
 
 Note: `onEvent` is the primary stream for network/remote consumers (multi-subscriber, incremental). For local React `useSyncExternalStore` view invalidation use `subscribe` + `getSnapshot`.
 
@@ -426,6 +446,7 @@ const LLMConfigSchema = z.object({
   baseUrl: z.string(),            // API endpoint (e.g. "https://api.deepseek.com/v1" or "https://api.anthropic.com") — required
   apiKey: z.string(),             // API key — required
   model: z.string(),              // Model name (e.g. "deepseek-v4-flash" or "claude-sonnet-5") — required
+  headers: z.record(z.string(), z.string()).optional(),  // Extra headers on every request (gateway routing, auth) — sent as SDK default headers, so the SDK's own computed headers (authorization etc.) still win per request
   thinkingEffort: z.enum(["high", "max"]).default("high"),  // Thinking depth; "high" for standard tasks, "max" for deeper thinking on complex tasks
   backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK)
   maxInputTokens: z.int().min(128_000).default(1_000_000),  // Context window in tokens (min 128_000); 75% of it is used as the auto-compaction threshold
@@ -441,13 +462,38 @@ type LLMThinkingEffort = ResolvedLLMConfig["thinkingEffort"];
 type LLMBackend = ResolvedLLMConfig["backend"];
 ```
 
-`createSession` and `createLLM` take `LLMConfig`, where only `baseUrl`, `apiKey`, and `model` are required. The schema is applied at the boundary, so every field is set on the `ResolvedLLMConfig` that reaches the client and its adapters. `z` is re-exported from the package root, so hosts composing these schemas into their own do not need a zod dependency of their own.
+`createSession` and `createLLM` take `LLMConfig`, where only `baseUrl`, `apiKey`, and `model` are required. The schema is applied at the boundary, so every field is set on the `ResolvedLLMConfig` that reaches the client and its adapters. `z` is re-exported from the package root, so hosts composing these schemas into their own do not need a zod dependency of their own. (An injected `LLMClient` bypasses the schema — see Custom LLM clients.)
 
 `backend` selects the request/response protocol the client speaks:
 
 - `"completions"` - OpenAI Chat Completions compatible endpoint. `thinkingEffort` is sent as `reasoning_effort`; `maxOutputTokens` is sent as `max_tokens`.
 - `"anthropic"` - Anthropic Messages API (via `@anthropic-ai/sdk`). Point `baseUrl` at an Anthropic-compatible endpoint and `model` at a Claude model. `maxOutputTokens` is sent as `max_tokens`; `thinkingEffort` enables extended thinking (`"high"` = 16k token budget, `"max"` = 32k, both capped by `maxOutputTokens`); thinking blocks are preserved across tool-use turns as required by the API.
 - `"responses"` - OpenAI Responses API (via `openai` SDK). Tool results round-trip as `function_call`/`function_call_output` items; `maxOutputTokens` is sent as `max_output_tokens`; `thinkingEffort` is sent as `reasoning.effort`, and reasoning summaries are streamed via `reasoning.summary_text`.
+
+### Custom LLM clients
+
+`SessionOptions.llm` also accepts your own `LLMClient` implementation — a gateway wrapper, an in-process model, or a test double:
+
+```ts
+interface LLMClient {
+  readonly model: string;
+  readonly thinkingEffort: LLMThinkingEffort;
+  readonly maxInputTokens: number;   // drives session.contextLimit
+  readonly maxOutputTokens: number;
+  chat(opts: ChatOptions): Promise<LLMAssistantMessage>;
+}
+```
+
+`createSession` tells the two apart with `isLLMClient(llm)` (a client has a `chat` function) and then uses the client **as-is** — nothing is re-validated or rebuilt. Consequences: `maxInputTokens`/`maxOutputTokens` must be truthful, because `contextLimit` is derived from them (`floor(min(maxInputTokens × 0.75, maxInputTokens − maxOutputTokens))`); and retries/timeouts are entirely the client's responsibility (the retry stack lives in `createLLM`). A client can reuse core's retry handling by implementing the `LLMAdapter` shape (an `LLMClient` minus `chat`, plus `stream`) and wrapping it with `withRetryChat(adapter)`.
+
+A minimal `chat` implementation must:
+
+- honor `opts.signal` (abort must reject the pending call);
+- stream text via `opts.onDelta` and thinking via `opts.onThinking`;
+- report token usage via `opts.onUsage` (feeds `run_metrics` and the session's token accounting);
+- call `opts.onToolCall()` when the response contains tool calls (used to decide whether a transient failure is safe to retry);
+- accept `thinking: false` (compaction turns), `toolChoice: "none"` (the reserved final turn), and `cachePrefixLen` (may be ignored);
+- return a complete `LLMAssistantMessage` (`content`, optional `tool_calls`, optional `thinking`).
 
 ### `SessionState`
 
@@ -519,6 +565,7 @@ interface Tool {
 interface ToolContext {
   signal?: AbortSignal;  // abort signal for the current run
   cwd: string;           // resolved working directory for path-based tools
+  toolCallId?: string;   // the LLM's id for this tool call; SubAgent uses it to tag sub_agent_event
 }
 ```
 
@@ -584,6 +631,25 @@ const session = await createSession({
 // Read-only session (no Shell / Write / Edit):
 // builtInTools: { readOnly: true }
 ```
+
+#### Composing the built-in tools
+
+The seven stateless built-ins are exported as tool objects — `fileReadTool`, `globTool`, `grepTool`, `webFetchTool`, `shellTool`, `fileWriteTool`, `fileEditTool` — along with `BUILTIN_TOOLS`, the array they live in. That lets a host register any subset (`builtInTools: false` plus its own list) or wrap one of them:
+
+```ts
+import { BUILTIN_TOOLS, createSession } from "@vietor/agent-core";
+
+const session = await createSession({
+  systemPrompt: "...",
+  llm: { ... },
+  builtInTools: false,
+  tools: [myTool, ...BUILTIN_TOOLS.filter((t) => t.name !== "Shell" && t.name !== "WebFetch")],
+});
+```
+
+Two caveats: with `builtInTools: false` the system prompt drops the file-tool usage guidance (the tool schemas are still sent), and the interactive tools (AskUser/TodoWrite/Skill/SubAgent) have per-session state, so they stay `builtInTools` flags — and enabling any flag always brings the seven core tools along with it.
+
+**Same-name override**: a custom tool whose `name` matches a built-in replaces it. Custom tools are registered after the built-ins and the later registration wins — this ordering is intentional and is the supported way to customize a built-in's behavior.
 
 ### Custom tools example
 
