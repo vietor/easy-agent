@@ -31,6 +31,7 @@ export class TimelineStore {
       case "assistant_delta":
       case "thinking_delta":
       case "thinking_cleared":
+      case "todos_changed":
       case "run_metrics":
         break;
       default:

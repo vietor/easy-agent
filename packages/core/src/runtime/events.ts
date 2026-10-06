@@ -1,4 +1,5 @@
 import type { AskedQuestion } from "../tools/ask-user.js";
+import type { Todo } from "../tools/types.js";
 import type { LLMUsage } from "../llm/types.js";
 
 export interface RunMetrics extends LLMUsage {
@@ -27,6 +28,7 @@ export type StreamEvent =
   | { type: "thinking_cleared" }
   | { type: "tool_start"; id: string; name: string; argsSummary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
+  | { type: "todos_changed"; todos: Todo[] }
   | ({ type: "run_metrics" } & RunMetrics);
 
 export type SessionEvent = TimelineEvent | StreamEvent;

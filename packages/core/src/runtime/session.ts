@@ -308,7 +308,7 @@ export class Session {
     for (const s of deps.skills ?? []) this.skillsMap.set(s.name, s);
     registerBuiltinTools(this.tools, deps.builtInTools, {
       ask: (questions) => this.ask(questions),
-      setTodos: (t) => this.todoStore.set(t),
+      setTodos: (t) => this.setTodos(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: {
         runSubAgent: (systemPrompt, task, level, signal) =>
@@ -329,7 +329,7 @@ export class Session {
     const persisted = deps.importPath ? loadSessionState(deps.importPath) : this.persistence?.load();
     if (persisted) {
       this.conversation.import(persisted.messages);
-      this.todoStore.set(persisted.todos);
+      this.setTodos(persisted.todos);
       this.rebuildTimeline();
     }
 
@@ -410,9 +410,14 @@ export class Session {
     return this.saveChain;
   }
 
+  private setTodos(todos: Todo[]): void {
+    this.todoStore.set(todos);
+    this.emit({ type: "todos_changed", todos: [...todos] });
+  }
+
   private clearCompletedTodos(): void {
     if (this.todoStore.all.length > 0 && this.todoStore.all.every((t) => t.status === "completed")) {
-      this.todoStore.set([]);
+      this.setTodos([]);
     }
   }
 
@@ -478,7 +483,7 @@ export class Session {
     this.rejectIfBusy();
     this.agent.clear();
     this.timelineStore.clear();
-    this.todoStore.set([]);
+    this.setTodos([]);
     void this.save();
   }
 

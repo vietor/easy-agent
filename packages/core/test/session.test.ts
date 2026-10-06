@@ -12,6 +12,7 @@ import { MCPServerManager } from "../src/mcp/manager.js";
 import { fakeLLM, waitUntil, withTempDir, withUsage } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions } from "../src/llm/types.js";
+import type { Todo } from "../src/tools/types.js";
 
 function todoCall(todos: unknown, id: string): LLMAssistantMessage {
   return {
@@ -114,6 +115,30 @@ test("a new prompt clears the all-completed todo list from the session view", as
 
   await session.prompt("next");
   assert.equal(session.getSnapshot().todos.length, 0);
+});
+
+test("todo mutations are pushed to onEvent as todos_changed", async () => {
+  const session = makeSession([
+    () => todoCall([{ content: "a", status: "pending" }], "t1"),
+    () => todoCall([{ content: "a", status: "completed" }], "t2"),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const changes: Todo[][] = [];
+  session.subscribe(() => {});
+  session.onEvent((e) => {
+    if (e.type === "todos_changed") {
+      changes.push(e.todos);
+      assert.deepEqual(e.todos, session.getSnapshot().todos);
+    }
+  });
+
+  assert.equal((await session.prompt("go")).status, "ok");
+
+  assert.deepEqual(changes, [
+    [{ content: "a", status: "inProgress" }],
+    [{ content: "a", status: "completed" }],
+    [],
+  ]);
 });
 
 test("a completed list re-created mid-run is cleared when the run settles", async () => {
