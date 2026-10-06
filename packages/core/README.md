@@ -109,7 +109,7 @@ const session = await createSession({
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `systemPrompt` | `string` | *(required)* | System prompt for the LLM. `createSession` appends the environment block and the tool-use guidelines after it (plus the skill list when skills are loaded). |
-| `llm` | `LLMConfig \| LLMClient` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`), or your own `LLMClient` — an injected client is used as-is (see Custom LLM clients). Only `baseUrl`, `apiKey`, and `model` are required on a config; `thinkingEffort`, `backend`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `1_000_000`, and `128_000`, the last two with minimums of `128_000` and `48_000`. |
+| `llm` | `LLMConfig \| LLMClient` | *(required)* | LLM endpoint config (OpenAI-compatible or Anthropic; see `backend`), or your own `LLMClient` — an injected client is used as-is (see Custom LLM clients). Only `baseUrl`, `apiKey`, and `model` are required on a config; `thinkingEffort`, `backend`, `vision`, `maxInputTokens`, and `maxOutputTokens` default to `"high"`, `"completions"`, `true`, `1_000_000`, and `128_000`, the last two with minimums of `128_000` and `48_000`. |
 | `cwd` | `string` | `process.cwd()` | Working directory used by tools (e.g. path-based tools). |
 | `tools` | `Tool[]` | `undefined` | Additional tools registered alongside built-ins. |
 | `skills` | `Skill[]` | `undefined` | Skills loaded from SKILL.md files; invoked via the built-in Skill tool or via `session.runSkill()` (hosts may map them to slash commands). |
@@ -449,6 +449,7 @@ const LLMConfigSchema = z.object({
   headers: z.record(z.string(), z.string()).optional(),  // Extra headers on every request (gateway routing, auth) — sent as SDK default headers, so the SDK's own computed headers (authorization etc.) still win per request
   thinkingEffort: z.enum(["high", "max"]).default("high"),  // Thinking depth; "high" for standard tasks, "max" for deeper thinking on complex tasks
   backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),  // Wire protocol; "completions" (OpenAI Chat Completions), "anthropic" (Anthropic Messages API via the official SDK), or "responses" (OpenAI Responses API via the official SDK)
+  vision: z.boolean().default(true),  // Set false for text-only endpoints: Read then returns an image description without attaching image data, instead of failing the request on every turn
   maxInputTokens: z.int().min(128_000).default(1_000_000),  // Context window in tokens (min 128_000); 75% of it is used as the auto-compaction threshold
   maxOutputTokens: z.int().min(48_000).default(128_000),    // Max output tokens per request (min 48_000), capped by the model's output limit
 });
@@ -480,6 +481,7 @@ interface LLMClient {
   readonly thinkingEffort: LLMThinkingEffort;
   readonly maxInputTokens: number;   // drives session.contextLimit
   readonly maxOutputTokens: number;
+  readonly vision?: boolean;         // false = text-only model; absent means the model accepts image input
   chat(opts: ChatOptions): Promise<LLMAssistantMessage>;
 }
 ```
@@ -555,7 +557,7 @@ interface Tool {
 - `concurrencySafe` (optional, default `false`) declares whether the tool may run concurrently with other tool calls from the same turn. A turn's calls are split into consecutive runs: a run of `concurrencySafe` calls executes together (up to `maxParallelToolCalls`), and every other call runs on its own, with nothing else in flight. The default is fail-closed, so custom and MCP tools run one at a time until you opt them in; declare it only for tools that read without mutating state. Marked by default: Read, Glob, Grep, WebFetch, and SubAgent.
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
-- `execute` returns a `ToolResult` (`{ content, isError? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
+- `execute` returns a `ToolResult` (`{ content, isError?, images? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
 - `argSummaryKeys` / `summarizeArgs` control what appears in the tool log entry's `argsSummary` field.
 - `summarizeResult` (optional) returns a short result summary for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default summary (byte/line count) when not defined.
 
@@ -566,6 +568,7 @@ interface ToolContext {
   signal?: AbortSignal;  // abort signal for the current run
   cwd: string;           // resolved working directory for path-based tools
   toolCallId?: string;   // the LLM's id for this tool call; SubAgent uses it to tag sub_agent_event
+  vision?: boolean;      // false when the configured client declares vision: false; Read then skips attaching image data
 }
 ```
 
@@ -575,6 +578,18 @@ interface ToolContext {
 interface ToolResult {
   content: string;
   isError?: boolean;
+  images?: ImagePart[];
+}
+```
+
+`images` side-channels image parts (currently only produced by Read) alongside the textual `content`: events, summaries, and truncation operate on `content` alone, and each backend lowers `images` into its own wire format. The session counts a flat 1600 tokens per image.
+
+### `ImagePart`
+
+```ts
+interface ImagePart {
+  mimeType: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+  data: string;   // base64, no data-URL prefix
 }
 ```
 
@@ -599,7 +614,7 @@ Core tools (registered by default; `builtInTools: { readOnly: true }` registers 
 
 | Tool | Description |
 |---|---|
-| **Read** *(read-only)* | Read files with line numbers. |
+| **Read** *(read-only)* | Read files with line numbers; png, jpeg, gif, and webp files are returned as image content the model can see (with `vision: false`, a description without the image data). |
 | **Glob** *(read-only)* | File listing by glob pattern. A capped listing reports the total match count and the per-directory distribution. |
 | **Grep** *(read-only)* | Content search with regex. A capped result reports the total count, plus the per-directory distribution in `files_with_matches` and `count` modes. |
 | **WebFetch** *(read-only)* | General-purpose HTTP GET — converts HTML to markdown, returns JSON/XML/text raw. Retries transient failures (network, timeouts, 408/429/5xx) up to 3 attempts. |
