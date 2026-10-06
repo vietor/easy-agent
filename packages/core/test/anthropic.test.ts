@@ -4,6 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { finalMessageError, stopReasonError, toAnthropicMessages } from "../src/llm/anthropic.js";
 import { IncompleteStreamError, TruncatedResponseError } from "../src/llm/messages.js";
 
+const IMAGE = { mimeType: "image/png", data: "aGk=" } as const;
+
 test("satisfied tool_use is left untouched", () => {
   const { messages } = toAnthropicMessages(
     [
@@ -57,6 +59,109 @@ test("an errored tool result is marked as an error", () => {
   assert.deepEqual(messages[2].content, [
     { type: "tool_result", tool_use_id: "call_1", content: "Error: boom", is_error: true },
   ]);
+});
+
+test("an image tool result renders as image blocks before the text", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "Read", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "call_1", content: "Read image f.png (image/png, 12 bytes)", images: [IMAGE] },
+    ],
+    true
+  );
+  assert.equal(messages.length, 3);
+  assert.deepEqual(messages[2].content, [
+    {
+      type: "tool_result",
+      tool_use_id: "call_1",
+      content: [
+        { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } },
+        { type: "text", text: "Read image f.png (image/png, 12 bytes)" },
+      ],
+    },
+  ]);
+});
+
+test("an image tool result merges with a following plain tool result", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          { id: "call_1", type: "function", function: { name: "Read", arguments: "{}" } },
+          { id: "call_2", type: "function", function: { name: "Glob", arguments: "{}" } },
+        ],
+      },
+      { role: "tool", tool_call_id: "call_1", content: "image", images: [IMAGE] },
+      { role: "tool", tool_call_id: "call_2", content: "fetched" },
+    ],
+    true
+  );
+  const idx = messages.findIndex((m) => m.role === "assistant");
+  assert.deepEqual(messages[idx + 1].content, [
+    {
+      type: "tool_result",
+      tool_use_id: "call_1",
+      content: [
+        { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } },
+        { type: "text", text: "image" },
+      ],
+    },
+    { type: "tool_result", tool_use_id: "call_2", content: "fetched" },
+  ]);
+  assert.equal(messages.length, idx + 2);
+});
+
+test("an image tool result stays separate from a following user text message", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "Read", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "call_1", content: "image", images: [IMAGE] },
+      { role: "user", content: "<system-reminder>Tasks: ..." },
+    ],
+    true
+  );
+  const idx = messages.findIndex((m) => m.role === "assistant");
+  assert.deepEqual(messages[idx + 1].content, [
+    {
+      type: "tool_result",
+      tool_use_id: "call_1",
+      content: [
+        { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } },
+        { type: "text", text: "image" },
+      ],
+    },
+  ]);
+  assert.equal(messages[idx + 2].content, "<system-reminder>Tasks: ...");
+});
+
+test("the cache breakpoint lands on a tool_result carrying image blocks", () => {
+  const { messages } = toAnthropicMessages(
+    [
+      { role: "user", content: "go" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "Read", arguments: "{}" } }] },
+      { role: "tool", tool_call_id: "call_1", content: "image", images: [IMAGE] },
+      { role: "user", content: "<system-reminder>Tasks: ..." },
+    ],
+    true,
+    3
+  );
+  assert.deepEqual(messages[2].content, [
+    {
+      type: "tool_result",
+      tool_use_id: "call_1",
+      content: [
+        { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } },
+        { type: "text", text: "image" },
+      ],
+      cache_control: { type: "ephemeral", ttl: "1h" },
+    },
+  ]);
+  assert.equal(messages[messages.length - 1].content, "<system-reminder>Tasks: ...");
 });
 
 test("a follow-up user text message stays separate from tool results", () => {

@@ -5,6 +5,7 @@ import {
   TruncatedResponseError,
   parseToolCallArgs,
   toText,
+  type ImagePart,
   type LLMAssistantMessage,
   type LLMMessage,
   type RedactedThinkingBlock,
@@ -130,6 +131,10 @@ function toAnthropicTool(schema: ToolSchema): Anthropic.Tool {
   };
 }
 
+function toAnthropicImage(image: ImagePart): Anthropic.ImageBlockParam {
+  return { type: "image", source: { type: "base64", media_type: image.mimeType, data: image.data } };
+}
+
 export function toAnthropicMessages(
   messages: LLMMessage[],
   includeThinking: boolean,
@@ -216,9 +221,12 @@ function toMessageParam(m: LLMMessage, includeThinking: boolean): Anthropic.Mess
     return { role: "user", content: toText(m.content) };
   }
   if (m.role === "tool") {
+    const content: Anthropic.ToolResultBlockParam["content"] = m.images?.length
+      ? [...m.images.map(toAnthropicImage), { type: "text", text: m.content }]
+      : m.content;
     return {
       role: "user",
-      content: [{ type: "tool_result", tool_use_id: m.tool_call_id, content: m.content, ...(m.isError && { is_error: true }) }],
+      content: [{ type: "tool_result", tool_use_id: m.tool_call_id, content, ...(m.isError && { is_error: true }) }],
     };
   }
   const blocks: Anthropic.ContentBlockParam[] = [];
