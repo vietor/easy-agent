@@ -3,14 +3,15 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import type { Tool } from "./types.js";
 import { parseToolArgs, positiveInt, toToolParameters } from "./types.js";
-import { isBinaryContent } from "../util/file.js";
-import { DEFAULT_FILE_READ_LIMIT, MAX_FILE_READ_MB, mbToBytes } from "../util/constants.js";
-import { formatCompactNumber, summaryBytes } from "../util/text.js";
+import { imageMediaType, isBinaryContent } from "../util/file.js";
+import { DEFAULT_FILE_READ_LIMIT, MAX_FILE_READ_MB, MAX_IMAGE_READ_MB, MAX_SUMMARY_LENGTH, mbToBytes } from "../util/constants.js";
+import { formatCompactNumber, summarizeText, summaryBytes } from "../util/text.js";
 
 const CHUNK = 64 * 1024;
 const MAX_FILE_READ_BYTES = mbToBytes(MAX_FILE_READ_MB);
+const MAX_IMAGE_READ_BYTES = mbToBytes(MAX_IMAGE_READ_MB);
 
-const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format). Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over the size limit and binary files are rejected.`;
+const DESCRIPTION = `Read a file as UTF-8 text, returned with line numbers (cat -n format); png, jpeg, gif, and webp files are returned as image content instead. Reads up to ${DEFAULT_FILE_READ_LIMIT} lines; use offset and limit to page further. Files over the size limit and binary files are rejected.`;
 
 const PATH_ERROR = "path is required";
 
@@ -77,6 +78,19 @@ export const fileReadTool: Tool = {
         throw new Error(`file is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_FILE_READ_BYTES)} read limit`);
       }
       if (size === 0) return { content: "(empty file)" };
+      const head = Buffer.allocUnsafe(12);
+      const { bytesRead } = await handle.read(head, 0, 12, 0);
+      const mimeType = imageMediaType(head, bytesRead);
+      if (mimeType) {
+        if (size > MAX_IMAGE_READ_BYTES) {
+          throw new Error(`image is ${formatCompactNumber(size)} — larger than the ${formatCompactNumber(MAX_IMAGE_READ_BYTES)} image read limit`);
+        }
+        const content = `Read image ${path} (${mimeType}, ${formatCompactNumber(size)} bytes)`;
+        if (ctx.vision === false) {
+          return { content: `${content}; image input is disabled for the current model` };
+        }
+        return { content, images: [{ mimeType, data: (await handle.readFile()).toString("base64") }] };
+      }
       const page = await readPage(handle, offset, limit);
       if (page.text === null) {
         return { content: `(offset ${offset} is past end of file; file has ${page.totalLines} lines)` };
@@ -95,6 +109,7 @@ export const fileReadTool: Tool = {
     }
   },
   summarizeResult(result) {
+    if (result.images?.length) return summarizeText(result.content, MAX_SUMMARY_LENGTH);
     return summaryBytes("Read", result, "Read failed");
   },
   argSummaryKeys: ["path"],

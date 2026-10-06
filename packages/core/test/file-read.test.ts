@@ -7,7 +7,7 @@ import { fileReadTool } from "../src/tools/file-read.js";
 
 const LINES = Array.from({ length: 10 }, (_, i) => `line${i + 1}`).join("\n");
 
-async function withFile(content: string, fn: (path: string) => Promise<void>): Promise<void> {
+async function withFile(content: string | Uint8Array, fn: (path: string) => Promise<void>): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "file-read-test-"));
   try {
     const path = join(dir, "f.txt");
@@ -22,6 +22,10 @@ function read(path: string, args: Record<string, unknown> = {}): Promise<string>
   return fileReadTool
     .execute({ path, ...args }, { cwd: process.cwd() })
     .then((r) => (typeof r === "string" ? r : r.content));
+}
+
+function readFull(path: string, args: Record<string, unknown> = {}, vision?: boolean) {
+  return fileReadTool.execute({ path, ...args }, { cwd: process.cwd(), vision });
 }
 
 function numbered(lines: string[], start: number): string {
@@ -75,8 +79,49 @@ test("rejects files over the size limit", async () => {
 
 test("rejects binary files", async () => {
   await withFile("", async (p) => {
-    await writeFile(p, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]));
+    await writeFile(p, Buffer.from([0x01, 0x02, 0x03, 0x00, 0x04]));
     await assert.rejects(() => read(p), /binary/);
+  });
+});
+
+const IMAGE_FIXTURES: Array<[string, Buffer]> = [
+  ["image/png", Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01, 0x02, 0x03, 0x04])],
+  ["image/jpeg", Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01])],
+  ["image/gif", Buffer.from("GIF89a\x01\x00\x01\x00\x80\x00\x00", "latin1")],
+  ["image/webp", Buffer.from("RIFF\x24\x00\x00\x00WEBPVP8 ", "latin1")],
+];
+
+for (const [mimeType, bytes] of IMAGE_FIXTURES) {
+  test(`reads a ${mimeType} file as image content`, async () => {
+    await withFile(bytes, async (p) => {
+      const result = await readFull(p);
+      assert.equal(result.content, `Read image ${p} (${mimeType}, ${bytes.length} bytes)`);
+      assert.equal(result.images?.length, 1);
+      assert.equal(result.images?.[0].mimeType, mimeType);
+      assert.deepEqual(Buffer.from(result.images![0].data, "base64"), bytes);
+    });
+  });
+}
+
+test("images ignore offset and limit", async () => {
+  await withFile(IMAGE_FIXTURES[0][1], async (p) => {
+    const result = await readFull(p, { offset: 5, limit: 1 });
+    assert.equal(result.images?.length, 1);
+  });
+});
+
+test("rejects images over the image read limit", async () => {
+  await withFile("", async (p) => {
+    await writeFile(p, Buffer.concat([IMAGE_FIXTURES[0][1], Buffer.alloc(4 * 1024 * 1024)]));
+    await assert.rejects(() => read(p), /image is [\d.]+M — larger than the [\d.]+M image read limit/);
+  });
+});
+
+test("a text-only model gets an image description without the image data", async () => {
+  await withFile(IMAGE_FIXTURES[0][1], async (p) => {
+    const result = await readFull(p, {}, false);
+    assert.equal(result.images, undefined);
+    assert.equal(result.content, `Read image ${p} (image/png, 12 bytes); image input is disabled for the current model`);
   });
 });
 
