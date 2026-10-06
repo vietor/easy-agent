@@ -1,10 +1,10 @@
 import { toText, type ImagePart, type LLMAssistantMessage, type LLMMessage } from "../llm/messages.js";
 import {
-  IMAGE_TOKEN_ESTIMATE,
   INTERRUPTED_TOOL_CONTENT,
   PRUNE_PROTECT_TOKENS,
   TOOL_OUTPUT_CLEARED_PREFIX,
 } from "../util/constants.js";
+import { estimateImageTokens } from "../util/file.js";
 import { estimateTokens } from "../util/text.js";
 
 export type SessionMessage =
@@ -40,10 +40,12 @@ function messageText(msg: SessionMessage): string {
 
 function messageTokens(msg: SessionMessage): number {
   const tokens = estimateTokens(messageText(msg));
-  if (msg.role === "tool" && msg.images?.length) {
-    return tokens + msg.images.length * IMAGE_TOKEN_ESTIMATE;
+  if (msg.role !== "tool" || !msg.images?.length) return tokens;
+  let total = tokens;
+  for (const image of msg.images) {
+    total += estimateImageTokens(Buffer.from(image.data, "base64"));
   }
-  return tokens;
+  return total;
 }
 
 function toLLMMessage(m: SessionMessage): LLMMessage {

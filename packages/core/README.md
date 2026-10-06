@@ -582,7 +582,7 @@ interface ToolResult {
 }
 ```
 
-`images` side-channels image parts (currently only produced by Read) alongside the textual `content`: events, summaries, and truncation operate on `content` alone, and each backend lowers `images` into its own wire format. The session counts a flat 1600 tokens per image.
+`images` side-channels image parts (currently only produced by Read) alongside the textual `content`: events, summaries, and truncation operate on `content` alone, and each backend lowers `images` into its own wire format. The session estimates image tokens from the parsed header dimensions (pixel area over 750, scaling the longest edge to 1568), falling back to a flat 1600 when the header cannot be parsed.
 
 ### `ImagePart`
 

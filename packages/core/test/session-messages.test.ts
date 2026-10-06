@@ -8,6 +8,14 @@ const SYS = "sys";
 
 const IMAGE: ImagePart = { mimeType: "image/png", data: "aGk=" };
 
+function pngImage(width: number, height: number): ImagePart {
+  const header = Buffer.alloc(24);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(header);
+  header.writeUInt32BE(width, 16);
+  header.writeUInt32BE(height, 20);
+  return { mimeType: "image/png", data: header.toString("base64") };
+}
+
 function assistantToolCall(id: string): LLMAssistantMessage {
   return { role: "assistant", content: null, tool_calls: [{ id, type: "function", function: { name: "Echo", arguments: "{}" } }] };
 }
@@ -232,10 +240,16 @@ test("pruneToolOutputs leaves history intact when the reclaimable amount is belo
   assert.equal(c.export()[0].content, "a".repeat(4_000));
 });
 
-test("estimatedTokens counts a flat image estimate per attached image", () => {
+test("estimatedTokens falls back to the flat estimate for images without a parseable header", () => {
   const c = new SessionMessages(SYS);
   c.add({ role: "tool", tool_call_id: "t1", content: "out", images: [IMAGE, IMAGE] });
   assert.equal(c.getEstimatedTokens(), 1 + Math.round("out".length / 4) + 2 * IMAGE_TOKEN_ESTIMATE);
+});
+
+test("estimatedTokens derives image tokens from the decoded header dimensions", () => {
+  const c = new SessionMessages(SYS);
+  c.add({ role: "tool", tool_call_id: "t1", content: "out", images: [pngImage(640, 480), pngImage(4000, 3000)] });
+  assert.equal(c.getEstimatedTokens(), 1 + Math.round("out".length / 4) + 410 + 2459);
 });
 
 test("toLLM passes images through", () => {
