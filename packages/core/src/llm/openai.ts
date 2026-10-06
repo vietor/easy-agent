@@ -15,6 +15,7 @@ function createOpenAIClient(config: ResolvedLLMConfig): OpenAI {
   return new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl || undefined,
+    defaultHeaders: config.headers,
     maxRetries: 0,
     fetch: netFetch,
   });

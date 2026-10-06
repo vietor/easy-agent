@@ -6,6 +6,7 @@ export const LLMConfigSchema = z
     baseUrl: z.string(),
     apiKey: z.string(),
     model: z.string(),
+    headers: z.record(z.string(), z.string()).optional(),
     thinkingEffort: z.enum(["high", "max"]).default("high"),
     backend: z.enum(["completions", "anthropic", "responses"]).default("completions"),
     maxInputTokens: z.int().min(128_000).default(1_000_000),

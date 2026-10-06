@@ -28,6 +28,7 @@ export class AnthropicAdapter extends BaseLLMAdapter {
     this.client = new Anthropic({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || undefined,
+      defaultHeaders: config.headers,
       maxRetries: 0,
       fetch: netFetch,
     });
