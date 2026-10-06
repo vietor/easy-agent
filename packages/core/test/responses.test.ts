@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { completionsEndError, responsesIncompleteError, toResponsesInput, toResponsesTool } from "../src/llm/openai.js";
 import { IncompleteStreamError, TruncatedResponseError } from "../src/llm/messages.js";
 
+const IMAGE = { mimeType: "image/png", data: "aGk=" } as const;
+
 test("a tool-call turn converts to message, function_call, and function_call_output items", () => {
   const items = toResponsesInput([
     { role: "system", content: "You are an agent." },
@@ -76,6 +78,36 @@ test("string and content-part text both convert to input_text", () => {
 test("tool result with empty content keeps empty output", () => {
   const items = toResponsesInput([{ role: "tool", tool_call_id: "call_7", content: "" }]);
   assert.deepEqual(items, [{ type: "function_call_output", call_id: "call_7", output: "" }]);
+});
+
+test("a tool result with images converts to an output array with the text first", () => {
+  const items = toResponsesInput([
+    { role: "tool", tool_call_id: "call_1", content: "Read image f.png (image/png, 12 bytes)", images: [IMAGE] },
+  ]);
+  assert.deepEqual(items, [
+    {
+      type: "function_call_output",
+      call_id: "call_1",
+      output: [
+        { type: "input_text", text: "Read image f.png (image/png, 12 bytes)" },
+        { type: "input_image", image_url: "data:image/png;base64,aGk=", detail: "auto" },
+      ],
+    },
+  ]);
+});
+
+test("a tool result with images and empty text keeps the empty input_text", () => {
+  const items = toResponsesInput([{ role: "tool", tool_call_id: "call_1", content: "", images: [IMAGE] }]);
+  assert.deepEqual(items, [
+    {
+      type: "function_call_output",
+      call_id: "call_1",
+      output: [
+        { type: "input_text", text: "" },
+        { type: "input_image", image_url: "data:image/png;base64,aGk=", detail: "auto" },
+      ],
+    },
+  ]);
 });
 
 test("toResponsesTool flattens the function schema", () => {

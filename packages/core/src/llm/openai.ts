@@ -256,6 +256,10 @@ export function toResponsesTool(schema: ToolSchema): OpenAI.Responses.FunctionTo
   };
 }
 
+function toResponsesImage(image: ImagePart): OpenAI.Responses.ResponseInputImage {
+  return { type: "input_image", image_url: imageDataUrl(image), detail: "auto" };
+}
+
 export function toResponsesInput(messages: LLMMessage[]): ResponsesInputItem[] {
   const items: ResponsesInputItem[] = [];
   for (const m of messages) {
@@ -266,7 +270,13 @@ export function toResponsesInput(messages: LLMMessage[]): ResponsesInputItem[] {
       const text = toText(m.content);
       if (text) items.push({ type: "message", role: "user", content: [{ type: "input_text", text }] });
     } else if (m.role === "tool") {
-      items.push({ type: "function_call_output", call_id: m.tool_call_id, output: m.content });
+      items.push({
+        type: "function_call_output",
+        call_id: m.tool_call_id,
+        output: m.images?.length
+          ? [{ type: "input_text", text: m.content }, ...m.images.map(toResponsesImage)]
+          : m.content,
+      });
     } else {
       const text = toText(m.content);
       if (text) items.push({ type: "message", role: "assistant", content: [{ type: "input_text", text }] });
