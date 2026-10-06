@@ -4,7 +4,7 @@ export type { RunStatus } from "./runtime/agent.js";
 export type { SessionMessage } from "./runtime/session-messages.js";
 export { INITIAL_RUN_METRICS, type SessionEvent, type TimelineEvent, type StreamEvent, type RunMetrics } from "./runtime/events.js";
 export { toTimelineEntries } from "./runtime/timeline.js";
-export type { Tool, ToolContext, Todo, TodoStatus, TextResult, AgentLevel } from "./tools/types.js";
+export type { Tool, ToolContext, Todo, TodoStatus, ToolResult, AgentLevel } from "./tools/types.js";
 export { parseQuestions, type AskOption, type AskQuestion, type AskAnswer, type AskedQuestion } from "./tools/ask-user.js";
 export { toolError, toToolParameters, tryParseToolArgs } from "./tools/types.js";
 export { BUILTIN_TOOLS, type BuiltinToolsOptions } from "./tools/registry.js";

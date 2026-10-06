@@ -15,7 +15,7 @@ import { createSubAgentTool, type SubAgentToolDeps } from "./sub-agent.js";
 import type { Skill } from "../skills/types.js";
 import { MAX_ARGS_SUMMARY_LENGTH } from "../util/constants.js";
 import { defaultResultSummary, formatDuration, summarizeText, toErrorMessage } from "../util/text.js";
-import type { TextResult } from "./types.js";
+import type { ToolResult } from "./types.js";
 
 export class ToolRegistry {
   private tools = new Map<string, Tool>();
@@ -57,7 +57,7 @@ export class ToolRegistry {
     }
   }
 
-  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult> {
+  async execute(name: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) return toolError(`unknown tool ${name}`);
     try {
@@ -83,7 +83,7 @@ export class ToolRegistry {
     return this.tools.get(name)?.concurrencySafe === true;
   }
 
-  summarizeResult(name: string, result: TextResult, durationMs: number): string {
+  summarizeResult(name: string, result: ToolResult, durationMs: number): string {
     const tool = this.tools.get(name);
     let resultSummary: string;
     try {

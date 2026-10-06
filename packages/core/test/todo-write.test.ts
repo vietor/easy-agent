@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createTodoWriteTool } from "../src/tools/todo-write.js";
 import type { Todo } from "../src/tools/types.js";
-import type { TextResult } from "../src/tools/types.js";
+import type { ToolResult } from "../src/tools/types.js";
 
 function makeTool() {
   let current: Todo[] | null = null;
@@ -30,7 +30,7 @@ test("valid list replaces the store and reports counts", async () => {
 test("non-array todos is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
-  const result = await tool.execute({ todos: "oops" }, { cwd: process.cwd() }) as TextResult;
+  const result = await tool.execute({ todos: "oops" }, { cwd: process.cwd() }) as ToolResult;
   assert.equal(result.isError, true);
   assert.match(result.content, /must be an array/);
   assert.equal(getTodos()?.length, 1);
@@ -39,7 +39,7 @@ test("non-array todos is an error and leaves the list untouched", async () => {
 test("missing todos is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
-  const result = await tool.execute({}, { cwd: process.cwd() }) as TextResult;
+  const result = await tool.execute({}, { cwd: process.cwd() }) as ToolResult;
   assert.equal(result.isError, true);
   assert.equal(getTodos()?.length, 1);
 });
@@ -73,7 +73,7 @@ test("normalizes to a single inProgress", async () => {
 test("unknown status is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
-  const result = await tool.execute({ todos: [{ content: "c", status: "weird" }] }, { cwd: process.cwd() }) as TextResult;
+  const result = await tool.execute({ todos: [{ content: "c", status: "weird" }] }, { cwd: process.cwd() }) as ToolResult;
   assert.equal(result.isError, true);
   assert.match(result.content, /needs a "status"/);
   assert.deepEqual(getTodos(), [{ content: "a", status: "inProgress" }]);
@@ -99,7 +99,7 @@ test("normalizes snake_case, spaced, and capitalized status spellings", async ()
 test("an entry with empty content is an error and leaves the list untouched", async () => {
   const { tool, getTodos } = makeTool();
   await tool.execute({ todos: [{ content: "a", status: "pending" }] }, { cwd: process.cwd() });
-  const result = await tool.execute({ todos: [{ content: "  ", status: "pending" }] }, { cwd: process.cwd() }) as TextResult;
+  const result = await tool.execute({ todos: [{ content: "  ", status: "pending" }] }, { cwd: process.cwd() }) as ToolResult;
   assert.equal(result.isError, true);
   assert.match(result.content, /needs a non-empty "content"/);
   assert.deepEqual(getTodos(), [{ content: "a", status: "inProgress" }]);

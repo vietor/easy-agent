@@ -12,7 +12,7 @@ import type { Skill } from "../src/skills/types.js";
 import type { LLMAssistantMessage, LLMMessage } from "../src/llm/messages.js";
 import type { LLMClient } from "../src/llm/types.js";
 import type { Tool, Todo } from "../src/tools/types.js";
-import type { TextResult } from "../src/tools/types.js";
+import type { ToolResult } from "../src/tools/types.js";
 import { fakeLLM, sleep, toolCall, waitUntil, withTempDir } from "./helpers.js";
 import { INTERRUPTED_TOOL_CONTENT } from "../src/util/constants.js";
 
@@ -247,7 +247,7 @@ test("an aborted turn reports the tool calls that finished and interrupts the re
       parameters: { type: "object", properties: {} },
       execute: () => {
         controller.abort();
-        return new Promise<TextResult>(() => {});
+        return new Promise<ToolResult>(() => {});
       },
     }],
   });
@@ -265,7 +265,7 @@ test("aborted run resolves hanging tool entries in the timeline", async () => {
     name: "Echo",
     description: "echo",
     parameters: { type: "object", properties: {} },
-    execute: () => new Promise<TextResult>(() => {}),
+    execute: () => new Promise<ToolResult>(() => {}),
   });
   const { llm } = fakeLLM([() => toolCall("Echo")]);
   const session = new Session({
@@ -509,8 +509,8 @@ test("a tool resolving after the run settles cannot mutate the conversation", as
 test("a tool resolving after an aborted run cannot leak into the next run", async () => {
   await withTempDir(async (dir) => {
     const tools = new ToolRegistry();
-    let release!: (result: TextResult) => void;
-    const gate = new Promise<TextResult>((r) => { release = r; });
+    let release!: (result: ToolResult) => void;
+    const gate = new Promise<ToolResult>((r) => { release = r; });
     tools.register({
       name: "Slow",
       description: "slow",

@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-export interface TextResult {
+export interface ToolResult {
   content: string;
   isError?: boolean;
   structured?: unknown;
 }
 
-export function toolError(msg: string): TextResult {
+export function toolError(msg: string): ToolResult {
   const content = msg.startsWith("Error: ") ? msg : `Error: ${msg}`;
   return { content: content, isError: true };
 }
@@ -73,6 +73,6 @@ export interface Tool {
   maxResultSizeBytes?: number;
   persist?: boolean;
   summarizeArgs?: (args: Record<string, unknown>) => string;
-  summarizeResult?(result: TextResult): string;
-  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;
+  summarizeResult?(result: ToolResult): string;
+  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult>;
 }

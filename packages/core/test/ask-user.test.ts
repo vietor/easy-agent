@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createAskUserTool, type AskQuestion } from "../src/tools/ask-user.js";
-import type { TextResult } from "../src/tools/types.js";
+import type { ToolResult } from "../src/tools/types.js";
 
 function makeTool() {
   let received: AskQuestion[] | null = null;
@@ -56,7 +56,7 @@ test("invalid inputs error without calling ask", async () => {
     { questions: [{ question: "", options: [{ label: "a" }, { label: "b" }] }] },
   ];
   for (const args of cases) {
-    const result = await tool.execute(args as Record<string, unknown>, { cwd: process.cwd() }) as TextResult;
+    const result = await tool.execute(args as Record<string, unknown>, { cwd: process.cwd() }) as ToolResult;
     assert.equal(result.isError, true);
   }
   assert.equal(called, false);

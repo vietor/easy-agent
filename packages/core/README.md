@@ -546,8 +546,8 @@ interface Tool {
   parameters: Record<string, unknown>;   // JSON Schema object
   argSummaryKeys?: string[];                // parameter keys used for display summary
   summarizeArgs?: (args: Record<string, unknown>) => string; // custom summary function
-  summarizeResult?(result: TextResult): string; // result summary for timeline display
-  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<TextResult>;
+  summarizeResult?(result: ToolResult): string; // result summary for timeline display
+  execute(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult>;
 }
 ```
 
@@ -555,7 +555,7 @@ interface Tool {
 - `concurrencySafe` (optional, default `false`) declares whether the tool may run concurrently with other tool calls from the same turn. A turn's calls are split into consecutive runs: a run of `concurrencySafe` calls executes together (up to `maxParallelToolCalls`), and every other call runs on its own, with nothing else in flight. The default is fail-closed, so custom and MCP tools run one at a time until you opt them in; declare it only for tools that read without mutating state. Marked by default: Read, Glob, Grep, WebFetch, and SubAgent.
 - `parameters` is passed to the LLM as a JSON Schema to describe the tool's arguments.
 - When the LLM calls a tool, `execute` receives the parsed arguments and a context object.
-- `execute` returns a `TextResult` (`{ content, isError? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
+- `execute` returns a `ToolResult` (`{ content, isError? }`). Expected failures return `toolError(...)` (exported from the package); unexpected errors may throw and are wrapped by the registry.
 - `argSummaryKeys` / `summarizeArgs` control what appears in the tool log entry's `argsSummary` field.
 - `summarizeResult` (optional) returns a short result summary for timeline display. Called after execution with the result; the registry prefixes the wall-clock duration. Falls back to a default summary (byte/line count) when not defined.
 
@@ -569,10 +569,10 @@ interface ToolContext {
 }
 ```
 
-### `TextResult`
+### `ToolResult`
 
 ```ts
-interface TextResult {
+interface ToolResult {
   content: string;
   isError?: boolean;
 }

@@ -29,7 +29,7 @@ import type { SessionEvent } from "./events.js";
 import type { Skill } from "../skills/types.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolContext, Todo } from "../tools/types.js";
-import { toolError, type TextResult } from "../tools/types.js";
+import { toolError, type ToolResult } from "../tools/types.js";
 
 export type RunStatus = "ok" | "aborted" | "error" | "stalled" | "maxTurns";
 
@@ -412,7 +412,7 @@ export class Agent {
     onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, argsSummary });
     const ctx: ToolContext = { signal, cwd: this.cwd, toolCallId: call.id };
     const start = performance.now();
-    const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
+    const result: ToolResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;
     const summary = this.tools.summarizeResult(call.function.name, result, duration);
     const captured = await this.captureLargeOutput(call.function.name, result);
@@ -425,7 +425,7 @@ export class Agent {
 
   private async captureLargeOutput(
     name: string,
-    result: TextResult
+    result: ToolResult
   ): Promise<{ content: string; outputPath?: string; truncated?: boolean }> {
     const { content, structured } = result;
     if (!this.scratchDir) return { content };
