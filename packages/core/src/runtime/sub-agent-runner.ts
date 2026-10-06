@@ -1,6 +1,7 @@
 import { SessionMessages, type SessionMessage } from "./session-messages.js";
 import { Agent, type RunLimits, type RunStatus } from "./agent.js";
 import { renderEnvironment, renderToolUsePrompt, TOOL_OUTPUT_GUIDANCE } from "./prompts.js";
+import type { SessionEvent } from "./events.js";
 import type { LLMClient, LLMUsage } from "../llm/types.js";
 import { isGrantedAtLevel, type AgentLevel } from "../tools/types.js";
 import { ToolRegistry } from "../tools/registry.js";
@@ -16,6 +17,7 @@ interface SubAgentRunOptions extends RunLimits {
   maxSubAgentDepth: number;
   budget?: SubAgentBudget;
   onUsage?: (usage: LLMUsage) => void;
+  onEvent?: (e: SessionEvent) => void;
 }
 
 export interface SubAgentRunResult {
@@ -95,7 +97,7 @@ export async function runSubAgent(
   level: AgentLevel,
   signal?: AbortSignal
 ): Promise<SubAgentRunResult> {
-  const { llm, tools, cwd, onUsage, depth, maxSubAgentDepth, budget, ...limits } = opts;
+  const { llm, tools, cwd, onUsage, onEvent, depth, maxSubAgentDepth, budget, ...limits } = opts;
   if (budget && !budget.tryAcquire()) {
     if (depth > 1) {
       throw new Error(`sub-agent limit reached: ${budget.limit} sub-agents are already running in this session; do not retry in this turn — once the running sub-agents report back, delegate the remaining work in a later turn, or do this work yourself with the tools you have`);
@@ -125,7 +127,7 @@ export async function runSubAgent(
       getTodos: () => [],
       ...limits,
     });
-    const status = await subAgent.run(task, undefined, signal);
+    const status = await subAgent.run(task, onEvent, signal);
     if (depth === 1 && status !== "ok") budget?.reportFailure();
     onUsage?.(subAgent.usage);
     const reply = conversation.lastAssistantText() || `(sub-agent produced no final text; status ${status})`;

@@ -311,7 +311,7 @@ export class Session {
       setTodos: (t) => this.setTodos(t),
       resolveSkill: deps.skills?.length ? this.resolveSkill : undefined,
       subAgent: {
-        runSubAgent: (systemPrompt, task, level, signal) =>
+        runSubAgent: (systemPrompt, task, level, signal, toolCallId) =>
           runSubAgent({
             llm: deps.llm,
             tools: this.tools,
@@ -322,6 +322,7 @@ export class Session {
             ...this.limits,
             maxTurns: maxSubAgentTurns,
             onUsage: (usage) => this.agent.addUsage(usage),
+            onEvent: toolCallId ? (e) => this.emit({ type: "sub_agent_event", toolCallId, event: e }) : undefined,
           }, systemPrompt, task, level, signal),
       },
     });

@@ -7,6 +7,7 @@ import { createSubAgentTool, renderSubAgentGuidance } from "../src/tools/sub-age
 import { SubAgentBudget, runSubAgent } from "../src/runtime/sub-agent-runner.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions, LLMClient } from "../src/llm/types.js";
+import type { SessionEvent } from "../src/runtime/events.js";
 import type { Tool } from "../src/tools/types.js";
 import { fakeLLM, toolCall, withUsage } from "./helpers.js";
 
@@ -524,4 +525,66 @@ test("the SubAgent tool result carries the report", async () => {
   const failedResult = await failed.execute({ type: "explore", task: "x" }, { cwd: process.cwd() });
   assert.equal(failedResult.isError, true);
   assert.match(String(failedResult.content), /^Sub-agent "Explore" ended with status stalled\.\n\ngave up$/);
+});
+
+test("the SubAgent tool passes the id of its own tool call to the runner", async () => {
+  let received: string | undefined;
+  const tool = createSubAgentTool({
+    runSubAgent: async (_systemPrompt, _task, _level, _signal, toolCallId) => {
+      received = toolCallId;
+      return { status: "ok", reply: "report", messages: [] };
+    },
+  });
+  const { llm } = fakeLLM([
+    () => toolCall("SubAgent", JSON.stringify({ type: "explore", task: "x" }), "s1"),
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const tools = new ToolRegistry();
+  tools.register(tool);
+  const agent = new Agent({
+    llm,
+    conversation: new SessionMessages("system prompt"),
+    tools,
+    cwd: process.cwd(),
+    getTodos: () => [],
+    stallThreshold: 3,
+    maxTurns: 50,
+    maxParallelToolCalls: 10,
+    contextLimit: 750_000,
+  });
+  assert.equal(await agent.run("go"), "ok");
+  assert.equal(received, "s1");
+});
+
+test("a sub-agent's stream events are forwarded to the run's onEvent", async () => {
+  const { llm } = fakeLLM([
+    (opts) => {
+      opts.onDelta?.("child text");
+      return toolCall("Read", JSON.stringify({ path: "a.ts" }), "n1");
+    },
+    () => ({ role: "assistant", content: "done" }),
+  ]);
+  const tools = new ToolRegistry();
+  tools.registerAll(SUB_TOOLS);
+  const events: SessionEvent[] = [];
+  const result = await runSubAgent(
+    {
+      llm,
+      tools,
+      cwd: process.cwd(),
+      depth: 1,
+      maxSubAgentDepth: 3,
+      maxTurns: 50,
+      stallThreshold: 3,
+      maxParallelToolCalls: 10,
+      contextLimit: 750_000,
+      onEvent: (e) => events.push(e),
+    },
+    "You are the Explore sub-agent.",
+    "task",
+    1
+  );
+  assert.equal(result.status, "ok");
+  assert.ok(events.some((e) => e.type === "tool_start" && e.id === "n1"));
+  assert.ok(events.some((e) => e.type === "assistant_delta" && e.text === "child text"));
 });

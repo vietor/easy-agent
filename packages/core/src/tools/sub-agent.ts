@@ -10,7 +10,7 @@ const TASK_ERROR = "task is required";
 const LABEL_ERROR = "label must be a string";
 
 export interface SubAgentToolDeps {
-  runSubAgent: (systemPrompt: string, task: string, level: AgentLevel, signal?: AbortSignal) => Promise<SubAgentRunResult>;
+  runSubAgent: (systemPrompt: string, task: string, level: AgentLevel, signal?: AbortSignal, toolCallId?: string) => Promise<SubAgentRunResult>;
 }
 
 const CAPABILITY_CONTRACT = [
@@ -159,7 +159,7 @@ export function createSubAgentTool(deps: SubAgentToolDeps, readOnlySession = fal
       const { type, task } = parsed.value;
       const def = defByType[type];
 
-      const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal);
+      const { status, reply, messages } = await deps.runSubAgent(def.systemPrompt, task, def.level, ctx.signal, ctx.toolCallId);
 
       if (status === "ok") return { content: reply };
       let stallReason: string | undefined;

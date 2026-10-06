@@ -32,6 +32,7 @@ export class TimelineStore {
       case "thinking_delta":
       case "thinking_cleared":
       case "todos_changed":
+      case "sub_agent_event":
       case "run_metrics":
         break;
       default:

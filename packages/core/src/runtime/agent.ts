@@ -410,7 +410,7 @@ export class Agent {
     const argsError = parsed.ok ? undefined : toolError(`invalid arguments: ${parsed.error}`);
     const argsSummary = this.tools.summarizeArgs(call.function.name, args);
     onEvent?.({ type: "tool_start", id: call.id, name: call.function.name, argsSummary });
-    const ctx: ToolContext = { signal, cwd: this.cwd };
+    const ctx: ToolContext = { signal, cwd: this.cwd, toolCallId: call.id };
     const start = performance.now();
     const result: TextResult = argsError ?? await this.tools.execute(call.function.name, args, ctx);
     const duration = performance.now() - start;

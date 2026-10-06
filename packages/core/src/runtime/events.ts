@@ -29,6 +29,7 @@ export type StreamEvent =
   | { type: "tool_start"; id: string; name: string; argsSummary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "todos_changed"; todos: Todo[] }
+  | { type: "sub_agent_event"; toolCallId: string; event: SessionEvent }
   | ({ type: "run_metrics" } & RunMetrics);
 
 export type SessionEvent = TimelineEvent | StreamEvent;

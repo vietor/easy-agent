@@ -12,6 +12,7 @@ import { MCPServerManager } from "../src/mcp/manager.js";
 import { fakeLLM, waitUntil, withTempDir, withUsage } from "./helpers.js";
 import type { LLMAssistantMessage } from "../src/llm/messages.js";
 import type { ChatOptions } from "../src/llm/types.js";
+import type { SessionEvent } from "../src/runtime/events.js";
 import type { Todo } from "../src/tools/types.js";
 
 function todoCall(todos: unknown, id: string): LLMAssistantMessage {
@@ -93,6 +94,44 @@ test("usage from a nested sub-agent is counted once at the session", async () =>
     { cacheInputTokens: final.cacheInputTokens, missInputTokens: final.missInputTokens, outputTokens: final.outputTokens },
     { cacheInputTokens: 15, missInputTokens: 150, outputTokens: 15 }
   );
+});
+
+test("sub-agent activity reaches onEvent as sub_agent_event tagged with the parent tool call", async () => {
+  const session = makeSessionWithSubAgent([
+    () => subAgentCall("find X", "s1"),
+    () => subAgentCall("drill deeper", "n1"),
+    (opts) => {
+      opts.onDelta?.("GRANDCHILD");
+      return { role: "assistant", content: "GRANDCHILD REPORT" };
+    },
+    () => ({ role: "assistant", content: "CHILD REPORT" }),
+    (opts) => {
+      opts.onDelta?.("PARENT DONE");
+      return { role: "assistant", content: "PARENT DONE" };
+    },
+  ]);
+  const events: SessionEvent[] = [];
+  session.onEvent((e) => events.push(e));
+
+  const result = await session.prompt("go");
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.reply, "PARENT DONE");
+  const start = events.find(
+    (e): e is Extract<SessionEvent, { type: "tool_start" }> => e.type === "tool_start" && e.name === "SubAgent"
+  );
+  assert.ok(start);
+  const inner = events.filter(
+    (e): e is Extract<SessionEvent, { type: "sub_agent_event" }> => e.type === "sub_agent_event"
+  );
+  assert.ok(inner.length > 0, "a sub-agent run must surface its events");
+  for (const e of inner) assert.equal(e.toolCallId, start.id);
+  assert.ok(inner.some((e) => e.event.type === "tool_start" && e.event.id === "n1"));
+  assert.ok(inner.some((e) => e.event.type === "assistant_delta" && e.event.text === "GRANDCHILD"));
+
+  assert.ok(!events.some((e) => e.type === "assistant_delta" && e.text === "GRANDCHILD"), "grandchild text must not leak into the parent stream");
+  assert.ok(!events.some((e) => e.type === "tool_start" && e.id === "n1"), "nested tool calls must not surface at the top level");
+  assert.ok(!session.getSnapshot().timeline.some((t) => t.type === "tool" && t.id === "n1"), "nested tool calls must not enter the timeline");
 });
 
 test("a new prompt clears the all-completed todo list from the session view", async () => {

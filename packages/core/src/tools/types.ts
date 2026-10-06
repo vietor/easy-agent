@@ -53,6 +53,7 @@ export interface Todo {
 export interface ToolContext {
   cwd: string;
   signal?: AbortSignal;
+  toolCallId?: string;
 }
 
 export type AgentLevel = 0 | 1 | 2;
