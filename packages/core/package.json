@@ -12,7 +12,8 @@
     "./util": {
       "types": "./dist/util/index.d.ts",
       "import": "./dist/util/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"

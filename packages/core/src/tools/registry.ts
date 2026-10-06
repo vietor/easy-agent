@@ -130,7 +130,7 @@ interface BuiltinToolsDeps {
   subAgent: SubAgentToolDeps;
 }
 
-const BUILTIN_TOOLS: Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, shellTool, fileWriteTool, fileEditTool];
+export const BUILTIN_TOOLS: readonly Tool[] = [fileReadTool, globTool, grepTool, webFetchTool, shellTool, fileWriteTool, fileEditTool];
 
 export function registerBuiltinTools(tools: ToolRegistry, opts: BuiltinToolsOptions | false | undefined, deps: BuiltinToolsDeps) {
   if (opts === false) return;
