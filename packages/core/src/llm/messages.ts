@@ -1,8 +1,14 @@
 import { toErrorMessage } from "../util/text.js";
+import type { ImageMediaType } from "../util/file.js";
 
 export interface TextContentPart {
   type: "text";
   text: string;
+}
+
+export interface ImagePart {
+  mimeType: ImageMediaType;
+  data: string;
 }
 
 export interface ToolCall {
@@ -33,7 +39,7 @@ export type LLMMessage =
   | { role: "system"; content: string | TextContentPart[] }
   | { role: "user"; content: string | TextContentPart[]; name?: string }
   | LLMAssistantMessage
-  | { role: "tool"; tool_call_id: string; content: string; isError?: boolean };
+  | { role: "tool"; tool_call_id: string; content: string; isError?: boolean; images?: ImagePart[] };
 
 export function toText(content: string | TextContentPart[] | null | undefined): string {
   if (!content) return "";

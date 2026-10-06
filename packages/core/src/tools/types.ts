@@ -1,9 +1,11 @@
 import { z } from "zod";
+import type { ImagePart } from "../llm/messages.js";
 
 export interface ToolResult {
   content: string;
   isError?: boolean;
   structured?: unknown;
+  images?: ImagePart[];
 }
 
 export function toolError(msg: string): ToolResult {
@@ -54,6 +56,7 @@ export interface ToolContext {
   cwd: string;
   signal?: AbortSignal;
   toolCallId?: string;
+  vision?: boolean;
 }
 
 export type AgentLevel = 0 | 1 | 2;

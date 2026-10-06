@@ -19,6 +19,29 @@ export function resolveSearchPath(path: string | undefined, cwd: string): { cwd:
 
 const BINARY_SCAN_BYTES = 8 * 1024;
 
+export type ImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+
+export function imageMediaType(buffer: Buffer, bufferSize: number): ImageMediaType | undefined {
+  const size = Math.min(buffer.length, bufferSize);
+  if (size >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return "image/png";
+  }
+  if (size >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (size >= 4 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+    return "image/gif";
+  }
+  if (
+    size >= 12 &&
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  return undefined;
+}
+
 export function isBinaryContent(buffer: Buffer, bufferSize: number): boolean {
   const scanSize = Math.min(buffer.length, BINARY_SCAN_BYTES, bufferSize);
 

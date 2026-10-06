@@ -1,6 +1,7 @@
 export const DEFAULT_PROCESS_BUFFER_MB = 10;
 export const MAX_WEB_FETCH_MB = 10;
 export const MAX_FILE_READ_MB = 20;
+export const MAX_IMAGE_READ_MB = 3;
 export const CALL_TIMEOUT_MS = 300_000;
 export const REQUEST_TIMEOUT_MS = 60_000;
 export const MCP_CONNECT_TIMEOUT_MS = 30_000;
@@ -33,6 +34,7 @@ export const RETRY_AFTER_MAX_MS = 60_000;
 export const MAX_TOOL_OUTPUT_BYTES = 50 * 1024;
 export const MAX_TOOL_OUTPUT_LINES = 2000;
 export const MAX_SHELL_OUTPUT_MB = 20;
+export const IMAGE_TOKEN_ESTIMATE = 1600;
 export const PRUNE_PROTECT_TOKENS = 40_000;
 export const PRUNE_MIN_CLEAR_RATIO = 0.3;
 export const CONTEXT_LIMIT_RATIO = 0.75;

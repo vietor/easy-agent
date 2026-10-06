@@ -21,6 +21,6 @@ export { tryLoadSkills } from "./skills/loader.js";
 export { MCPServerConfigSchema, type MCPClientInfo, type MCPServerConfig, type ResolvedMCPServerConfig, type MCPServerType, type MCPServerInfo } from "./mcp/types.js";
 export { LLMConfigSchema, type LLMConfig, type ResolvedLLMConfig, type LLMThinkingEffort, type LLMBackend, type ToolSchema, type LLMUsage, type LLMClient, type ChatOptions, type LLMAdapter } from "./llm/types.js";
 export { createLLM, isLLMClient, withRetryChat } from "./llm/client.js";
-export type { LLMMessage, LLMAssistantMessage, ThinkingBlock, RedactedThinkingBlock, TextContentPart, ToolCall } from "./llm/messages.js";
+export type { LLMMessage, LLMAssistantMessage, ThinkingBlock, RedactedThinkingBlock, TextContentPart, ImagePart, ToolCall } from "./llm/messages.js";
 export { z } from "zod";
 export { createSession, buildSystemPrompt, SYSTEM_PROMPT_BOUNDARY } from "./create-session.js";
