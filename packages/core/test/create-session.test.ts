@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { buildSystemPrompt, createSession } from "../src/create-session.js";
 import { DIR_RETENTION_MS } from "../src/util/constants.js";
 import type { MCPServerConfig } from "../src/mcp/types.js";
+import type { SessionEvent } from "../src/runtime/events.js";
 import { fakeLLM } from "./helpers.js";
 
 const llm = { baseUrl: "http://localhost:1", apiKey: "test", model: "test" };
@@ -52,6 +53,16 @@ test("creating a session does not wait for MCP servers to connect", async () => 
   const started = Date.now();
   const session = await createSession({ systemPrompt: "test", llm, builtInTools: false, mcpServers: servers });
   assert.ok(Date.now() - started < 2000);
+  session.dispose();
+});
+
+test("connectMCP emits mcp_changed once the servers settle", async () => {
+  const session = await createSession({ systemPrompt: "test", llm, builtInTools: false });
+  const events: SessionEvent[] = [];
+  session.onEvent((e) => events.push(e));
+  await session.connectMCP({});
+  assert.deepEqual(events, [{ type: "mcp_changed" }]);
+  assert.deepEqual(session.getSnapshot().timeline, []);
   session.dispose();
 });
 

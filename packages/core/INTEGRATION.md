@@ -125,4 +125,4 @@ See the README's **Custom LLM clients** section for the full contract. The essen
 | Survive busy sessions | Check `session.running` / catch `SessionBusyError`; queueing is host policy |
 | Shut down cleanly | `await save()` (when desired) + `dispose()` |
 | Resume a session | Construct with the same `sessionId` + `sessionDir`, or seed with `importPath` |
-| Know when MCP is ready | `session.mcpServers`, or `await connectMCP` yourself |
+| Know when MCP is ready | `mcp_changed`, `session.mcpServers`, or `await connectMCP` yourself |

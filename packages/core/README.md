@@ -245,6 +245,7 @@ type StreamEvent =
   | { type: "tool_start"; id: string; name: string; argsSummary: string }
   | { type: "tool_end"; id: string; result: string; isError?: boolean; resultSummary?: string }
   | { type: "todos_changed"; todos: Todo[] }
+  | { type: "mcp_changed" }
   | { type: "sub_agent_event"; toolCallId: string; event: SessionEvent }
   | ({ type: "run_metrics" } & RunMetrics);
 ```
@@ -260,6 +261,7 @@ type StreamEvent =
 | `tool_start` | A tool call starts. | ✓ (stored as `tool`) |
 | `tool_end` | A tool call finishes. | — (merged into its `tool` entry) |
 | `todos_changed` | The todo list changed: TodoWrite, `clear()`, or the run-end clear of an all-completed list. Payload is the new list. | — |
+| `mcp_changed` | MCP server connections settled for a `connectMCP` call: servers connected, failed, or were skipped, and the tool registry — and so `contextTokens` — may have changed. | — |
 | `sub_agent_event` | An event from a running sub-agent, wrapped with the id of the parent SubAgent tool call. | — |
 | `retry` | The LLM client retries after a transient API error. | ✓ |
 | `error` | An error occurred. | ✓ |
@@ -269,6 +271,8 @@ type StreamEvent =
 | `run_metrics` | Run metrics change: at run start, every second, and at run end (`running: false`). | — |
 
 **`todos_changed`** is the push counterpart of `getSnapshot().todos`: emitted on every mutation (including TodoWrite's normalizations), carrying the same list the view will report. `subscribe`/`getSnapshot` keep working unchanged; the event is for consumers that render from the stream alone.
+
+**`mcp_changed`** is emitted once per `connectMCP` call after every configured server has settled. Timeline and `getSnapshot()` are untouched — it exists so hosts can refresh MCP-derived state (e.g. `contextTokens`, `mcpServers`) instead of polling, since `createSession` connects `mcpServers` in the background.
 
 **Sub-agent events.** A running sub-agent's own events (`assistant_delta`, `thinking_delta`, `tool_start`/`tool_end`, `retry`, `error`, `interrupted`, `notice`) are re-emitted on the session's `onEvent` as `sub_agent_event`, each tagged with the `toolCallId` of the SubAgent call that started it — so concurrent delegations can be attributed exactly. A nested delegation (a sub-agent spawning a sub-agent) is tagged with the same session-level call id that began the tree. These events never enter the session timeline and never touch the parent's stream buffer — accumulate them per `toolCallId` (keyed from the SubAgent `tool_start.id`) if you render a live view of each delegation. One difference from the top-level stream: a nested stream carries no `thinking_cleared` (flushing is the Session layer's job), so drop accumulated nested thinking when the next nested `assistant_delta`, `tool_start`, or `error` arrives, or when the parent delegation's `tool_end` closes it.
 

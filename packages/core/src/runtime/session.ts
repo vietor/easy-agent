@@ -469,6 +469,7 @@ export class Session {
 
   async connectMCP(servers: Record<string, MCPServerConfig>): Promise<void> {
     await this.mcp.connect(servers);
+    this.emit({ type: "mcp_changed" });
   }
 
   dispose(): void {
