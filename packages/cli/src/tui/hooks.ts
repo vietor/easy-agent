@@ -28,6 +28,7 @@ export function useSessionStream(session: Session) {
   const streaming = useThrottledText(FRAME_MS);
   const thinking = useThrottledText(FRAME_MS);
   const [showThinking, setShowThinking] = useState(false);
+  const [, setMcpTick] = useState(0);
 
   useEffect(() => {
     const unsub = session.onEvent((e: SessionEvent) => {
@@ -46,6 +47,9 @@ export function useSessionStream(session: Session) {
         case "retry":
         case "interrupted":
           streaming.reset();
+          break;
+        case "mcp_changed":
+          setMcpTick((t) => t + 1);
           break;
         case "run_metrics":
           setRunMetrics(e);
