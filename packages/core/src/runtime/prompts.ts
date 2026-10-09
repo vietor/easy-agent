@@ -5,23 +5,30 @@ const TOOL_USE_HEADER = [
   "Tool-Use Guidelines:",
   "The user's instructions in the preceding sections take precedence over these defaults.",
   "",
-  "- Prefer emitting independent tool calls together in one turn so they run concurrently (2-8 calls per turn is normal); do not batch calls that depend on a prior result or that modify the same file or resource.",
-  "- Scale planning: when a task involves many independent items (queries, reads, searches), estimate the count up front and pick a strategy: a few — do them directly; more — spread over a few turns with several calls per turn; a whole repository — map its structure before reading anything, then work module by module instead of file by file.",
-  "- A run has a limited budget of tool-calling turns. If a task needs far more turns than the budget, do not work item-by-item in the main loop: finish the highest-value items and report what remains — never silently narrow the scope.",
 ];
+
+const SCALE_PLANNING_LINE =
+  "- Scale planning: when a task involves many independent items (queries, reads, searches), estimate the count up front and pick a strategy: a few — do them directly; more — spread over a few turns with several calls per turn; a whole repository — map its structure first, then work module by module.";
+const BUDGET_STRATEGY_LINE =
+  "- A run has a limited budget of tool-calling turns. If a task needs far more turns than the budget, do not work item-by-item in the main loop: finish the highest-value items and report what remains — never silently narrow the scope.";
 
 const FILE_TOOLS_LINE = "- For file operations (Read/Write/Edit/Glob/Grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.";
 const READ_ONLY_TOOLS_LINE = "- For reading files (Read/Glob/Grep) and fetching URLs, use the dedicated tool. The built-in tools that modify files or run Shell are disabled in this session; do not reach for another tool to work around that.";
 const TOOL_FAILURE_LINE = "- If a tool call fails, read the error, adjust the arguments or approach, and continue; do not repeat the identical call and do not abandon the task over a single failure.";
 
-export function renderToolUsePrompt(maxTurns: number, mode: "full" | "readOnly" | "none" = "full", notesPath?: string): string {
-  const lines = [...TOOL_USE_HEADER];
+export function renderToolUsePrompt(maxTurns: number, maxParallelToolCalls: number, mode: "full" | "readOnly" | "none" = "full", notesPath?: string): string {
+  const lines = [
+    ...TOOL_USE_HEADER,
+    `- Prefer emitting independent tool calls together in one turn so they run concurrently (up to ${maxParallelToolCalls} at a time); do not batch calls that depend on a prior result or that modify the same file or resource.`,
+    SCALE_PLANNING_LINE,
+    BUDGET_STRATEGY_LINE,
+  ];
   if (mode === "full") lines.push(FILE_TOOLS_LINE);
   else if (mode === "readOnly") lines.push(READ_ONLY_TOOLS_LINE);
   if (mode === "full" && notesPath) lines.push(renderNotesLine(notesPath));
   lines.push(
     TOOL_FAILURE_LINE,
-    `- Turn budget: ${maxTurns} tool-calling turns per run. You are warned in-band each turn once only a few are left, and the turn after the budget is spent is reserved for your final answer, with all tools disabled.`
+    `- Turn budget: ${maxTurns} tool-calling turns per run. You are warned in-band during the last ${Math.round(TURN_BUDGET_WARN_RATIO * 100)}% of the budget, and the turn after the budget is spent is reserved for your final answer, with all tools disabled.`
   );
   return lines.join("\n");
 }
@@ -81,7 +88,7 @@ export function renderTodoReminder(todos: readonly Todo[]): string {
   const focusLine = focus ? ` Current focus: ${focus.content}` : "";
   const incomplete = todos.filter(t => t.status !== "completed");
   const warning = incomplete.length > 0
-    ? ` ${incomplete.length} incomplete. You MUST complete EVERY task before your final text-only response. Mark them complete via TodoWrite as they finish — never mark one complete that you have not verified; the final update may go in the same turn as your last tool call.`
+    ? ` ${incomplete.length} incomplete. Finish them, or rewrite the list to what actually remains, before your final text-only response. Mark them complete via TodoWrite as they finish — never mark one complete that you have not verified; the final update may go in the same turn as your last tool call.`
     : "";
   return `<system-reminder>Tasks: ${items.join(" | ")}${focusLine}${warning}</system-reminder>`;
 }

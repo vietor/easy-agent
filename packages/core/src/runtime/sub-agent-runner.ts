@@ -107,7 +107,7 @@ export async function runSubAgent(
   try {
     const mode = level === 1 ? "readOnly" : "full";
     const canSpawn = depth < maxSubAgentDepth;
-    const prompt = [systemPrompt, renderEnvironment(cwd), renderToolUsePrompt(limits.maxTurns, mode)];
+    const prompt = [systemPrompt, renderEnvironment(cwd), renderToolUsePrompt(limits.maxTurns, limits.maxParallelToolCalls, mode)];
     if (limits.scratchDir) prompt.push(TOOL_OUTPUT_GUIDANCE);
     prompt.push(canSpawn ? renderSubAgentGuidance(mode === "readOnly", limits.maxParallelToolCalls, limits.maxTurns, budget?.limit) : SUB_AGENT_DENIED_GUIDANCE);
     const conversation = new SessionMessages(prompt.join("\n\n"));

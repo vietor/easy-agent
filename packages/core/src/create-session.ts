@@ -30,7 +30,7 @@ export function buildSystemPrompt(base: string, opts: SessionOptions, limits: Sy
   const { builtInTools, scratchDir, skills } = opts;
   const { maxTurns, maxParallelToolCalls, maxSubAgentTurns } = limits;
   const mode = builtInTools === false ? "none" : builtInTools?.readOnly === true ? "readOnly" : "full";
-  const toolUseLines = [renderToolUsePrompt(maxTurns, mode, scratchDir ? notesFilePath(scratchDir) : undefined)];
+  const toolUseLines = [renderToolUsePrompt(maxTurns, maxParallelToolCalls, mode, scratchDir ? notesFilePath(scratchDir) : undefined)];
   if (scratchDir) toolUseLines.push(TOOL_OUTPUT_GUIDANCE);
   if (typeof builtInTools === "object") {
     if (builtInTools.todoWrite) toolUseLines.push(TODO_WRITE_GUIDANCE);
@@ -47,7 +47,7 @@ export function buildSystemPrompt(base: string, opts: SessionOptions, limits: Sy
   parts.push(toolUseLines.join("\n"));
   if (skills?.length) {
     const lines = skills.map((s) => `- \`${s.name}\`: ${s.description || "no description"}`);
-    parts.push(["Available skills (call via the Skill tool):", ...lines].join("\n"));
+    parts.push(["Available skills (invoke via the Skill tool when the task matches):", ...lines].join("\n"));
   }
   return parts.join(SYSTEM_PROMPT_BOUNDARY);
 }
