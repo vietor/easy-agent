@@ -17,7 +17,7 @@ async function withDir(fn: (dir: string) => Promise<void>): Promise<void> {
 test("write creates a file and its parent directories", async () => {
   await withDir(async (dir) => {
     const result = await fileWriteTool.execute({ path: "nested/a.txt", content: "one" }, { cwd: dir });
-    assert.equal(result.content, "Wrote nested/a.txt");
+    assert.equal(result.content, "Wrote nested/a.txt (no need to Read it back — the file is current)");
     assert.equal(await readFile(join(dir, "nested", "a.txt"), "utf-8"), "one");
   });
 });
@@ -29,7 +29,7 @@ test("write overwrites by default and appends when append is set", async () => {
     assert.equal(await readFile(join(dir, "a.txt"), "utf-8"), "two");
 
     const result = await fileWriteTool.execute({ path: "a.txt", content: "three", append: true }, { cwd: dir });
-    assert.equal(result.content, "Appended to a.txt");
+    assert.equal(result.content, "Appended to a.txt (no need to Read it back — the file is current)");
     assert.equal(await readFile(join(dir, "a.txt"), "utf-8"), "twothree");
   });
 });

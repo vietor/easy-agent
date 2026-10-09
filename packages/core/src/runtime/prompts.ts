@@ -13,17 +13,18 @@ const BUDGET_STRATEGY_LINE =
   "- A run has a limited budget of tool-calling turns. If a task needs far more turns than the budget, do not work item-by-item in the main loop: finish the highest-value items and report what remains — never silently narrow the scope.";
 
 const FILE_TOOLS_LINE = "- For file operations (Read/Write/Edit/Glob/Grep) and fetching URLs, use the dedicated tool. Fall back to Shell only when no dedicated tool covers the task and Shell is available. A runtime error does not make Shell the fallback; do not retry that same operation through Shell.";
+const SHELL_BATCH_LINE = "- Each Shell call is a full round trip: chain commands into one invocation when you do not need to inspect intermediate output.";
 const READ_ONLY_TOOLS_LINE = "- For reading files (Read/Glob/Grep) and fetching URLs, use the dedicated tool. The built-in tools that modify files or run Shell are disabled in this session; do not reach for another tool to work around that.";
 const TOOL_FAILURE_LINE = "- If a tool call fails, read the error, adjust the arguments or approach, and continue; do not repeat the identical call and do not abandon the task over a single failure.";
 
 export function renderToolUsePrompt(maxTurns: number, maxParallelToolCalls: number, mode: "full" | "readOnly" | "none" = "full", notesPath?: string): string {
   const lines = [
     ...TOOL_USE_HEADER,
-    `- Prefer emitting independent tool calls together in one turn so they run concurrently (up to ${maxParallelToolCalls} at a time); do not batch calls that depend on a prior result or that modify the same file or resource.`,
+    `- If you intend to call multiple tools and there are no dependencies between the calls, make all of the independent calls in the same turn so they run concurrently (up to ${maxParallelToolCalls} at a time); a call that depends on a prior result, or that modifies the same file or resource as another call, belongs in a later turn. Never guess missing arguments or use placeholders.`,
     SCALE_PLANNING_LINE,
     BUDGET_STRATEGY_LINE,
   ];
-  if (mode === "full") lines.push(FILE_TOOLS_LINE);
+  if (mode === "full") lines.push(FILE_TOOLS_LINE, SHELL_BATCH_LINE);
   else if (mode === "readOnly") lines.push(READ_ONLY_TOOLS_LINE);
   if (mode === "full" && notesPath) lines.push(renderNotesLine(notesPath));
   lines.push(

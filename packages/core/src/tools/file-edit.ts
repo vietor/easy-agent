@@ -18,6 +18,20 @@ const EditArgs = z.object({
   replace_all: z.boolean({ error: REPLACE_ALL_ERROR }).optional().describe("replace all occurrences (default false)"),
 });
 
+const SNIPPET_CONTEXT_LINES = 3;
+
+function renderSnippet(updated: string, at: number, replacement: string): string {
+  const lines = updated.split(/\r?\n/);
+  const start = Math.max(0, updated.slice(0, at).split(/\r?\n/).length - 1 - SNIPPET_CONTEXT_LINES);
+  const end = Math.min(lines.length - 1, updated.slice(0, at + replacement.length).split(/\r?\n/).length - 1 + SNIPPET_CONTEXT_LINES);
+  const width = String(end + 1).length;
+  const shown: string[] = [];
+  for (let i = start; i <= end; i++) {
+    shown.push(`${String(i + 1).padStart(width, " ")}\t${lines[i]}`);
+  }
+  return shown.join("\n");
+}
+
 export const fileEditTool: Tool = {
   name: "Edit",
   agentLevel: 2,
@@ -39,8 +53,11 @@ export const fileEditTool: Tool = {
       const count = content.split(target).length - 1;
       if (count > 1) throw new Error(`old_string appears ${count} times in ${path}, must be unique (or set replace_all)`);
     }
-    await writeFile(resolved, content.split(target).join(replacement), "utf-8");
-    return { content: all ? `Edited ${path} (replaced all)` : `Edited ${path}` };
+    const at = content.indexOf(target);
+    const updated = all ? content.split(target).join(replacement) : content.slice(0, at) + replacement + content.slice(at + target.length);
+    await writeFile(resolved, updated, "utf-8");
+    const notice = `Edited ${path}${all ? " (replaced all)" : ""}. Changed region (cat -n format):`;
+    return { content: `${notice}\n${renderSnippet(updated, at, replacement)}\n(no need to Read it back — the region above is current)` };
   },
   summarizeResult(result) {
     if (result.isError) return "Edit failed";

@@ -27,10 +27,10 @@ export const fileWriteTool: Tool = {
     await mkdir(dirname(resolved), { recursive: true });
     if (append === true) {
       await appendFile(resolved, content, "utf-8");
-      return { content: `Appended to ${path}` };
+      return { content: `Appended to ${path} (no need to Read it back — the file is current)` };
     }
     await writeFile(resolved, content, "utf-8");
-    return { content: `Wrote ${path}` };
+    return { content: `Wrote ${path} (no need to Read it back — the file is current)` };
   },
   summarizeResult(result) {
     if (result.isError) return "Write failed";
