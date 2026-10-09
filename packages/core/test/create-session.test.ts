@@ -96,11 +96,12 @@ test("refuses an llm config whose output budget leaves no context room", async (
   );
 });
 
-test("the sub-agent guidance advertises the effective concurrency budget", () => {
+test("the sub-agent guidance caps per-turn calls by maxParallelToolCalls, not the concurrency budget", () => {
   const limits = { maxTurns: 50, maxParallelToolCalls: 10, maxSubAgentTurns: 50 };
   const opts = { systemPrompt: "test", llm, builtInTools: { subAgent: true } };
-  assert.match(buildSystemPrompt("base", opts, limits), /issue at most 4 SubAgent calls per turn/);
-  assert.match(buildSystemPrompt("base", { ...opts, maxConcurrentSubAgents: 2 }, limits), /issue at most 2 SubAgent calls per turn/);
+  assert.match(buildSystemPrompt("base", opts, limits), /issue at most 8 SubAgent calls per turn/);
+  assert.match(buildSystemPrompt("base", { ...opts, maxConcurrentSubAgents: 2 }, limits), /issue at most 8 SubAgent calls per turn/);
+  assert.match(buildSystemPrompt("base", opts, { ...limits, maxParallelToolCalls: 3 }), /issue at most 3 SubAgent calls per turn/);
 });
 
 test("an injected LLM client is used as-is", async () => {
