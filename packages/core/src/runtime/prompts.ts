@@ -53,8 +53,11 @@ export function renderTurnBudget(used: number, maxTurns: number): string | undef
   return `<system-reminder>Turns used: ${used}/${maxTurns} (${remaining} left). Wrap up now: stop opening new lines of investigation, record what you found, and finish the deliverable.</system-reminder>`;
 }
 
-export function renderPostCompactNotice(notesPath: string): string {
-  return `<system-reminder>Context was compacted — the older messages were replaced by a summary. The facts you recorded are in \`${notesPath}\`; re-read that file instead of re-exploring.</system-reminder>`;
+export function renderPostCompactNotice(notesPath?: string): string {
+  if (notesPath) {
+    return `<system-reminder>Context was compacted — the older messages were replaced by a summary. The facts you recorded are in \`${notesPath}\`; re-read that file instead of re-exploring.</system-reminder>`;
+  }
+  return "<system-reminder>Context was compacted — the older messages were replaced by a summary. Re-read the sources you still depend on instead of relying on recall.</system-reminder>";
 }
 
 export const TOOL_OUTPUT_GUIDANCE =

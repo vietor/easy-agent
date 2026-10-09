@@ -375,14 +375,16 @@ test("the turn after a compaction points the model back at its notes file", asyn
   assert.ok(texts.some((t) => t.includes("Context was compacted")), "the model must be told its context was compacted");
 });
 
-test("a compaction without a notes file adds no notice", async () => {
+test("a compaction without a notes file still tells the model it was compacted", async () => {
   const { llm, calls } = fakeLLM([
     () => ({ role: "assistant", content: "SUMMARY" }),
     () => ({ role: "assistant", content: "done" }),
   ]);
   const { agent } = makeAgent(llm, { contextLimit: 1000 });
   assert.equal(await agent.run("a".repeat(5000)), "ok");
-  assert.ok(!calls[1].messages.map(textContent).some((t) => t.includes("Context was compacted")));
+  const texts = calls[1].messages.map(textContent);
+  assert.ok(texts.some((t) => t.includes("Context was compacted")));
+  assert.ok(!texts.some((t) => t.includes("notes")));
 });
 
 test("tool schemas count toward the context limit", async () => {

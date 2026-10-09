@@ -175,7 +175,7 @@ export class Agent {
       return "error";
     }
     this.conversation.compact(compactText, keepTail ? Math.floor(this.contextLimit * COMPACT_TAIL_RATIO) : 0);
-    if (this.notesPath) this.pendingCompactNotice = renderPostCompactNotice(this.notesPath);
+    this.pendingCompactNotice = renderPostCompactNotice(this.notesPath);
     this.onCompact?.();
     return "ok";
   }
